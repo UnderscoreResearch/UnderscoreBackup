@@ -1,0 +1,9 @@
+*.iml
+*.bak
+*~
+.idea
+.gradle
+gradle
+build
+target
+dependency-reduced-pom.xml
