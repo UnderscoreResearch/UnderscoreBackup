@@ -4,11 +4,9 @@ The application is still under heavy development and even though most functional
 
 A backup solution with the following features.
 
-* Public key based encryption allows cotinuously running backups that can only be read with a key not available on the
- server running the backup.
+* Public key based encryption allows continuously running backups that can only be read with a key not available on the server running the backup.
 
-* Pre egress encryption means no proprietary data leaves your system in a format where it can be comprimised as long as
- your private key is not compromised.
+* Pre-egress encryption means no proprietary data leaves your system in a format where it can be compromised as long as your private key is not compromised.
 
 * Runs entirely without a service component.
 
@@ -25,7 +23,7 @@ single repository.
 
 * Optional error correction to support unreliable storage destinations.
 
-* Encryption, error correction and destination IO are plugin based and easily extendible.
+* Encryption, error correction and destination IO are plugin based and easily extendable.
 
 * Currently supports local file and S3 for backup destinations.
 
