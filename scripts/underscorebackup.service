@@ -1,0 +1,13 @@
+[Unit]
+Description=Underscore Backup
+
+[Service]
+User=root
+WorkingDirectory=/tmp
+ExecStart=/opt/underscorebackup/bin/startbackupservice.sh
+SuccessExitStatus=0
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=60
+[Install]
+WantedBy=multi-user.target
