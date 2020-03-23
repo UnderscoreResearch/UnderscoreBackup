@@ -1,18 +1,19 @@
 package com.underscoreresearch.backup.model;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-
-import java.util.List;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import org.jetbrains.annotations.NotNull;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.List;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @Data
 @Builder
@@ -37,6 +38,14 @@ public class BackupFile implements Comparable<BackupFile> {
         if (backupFile.lastChanged == null)
             return 1;
         return lastChanged.compareTo(backupFile.lastChanged);
+    }
+
+    @JsonIgnore
+    public LocalDateTime toTime() {
+        if (lastChanged != null) {
+            return LocalDateTime.ofInstant(Instant.ofEpochMilli(lastChanged), OffsetDateTime.now().getOffset());
+        }
+        return null;
     }
 
     @JsonIgnore

@@ -1,6 +1,8 @@
 plugins {
     id 'java'
     id 'application'
+    id 'distribution'
+    id 'edu.sc.seis.launch4j' version '2.4.6'
 }
 
 application {
@@ -9,7 +11,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.1'
+version '0.2'
 
 sourceCompatibility = 1.8
 
@@ -29,9 +31,46 @@ sourceSets {
     }
 }
 
+task consoleexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
+    mainClassName = 'com.underscoreresearch.backup.cli.Main'
+    outfile = "underscorebackup.exe"
+    headerType = "console"
+    bundledJrePath = "..\\jre"
+    bundledJre64Bit = true
+    priority = "idle"
+    jreMinVersion = 1.8
+    maxHeapSize = 128
+}
+
+task guiexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
+    mainClassName = 'com.underscoreresearch.backup.cli.Main'
+    outfile = "underscorebackup-gui.exe"
+    headerType = "gui"
+    bundledJrePath = "..\\jre"
+    bundledJre64Bit = true
+    priority = "idle"
+    jreMinVersion = 1.8
+    maxHeapSize = 128
+}
+
+task installerDef(type: Copy) {
+    from("${rootProject.projectDir}/windows/innosetup.iss")
+    rename("innosetup.iss", "innosetup-expanded.iss")
+    expand([
+            applicationVersion: "${version}"
+    ])
+    into("${rootProject.projectDir}/windows")
+}
+
+task installer(dependsOn: [guiexe, consoleexe, installerDef], type:Exec) {
+    workingDir 'windows'
+    executable 'C:\\Program Files (x86)\\Inno Setup 6\\iscc.exe'
+    args "innosetup-expanded.iss"
+}
+
 distributions {
     main {
-        distributionBaseName = 'underscorebackup'
+        baseName 'underscorebackup'
         contents {
             from('.') {
                 include 'README.md'
@@ -41,13 +80,14 @@ distributions {
         }
     }
 }
+
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation (
-            'com.amazonaws:aws-java-sdk-s3:1.11.723',
+    compile (
+            'com.amazonaws:aws-java-sdk-s3:1.11.728',
             'com.fasterxml.jackson.core:jackson-databind:2.10.2',
             'com.google.guava:guava:28.2-jre',
             'com.joestelmach:natty:0.13',
@@ -66,7 +106,7 @@ dependencies {
     testImplementation (
             'org.hamcrest:hamcrest:2.2',
             'org.junit.jupiter:junit-jupiter:5.6.0',
-            'org.mockito:mockito-junit-jupiter:3.2.4'
+            'org.mockito:mockito-junit-jupiter:3.3.0'
     )
 
     testRuntimeOnly (

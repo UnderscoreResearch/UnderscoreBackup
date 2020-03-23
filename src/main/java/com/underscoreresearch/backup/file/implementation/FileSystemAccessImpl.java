@@ -1,6 +1,9 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.model.BackupFile;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,11 +15,7 @@ import java.nio.file.Path;
 import java.util.Set;
 import java.util.TreeSet;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.model.BackupFile;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @Slf4j
 public class FileSystemAccessImpl implements FileSystemAccess {

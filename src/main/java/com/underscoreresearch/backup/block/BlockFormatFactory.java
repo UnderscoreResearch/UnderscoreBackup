@@ -1,15 +1,14 @@
 package com.underscoreresearch.backup.block;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupFilePart;
+import org.reflections.Reflections;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import org.reflections.Reflections;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupFilePart;
 
 public final class BlockFormatFactory {
     private static Map<String, Class> blockFormats;

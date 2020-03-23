@@ -1,19 +1,18 @@
 package com.underscoreresearch.backup.errorcorrection;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.io.IOException;
-import java.util.List;
-
+import com.underscoreresearch.backup.errorcorrection.implementation.ReedSolomonErrorCorrector;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.underscoreresearch.backup.errorcorrection.implementation.ReedSolomonErrorCorrector;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
+import java.io.IOException;
+import java.util.List;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ReedSolomonErrorCorrectorTest {
     private byte[] data;

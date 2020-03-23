@@ -1,20 +1,14 @@
 package com.underscoreresearch.backup.model;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.*;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
@@ -23,6 +17,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class BackupActivePath {
     @JsonIgnore
     private Map<String, BackupActiveFile> files = new HashMap<>();
+
+    @JsonIgnore
+    @Getter
+    @Setter
+    private List<String> setIds;
 
     @JsonProperty
     public Set<BackupActiveFile> getFiles() {
@@ -35,6 +34,7 @@ public class BackupActivePath {
                 t -> t));
     }
 
+    @JsonIgnore
     public void setParentPath(String parent) {
         String realParent;
         if (!parent.endsWith(PATH_SEPARATOR))
@@ -121,6 +121,7 @@ public class BackupActivePath {
     }
 
     public void mergeChanges(BackupActivePath otherPaths) {
+        getSetIds().addAll(otherPaths.getSetIds());
         for (Map.Entry<String, BackupActiveFile> entry : otherPaths.files.entrySet()) {
             BackupActiveFile existingFile = files.get(entry.getKey());
             if (existingFile == null || existingFile.getStatus() == BackupActiveStatus.EXCLUDED) {

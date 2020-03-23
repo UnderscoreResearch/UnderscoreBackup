@@ -1,20 +1,15 @@
 package com.underscoreresearch.backup.utils;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import lombok.extern.slf4j.Slf4j;
 
-import java.lang.management.GarbageCollectorMXBean;
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.MemoryPoolMXBean;
-import java.lang.management.MemoryUsage;
+import java.lang.management.*;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @Slf4j
 public class InternalStateLogger implements Runnable {

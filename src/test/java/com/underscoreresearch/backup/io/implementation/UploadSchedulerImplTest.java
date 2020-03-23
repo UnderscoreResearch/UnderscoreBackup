@@ -1,27 +1,22 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static org.hamcrest.MatcherAssert.assertThat;
+import com.google.common.base.Stopwatch;
+import com.underscoreresearch.backup.io.*;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupLimits;
+import com.underscoreresearch.backup.model.BackupUploadCompletion;
+import org.hamcrest.Matchers;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.hamcrest.Matchers;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import com.google.common.base.Stopwatch;
-import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.io.RateLimitController;
-import com.underscoreresearch.backup.io.UploadScheduler;
-import com.underscoreresearch.backup.model.BackupDestination;
-import com.underscoreresearch.backup.model.BackupLimits;
-import com.underscoreresearch.backup.model.BackupUploadCompletion;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 public class UploadSchedulerImplTest {
     private RateLimitController rateLimitController;
@@ -54,6 +49,11 @@ public class UploadSchedulerImplTest {
         @Override
         public byte[] download(String key) throws IOException {
             throw new RuntimeException("Shouldn't get here");
+        }
+
+        @Override
+        public void delete(String key) throws IOException {
+
         }
     }
 

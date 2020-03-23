@@ -1,30 +1,23 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.*;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
 
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.model.BackupActiveFile;
-import com.underscoreresearch.backup.model.BackupActivePath;
-import com.underscoreresearch.backup.model.BackupActiveStatus;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupLocation;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class MapdbMetadataRepositoryTest {
     private static final String PATH = PATH_SEPARATOR + "test" + PATH_SEPARATOR + "path";
@@ -109,9 +102,9 @@ class MapdbMetadataRepositoryTest {
         assertNull(repository.directory(PATH));
 
         Long timestamp = Instant.now().toEpochMilli();
-        repository.addDirectory(PATH, timestamp, Sets.newHashSet("a, b"));
-        assertThat(repository.directory(PATH), Is.is(ImmutableMap.of(timestamp, Sets.newHashSet("a, b"))));
-        assertThat(repository.lastDirectory(PATH), Is.is(Sets.newHashSet("a, b")));
+        repository.addDirectory(new BackupDirectory(PATH, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b"))));
+        assertThat(repository.lastDirectory(PATH), Is.is(new BackupDirectory(PATH, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b")))));
+        assertThat(repository.directory(PATH), Is.is(Lists.newArrayList(new BackupDirectory(PATH, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b"))))));
 
         repository.deleteDirectory(PATH, timestamp);
         assertNull(repository.directory(PATH));
@@ -127,6 +120,8 @@ class MapdbMetadataRepositoryTest {
         BackupActivePath p2 = new BackupActivePath("a",
                 Sets.newHashSet(new BackupActiveFile("c"),
                         new BackupActiveFile("d")));
+        p1.setSetIds(Lists.newArrayList("s1"));
+        p2.setSetIds(Lists.newArrayList("s1"));
 
         repository.pushActivePath("s1", PATH_SEPARATOR + "a", p1);
         repository.pushActivePath("s2", PATH_SEPARATOR + "a", p1);
@@ -134,9 +129,12 @@ class MapdbMetadataRepositoryTest {
 
         assertThat(repository.getActivePaths("s1"), Is.is(ImmutableMap.of(PATH_SEPARATOR + "a", p1,
                 PATH_SEPARATOR + "a" + PATH_SEPARATOR + "b", p2)));
+
+        p1.setSetIds(Lists.newArrayList("s2", "s1"));
         assertThat(repository.getActivePaths(null), Is.is(ImmutableMap.of(PATH_SEPARATOR + "a", p1,
                 PATH_SEPARATOR + "a" + PATH_SEPARATOR + "b", p2)));
 
+        p1.setSetIds(Lists.newArrayList("s1"));
         repository.popActivePath("s1", PATH_SEPARATOR + "a" + PATH_SEPARATOR + "b");
         assertThat(repository.getActivePaths("s1"), Is.is(ImmutableMap.of(PATH_SEPARATOR + "a",
                 p1)));
@@ -159,16 +157,17 @@ class MapdbMetadataRepositoryTest {
         repository.pushActivePath("s1", PATH_SEPARATOR + "a", p1);
         repository.pushActivePath("s2", PATH_SEPARATOR + "a", p2);
 
+        BackupActivePath combinedActivePath = new BackupActivePath("a",
+                Sets.newHashSet(
+                        BackupActiveFile.builder().path("a").status(BackupActiveStatus.INCOMPLETE).build(),
+                        BackupActiveFile.builder().path("b").status(BackupActiveStatus.INCLUDED).build(),
+                        BackupActiveFile.builder().path("c").status(BackupActiveStatus.INCLUDED).build(),
+                        BackupActiveFile.builder().path("d").status(BackupActiveStatus.EXCLUDED).build(),
+                        BackupActiveFile.builder().path("e").status(BackupActiveStatus.EXCLUDED).build()));
+        combinedActivePath.setSetIds(Lists.newArrayList("s2", "s1"));
         assertThat(repository.getActivePaths(null), Is.is(
                 ImmutableMap.of(PATH_SEPARATOR + "a",
-                        new BackupActivePath("a",
-                                Sets.newHashSet(
-                                        BackupActiveFile.builder().path("a").status(BackupActiveStatus.INCOMPLETE).build(),
-                                        BackupActiveFile.builder().path("b").status(BackupActiveStatus.INCLUDED).build(),
-                                        BackupActiveFile.builder().path("c").status(BackupActiveStatus.INCLUDED).build(),
-                                        BackupActiveFile.builder().path("d").status(BackupActiveStatus.EXCLUDED).build(),
-                                        BackupActiveFile.builder().path("e").status(BackupActiveStatus.EXCLUDED).build()))
-                )));
+                        combinedActivePath)));
     }
 
     @Test
@@ -177,6 +176,23 @@ class MapdbMetadataRepositoryTest {
         repository.deleteFilePart(filePart);
         repository.deleteBlock(backupBlock);
         repository.popActivePath("s1", "whatever");
+    }
+
+    @Test
+    public void testDeleteBlocks() throws IOException {
+        for (int i = 0; i < 10000; i++) {
+            repository.addBlock(BackupBlock.builder().hash(i + "").build());
+        }
+
+        repository.allBlocks().filter(t -> Integer.parseInt(t.getHash()) % 2 == 0).forEach(t -> {
+            try {
+                repository.deleteBlock(t);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        assertThat(repository.allBlocks().count(), Is.is(5000L));
     }
 
     @AfterEach

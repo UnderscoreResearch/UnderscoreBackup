@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.utils;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
-import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupFile;
+import org.apache.commons.cli.CommandLine;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -10,10 +10,9 @@ import java.time.format.FormatStyle;
 import java.util.Calendar;
 import java.util.TimeZone;
 
-import org.apache.commons.cli.CommandLine;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupFile;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
+import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
 public final class LogUtil {
     private static final TimeZone LOCAL_TIMEZONE;

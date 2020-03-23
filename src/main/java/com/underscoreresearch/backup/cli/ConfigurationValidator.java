@@ -1,26 +1,21 @@
 package com.underscoreresearch.backup.cli;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.model.*;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.SystemUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 
-import com.underscoreresearch.backup.file.PathNormalizer;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.lang.SystemUtils;
-
-import com.google.common.base.Strings;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
-import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
-import com.underscoreresearch.backup.model.BackupManifest;
-import com.underscoreresearch.backup.model.BackupSet;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @Slf4j
 public class ConfigurationValidator {
@@ -149,6 +144,40 @@ public class ConfigurationValidator {
                 if (!configuration.getDestinations().containsKey(destination)) {
                     throw new IllegalArgumentException("Destination " + destination + " used in backup set "
                             + backupSet.getId() + " is not defined");
+                }
+            }
+
+            if (backupSet.getRetention() == null) {
+                backupSet.setRetention(new BackupRetention());
+            } else if (backupSet.getRetention() != null) {
+                long previousFrequency = 0;
+
+                if (backupSet.getRetention().getDefaultFrequency() == null) {
+                    backupSet.getRetention().setDefaultFrequency(new BackupTimespan());
+                }
+
+                if (backupSet.getRetention().getRetainDeleted() == null) {
+                    backupSet.getRetention().setRetainDeleted(new BackupTimespan());
+                }
+
+                previousFrequency = backupSet.getRetention().getDefaultFrequency().toEpochMilli();
+
+                if (backupSet.getRetention().getOlder() != null) {
+
+                    for (BackupRetentionAdditional older : backupSet.getRetention().getOlder()) {
+                        if (older.getValidAfter() == null)
+                            throw new IllegalArgumentException("Missing validAfter of retention in set "
+                                    + backupSet.getId());
+
+                        if (older.getFrequency() == null) {
+                            older.setFrequency(new BackupTimespan());
+                        }
+                        long frequency = older.getFrequency().toEpochMilli();
+                        if (previousFrequency < frequency) {
+                            throw new IllegalArgumentException("Older frequencies must have longer frequencies than the previous records");
+                        }
+                        previousFrequency = frequency;
+                    }
                 }
             }
 

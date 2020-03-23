@@ -1,23 +1,24 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-
-import java.io.IOException;
-import java.text.ParseException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.manifest.RepositoryTrimmer;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupSet;
+import lombok.extern.slf4j.Slf4j;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+
+import java.io.IOException;
+import java.text.ParseException;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 @Slf4j
 class ScannerSchedulerImplTest {
@@ -25,6 +26,7 @@ class ScannerSchedulerImplTest {
     private FileScanner scanner;
     private BackupSet set1;
     private BackupSet set2;
+    private RepositoryTrimmer trimmer;
     private MetadataRepository repository;
 
     private static class FileScannerTest implements FileScanner {
@@ -60,6 +62,7 @@ class ScannerSchedulerImplTest {
     @BeforeEach
     public void setup() throws ParseException {
         scanner = Mockito.spy(new FileScannerTest());
+        trimmer = Mockito.mock(RepositoryTrimmer.class);
         set1 = BackupSet.builder().id("set1").schedule("* * * * * ?").root("/prio").build();
         set2 = BackupSet.builder().id("set2").schedule("*/2 * * * * ?").root("/slower").build();
         repository = Mockito.mock(MetadataRepository.class);
@@ -71,7 +74,7 @@ class ScannerSchedulerImplTest {
 
     @Test
     public void test() throws IOException {
-        ScannerSchedulerImpl scannerScheduler = new ScannerSchedulerImpl(configuration, repository, scanner);
+        ScannerSchedulerImpl scannerScheduler = new ScannerSchedulerImpl(configuration, repository, trimmer, scanner);
         new Thread(() -> {
             try {
                 Thread.sleep(2500);
@@ -81,7 +84,12 @@ class ScannerSchedulerImplTest {
         }).start();
         scannerScheduler.start();
         Mockito.verify(scanner, Mockito.times(2)).startScanning(set1);
-        Mockito.verify(repository).addDirectory(eq(""), anyLong(), eq(Sets.newHashSet("/prio/", "/slower/")));
+        ArgumentCaptor<BackupDirectory> rootDir = ArgumentCaptor.forClass(BackupDirectory.class);
+        Mockito.verify(repository).addDirectory(rootDir.capture());
+
+        assertThat(rootDir.getValue().getPath(), Is.is(""));
+        assertThat(rootDir.getValue().getFiles(), Is.is(Sets.newTreeSet(Lists.newArrayList("/prio/", "/slower/"))));
+
         Mockito.verify(scanner).startScanning(set2);
         Mockito.verify(scanner, Mockito.times(2)).shutdown();
     }

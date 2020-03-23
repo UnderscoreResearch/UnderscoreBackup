@@ -1,16 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-
-import java.io.File;
-import java.io.IOException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -20,11 +9,20 @@ import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+
+import java.io.File;
+import java.io.IOException;
+
+import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
 
 @CommandPlugin(value = "rebuild-repository", description = "Rebuild repository metadata from logs",
         readonlyRepository = false)
 @Slf4j
-public class ReplayLogCommand extends Command {
+public class RebuildRepositoryCommand extends Command {
 
     private void cleanDir(File tempDir) {
         String[] entries = tempDir.list();

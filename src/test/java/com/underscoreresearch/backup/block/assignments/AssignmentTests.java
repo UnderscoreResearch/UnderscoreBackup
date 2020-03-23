@@ -1,12 +1,16 @@
 package com.underscoreresearch.backup.block.assignments;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.model.*;
+import org.hamcrest.Matchers;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -17,24 +21,10 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.hamcrest.Matchers;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
-import com.underscoreresearch.backup.model.BackupCompletion;
-import com.underscoreresearch.backup.model.BackupData;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupSet;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.*;
 
 class AssignmentTests {
     private BackupSet set;

@@ -1,24 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAULT_KEY_FILES;
-import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
-
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
-import java.time.Instant;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang.SystemUtils;
-import org.apache.logging.log4j.core.util.IOUtils;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Strings;
@@ -30,6 +11,19 @@ import com.joestelmach.natty.DateGroup;
 import com.joestelmach.natty.Parser;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.*;
+import org.apache.commons.lang.SystemUtils;
+import org.apache.logging.log4j.core.util.IOUtils;
+
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.time.Instant;
+
+import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAULT_KEY_FILES;
+import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 
 @Slf4j
 public class CommandLineModule extends AbstractModule {

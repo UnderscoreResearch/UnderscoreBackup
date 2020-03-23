@@ -1,25 +1,19 @@
 package com.underscoreresearch.backup.model;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import com.underscoreresearch.backup.file.PathNormalizer;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @Data
 @NoArgsConstructor
@@ -37,6 +31,7 @@ public class BackupSet {
     private String schedule;
     private List<BackupFilter> filters;
     private List<String> destinations;
+    private BackupRetention retention;
 
     public void setNormalizedRoot(String root) {
         if (root != null && !root.endsWith(PATH_SEPARATOR)) {
@@ -75,7 +70,7 @@ public class BackupSet {
                      @JsonProperty("schedule") String schedule,
                      @JsonProperty("filters") List<BackupFilter> filters,
                      @JsonProperty("destinations") List<String> destinations) {
-        setRoot(PathNormalizer.normalizePath(root));
+        setRoot(root);
         setExclusions(exclusions);
 
         this.id = id;

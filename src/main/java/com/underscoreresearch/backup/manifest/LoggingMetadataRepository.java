@@ -1,39 +1,29 @@
 package com.underscoreresearch.backup.manifest;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.NavigableSet;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
-import com.underscoreresearch.backup.model.BackupActivePath;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.*;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @Slf4j
 public class LoggingMetadataRepository implements MetadataRepository, LogConsumer {
+    private static final long CURRENT_SPAN = 60 * 1000;
     private final MetadataRepository repository;
     private final ManifestManager manifestManager;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -78,7 +68,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 .put("deleteBlock", (json) -> repository.deleteBlock(mapper.readValue(json, BackupBlock.class)))
                 .put("dir", (json) -> {
                     BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
-                    repository.addDirectory(dir.getPath(), dir.getTimestamp(), dir.getFiles());
+                    repository.addDirectory(dir);
                 })
                 .put("deleteDir", (json) -> {
                     BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
@@ -175,6 +165,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public Stream<BackupDirectory> allDirectories() throws IOException {
+        return repository.allDirectories();
+    }
+
+    @Override
     public boolean deleteFilePart(BackupFilePart filePart) throws IOException {
         writeLogEntry("deletePart", filePart);
         return repository.deleteFilePart(filePart);
@@ -198,25 +193,43 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public void addDirectory(String path, Long timestamp, Set<String> files) throws IOException {
-        if (!files.equals(repository.lastDirectory(path))) {
-            writeLogEntry("dir", new BackupDirectory(path, timestamp, files));
-            repository.addDirectory(path, timestamp, files);
+    public void addDirectory(BackupDirectory directory) throws IOException {
+        BackupDirectory currentData;
+        if (Instant.now().toEpochMilli() - directory.getTimestamp() < CURRENT_SPAN)
+            currentData = repository.lastDirectory(directory.getPath());
+        else {
+            List<BackupDirectory> set = repository.directory(directory.getPath());
+
+            currentData = null;
+            if (set != null) {
+                for (BackupDirectory entry : set) {
+                    if (entry.getTimestamp() <= directory.getTimestamp()) {
+                        currentData = entry;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (currentData == null || !directory.getFiles().equals(currentData.getFiles())) {
+            writeLogEntry("dir", directory);
+            repository.addDirectory(directory);
         }
     }
 
     @Override
-    public NavigableMap<Long, NavigableSet<String>> directory(String path) throws IOException {
+    public List<BackupDirectory> directory(String path) throws IOException {
         return repository.directory(path);
     }
 
     @Override
-    public NavigableSet<String> lastDirectory(String path) throws IOException {
+    public BackupDirectory lastDirectory(String path) throws IOException {
         return repository.lastDirectory(path);
     }
 
     @Override
-    public boolean deleteDirectory(String path, Long timestamp) throws IOException {
+    public boolean deleteDirectory(String path, long timestamp) throws IOException {
         writeLogEntry("deleteDir", new BackupDirectory(path, timestamp, null));
         return repository.deleteDirectory(path, timestamp);
     }
@@ -228,7 +241,12 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
             if (!pendingActivePaths.containsKey(fullPath) && !repository.hasActivePath(setId, path))
                 missingActivePaths.add(fullPath);
-            pendingActivePaths.put(fullPath, new PendingActivePath(pendingFiles));
+            pendingActivePaths.put(fullPath, new PendingActivePath(new BackupActivePath(path,
+                    pendingFiles
+                            .getFiles()
+                            .stream()
+                            .map((file) -> new BackupActiveFile(file.getPath(), file.getStatus()))
+                            .collect(Collectors.toSet()))));
         }
     }
 

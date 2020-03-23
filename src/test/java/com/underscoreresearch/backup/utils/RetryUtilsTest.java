@@ -1,13 +1,13 @@
 package com.underscoreresearch.backup.utils;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.commons.cli.ParseException;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 class RetryUtilsTest {
     @Test

@@ -1,14 +1,13 @@
 package com.underscoreresearch.backup.model;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Sets;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 class BackupActivePathTest {
     private BackupActivePath path;
