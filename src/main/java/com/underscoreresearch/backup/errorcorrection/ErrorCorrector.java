@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.errorcorrection;
 
-import java.util.List;
-
 import com.underscoreresearch.backup.model.BackupBlockStorage;
+
+import java.util.List;
 
 public interface ErrorCorrector {
     List<byte[]> encodeErrorCorrection(BackupBlockStorage storage, byte[] originalData) throws Exception;

@@ -1,23 +1,5 @@
 package com.underscoreresearch.backup.block.assignments;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.ExecutionException;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
-
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -30,14 +12,20 @@ import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupBlockCompletion;
-import com.underscoreresearch.backup.model.BackupCompletion;
-import com.underscoreresearch.backup.model.BackupData;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupLocation;
-import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.*;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 @RequiredArgsConstructor
 @Slf4j

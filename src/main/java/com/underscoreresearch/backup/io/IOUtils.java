@@ -1,13 +1,13 @@
 package com.underscoreresearch.backup.io;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.concurrent.Callable;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class IOUtils {

@@ -1,28 +1,5 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.time.Instant;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.hamcrest.core.Is;
-import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.mockito.invocation.Invocation;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -33,13 +10,30 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.MemoryIOProvider;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
-import com.underscoreresearch.backup.model.BackupActivePath;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupManifest;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.*;
+import org.hamcrest.core.Is;
+import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.mockito.invocation.Invocation;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 
 class ManifestManagerImplTest {
     private static final String PUBLIC_KEY_DATA = "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}";
@@ -71,7 +65,7 @@ class ManifestManagerImplTest {
                 .build();
 
         rateLimitController = Mockito.mock(RateLimitController.class);
-        memoryIOProvider = Mockito.spy(new MemoryIOProvider());
+        memoryIOProvider = Mockito.spy(new MemoryIOProvider(null));
         memoryIOProvider.upload("publickey.json", PUBLIC_KEY_DATA.getBytes("UTF-8"));
         encryptor = Mockito.spy(new NoneEncryptor());
     }
@@ -120,7 +114,8 @@ class ManifestManagerImplTest {
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
         repository.popActivePath("s1", "/c");
-        repository.addDirectory("d", Instant.now().toEpochMilli(), Sets.newHashSet("e", "f"));
+        repository.addDirectory(new BackupDirectory("d", Instant.now().toEpochMilli(),
+                Sets.newTreeSet(Lists.newArrayList("e", "f"))));
         repository.deleteBlock(BackupBlock.builder().hash("g").build());
         repository.addBlock(BackupBlock.builder().hash("h").build());
         repository.deleteFilePart(BackupFilePart.builder().partHash("i").build());

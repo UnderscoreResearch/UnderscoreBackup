@@ -1,18 +1,17 @@
 package com.underscoreresearch.backup.errorcorrection.implementation;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.List;
-import java.util.zip.CRC32;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorPlugin;
 import com.underscoreresearch.backup.errorcorrection.implementation.reedsolomon.ReedSolomon;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
+import java.util.zip.CRC32;
 
 @ErrorCorrectorPlugin("RS")
 @Slf4j

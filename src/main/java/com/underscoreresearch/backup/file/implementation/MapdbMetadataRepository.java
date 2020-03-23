@@ -1,50 +1,30 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.*;
+import lombok.extern.slf4j.Slf4j;
+import org.mapdb.*;
+import org.mapdb.serializer.SerializerArrayTuple;
+
+import java.io.*;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.FileLockInterruptionException;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.NavigableSet;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.mapdb.BTreeMap;
-import org.mapdb.DB;
-import org.mapdb.DBMaker;
-import org.mapdb.HTreeMap;
-import org.mapdb.Serializer;
-import org.mapdb.serializer.SerializerArrayTuple;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.model.BackupActivePath;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupLocation;
 
 @Slf4j
 public class MapdbMetadataRepository implements MetadataRepository {
@@ -288,7 +268,9 @@ public class MapdbMetadataRepository implements MetadataRepository {
         if (open) {
             commit();
 
-            scheduledThreadPoolExecutor.shutdownNow();
+            if (scheduledThreadPoolExecutor != null) {
+                scheduledThreadPoolExecutor.shutdownNow();
+            }
 
             blockMap.close();
             fileMap.close();
@@ -349,7 +331,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
     public synchronized Stream<BackupFile> allFiles() throws IOException {
         ensureOpen();
 
-        return fileMap.entrySet().stream().map((entry) -> {
+        return fileMap.descendingMap().entrySet().stream().map((entry) -> {
             try {
                 return decodrateFile(entry);
             } catch (IOException e) {
@@ -371,6 +353,21 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 return BackupBlock.builder().build();
             }
         }).filter(t -> t.getHash() != null);
+    }
+
+    @Override
+    public Stream<BackupDirectory> allDirectories() throws IOException {
+        ensureOpen();
+
+        return directoryMap.descendingMap().entrySet().stream().map((entry) -> {
+            try {
+                return new BackupDirectory((String) entry.getKey()[0], (Long) entry.getKey()[1],
+                        decodeData(BACKUP_SET_READER, entry.getValue()));
+            } catch (IOException e) {
+                log.error("Invalid directory " + entry.getKey()[0], e);
+                return new BackupDirectory();
+            }
+        });
     }
 
     private synchronized BackupFilePart decodePath(Map.Entry<Object[], byte[]> entry) throws IOException {
@@ -415,30 +412,33 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized NavigableMap<Long, NavigableSet<String>> directory(String path) throws IOException {
+    public synchronized List<BackupDirectory> directory(String path) throws IOException {
         ensureOpen();
 
         Map<Object[], byte[]> query =
                 directoryMap.prefixSubMap(new Object[]{path});
-        NavigableMap<Long, NavigableSet<String>> directories = null;
+        List<BackupDirectory> directories = null;
         for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
             if (directories == null) {
-                directories = new TreeMap<>();
+                directories = new ArrayList<>();
             }
-            directories.put((Long) entry.getKey()[1], decodeData(BACKUP_SET_READER, entry.getValue()));
+            directories.add(new BackupDirectory(path,
+                    (Long) entry.getKey()[1],
+                    decodeData(BACKUP_SET_READER, entry.getValue())));
         }
         return directories;
     }
 
     @Override
-    public synchronized NavigableSet<String> lastDirectory(String path) throws IOException {
+    public synchronized BackupDirectory lastDirectory(String path) throws IOException {
         ensureOpen();
 
         NavigableMap<Object[], byte[]> query =
                 directoryMap.prefixSubMap(new Object[]{path});
         if (query.size() > 0) {
             Map.Entry<Object[], byte[]> entry = query.lastEntry();
-            return decodeData(BACKUP_SET_READER, entry.getValue());
+            return new BackupDirectory(path, (Long) entry.getKey()[1],
+                    decodeData(BACKUP_SET_READER, entry.getValue()));
         }
         return null;
     }
@@ -483,11 +483,11 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized void addDirectory(String path, Long timestamp, Set<String> files) throws IOException {
+    public synchronized void addDirectory(BackupDirectory directory) throws IOException {
         ensureOpen();
 
-        directoryMap.put(new Object[]{path, timestamp},
-                encodeData(BACKUP_SET_WRITER, files));
+        directoryMap.put(new Object[]{directory.getPath(), directory.getTimestamp()},
+                encodeData(BACKUP_SET_WRITER, directory.getFiles()));
     }
 
     @Override
@@ -512,7 +512,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized boolean deleteDirectory(String path, Long timestamp) throws IOException {
+    public synchronized boolean deleteDirectory(String path, long timestamp) throws IOException {
         ensureOpen();
 
         return directoryMap.remove(new Object[]{path, timestamp}) != null;
@@ -569,6 +569,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             BackupActivePath activePath = decodeData(BACKUP_ACTIVE_READER, entry.getValue());
             String path = (String) entry.getKey()[1];
             activePath.setParentPath(path);
+            activePath.setSetIds(Lists.newArrayList((String) entry.getKey()[0]));
 
             BackupActivePath existingActive = ret.get(path);
             if (existingActive != null) {

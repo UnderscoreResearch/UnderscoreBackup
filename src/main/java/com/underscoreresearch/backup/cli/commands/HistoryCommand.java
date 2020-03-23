@@ -1,24 +1,22 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
-import static com.underscoreresearch.backup.utils.LogUtil.printFile;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupFile;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
+import static com.underscoreresearch.backup.utils.LogUtil.printFile;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @CommandPlugin(value = "history", args = "[FILES]...", description = "List file history", needPrivateKey = false)
 @Slf4j

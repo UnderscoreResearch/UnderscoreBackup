@@ -1,22 +1,22 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
-
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.model.BackupDestination;
+
+import java.io.IOException;
+import java.util.*;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @IOPlugin("MEMORY")
 public class MemoryIOProvider implements IOProvider, IOIndex {
     private Map<String, byte[]> contents = new TreeMap<>();
+
+    public MemoryIOProvider(BackupDestination destination) {
+    }
 
     @Override
     public List<String> availableKeys(String prefix) throws IOException {
@@ -46,5 +46,10 @@ public class MemoryIOProvider implements IOProvider, IOIndex {
     @Override
     public byte[] download(String key) throws IOException {
         return contents.get(key);
+    }
+
+    @Override
+    public void delete(String key) throws IOException {
+        contents.remove(key);
     }
 }

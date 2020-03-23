@@ -1,23 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.NULL_FILE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.OVER_WRITE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
@@ -28,6 +10,20 @@ import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupFile;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.NULL_FILE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.*;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @CommandPlugin(value = "restore", args = "[FILES]... [DESTINATION]", description = "Restore data. Use the destination \"-\" to not write data, but simply validate that data is available from destinations")
 @Slf4j

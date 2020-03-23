@@ -1,17 +1,15 @@
 package com.underscoreresearch.backup.file;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.NavigableMap;
-import java.util.NavigableSet;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.stream.Stream;
-
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.TreeMap;
+import java.util.stream.Stream;
 
 public interface MetadataRepository {
     void addFile(BackupFile file) throws IOException;
@@ -24,10 +22,6 @@ public interface MetadataRepository {
 
     List<BackupFilePart> existingFilePart(String partHash) throws IOException;
 
-    Stream<BackupFile> allFiles() throws IOException;
-
-    Stream<BackupBlock> allBlocks() throws IOException;
-
     boolean deleteFilePart(BackupFilePart filePart) throws IOException;
 
     void addBlock(BackupBlock block) throws IOException;
@@ -36,13 +30,13 @@ public interface MetadataRepository {
 
     boolean deleteBlock(BackupBlock block) throws IOException;
 
-    void addDirectory(String path, Long timestamp, Set<String> files) throws IOException;
+    void addDirectory(BackupDirectory directory) throws IOException;
 
-    NavigableMap<Long, NavigableSet<String>> directory(String path) throws IOException;
+    List<BackupDirectory> directory(String path) throws IOException;
 
-    NavigableSet<String> lastDirectory(String path) throws IOException;
+    BackupDirectory lastDirectory(String path) throws IOException;
 
-    boolean deleteDirectory(String path, Long timestamp) throws IOException;
+    boolean deleteDirectory(String path, long timestamp) throws IOException;
 
     void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException;
 
@@ -57,4 +51,16 @@ public interface MetadataRepository {
     void open(boolean readOnly) throws IOException;
 
     void close() throws IOException;
+
+    /**
+     * All files in repository. Must be sorted by path and timestamp in descending order.
+     */
+    Stream<BackupFile> allFiles() throws IOException;
+
+    Stream<BackupBlock> allBlocks() throws IOException;
+
+    /**
+     * All directories in repository. Must be sorted by path and timestamp in descending order.
+     */
+    Stream<BackupDirectory> allDirectories() throws IOException;
 }

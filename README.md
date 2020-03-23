@@ -38,7 +38,7 @@ Download one of the releases and unpack somewhere where you can run it. On Linux
 
 First thing to do is create your public key that will be used for all encryption operations. The key is derived from a passphrase and you generate it by issuing the following command.
 
-    > backup generate-key
+    > underscorebackup generate-key
     Please enter the seed for the private key: 
     Reenter the seed for the private key: 
 
@@ -109,7 +109,7 @@ Any path in the backup will internally be processed using a normalized format wh
 
 Now you can just execute the backup from the command line using the following command.
 
-    > backup backup
+    > underscorebackup backup
     
 This command will only exit if you have no backup sets with schedules and when a full backup of all of your included files. You can also consider running it as a service on Ubuntu machines by copying the file `underscorebackup.service` to your `/etc/systemd/system` directory. You can then start the backup by using `systemctl start underscorebackup`. This assumes you have unpacked the binaries into `/opt/underscorebackup`. The logs for the backup will be written to `/var/log/underscorebackup.log` by default.
 
@@ -117,7 +117,7 @@ This command will only exit if you have no backup sets with schedules and when a
 
 You can check the contents of your repository by issuing the following command.
 
-    > backup ls
+    > underscorebackup ls
 
 This will show the contents of the backup for the path you are currently on. You can specify a path to list the location for that path. Use the `-R` flag for listing contents of subdirectories and the `-h` flag for getting human readable sizes.
 
@@ -125,7 +125,7 @@ This will show the contents of the backup for the path you are currently on. You
 
 Use the following command to restore files.
 
-    > backup restore [FILES]... [DESTINATION]
+    > underscorebackup restore [FILES]... [DESTINATION]
     
 If no files or destination are specified then all files in the current directory will be restored. Use the `-R` flag to restore all files in subdirectories.
 
@@ -155,6 +155,20 @@ Backup set definitions have the following fields.
   * **paths** - A list of paths that match. These are not regular expressions but must match exactly to the files being backed up.
   * **type** - `INCLUDE` or `EXCLUDE` files matching the paths.
   * **children** - Another set of paths under any path matched by this expression. Child paths do not have to have the same type as their parent filter.
+* **retention** - Define how to keep track of old versions in your backup. By default if not specified any files not in the source will be deleted once the backup completes.
+  * **retainDeleted** - A timespan for how long to keep files in backup repository after they have been deleted on the source. If not specified files will be removed immediately.
+    * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+    * **duration** - How many of units for the timespan.
+  * **defaultFrequency** - How often by default a new version for a specific file in the set should be retained after it has been changed. For instance if you have a retention of 1 day for a file that updates every 15 minutes only one copy of the file will be retained per day at most and the rest will be pruned. If not specified only the most recent version of the file will be retained.
+    * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+    * **duration** - How many of units for the timespan.
+  * **older** - Different timespans for files as they get older. Contains a list of increasingly older retention policies.
+    * **validAfter** - The timespan after which this retention policy should override the default retention frequency.
+      * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+      * **duration** - How many of units for the timespan.
+    * **frequency** - Frequency for how often new copies should be retained once they have reached this age. This frequence must be longer than any preceeding retention frequencies with shorter validAfter values. If not specified then no files older than this will be kept unless they are current.
+      * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+      * **duration** - How many of units for the timespan.
 
 ## Backup destination definitions
 The destinations item is a map where the key is the unique identifier for the destination. The value is an object with the following keys.

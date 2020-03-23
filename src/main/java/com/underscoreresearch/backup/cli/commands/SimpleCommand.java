@@ -1,9 +1,8 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import com.underscoreresearch.backup.cli.Command;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
-
-import com.underscoreresearch.backup.cli.Command;
 
 public abstract class SimpleCommand extends Command {
     public void executeCommand(CommandLine commandLine) throws Exception {

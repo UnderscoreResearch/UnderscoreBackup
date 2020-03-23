@@ -1,33 +1,9 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.nio.charset.Charset;
-import java.nio.file.Paths;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
-import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
@@ -35,14 +11,35 @@ import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.LogConsumer;
+import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.*;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeMap;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @Slf4j
 public class ManifestManagerImpl implements ManifestManager {
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.n").withZone(ZoneId.of("UTC"));
+    private static final String LOG_ROOT = "logs";
 
     private final BackupConfiguration configuration;
     private final RateLimitController rateLimitController;
@@ -164,7 +161,7 @@ public class ManifestManagerImpl implements ManifestManager {
     private void createNewLogFile() throws IOException {
         closeLogFile();
         currentLogLength = 0;
-        currentLogName = Paths.get(localRoot, "logs", LOG_FILE_FORMATTER.format(Instant.now()) + ".gz").toString();
+        currentLogName = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now()) + ".gz").toString();
 
         File dir = new File(currentLogName).getParentFile();
         if (!dir.isDirectory())
@@ -205,10 +202,9 @@ public class ManifestManagerImpl implements ManifestManager {
     @Override
     public void replayLog(LogConsumer consumer) throws IOException {
         IOIndex index = (IOIndex) provider;
-        String logRoot = "logs";
-        for (String day : index.availableKeys(logRoot)) {
-            for (String file : index.availableKeys(logRoot + PATH_SEPARATOR + day)) {
-                String path = logRoot + PATH_SEPARATOR + day;
+        for (String day : index.availableKeys(LOG_ROOT)) {
+            for (String file : index.availableKeys(LOG_ROOT + PATH_SEPARATOR + day)) {
+                String path = LOG_ROOT + PATH_SEPARATOR + day;
                 if (!path.endsWith(PATH_SEPARATOR)) {
                     path += PATH_SEPARATOR;
                 }
@@ -244,9 +240,167 @@ public class ManifestManagerImpl implements ManifestManager {
     }
 
     @Override
+    public void optimizeLog(MetadataRepository existingRepository) throws IOException {
+        IOIndex index = (IOIndex) provider;
+        List<String> existingLogs = new ArrayList<>();
+        for (String day : index.availableKeys(LOG_ROOT)) {
+            for (String file : index.availableKeys(LOG_ROOT + PATH_SEPARATOR + day)) {
+                String path = LOG_ROOT + PATH_SEPARATOR + day;
+                if (!path.endsWith(PATH_SEPARATOR)) {
+                    path += PATH_SEPARATOR;
+                }
+                existingLogs.add(path + file);
+            }
+        }
+
+        LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new MetadataRepository() {
+            @Override
+            public void addFile(BackupFile file) throws IOException {
+            }
+
+            @Override
+            public List<BackupFile> file(String path) throws IOException {
+                return null;
+            }
+
+            @Override
+            public BackupFile lastFile(String path) throws IOException {
+                return null;
+            }
+
+            @Override
+            public boolean deleteFile(BackupFile file) throws IOException {
+                return false;
+            }
+
+            @Override
+            public List<BackupFilePart> existingFilePart(String partHash) throws IOException {
+                return null;
+            }
+
+            @Override
+            public boolean deleteFilePart(BackupFilePart filePart) throws IOException {
+                return false;
+            }
+
+            @Override
+            public void addBlock(BackupBlock block) throws IOException {
+            }
+
+            @Override
+            public BackupBlock block(String hash) throws IOException {
+                return null;
+            }
+
+            @Override
+            public boolean deleteBlock(BackupBlock block) throws IOException {
+                return false;
+            }
+
+            @Override
+            public void addDirectory(BackupDirectory directory) throws IOException {
+            }
+
+            @Override
+            public List<BackupDirectory> directory(String path) throws IOException {
+                return null;
+            }
+
+            @Override
+            public BackupDirectory lastDirectory(String path) throws IOException {
+                return null;
+            }
+
+            @Override
+            public boolean deleteDirectory(String path, long timestamp) throws IOException {
+                return false;
+            }
+
+            @Override
+            public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
+            }
+
+            @Override
+            public boolean hasActivePath(String setId, String path) throws IOException {
+                return false;
+            }
+
+            @Override
+            public void popActivePath(String setId, String path) throws IOException {
+            }
+
+            @Override
+            public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
+                return null;
+            }
+
+            @Override
+            public void flushLogging() throws IOException {
+            }
+
+            @Override
+            public void open(boolean readOnly) throws IOException {
+            }
+
+            @Override
+            public void close() throws IOException {
+            }
+
+            @Override
+            public Stream<BackupFile> allFiles() throws IOException {
+                return null;
+            }
+
+            @Override
+            public Stream<BackupBlock> allBlocks() throws IOException {
+                return null;
+            }
+
+            @Override
+            public Stream<BackupDirectory> allDirectories() throws IOException {
+                return null;
+            }
+        }, this);
+
+        existingRepository.allFiles().forEach((file) -> {
+            try {
+                copyRepository.addFile(file);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        existingRepository.allBlocks().forEach((block) -> {
+            try {
+                copyRepository.addBlock(block);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        existingRepository.allDirectories().forEach((dir) -> {
+            try {
+                copyRepository.addDirectory(dir);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        existingRepository.getActivePaths(null).forEach((path, dir) -> {
+            for (String setId : dir.getSetIds()) {
+                try {
+                    copyRepository.pushActivePath(setId, path, dir);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        for (String oldFile : existingLogs) {
+            provider.delete(oldFile);
+        }
+    }
+
+    @Override
     public BackupContentsAccess backupContents(Long timestamp) throws IOException {
         return new BackupContentsAccessImpl(InstanceFactory.getInstance(MetadataRepository.class),
-                InstanceFactory.getInstance(FileSystemAccess.class),
                 timestamp);
     }
 

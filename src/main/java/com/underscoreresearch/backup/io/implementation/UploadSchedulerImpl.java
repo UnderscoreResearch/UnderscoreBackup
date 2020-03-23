@@ -1,13 +1,5 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-
-import java.util.concurrent.atomic.AtomicLong;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
@@ -15,6 +7,13 @@ import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
 import com.underscoreresearch.backup.utils.StatusLogger;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.atomic.AtomicLong;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @Slf4j
 public class UploadSchedulerImpl extends SchedulerImpl implements StatusLogger, UploadScheduler {

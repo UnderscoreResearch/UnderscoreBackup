@@ -1,19 +1,17 @@
 package com.underscoreresearch.backup.cli;
 
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.utils.InternalStateLogger;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.utils.InternalStateLogger;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public final class Main {
@@ -36,6 +34,7 @@ public final class Main {
 
     public static void main(String[] argv) {
         InstanceFactory.initialize(argv);
+
         try {
             CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
             if (commandLine.getArgList().size() == 0) {

@@ -1,8 +1,19 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.retry.PredefinedRetryPolicies;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.*;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOPlugin;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.utils.RetryUtils;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -10,29 +21,9 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.logging.log4j.util.Strings;
-
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.retry.PredefinedRetryPolicies;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.amazonaws.services.s3.model.ListObjectsV2Request;
-import com.amazonaws.services.s3.model.ListObjectsV2Result;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.model.BackupDestination;
-import com.underscoreresearch.backup.utils.RetryUtils;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @IOPlugin(("S3"))
 @Slf4j
@@ -160,6 +151,26 @@ public class S3IOPRovider implements IOIndex, IOProvider {
                 }
                 return true;
             });
+        } catch (Exception e) {
+            throw new IOException("Failed to download object " + rootedKey, e);
+        }
+    }
+
+    @Override
+    public void delete(String key) throws IOException {
+        String rootedKey = getRootedKey(key);
+
+        try {
+            RetryUtils.<Void>retry(() -> {
+                try {
+                    client.deleteObject(bucket, rootedKey);
+                    return null;
+                } catch (AmazonS3Exception exc) {
+                    if (((AmazonS3Exception) exc).getErrorCode().equals("NoSuchKey"))
+                        return null;
+                    throw exc;
+                }
+            }, null);
         } catch (Exception e) {
             throw new IOException("Failed to download object " + rootedKey, e);
         }

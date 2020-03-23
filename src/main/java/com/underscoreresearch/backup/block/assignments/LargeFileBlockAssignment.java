@@ -1,16 +1,5 @@
 package com.underscoreresearch.backup.block.assignments;
 
-import java.io.IOException;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.FileBlockAssignment;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
@@ -18,13 +7,17 @@ import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.model.BackupBlockCompletion;
-import com.underscoreresearch.backup.model.BackupCompletion;
-import com.underscoreresearch.backup.model.BackupData;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupLocation;
-import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RequiredArgsConstructor
 @Slf4j

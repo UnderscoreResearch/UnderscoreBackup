@@ -1,17 +1,16 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicLong;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.utils.StatusLogger;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @Slf4j
 public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger, DownloadScheduler {

@@ -1,37 +1,29 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.file.FileConsumer;
+import com.underscoreresearch.backup.file.FileScanner;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.*;
+import com.underscoreresearch.backup.utils.StatusLogger;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.file.FileConsumer;
-import com.underscoreresearch.backup.file.FileScanner;
-import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.model.BackupActiveFile;
-import com.underscoreresearch.backup.model.BackupActivePath;
-import com.underscoreresearch.backup.model.BackupActiveStatus;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupSet;
-import com.underscoreresearch.backup.utils.StatusLogger;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -69,7 +61,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         consumer.flushAssignments();
 
         debug(() -> log.debug("File scanner shutting down"));
-        while (pendingPaths.size() > 0) {
+        while (pendingPaths.size() > 0 && !shutdown) {
             try {
                 debug(() -> log.debug("Waiting for active paths: " + String.join(";",
                         pendingPaths.keySet())));
@@ -150,7 +142,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         lock.lock();
 
         for (BackupFile file : directoryFiles) {
-            if (pendingPaths.size() == 0) {
+            if (shutdown) {
                 return BackupActiveStatus.INCOMPLETE;
             }
 
@@ -221,9 +213,6 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     public void shutdown() {
         lock.lock();
         shutdown = true;
-        if (pendingPaths != null) {
-            pendingPaths.clear();
-        }
         pendingDirectoriesUpdated.signalAll();
         lock.unlock();
     }
@@ -264,9 +253,10 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
             if (pending.completed()) {
                 try {
                     repository.popActivePath(set.getId(), currentPath);
-                    repository.addDirectory(currentPath,
+                    Set<String> includedPaths = pending.includedPaths();
+                    repository.addDirectory(new BackupDirectory(currentPath,
                             Instant.now().toEpochMilli(),
-                            pending.includedPaths());
+                            Sets.newTreeSet(includedPaths)));
                 } catch (IOException e) {
                     log.error("Failed to record completing " + currentPath, e);
                 }

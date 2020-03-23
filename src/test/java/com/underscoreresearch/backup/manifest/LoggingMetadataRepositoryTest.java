@@ -1,24 +1,21 @@
 package com.underscoreresearch.backup.manifest;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-
-import java.io.IOException;
-import java.time.Instant;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.manifest.model.PushActivePath;
+import com.underscoreresearch.backup.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.manifest.model.PushActivePath;
-import com.underscoreresearch.backup.model.BackupActiveFile;
-import com.underscoreresearch.backup.model.BackupActivePath;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
+import java.io.IOException;
+import java.time.Instant;
+
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 
 class LoggingMetadataRepositoryTest {
     private MetadataRepository repository;
@@ -104,8 +101,8 @@ class LoggingMetadataRepositoryTest {
     @Test
     void addDirectory() throws IOException {
         long timestamp = Instant.now().toEpochMilli();
-        loggingMetadataRepository.addDirectory("path", timestamp, Sets.newHashSet("a"));
-        Mockito.verify(repository).addDirectory("path", timestamp, Sets.newHashSet("a"));
+        loggingMetadataRepository.addDirectory(new BackupDirectory("path", timestamp, Sets.newTreeSet(Lists.newArrayList("a"))));
+        Mockito.verify(repository).addDirectory(new BackupDirectory("path", timestamp, Sets.newTreeSet(Lists.newArrayList("a"))));
         Mockito.verify(manifestManager).addLogEntry(anyString(), anyString());
     }
 

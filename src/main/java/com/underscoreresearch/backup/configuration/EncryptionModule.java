@@ -1,16 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.NEED_PRIVATE_KEY;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.PRIVATE_KEY_SEED;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.PUBLIC_KEY_DATA;
-
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.Paths;
-
-import org.apache.commons.lang.SystemUtils;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.inject.AbstractModule;
@@ -20,6 +9,13 @@ import com.google.inject.name.Named;
 import com.underscoreresearch.backup.cli.PasswordReader;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
 import com.underscoreresearch.backup.io.IOUtils;
+import org.apache.commons.lang.SystemUtils;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Paths;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.*;
 
 public class EncryptionModule extends AbstractModule {
     public static final String[] DEFAULT_KEY_FILES;
@@ -56,6 +52,9 @@ public class EncryptionModule extends AbstractModule {
             String key = privateKeySeed;
             if (Strings.isNullOrEmpty(key))
                 key = PasswordReader.readPassword("Enter seed for private key: ");
+            if (key == null) {
+                System.exit(1);
+            }
             PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithSeed(key, publicKeyEncrypion.getSalt());
             if (!publicKeyEncrypion.getPublicKey().equals(ret.getPublicKey())) {
                 throw new IllegalArgumentException("Private key does not match public key");

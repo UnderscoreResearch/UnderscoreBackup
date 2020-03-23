@@ -1,12 +1,11 @@
 package com.underscoreresearch.backup.cli;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import org.apache.commons.cli.CommandLine;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-
-import org.apache.commons.cli.CommandLine;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 public abstract class Command {
     public abstract void executeCommand(CommandLine commandLine) throws Exception;

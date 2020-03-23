@@ -6,4 +6,5 @@
 gradle
 build
 target
+innosetup-expanded.iss
 dependency-reduced-pom.xml
