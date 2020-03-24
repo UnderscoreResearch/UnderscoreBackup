@@ -11,7 +11,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.2'
+version '0.2.1'
 
 sourceCompatibility = 1.8
 
@@ -66,6 +66,10 @@ task installer(dependsOn: [guiexe, consoleexe, installerDef], type:Exec) {
     workingDir 'windows'
     executable 'C:\\Program Files (x86)\\Inno Setup 6\\iscc.exe'
     args "innosetup-expanded.iss"
+}
+
+task allDist {
+    dependsOn installer, distZip, distTar
 }
 
 distributions {

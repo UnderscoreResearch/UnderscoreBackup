@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
@@ -163,12 +164,14 @@ public class RepositoryTrimmer {
                     IOProvider provider = IOProviderFactory.getProvider(
                             configuration.getDestinations().get(storage.getDestination()));
                     for (String key : storage.getParts()) {
-                        try {
-                            provider.delete(key);
-                            debug(() -> log.debug("Removing block part " + key));
-                            deletedParts.incrementAndGet();
-                        } catch (IOException exc) {
-                            log.error("Failed to delete part {} from {}", key, storage.getDestination());
+                        if (key != null) {
+                            try {
+                                provider.delete(key);
+                                debug(() -> log.debug("Removing block part " + key));
+                                deletedParts.incrementAndGet();
+                            } catch (IOException exc) {
+                                log.error("Failed to delete part " + key + " from " + storage.getDestination(), exc);
+                            }
                         }
                     }
                 }

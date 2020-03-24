@@ -31,6 +31,12 @@ public class ValidateBlocksCommand extends SimpleCommand {
                                 log.warn("Block hash {} does not exist", part.getBlockHash());
                                 return false;
                             }
+                            if (!block.getStorage().stream()
+                                    .anyMatch(storage -> storage.getParts().stream()
+                                            .anyMatch(blockPart -> blockPart != null))) {
+                                log.warn("Block hash {} has missing parts", part.getBlockHash());
+                                return false;
+                            }
                         } catch (IOException e) {
                             log.error("Failed to read block " + part.getBlockHash(), e);
                         }
@@ -56,6 +62,7 @@ public class ValidateBlocksCommand extends SimpleCommand {
             }
         });
 
+        repository.flushLogging();
         manifestManager.shutdown();
         repository.close();
     }

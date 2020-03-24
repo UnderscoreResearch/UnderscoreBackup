@@ -22,6 +22,7 @@ public class OptimizeLogCommand extends Command {
 
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.optimizeLog(repository);
+        repository.flushLogging();
         manifestManager.shutdown();
         repository.close();
     }

@@ -254,9 +254,11 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                 try {
                     repository.popActivePath(set.getId(), currentPath);
                     Set<String> includedPaths = pending.includedPaths();
-                    repository.addDirectory(new BackupDirectory(currentPath,
-                            Instant.now().toEpochMilli(),
-                            Sets.newTreeSet(includedPaths)));
+                    if (includedPaths.size() > 0) {
+                        repository.addDirectory(new BackupDirectory(currentPath,
+                                Instant.now().toEpochMilli(),
+                                Sets.newTreeSet(includedPaths)));
+                    }
                 } catch (IOException e) {
                     log.error("Failed to record completing " + currentPath, e);
                 }
