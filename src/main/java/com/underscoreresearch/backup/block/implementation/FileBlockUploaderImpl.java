@@ -98,8 +98,12 @@ public class FileBlockUploaderImpl implements FileBlockUploader {
 
                                 if (canComplete.get() && completions.size() == 0) {
                                     try {
-                                        repository.addBlock(block);
-                                        completionFuture.completed(true);
+                                        if (storage.getParts().stream().anyMatch(t -> t == null)) {
+                                            completionFuture.completed(false);
+                                        } else {
+                                            repository.addBlock(block);
+                                            completionFuture.completed(true);
+                                        }
                                     } catch (IOException e) {
                                         log.error("Failed to save block " + blockHash, e);
                                         completionFuture.completed(false);
