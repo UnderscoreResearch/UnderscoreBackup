@@ -1,13 +1,13 @@
 package com.underscoreresearch.backup.configuration;
 
+import java.io.IOException;
+
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector;
 import com.underscoreresearch.backup.errorcorrection.implementation.ReedSolomonErrorCorrector;
 import com.underscoreresearch.backup.model.BackupConfiguration;
-
-import java.io.IOException;
 
 public class ErrorCorrectionModule extends AbstractModule {
     private static final int DEFAULT_MAXIMUM_FILE_SIZE = 16 * 1024 * 1024;

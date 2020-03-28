@@ -1,10 +1,11 @@
 package com.underscoreresearch.backup.utils;
 
-import com.underscoreresearch.backup.io.IOUtils;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.concurrent.Callable;
 import java.util.function.Function;
+
+import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.io.IOUtils;
 
 @Slf4j
 public class RetryUtils {

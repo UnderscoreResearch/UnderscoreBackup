@@ -1,32 +1,32 @@
 package com.underscoreresearch.backup.utils;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import lombok.extern.slf4j.Slf4j;
-
-import java.lang.management.*;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryPoolMXBean;
+import java.lang.management.MemoryUsage;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+
 @Slf4j
-public class InternalStateLogger implements Runnable {
+public class StateLogger {
     private static final String OLD_KEYWORD = " Old ";
     private static List<StatusLogger> loggers;
 
-    public InternalStateLogger() {
+    public StateLogger() {
     }
 
-    public synchronized void run() {
-        if (loggers == null) {
-            loggers = InstanceFactory
-                    .getReflections()
-                    .getSubTypesOf(StatusLogger.class)
-                    .stream().map(clz -> InstanceFactory.getInstance(clz))
-                    .collect(Collectors.toList());
-        }
+    public void logDebug() {
+        initialize();
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
         MemoryUsage memHeapUsage = memoryMXBean.getHeapMemoryUsage();
         MemoryUsage nonHeapUsage = memoryMXBean.getNonHeapMemoryUsage();
@@ -70,7 +70,47 @@ public class InternalStateLogger implements Runnable {
                     oldGcBean.get().getCollectionCount()));
         }
 
-        for (StatusLogger logger : loggers)
-            logger.logStatus();
+        printLogStatus(true, (a) -> debug(() -> log.debug(a)));
+    }
+
+    public void logInfo() {
+        printLogStatus(false, (a) -> log.info(a));
+    }
+
+    public void reset() {
+        initialize();
+
+        loggers.forEach(logger -> logger.resetStatus());
+    }
+
+    public List<StatusLine> logData(boolean temporal) {
+        initialize();
+
+        return loggers
+                .stream()
+                .filter(t -> temporal || !t.temporal())
+                .map(log -> log.status())
+                .flatMap(t -> t.stream())
+                .collect(Collectors.toList());
+    }
+
+    private void printLogStatus(boolean temporal, Consumer<String> printer) {
+        initialize();
+
+        loggers
+                .stream()
+                .filter(t -> temporal || !t.temporal())
+                .forEach(log -> log.status()
+                        .forEach(item -> printer.accept(item.toString())));
+    }
+
+    private synchronized void initialize() {
+        if (loggers == null) {
+            loggers = InstanceFactory
+                    .getReflections()
+                    .getSubTypesOf(StatusLogger.class)
+                    .stream().map(clz -> InstanceFactory.getInstance(clz))
+                    .collect(Collectors.toList());
+        }
     }
 }

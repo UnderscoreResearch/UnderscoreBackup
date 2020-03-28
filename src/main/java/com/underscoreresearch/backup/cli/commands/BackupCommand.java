@@ -1,5 +1,11 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+
+import java.io.IOException;
+
+import lombok.extern.slf4j.Slf4j;
+
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -7,11 +13,6 @@ import com.underscoreresearch.backup.file.ScannerScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import lombok.extern.slf4j.Slf4j;
-
-import java.io.IOException;
-
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @CommandPlugin(value = "backup", description = "Run backup operation continuously",
         needPrivateKey = false, readonlyRepository = false)

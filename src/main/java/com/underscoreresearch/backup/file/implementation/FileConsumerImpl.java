@@ -1,18 +1,19 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+
+import java.io.IOException;
+import java.util.List;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import com.underscoreresearch.backup.block.FileBlockAssignment;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.model.BackupCompletion;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupSet;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import java.io.IOException;
-import java.util.List;
-
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @RequiredArgsConstructor
 @Slf4j

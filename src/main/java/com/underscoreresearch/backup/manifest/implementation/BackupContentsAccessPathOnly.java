@@ -1,18 +1,19 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.manifest.BackupContentsAccess;
-import com.underscoreresearch.backup.manifest.model.BackupDirectory;
-import com.underscoreresearch.backup.model.BackupFile;
-import lombok.extern.slf4j.Slf4j;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import lombok.extern.slf4j.Slf4j;
+
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.manifest.BackupContentsAccess;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.BackupFile;
 
 @Slf4j
 public class BackupContentsAccessPathOnly implements BackupContentsAccess {

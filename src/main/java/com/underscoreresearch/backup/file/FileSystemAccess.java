@@ -1,9 +1,9 @@
 package com.underscoreresearch.backup.file;
 
-import com.underscoreresearch.backup.model.BackupFile;
-
 import java.io.IOException;
 import java.util.Set;
+
+import com.underscoreresearch.backup.model.BackupFile;
 
 public interface FileSystemAccess {
     Set<BackupFile> directoryFiles(String path);

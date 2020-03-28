@@ -23,7 +23,7 @@ OutputBaseFilename=underscorebackup-${applicationVersion}
 Compression=lzma
 SolidCompression=yes
 [Run]
-Filename: "https://github.com/UnderscoreResearch/UnderscoreBackup/windows/README.md"; Flags: shellexec runasoriginaluser
+Filename: "https://github.com/UnderscoreResearch/UnderscoreBackup/blob/master/windows/README.md"; Flags: shellexec runasoriginaluser
 
 [Files]
 Source: "..\\build\\launch4j\\underscorebackup.exe"; DestDir: "{app}\\bin"; Flags: ignoreversion

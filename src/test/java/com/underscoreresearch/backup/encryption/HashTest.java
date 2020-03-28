@@ -1,9 +1,9 @@
 package com.underscoreresearch.backup.encryption;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.Test;
-
-import static org.hamcrest.MatcherAssert.assertThat;
 
 class HashTest {
     @Test

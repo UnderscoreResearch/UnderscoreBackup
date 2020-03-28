@@ -1,15 +1,15 @@
 package com.underscoreresearch.backup.file;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.TreeMap;
+import java.util.stream.Stream;
+
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.TreeMap;
-import java.util.stream.Stream;
 
 public interface MetadataRepository {
     void addFile(BackupFile file) throws IOException;

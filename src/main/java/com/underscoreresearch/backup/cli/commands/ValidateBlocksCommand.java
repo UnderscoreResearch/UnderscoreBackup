@@ -1,5 +1,11 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
+
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -7,11 +13,6 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
-import lombok.extern.slf4j.Slf4j;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @CommandPlugin(value = "validate-blocks", description = "Validate that all used blocks for files exists",
         needPrivateKey = false, needConfiguration = true, readonlyRepository = false)
@@ -31,9 +32,9 @@ public class ValidateBlocksCommand extends SimpleCommand {
                                 log.warn("Block hash {} does not exist", part.getBlockHash());
                                 return false;
                             }
-                            if (!block.getStorage().stream()
+                            if (block.getStorage().stream()
                                     .anyMatch(storage -> storage.getParts().stream()
-                                            .anyMatch(blockPart -> blockPart != null))) {
+                                            .anyMatch(blockPart -> blockPart == null))) {
                                 log.warn("Block hash {} has missing parts", part.getBlockHash());
                                 return false;
                             }

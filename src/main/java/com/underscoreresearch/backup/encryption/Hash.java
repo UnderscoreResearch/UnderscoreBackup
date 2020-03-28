@@ -1,9 +1,10 @@
 package com.underscoreresearch.backup.encryption;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.io.BaseEncoding;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class Hash {

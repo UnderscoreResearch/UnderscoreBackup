@@ -1,20 +1,21 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import com.google.common.base.Stopwatch;
-import com.underscoreresearch.backup.block.FileDownloader;
-import com.underscoreresearch.backup.io.DownloadScheduler;
-import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.model.BackupFile;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import com.google.common.base.Stopwatch;
+import com.underscoreresearch.backup.block.FileDownloader;
+import com.underscoreresearch.backup.io.DownloadScheduler;
+import com.underscoreresearch.backup.io.IOPlugin;
+import com.underscoreresearch.backup.model.BackupFile;
 
 public class DownloadSchedulerImplTest {
     @BeforeEach

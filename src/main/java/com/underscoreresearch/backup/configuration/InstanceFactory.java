@@ -1,11 +1,13 @@
 package com.underscoreresearch.backup.configuration;
 
+import lombok.AllArgsConstructor;
+
+import org.reflections.Reflections;
+
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.name.Names;
-import lombok.AllArgsConstructor;
-import org.reflections.Reflections;
 
 public abstract class InstanceFactory {
     private static InstanceFactory defaultFactory;

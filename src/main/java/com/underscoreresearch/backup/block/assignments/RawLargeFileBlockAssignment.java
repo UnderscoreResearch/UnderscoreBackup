@@ -1,11 +1,11 @@
 package com.underscoreresearch.backup.block.assignments;
 
+import java.io.IOException;
+
 import com.underscoreresearch.backup.block.BlockFormatPlugin;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.model.BackupFilePart;
-
-import java.io.IOException;
 
 @BlockFormatPlugin("RAW")
 public class RawLargeFileBlockAssignment extends LargeFileBlockAssignment {

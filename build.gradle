@@ -11,7 +11,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.2.1'
+version '0.2.2'
 
 sourceCompatibility = 1.8
 
@@ -91,16 +91,16 @@ repositories {
 
 dependencies {
     compile (
-            'com.amazonaws:aws-java-sdk-s3:1.11.728',
-            'com.fasterxml.jackson.core:jackson-databind:2.10.2',
+            'com.amazonaws:aws-java-sdk-s3control:1.11.749',
+            'com.fasterxml.jackson.core:jackson-databind:2.10.3',
             'com.google.guava:guava:28.2-jre',
             'com.joestelmach:natty:0.13',
             'commons-cli:commons-cli:1.4',
             'commons-lang:commons-lang:2.6',
-            'org.apache.logging.log4j:log4j-api:2.13.0',
-            'org.apache.logging.log4j:log4j-core:2.13.0',
-            'org.apache.logging.log4j:log4j-slf4j-impl:2.13.0',
-            'com.google.inject:guice:4.2.2',
+            'org.apache.logging.log4j:log4j-api:2.13.1',
+            'org.apache.logging.log4j:log4j-core:2.13.1',
+            'org.apache.logging.log4j:log4j-slf4j-impl:2.13.1',
+            'com.google.inject:guice:4.2.3',
             'org.mapdb:mapdb:3.0.8',
             'org.projectlombok:lombok:1.18.12',
             'org.reflections:reflections:0.9.12',
@@ -110,7 +110,7 @@ dependencies {
     testImplementation (
             'org.hamcrest:hamcrest:2.2',
             'org.junit.jupiter:junit-jupiter:5.6.0',
-            'org.mockito:mockito-junit-jupiter:3.3.0'
+            'org.mockito:mockito-junit-jupiter:3.3.3'
     )
 
     testRuntimeOnly (

@@ -1,5 +1,26 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+
+import java.io.IOException;
+import java.text.ParseException;
+import java.time.Instant;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.logging.log4j.core.util.CronExpression;
+
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -9,20 +30,6 @@ import com.underscoreresearch.backup.manifest.RepositoryTrimmer;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupSet;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.core.util.CronExpression;
-
-import java.io.IOException;
-import java.text.ParseException;
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
-
-import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 
 @Slf4j
 public class ScannerSchedulerImpl implements ScannerScheduler {

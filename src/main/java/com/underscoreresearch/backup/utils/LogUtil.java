@@ -1,19 +1,27 @@
 package com.underscoreresearch.backup.utils;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupFile;
-import org.apache.commons.cli.CommandLine;
-
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
-import java.util.Calendar;
-import java.util.TimeZone;
-
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.cli.CommandLine;
+
+import com.google.common.base.Stopwatch;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupFile;
+
+@Slf4j
 public final class LogUtil {
     private static final TimeZone LOCAL_TIMEZONE;
     private static final DateTimeFormatter FILE_TIME_FORMATTER;
@@ -56,6 +64,28 @@ public final class LogUtil {
         } else {
             return "-";
         }
+    }
+
+    public static List<StatusLine> getThroughputStatus(Class clz, String description, String object,
+                                                       long totalCount, long totalSize, Stopwatch duration) {
+        List<StatusLine> ret = new ArrayList<>();
+
+        if (totalCount > 0) {
+            String code = description.toUpperCase();
+            ret.add(new StatusLine(clz, code + "_OBJECTS", description + " " + object, totalCount));
+            ret.add(new StatusLine(clz, code + "_SIZE", description + " total size", totalSize,
+                    readableSize(totalSize)));
+
+            if (duration != null) {
+                int elapsedMilliseconds = (int) duration.elapsed(TimeUnit.MILLISECONDS);
+                if (elapsedMilliseconds > 0) {
+                    long throughput = 1000 * totalSize / elapsedMilliseconds;
+                    ret.add(new StatusLine(clz, code + "_THROUGHPUT", description + " throughput",
+                            throughput, readableSize(throughput) + "/s"));
+                }
+            }
+        }
+        return ret;
     }
 
     public static String printFile(CommandLine commandLine, BackupFile file) {
