@@ -1,15 +1,5 @@
 package com.underscoreresearch.backup.block.implementation;
 
-import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.UploadScheduler;
-import com.underscoreresearch.backup.model.*;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -17,6 +7,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupCompletion;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupData;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupUploadCompletion;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -81,7 +89,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader {
                 {
                     byte[] encrypted = EncryptorFactory.encryptBlock(destination.getEncryption(), storage, unencryptedData.getData());
                     if (destinationsLeft <= 0)
-                        unencryptedData.setData(null);
+                        unencryptedData.clear();
 
                     parts = ErrorCorrectorFactory.encodeBlocks(destination.getErrorCorrection(), storage, encrypted);
                 }

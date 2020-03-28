@@ -1,31 +1,41 @@
 package com.underscoreresearch.backup.manifest;
 
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.manifest.implementation.BackupContentsAccessPathOnly;
-import com.underscoreresearch.backup.manifest.model.BackupDirectory;
-import com.underscoreresearch.backup.model.*;
-import com.underscoreresearch.backup.utils.LogUtil;
+import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
+import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableSet;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.HTreeMap;
 import org.mapdb.Serializer;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableSet;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-
-import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
-import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.manifest.implementation.BackupContentsAccessPathOnly;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.BackupActivePath;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.utils.LogUtil;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -38,6 +48,10 @@ public class RepositoryTrimmer {
     private String lastFetchedDirectory;
     private BackupDirectory lastFetchedDirectoryContents;
 
+    private static class InterruptedException extends RuntimeException {
+
+    }
+
     private synchronized NavigableSet<String> fetchPath(BackupFile file) throws IOException {
         String parent = findParent(file.getPath());
         if (parent.equals(lastFetchedDirectory))
@@ -45,6 +59,9 @@ public class RepositoryTrimmer {
 
         lastFetchedDirectory = parent;
         lastFetchedDirectoryContents = metadataRepository.lastDirectory(parent);
+        if (lastFetchedDirectoryContents == null) {
+            return new TreeSet<>();
+        }
         return lastFetchedDirectoryContents.getFiles();
     }
 
@@ -61,11 +78,11 @@ public class RepositoryTrimmer {
 
                 boolean hasActivePaths = trimActivepaths();
 
-                trimFiles(usedBlockMap, hasActivePaths);
-
-                trimBlocks(usedBlockMap, hasActivePaths);
-
-                trimDirectories(hasActivePaths);
+                try {
+                    trimFilesAndDirectories(usedBlockMap, hasActivePaths);
+                    trimBlocks(usedBlockMap, hasActivePaths);
+                } catch (InterruptedException exc) {
+                }
             }
         } finally {
             tempFile.delete();
@@ -89,63 +106,6 @@ public class RepositoryTrimmer {
         return anyFound;
     }
 
-    private void trimDirectories(boolean hasActivePaths) throws IOException {
-        if (hasActivePaths) {
-            log.info("Not trimming directories because there are sets in process");
-            return;
-        }
-        log.info("Trimming directories");
-
-        AtomicInteger deletedVersions = new AtomicInteger();
-        AtomicInteger deletedDirectories = new AtomicInteger();
-
-        List<BackupDirectory> pathVersions = new ArrayList<>();
-        metadataRepository.allDirectories().forEach((dir) -> {
-            if (pathVersions.size() > 0 && !dir.getPath().equals(pathVersions.get(0).getPath())) {
-                try {
-                    processDirectories(pathVersions, deletedVersions, deletedDirectories);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                pathVersions.clear();
-            }
-            pathVersions.add(dir);
-        });
-        if (pathVersions.size() > 0) {
-            processDirectories(pathVersions, deletedVersions, deletedDirectories);
-        }
-
-        log.info("Deleted {} directory versions and {} entire directories from repository",
-                deletedVersions, deletedDirectories);
-    }
-
-    private void processDirectories(List<BackupDirectory> directoryVersions,
-                                    AtomicInteger deletedVersions,
-                                    AtomicInteger deletedDirectories) throws IOException {
-        Long lastTimestamp = null;
-        boolean any = false;
-        for (BackupDirectory directory : directoryVersions) {
-            if (directory.getPath().equals("")) {
-                return;
-            }
-            BackupContentsAccessPathOnly contents = new BackupContentsAccessPathOnly(metadataRepository,
-                    lastTimestamp);
-            List<BackupFile> directoryFiles = contents.directoryFiles(directory.getPath());
-
-            if (directoryFiles == null
-                    || directoryFiles.stream().filter(t -> t.getLastChanged() != null).count() == 0) {
-                debug(() -> log.debug("Removing " + directory.getPath() + " from " + LogUtil.formatTimestamp(directory.getTimestamp())));
-                metadataRepository.deleteDirectory(directory.getPath(), directory.getTimestamp());
-                deletedVersions.incrementAndGet();
-            } else {
-                any = true;
-                lastTimestamp = directory.getTimestamp() - 1;
-            }
-        }
-        if (!any)
-            deletedDirectories.incrementAndGet();
-    }
-
     private void trimBlocks(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePaths) throws IOException {
         log.info("Trimming blocks");
 
@@ -158,6 +118,8 @@ public class RepositoryTrimmer {
                 .filter(t -> hasActivePaths
                         ? FALSE.equals(usedBlockMap.get(t.getHash()))
                         : !usedBlockMap.containsKey(t.getHash())).forEach(block -> {
+            if (InstanceFactory.shutdown())
+                throw new InterruptedException();
             try {
                 deletedBlocks.incrementAndGet();
                 for (BackupBlockStorage storage : block.getStorage()) {
@@ -185,16 +147,36 @@ public class RepositoryTrimmer {
         log.info("Deleted {} blocks with a total of {} parts", deletedBlocks, deletedParts);
     }
 
-    private void trimFiles(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePath) throws IOException {
-        log.info("Trimming files");
+    private void trimFilesAndDirectories(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePath)
+            throws IOException {
+        log.info("Trimming files and directories");
 
         AtomicInteger deletedVersions = new AtomicInteger();
         AtomicInteger deletedFiles = new AtomicInteger();
+
+        AtomicInteger deletedDirectoryVersions = new AtomicInteger();
+        AtomicInteger deletedDirectories = new AtomicInteger();
+
         List<BackupFile> fileVersions = new ArrayList<>();
+        NavigableSet<String> deletedPaths = hasActivePath ? null : new TreeSet<>();
+
+        String[] lastParent = new String[1];
+
         metadataRepository.allFiles().forEach((file) -> {
+            if (InstanceFactory.shutdown())
+                throw new InterruptedException();
+
             if (fileVersions.size() > 0 && !file.getPath().equals(fileVersions.get(0).getPath())) {
                 try {
-                    processFiles(fileVersions, usedBlockMap, hasActivePath, deletedVersions, deletedFiles);
+                    processFiles(fileVersions, usedBlockMap, deletedPaths, deletedVersions, deletedFiles);
+
+                    if (deletedPaths != null) {
+                        String parent = findParent(file.getPath());
+                        if (!parent.equals(lastParent[0])) {
+                            lastParent[0] = parent;
+                            processDeletedPaths(deletedPaths, parent, deletedDirectoryVersions, deletedDirectories);
+                        }
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -202,30 +184,79 @@ public class RepositoryTrimmer {
             }
             fileVersions.add(file);
         });
+
         if (fileVersions.size() > 0) {
-            processFiles(fileVersions, usedBlockMap, hasActivePath, deletedVersions, deletedFiles);
+            processFiles(fileVersions, usedBlockMap, deletedPaths, deletedVersions, deletedFiles);
+        }
+
+        if (deletedPaths != null) {
+            processDeletedPaths(deletedPaths, null, deletedDirectoryVersions, deletedDirectories);
         }
 
         log.info("Deleted {} file versions and {} entire files from repository", deletedVersions, deletedFiles);
+        log.info("Deleted {} directory versions and {} entire directory from repository",
+                deletedDirectoryVersions, deletedDirectories);
+    }
+
+    private void processDeletedPaths(final NavigableSet<String> deletedPaths, final String parent,
+                                     final AtomicInteger deletedDirectoryVersions, AtomicInteger deletedDirectories)
+            throws IOException {
+        Iterator<String> iterator = deletedPaths.descendingIterator();
+        while (iterator.hasNext()) {
+            String path = iterator.next();
+            if (parent == null || !path.startsWith(parent)) {
+                processDirectories(metadataRepository.directory(path), deletedDirectoryVersions, deletedDirectories);
+            }
+        }
+    }
+
+    private void processDirectories(List<BackupDirectory> directoryVersions,
+                                    AtomicInteger deletedVersions,
+                                    AtomicInteger deletedDirectories) throws IOException {
+        Long lastTimestamp = null;
+        boolean any = false;
+        for (BackupDirectory directory : directoryVersions) {
+            if (directory.getPath().equals("")) {
+                return;
+            }
+            BackupContentsAccessPathOnly contents = new BackupContentsAccessPathOnly(metadataRepository,
+                    lastTimestamp);
+            List<BackupFile> directoryFiles = contents.directoryFiles(directory.getPath());
+
+            if (directoryFiles == null
+                    || directoryFiles.stream().filter(t -> t.getLastChanged() != null).count() == 0) {
+                debug(() -> log.debug("Removing " + directory.getPath() + " from "
+                        + LogUtil.formatTimestamp(directory.getTimestamp())));
+                metadataRepository.deleteDirectory(directory.getPath(), directory.getTimestamp());
+                deletedVersions.incrementAndGet();
+            } else {
+                any = true;
+                lastTimestamp = directory.getTimestamp() - 1;
+            }
+        }
+        if (!any)
+            deletedDirectories.incrementAndGet();
     }
 
     private void processFiles(List<BackupFile> files, HTreeMap<String, Boolean> usedBlockMap,
-                              boolean hasActivePath, AtomicInteger deletedVersions, AtomicInteger deletedFiles) throws IOException {
+                              Set<String> deletedPaths,
+                              AtomicInteger deletedVersions, AtomicInteger deletedFiles) throws IOException {
         BackupSet set = findSet(files.get(0));
         if (set == null) {
             if (!force) {
                 log.warn("File not in set {},} use force flag to delete", files.get(0).getPath());
                 for (BackupFile file : files) {
-                    markFileBlocks(usedBlockMap, hasActivePath, file, true);
+                    markFileBlocks(usedBlockMap, deletedPaths == null, file, true);
                 }
             } else {
                 log.warn("File not in set, deleting {}", files.get(0).getPath());
                 for (BackupFile file : files) {
                     metadataRepository.deleteFile(file);
-                    markFileBlocks(usedBlockMap, hasActivePath, file, false);
+                    markFileBlocks(usedBlockMap, deletedPaths == null, file, false);
                     deletedVersions.incrementAndGet();
                 }
                 deletedFiles.incrementAndGet();
+                addToDeletedPaths(deletedPaths, files.get(0));
             }
         } else {
             NavigableSet<String> parent = fetchPath(files.get(0));
@@ -235,18 +266,26 @@ public class RepositoryTrimmer {
             for (BackupFile file : files) {
                 if (set.getRetention().keepFile(file, lastFile, deleted)) {
                     lastFile = file;
-                    markFileBlocks(usedBlockMap, hasActivePath, file, true);
+                    markFileBlocks(usedBlockMap, deletedPaths == null, file, true);
                     anyFound = true;
                 } else {
-                    debug(() -> log.debug("Removing " + file.getPath() + " from " + LogUtil.formatTimestamp(file.getLastChanged())));
+                    debug(() -> log.debug("Removing " + file.getPath() + " from "
+                            + LogUtil.formatTimestamp(file.getLastChanged())));
                     metadataRepository.deleteFile(file);
-                    markFileBlocks(usedBlockMap, hasActivePath, file, false);
+                    markFileBlocks(usedBlockMap, deletedPaths == null, file, false);
                     deletedVersions.incrementAndGet();
                 }
             }
             if (!anyFound) {
                 deletedFiles.incrementAndGet();
+                addToDeletedPaths(deletedPaths, files.get(0));
             }
+        }
+    }
+
+    private void addToDeletedPaths(Set<String> deletedPaths, BackupFile backupFile) {
+        if (deletedPaths != null) {
+            deletedPaths.add(findParent(backupFile.getPath()));
         }
     }
 

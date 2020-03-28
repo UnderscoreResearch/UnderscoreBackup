@@ -1,14 +1,23 @@
 package com.underscoreresearch.backup.model;
 
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.*;
-
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
@@ -22,6 +31,11 @@ public class BackupActivePath {
     @Getter
     @Setter
     private List<String> setIds;
+
+    @JsonIgnore
+    @Getter
+    @Setter
+    private boolean unprocessed;
 
     @JsonProperty
     public Set<BackupActiveFile> getFiles() {

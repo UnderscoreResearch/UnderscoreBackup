@@ -1,17 +1,19 @@
 package com.underscoreresearch.backup.cli;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.utils.InternalStateLogger;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.utils.StateLogger;
 
 @Slf4j
 public final class Main {
@@ -50,7 +52,8 @@ public final class Main {
                                     InstanceFactory.getInstance(BackupConfiguration.class),
                                     commandDef.readonlyRepository());
 
-                            scheduledThreadPoolExecutor.scheduleAtFixedRate(new InternalStateLogger(), 1, 1,
+                            StateLogger logger = InstanceFactory.getInstance(StateLogger.class);
+                            scheduledThreadPoolExecutor.scheduleAtFixedRate(() -> logger.logDebug(), 1, 1,
                                     TimeUnit.MINUTES);
                         } catch (IllegalArgumentException exc) {
                             System.out.println(exc.getMessage());

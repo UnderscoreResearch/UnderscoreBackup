@@ -1,5 +1,16 @@
 package com.underscoreresearch.backup.block.implementation;
 
+import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import com.google.common.base.Stopwatch;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -15,17 +26,15 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
-import com.underscoreresearch.backup.model.*;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -38,6 +47,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
     private AtomicBoolean shutdown = new AtomicBoolean();
     private AtomicLong totalSize = new AtomicLong();
     private AtomicLong totalCount = new AtomicLong();
+    private Stopwatch duration;
 
     private LoadingCache<BackupBlock, byte[]> blockData = CacheBuilder.newBuilder().maximumSize(2)
             .build(new CacheLoader<BackupBlock, byte[]>() {
@@ -49,6 +59,9 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
 
     @Override
     public void downloadFile(BackupFile source, String destinationFile) throws IOException {
+        if (duration == null)
+            duration = Stopwatch.createStarted();
+
         for (int i = 0; true; i++) {
             try {
                 BackupLocation location = source.getLocations().get(0);
@@ -147,10 +160,14 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
     }
 
     @Override
-    public void logStatus() {
-        if (totalCount.get() > 0) {
-            debug(() -> log.debug("Downloaded {} objects of total size {}", totalCount.get(),
-                    readableSize(totalSize.get())));
-        }
+    public void resetStatus() {
+        totalCount.set(0);
+        totalSize.set(0);
+        duration = null;
+    }
+
+    @Override
+    public List<StatusLine> status() {
+        return getThroughputStatus(getClass(), "Downloaded", "objects", totalCount.get(), totalSize.get(), duration);
     }
 }

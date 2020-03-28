@@ -1,21 +1,29 @@
 package com.underscoreresearch.backup.cli;
 
-import com.google.common.base.Strings;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.model.*;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.SystemUtils;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang.SystemUtils;
+
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupManifest;
+import com.underscoreresearch.backup.model.BackupRetention;
+import com.underscoreresearch.backup.model.BackupRetentionAdditional;
+import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupTimespan;
 
 @Slf4j
 public class ConfigurationValidator {

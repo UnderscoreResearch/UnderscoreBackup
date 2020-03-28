@@ -1,17 +1,18 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.manifest.model.BackupDirectory;
-import com.underscoreresearch.backup.model.BackupActivePath;
-import com.underscoreresearch.backup.model.BackupActiveStatus;
-import lombok.extern.slf4j.Slf4j;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
+import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.BackupActivePath;
+import com.underscoreresearch.backup.model.BackupActiveStatus;
 
 @Slf4j
 public class BackupContentsAccessImpl extends BackupContentsAccessPathOnly {

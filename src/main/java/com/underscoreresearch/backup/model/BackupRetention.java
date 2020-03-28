@@ -1,13 +1,13 @@
 package com.underscoreresearch.backup.model;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.TreeSet;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.TreeSet;
 
 @Data
 @Builder

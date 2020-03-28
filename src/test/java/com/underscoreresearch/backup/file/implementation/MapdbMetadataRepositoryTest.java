@@ -1,23 +1,31 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.manifest.model.BackupDirectory;
-import com.underscoreresearch.backup.model.*;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.BackupActiveFile;
+import com.underscoreresearch.backup.model.BackupActivePath;
+import com.underscoreresearch.backup.model.BackupActiveStatus;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupLocation;
 
 class MapdbMetadataRepositoryTest {
     private static final String PATH = PATH_SEPARATOR + "test" + PATH_SEPARATOR + "path";

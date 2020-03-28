@@ -1,13 +1,7 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.model.BackupDestination;
-import lombok.extern.slf4j.Slf4j;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,8 +11,15 @@ import java.net.URI;
 import java.nio.file.Paths;
 import java.util.List;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import lombok.extern.slf4j.Slf4j;
+
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOPlugin;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.model.BackupDestination;
 
 @IOPlugin(("FILE"))
 @Slf4j

@@ -1,17 +1,18 @@
 package com.underscoreresearch.backup.block.assignments;
 
-import com.underscoreresearch.backup.block.BlockFormatPlugin;
-import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
+import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.block.BlockFormatPlugin;
+import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.model.BackupFilePart;
 
 @Slf4j
 @BlockFormatPlugin("GZIP")

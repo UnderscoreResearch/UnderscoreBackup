@@ -1,10 +1,15 @@
 package com.underscoreresearch.backup.encryption;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.reflections.Reflections;
 
-import java.util.*;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 public final class EncryptorFactory {
     private static Map<String, Class> encryptors;

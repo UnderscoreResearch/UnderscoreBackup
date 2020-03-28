@@ -1,10 +1,10 @@
 package com.underscoreresearch.backup.file;
 
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
-
 import java.io.File;
 import java.io.IOException;
+
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class PathNormalizer {

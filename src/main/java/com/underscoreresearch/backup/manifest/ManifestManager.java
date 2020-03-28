@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.manifest;
 
-import com.underscoreresearch.backup.file.MetadataRepository;
-
 import java.io.IOException;
+
+import com.underscoreresearch.backup.file.MetadataRepository;
 
 public interface ManifestManager {
     void addLogEntry(String type, String jsonDefinition);

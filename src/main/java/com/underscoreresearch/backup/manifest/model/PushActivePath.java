@@ -1,10 +1,11 @@
 package com.underscoreresearch.backup.manifest.model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.underscoreresearch.backup.model.BackupActivePath;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.underscoreresearch.backup.model.BackupActivePath;
 
 @Data
 @AllArgsConstructor

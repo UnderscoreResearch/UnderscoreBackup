@@ -1,18 +1,7 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.file.FileConsumer;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
-import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.model.*;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,8 +12,25 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static org.hamcrest.MatcherAssert.assertThat;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.file.FileConsumer;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
+import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.model.BackupCompletion;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.BackupFilter;
+import com.underscoreresearch.backup.model.BackupFilterType;
+import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.utils.StateLogger;
 
 class FileScannerImplTest {
     private FileSystemAccessImpl access;
@@ -91,7 +97,7 @@ class FileScannerImplTest {
         consumer = new Consumer();
         delayedBackup = false;
 
-        scanner = new FileScannerImpl(repository, consumer, access);
+        scanner = new FileScannerImpl(repository, consumer, access, Mockito.mock(StateLogger.class));
     }
 
     private void backupFileSubmit(BackupFile file, BackupCompletion completionPromise) {

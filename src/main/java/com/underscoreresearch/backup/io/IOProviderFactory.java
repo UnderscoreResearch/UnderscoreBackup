@@ -1,12 +1,17 @@
 package com.underscoreresearch.backup.io;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupDestination;
-import org.reflections.Reflections;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.reflections.Reflections;
+
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupDestination;
 
 public final class IOProviderFactory {
     private static Map<String, Class> providerClasses;

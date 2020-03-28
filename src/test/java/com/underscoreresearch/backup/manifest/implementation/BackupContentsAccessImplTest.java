@@ -1,23 +1,24 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.manifest.BackupContentsAccess;
-import com.underscoreresearch.backup.manifest.model.BackupDirectory;
-import com.underscoreresearch.backup.model.BackupFile;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsNull.nullValue;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsNull.nullValue;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.manifest.BackupContentsAccess;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import com.underscoreresearch.backup.model.BackupFile;
 
 class BackupContentsAccessImplTest {
     private MetadataRepository metadataRepository;

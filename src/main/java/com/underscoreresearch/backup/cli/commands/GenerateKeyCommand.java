@@ -1,5 +1,12 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY;
+
+import java.io.File;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.Command;
@@ -7,12 +14,6 @@ import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.PasswordReader;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
-import java.io.File;
-
-import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY;
 
 @CommandPlugin(value = "generate-key", description = "Generate a new public key and store it to disk",
         needPrivateKey = false, needConfiguration = false)

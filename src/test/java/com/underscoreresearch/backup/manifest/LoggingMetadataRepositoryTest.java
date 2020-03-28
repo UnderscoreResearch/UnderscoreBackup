@@ -1,21 +1,26 @@
 package com.underscoreresearch.backup.manifest;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+
+import java.io.IOException;
+import java.time.Instant;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
-import com.underscoreresearch.backup.model.*;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
-import java.io.IOException;
-import java.time.Instant;
-
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import com.underscoreresearch.backup.model.BackupActiveFile;
+import com.underscoreresearch.backup.model.BackupActivePath;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.BackupFilePart;
 
 class LoggingMetadataRepositoryTest {
     private MetadataRepository repository;

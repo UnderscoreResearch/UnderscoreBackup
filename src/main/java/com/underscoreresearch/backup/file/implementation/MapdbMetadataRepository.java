@@ -1,5 +1,39 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.FileLockInterruptionException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.NavigableSet;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.mapdb.BTreeMap;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
+import org.mapdb.HTreeMap;
+import org.mapdb.Serializer;
+import org.mapdb.serializer.SerializerArrayTuple;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -8,23 +42,11 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
-import com.underscoreresearch.backup.model.*;
-import lombok.extern.slf4j.Slf4j;
-import org.mapdb.*;
-import org.mapdb.serializer.SerializerArrayTuple;
-
-import java.io.*;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.channels.FileLockInterruptionException;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
+import com.underscoreresearch.backup.model.BackupActivePath;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupLocation;
 
 @Slf4j
 public class MapdbMetadataRepository implements MetadataRepository {
@@ -300,12 +322,12 @@ public class MapdbMetadataRepository implements MetadataRepository {
             if (files == null) {
                 files = new ArrayList<>();
             }
-            files.add(decodrateFile(entry));
+            files.add(decodeFile(entry));
         }
         return files;
     }
 
-    private synchronized BackupFile decodrateFile(Map.Entry<Object[], byte[]> entry) throws IOException {
+    private synchronized BackupFile decodeFile(Map.Entry<Object[], byte[]> entry) throws IOException {
         BackupFile readValue = decodeData(BACKUP_FILE_READER, entry.getValue());
         readValue.setPath((String) entry.getKey()[0]);
         readValue.setLastChanged((Long) entry.getKey()[1]);
@@ -333,7 +355,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
         return fileMap.descendingMap().entrySet().stream().map((entry) -> {
             try {
-                return decodrateFile(entry);
+                return decodeFile(entry);
             } catch (IOException e) {
                 log.error("Invalid file " + entry.getKey()[0], e);
                 return BackupFile.builder().build();
@@ -385,7 +407,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 fileMap.prefixSubMap(new Object[]{path});
         if (query.size() > 0) {
             Map.Entry<Object[], byte[]> entry = query.lastEntry();
-            return decodrateFile(entry);
+            return decodeFile(entry);
         }
         return null;
     }

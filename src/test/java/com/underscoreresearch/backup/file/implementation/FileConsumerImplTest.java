@@ -1,5 +1,17 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.FileBlockAssignment;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -7,17 +19,6 @@ import com.underscoreresearch.backup.model.BackupBlockCompletion;
 import com.underscoreresearch.backup.model.BackupCompletion;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupSet;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 
 class FileConsumerImplTest {
     private MetadataRepository repository;

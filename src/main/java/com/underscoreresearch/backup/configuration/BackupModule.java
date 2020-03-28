@@ -1,5 +1,9 @@
 package com.underscoreresearch.backup.configuration;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+
 import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -12,8 +16,16 @@ import com.underscoreresearch.backup.block.assignments.RawLargeFileBlockAssignme
 import com.underscoreresearch.backup.block.assignments.SmallFileBlockAssignment;
 import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.file.*;
-import com.underscoreresearch.backup.file.implementation.*;
+import com.underscoreresearch.backup.file.FileConsumer;
+import com.underscoreresearch.backup.file.FileScanner;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.ScannerScheduler;
+import com.underscoreresearch.backup.file.implementation.FileConsumerImpl;
+import com.underscoreresearch.backup.file.implementation.FileScannerImpl;
+import com.underscoreresearch.backup.file.implementation.FileSystemAccessImpl;
+import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository;
+import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
@@ -25,10 +37,7 @@ import com.underscoreresearch.backup.manifest.RepositoryTrimmer;
 import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
+import com.underscoreresearch.backup.utils.StateLogger;
 
 public class BackupModule extends AbstractModule {
     private static final int DEFAULT_LARGE_MAXIMUM_SIZE = 8 * 1024 * 1024 - 10 * 1024;
@@ -62,8 +71,8 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public FileScannerImpl fileScanner(MetadataRepository repository, FileConsumer fileConsumer,
-                                       FileSystemAccess access) {
-        return new FileScannerImpl(repository, fileConsumer, access);
+                                       FileSystemAccess access, StateLogger logger) {
+        return new FileScannerImpl(repository, fileConsumer, access, logger);
     }
 
     @Singleton

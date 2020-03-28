@@ -1,23 +1,33 @@
 package com.underscoreresearch.backup.block.implementation;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.UploadScheduler;
-import com.underscoreresearch.backup.model.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.ArgumentMatchers.*;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupCompletion;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupData;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupUploadCompletion;
 
 class FileBlockUploaderImplTest {
     private MetadataRepository repository;
