@@ -7,10 +7,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
@@ -25,13 +27,16 @@ import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
+import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.StatusLogger;
 
 @RequiredArgsConstructor
 @Slf4j
-public class FileBlockUploaderImpl implements FileBlockUploader {
+public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
     private final BackupConfiguration configuration;
     private final MetadataRepository repository;
     private final UploadScheduler uploadScheduler;
+    private final AtomicLong totalBlocks = new AtomicLong();
 
     @Override
     public void uploadBlock(BackupSet set,
@@ -109,6 +114,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader {
                                         if (storage.getParts().stream().anyMatch(t -> t == null)) {
                                             completionFuture.completed(false);
                                         } else {
+                                            totalBlocks.incrementAndGet();
                                             repository.addBlock(block);
                                             completionFuture.completed(true);
                                         }
@@ -132,6 +138,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader {
             synchronized (completions) {
                 canComplete.set(true);
                 if (completions.size() == 0) {
+                    totalBlocks.incrementAndGet();
                     repository.addBlock(block);
                     completionFuture.completed(true);
                 }
@@ -140,5 +147,18 @@ public class FileBlockUploaderImpl implements FileBlockUploader {
             log.error("Failed to save block " + blockHash, e);
             completionFuture.completed(false);
         }
+    }
+
+    @Override
+    public void resetStatus() {
+        totalBlocks.set(0);
+    }
+
+    @Override
+    public List<StatusLine> status() {
+        if (totalBlocks.get() > 0) {
+            return Lists.newArrayList(new StatusLine(getClass(), "UPLOADED_BLOCKS", "Uploaded blocks", totalBlocks.get(), totalBlocks.get() + ""));
+        }
+        return new ArrayList<>();
     }
 }

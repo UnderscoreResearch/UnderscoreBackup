@@ -1,54 +1,80 @@
 package com.underscoreresearch.backup.block.assignments;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.block.FileBlockAssignment;
+import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.model.BackupBlockCompletion;
 import com.underscoreresearch.backup.model.BackupCompletion;
 import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupSet;
 
 @RequiredArgsConstructor
 @Slf4j
-public abstract class LargeFileBlockAssignment implements FileBlockAssignment, FileBlockExtractor {
+public abstract class LargeFileBlockAssignment extends BaseBlockAssignment implements FileBlockExtractor {
     private static final long GB = 1024 * 1024 * 1024;
     private final FileBlockUploader uploader;
+    private final BlockDownloader blockDownloader;
     private final FileSystemAccess access;
+    private final MetadataRepository metadataRepository;
     private final int maximumBlockSize;
 
     @Override
-    public boolean assignBlocks(BackupSet set, BackupFile file, BackupBlockCompletion completionFuture) {
+    protected boolean internalAssignBlocks(BackupSet set, BackupPartialFile backupPartialFile,
+                                           BackupBlockCompletion completionFuture) {
         Set<BackupCompletion> partialCompletions = new HashSet<>();
         AtomicBoolean success = new AtomicBoolean(true);
-        List<BackupFilePart> parts = new ArrayList<>();
-        BackupLocation location = BackupLocation.builder()
-                .creation(Instant.now().toEpochMilli())
-                .parts(parts)
-                .build();
-        BackupLocation[] locationRef = new BackupLocation[]{location};
-        AtomicBoolean readyToComplete = new AtomicBoolean();
 
         long start = 0;
+        try {
+            BackupPartialFile existingPartialFile = metadataRepository.getPartialFile(backupPartialFile);
+            if (existingPartialFile != null && existingPartialFile.getParts() != null) {
+                for (BackupPartialFile.PartialCompletedPath part : existingPartialFile.getParts()) {
+                    if (metadataRepository.block(part.getPart().getBlockHash()) == null) {
+                        break;
+                    }
+                    backupPartialFile.addPart(metadataRepository, part);
+                    start = part.getPosition();
+                }
+
+                if (start > 0) {
+                    log.info("Resuming a backup {} from {}", backupPartialFile.getFile().getPath(), readableSize(start));
+                }
+            }
+        } catch (IOException e) {
+            log.warn("Couldn't read partial file", e);
+        }
+
+        AtomicReference<BackupPartialFile> locationRef = new AtomicReference<>(backupPartialFile);
+        AtomicBoolean readyToComplete = new AtomicBoolean();
+        backupPartialFile.setParts(new ArrayList<>());
+
+        BackupFile file = backupPartialFile.getFile();
+
         while (start < file.getLength()) {
-            if (InstanceFactory.shutdown()) {
+            if (InstanceFactory.isShutdown()) {
                 return true;
             }
             long end = start + maximumBlockSize;
@@ -66,19 +92,19 @@ public abstract class LargeFileBlockAssignment implements FileBlockAssignment, F
                     completionFuture.completed(null);
                     return true;
                 }
+
+                final String hash = Hash.hash(buffer);
+                BackupFilePart part = BackupFilePart.builder()
+                        .blockHash(hash)
+                        .build();
+
                 if (length != size) {
                     log.warn("Only read {} when expected {} for {}", length, size, file.getPath());
-                    locationRef[0] = null;
+                    locationRef.set(null);
                     completionFuture.completed(null);
                     return true;
                 } else {
                     // TODO: If at the end we end up with a small piece that should go in a small block.
-
-                    final String hash = Hash.hash(buffer);
-
-                    parts.add(BackupFilePart.builder()
-                            .blockHash(hash)
-                            .build());
 
                     BackupCompletion partialCompletion = new BackupCompletion() {
                         @Override
@@ -90,15 +116,22 @@ public abstract class LargeFileBlockAssignment implements FileBlockAssignment, F
                                 }
                                 if (partialCompletions.size() == 0) {
                                     if (readyToComplete.get()) {
-                                        if (locationRef[0] != null) {
+                                        try {
+                                            metadataRepository.deletePartialFile(backupPartialFile);
+                                        } catch (IOException e) {
+                                            log.error("Failed to remove partial file data for {}",
+                                                    backupPartialFile.getFile().getPath());
+                                        }
+                                        if (locationRef.get() != null) {
                                             completionFuture.completed(success.get()
-                                                    ? Lists.newArrayList(locationRef[0])
+                                                    ? Lists.newArrayList(createLocation(locationRef))
                                                     : null);
                                         }
                                     }
                                 }
                             }
                         }
+
                     };
 
                     synchronized (partialCompletions) {
@@ -121,13 +154,21 @@ public abstract class LargeFileBlockAssignment implements FileBlockAssignment, F
                     uploader.uploadBlock(set, data, hash, getFormat(), partialCompletion);
                 }
 
-                if (start / GB != end / GB && start < file.getLength()) {
-                    long ts = end;
-                    log.info("Scheduled {}G/{}G for {}", ts / GB, file.getLength() / GB, file.getPath());
+                backupPartialFile.addPart(metadataRepository, new BackupPartialFile.PartialCompletedPath(end, part));
+
+                if (end < file.getLength()) {
+                    // We keep a checkpoint every 10th of a GB.
+                    if (start * 10 / GB != end * 10 / GB) {
+                        metadataRepository.savePartialFile(backupPartialFile);
+                    }
+                    if (start / GB != end / GB) {
+                        log.info("Processed {} / {} for {}", readableSize(end), readableSize(file.getLength()),
+                                file.getPath());
+                    }
                 }
             } catch (Exception e) {
                 log.error("Failed to create block for " + file.getPath(), e);
-                locationRef[0] = null;
+                locationRef.set(null);
                 completionFuture.completed(null);
                 return true;
             }
@@ -137,10 +178,20 @@ public abstract class LargeFileBlockAssignment implements FileBlockAssignment, F
         synchronized (partialCompletions) {
             readyToComplete.set(true);
             if (partialCompletions.size() == 0) {
-                completionFuture.completed(success.get() ? Lists.newArrayList(locationRef[0]) : null);
+                completionFuture.completed(success.get() ? Lists.newArrayList(createLocation(locationRef)) : null);
             }
         }
         return true;
+    }
+
+    private BackupLocation createLocation(AtomicReference<BackupPartialFile> locationRef) {
+        BackupPartialFile file = locationRef.get();
+        if (file != null) {
+            return BackupLocation.builder().creation(Instant.now().toEpochMilli())
+                    .parts(file.getParts().stream().map(t -> t.getPart()).collect(Collectors.toList())).build();
+        } else {
+            throw new RuntimeException("Expected an existing location reference");
+        }
     }
 
     @Override
@@ -152,7 +203,11 @@ public abstract class LargeFileBlockAssignment implements FileBlockAssignment, F
     protected abstract String getFormat();
 
     @Override
-    public abstract byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException;
+    public byte[] extractPart(BackupFilePart file) throws IOException {
+        return extractPart(file, blockDownloader.downloadBlock(file.getBlockHash()));
+    }
+
+    protected abstract byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException;
 
     @Override
     public boolean shouldCache() {

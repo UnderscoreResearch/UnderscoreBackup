@@ -12,6 +12,10 @@ public final class PathNormalizer {
     public static final String PATH_SEPARATOR = "/";
 
     public static String normalizePath(final String path) {
+        if (path.equals("/") || path.equals(File.separator)) {
+            return "/";
+        }
+
         File file = new File(path);
         String ret;
         try {

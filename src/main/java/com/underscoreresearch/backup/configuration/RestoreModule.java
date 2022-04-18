@@ -3,7 +3,10 @@ package com.underscoreresearch.backup.configuration;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
+import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileDownloader;
+import com.underscoreresearch.backup.block.implementation.BlockDownloaderImpl;
 import com.underscoreresearch.backup.block.implementation.FileDownloaderImpl;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -14,17 +17,22 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 
 public class RestoreModule extends AbstractModule {
     private static final int DEFAULT_DOWNLOAD_THREADS = 4;
+    private static final String DOWNLOAD_THREADS = "DOWNLOAD_THREADS";
 
-    @Singleton
+    @Named(DOWNLOAD_THREADS)
     @Provides
-    public DownloadSchedulerImpl downloadSchedulerImpl(FileDownloader fileDownloader,
-                                                       BackupConfiguration configuration) {
+    public int getDownloadThreads(BackupConfiguration configuration) {
         int threads;
         if (configuration.getLimits() == null || configuration.getLimits().getMaximumDownloadThreads() == null)
             threads = DEFAULT_DOWNLOAD_THREADS;
         else
             threads = configuration.getLimits().getMaximumDownloadThreads();
+        return threads;
+    }
 
+    @Singleton
+    @Provides
+    public DownloadSchedulerImpl downloadSchedulerImpl(@Named(DOWNLOAD_THREADS) int threads, FileDownloader fileDownloader) {
         return new DownloadSchedulerImpl(threads, fileDownloader);
     }
 
@@ -40,12 +48,25 @@ public class RestoreModule extends AbstractModule {
         return fileDownloader;
     }
 
+    @Provides
+    @Singleton
+    public BlockDownloaderImpl blockDownloader(BackupConfiguration configuration,
+                                               RateLimitController rateLimitController,
+                                               MetadataRepository metadataRepository,
+                                               @Named(DOWNLOAD_THREADS) int threads) {
+        return new BlockDownloaderImpl(configuration, rateLimitController, metadataRepository, threads);
+    }
+
+    @Provides
+    @Singleton
+    public BlockDownloader blockDownloader(BlockDownloaderImpl blockDownloader) {
+        return blockDownloader;
+    }
+
     @Singleton
     @Provides
     public FileDownloaderImpl fileDownloader(MetadataRepository repository,
-                                             RateLimitController rateLimitController,
-                                             FileSystemAccess fileSystemAccess,
-                                             BackupConfiguration backupConfiguration) {
-        return new FileDownloaderImpl(repository, fileSystemAccess, rateLimitController, backupConfiguration);
+                                             FileSystemAccess fileSystemAccess) {
+        return new FileDownloaderImpl(repository, fileSystemAccess);
     }
 }

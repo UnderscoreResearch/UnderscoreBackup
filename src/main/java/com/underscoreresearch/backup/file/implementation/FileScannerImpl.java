@@ -3,11 +3,12 @@ package com.underscoreresearch.backup.file.implementation;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
+import static com.underscoreresearch.backup.utils.LogUtil.readableDuration;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,7 @@ import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupActiveStatus;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupSet;
-import com.underscoreresearch.backup.utils.LogUtil;
+import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
@@ -50,6 +51,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     private final FileConsumer consumer;
     private final FileSystemAccess filesystem;
     private final StateLogger stateLogger;
+    private final boolean developerMode;
     private final AtomicInteger outstandingFiles = new AtomicInteger();
     private final AtomicLong completedFiles = new AtomicLong();
     private final AtomicLong completedSize = new AtomicLong();
@@ -71,14 +73,19 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                     pendingPaths.keySet())));
         }
 
-        if (!addPendingPath(backupSet, backupSet.getNormalizedRoot())) {
-            lock.unlock();
-            return !shutdown;
+        for (BackupSetRoot root : backupSet.getRoots()) {
+            if (!addPendingPath(backupSet, root.getNormalizedPath())) {
+                lock.unlock();
+                return !shutdown;
+            }
         }
 
         pendingPaths.values().forEach(t -> t.setUnprocessed(true));
 
-        processPath(backupSet, backupSet.getNormalizedRoot());
+        for (BackupSetRoot root : backupSet.getRoots()) {
+            if (!shutdown)
+                processPath(backupSet, root.getNormalizedPath());
+        }
 
         consumer.flushAssignments();
 
@@ -141,39 +148,22 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
 
     @Override
     public List<StatusLine> status() {
-        List<StatusLine> ret = getThroughputStatus(getClass(), "Completed", "files",
-                completedFiles.get(), completedSize.get(), duration);
+        List<StatusLine> ret = getThroughputStatus(getClass(), "Finished", "files",
+                completedFiles.get(), completedSize.get(),
+                duration != null ? duration.elapsed() : Duration.ZERO);
 
-        if (outstandingFiles.get() > 0) {
+        if (duration != null) {
+            ret.add(new StatusLine(getClass(), "BACKUP_DURATION", "Total duration", duration.elapsed().toMillis(),
+                    readableDuration(duration.elapsed())));
+        }
+
+        if (outstandingFiles.get() > 0 && developerMode) {
             ret.add(new StatusLine(getClass(), "OUTSTANDING_FILES", "Outstanding backup files",
                     (long) outstandingFiles.get()));
             ret.add(new StatusLine(getClass(), "OUTSTANDING_PATHS", "Outstanding backup paths",
                     (long) pendingPaths.size()));
-            List<String> paths = calculateStartingPaths(pendingPaths);
-            if (paths.size() > 0) {
-                ret.add(new StatusLine(getClass(), "OUTSTANDING_LAST", "Oldest outstanding backup path", null,
-                        paths.get(paths.size() - 1)));
-            }
         }
         return ret;
-    }
-
-
-    private List<String> calculateStartingPaths(TreeMap<String, BackupActivePath> pendingPaths) {
-        List<String> startingPaths = new ArrayList<>();
-        String lastPath = null;
-        for (Map.Entry<String, BackupActivePath> entry : pendingPaths.entrySet()) {
-            if (!entry.getValue().isUnprocessed()) {
-                String path = entry.getKey();
-                if (lastPath == null || path.startsWith(lastPath)) {
-                    startingPaths.add(path);
-                } else {
-                    break;
-                }
-                lastPath = path;
-            }
-        }
-        return startingPaths;
     }
 
     private BackupActiveStatus processPath(BackupSet set, String currentPath) throws IOException {
@@ -218,26 +208,15 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
 
                         anyIncluded = true;
 
-                        if (existingFile == null || !existingFile.getLastChanged().equals(file.getLastChanged())) {
+                        if (existingFile == null
+                                || !existingFile.getLastChanged().equals(file.getLastChanged())
+                                || !existingFile.getLength().equals(file.getLength())) {
                             lock.unlock();
                             log.info("Backing up {} ({})", file.getPath(), readableSize(file.getLength()));
                             outstandingFiles.incrementAndGet();
                             pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCOMPLETE);
 
                             consumer.backupFile(set, file, (success) -> {
-                                if (existingFile != null && existingFile.getLastChanged() > file.getLastChanged()) {
-                                    log.warn("Removing {} that had more recent timestamp ({}) than current file ({})",
-                                            existingFile.getPath(),
-                                            LogUtil.formatTimestamp(existingFile.getLastChanged()),
-                                            LogUtil.formatTimestamp(file.getLastChanged()));
-                                    try {
-                                        repository.deleteFile(existingFile);
-                                    } catch (IOException e) {
-                                        log.error("Failed to delete more recent file " + existingFile.getLastChanged(),
-                                                e);
-                                    }
-                                }
-
                                 outstandingFiles.decrementAndGet();
                                 if (!success) {
                                     if (!IOUtils.hasInternet()) {

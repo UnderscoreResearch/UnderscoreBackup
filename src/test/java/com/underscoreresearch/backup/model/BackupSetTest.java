@@ -19,27 +19,33 @@ class BackupSetTest {
     @BeforeEach
     public void setup() {
         filter2 = BackupFilter.builder().paths(Lists.newArrayList("foobar/test",
-                "home/ANT.AMAZON.COM/mauritz/.gradle"))
+                        "home/ANT.AMAZON.COM/mauritz/.gradle"))
                 .type(BackupFilterType.EXCLUDE).build();
         filter1 = BackupFilter.builder().paths(Lists.newArrayList("foo")).type(BackupFilterType.INCLUDE).children(
                 Lists.newArrayList(BackupFilter.builder().paths(Lists.newArrayList("bar")).type(BackupFilterType.EXCLUDE).children(
                         Lists.newArrayList(BackupFilter.builder().paths(Lists.newArrayList("back")).build())).build())).build();
 
         set = BackupSet.builder()
-                .root("/root/")
-                .filters(Lists.newArrayList(filter1, filter2))
+                .roots(Lists.newArrayList(BackupSetRoot.builder()
+                        .filters(Lists.newArrayList(filter1, filter2))
+                        .path("/root/").build()))
                 .exclusions(Lists.newArrayList("\\.bak$")).build();
 
         rootSet = BackupSet.builder()
-                .filters(Lists.newArrayList(filter1, filter2)).build();
-        rootSet.setNormalizedRoot("/");
+                .roots(Lists.newArrayList(BackupSetRoot.builder()
+                        .filters(Lists.newArrayList(filter1, filter2)).build()))
+                .build();
+        rootSet.getRoots().get(0).setNormalizedPath("/");
     }
 
     @Test
     public void otherSet() {
-        set = BackupSet.builder()
+        BackupSetRoot root = BackupSetRoot.builder()
                 .filters(Lists.newArrayList(filter1, filter2)).build();
-        set.setNormalizedRoot("/root");
+        root.setNormalizedPath("/root");
+        set = BackupSet.builder()
+                .roots(Lists.newArrayList(root))
+                .build();
         assertThat(set.includeFile("/root/foo.bak"), is(true));
     }
 

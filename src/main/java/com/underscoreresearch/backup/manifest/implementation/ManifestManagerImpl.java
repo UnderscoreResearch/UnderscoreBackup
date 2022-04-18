@@ -2,13 +2,17 @@ package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
@@ -18,9 +22,11 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -28,6 +34,8 @@ import java.util.zip.GZIPOutputStream;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Stopwatch;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
@@ -47,9 +55,13 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupPartialFile;
+import com.underscoreresearch.backup.model.BackupPendingSet;
+import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class ManifestManagerImpl implements ManifestManager {
+public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.n").withZone(ZoneId.of("UTC"));
     private static final String LOG_ROOT = "logs";
@@ -65,8 +77,9 @@ public class ManifestManagerImpl implements ManifestManager {
     private OutputStream currentLogStream;
     private long currentLogLength;
     private Object lock = new Object();
-    private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
-    private boolean initialized = false;
+    private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
+            new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
+    private LogConsumer initializeLogConsumer;
 
     public ManifestManagerImpl(BackupConfiguration configuration,
                                IOProvider provider,
@@ -89,70 +102,104 @@ public class ManifestManagerImpl implements ManifestManager {
         this.encryptor = encryptor;
     }
 
-    private void uploadPending() throws IOException {
+    private void uploadPending(LogConsumer logConsumer) throws IOException {
         PublicKeyEncrypion publicKeyEncrypion = InstanceFactory.getInstance(PublicKeyEncrypion.class);
+        startOperation("Upload pending");
         try {
-            PublicKeyEncrypion existingPublicKey = new ObjectMapper().readValue(provider.download("publickey.json"),
-                    PublicKeyEncrypion.class);
-            if (!publicKeyEncrypion.getSalt().equals(existingPublicKey.getSalt())
-                    || !publicKeyEncrypion.getPublicKey().equals(existingPublicKey.getPublicKey())) {
-                throw new IOException("Public key that exist in destination does not match current public key");
-            }
-        } catch (Exception exc) {
-            if (!IOUtils.hasInternet()) {
-                throw exc;
-            }
-            log.info("Public key does not exist");
-            uploadConfigData("publickey.json",
-                    new ObjectMapper().writeValueAsBytes(publicKeyEncrypion),
-                    false);
-        }
-
-        uploadConfigData("configuration.json",
-                InstanceFactory.getInstance(CONFIG_DATA).getBytes(Charset.forName("UTF-8")),
-                false);
-
-        File parent = Paths.get(configuration.getManifest().getLocalLocation(), "logs").toFile();
-        if (parent.isDirectory()) {
-            for (String filename : parent.list()) {
-                File file = new File(parent, filename);
-                try (FileInputStream stream = new FileInputStream(file)) {
-                    uploadConfigData(transformLogFilename(filename), IOUtils.readAllBytes(stream), true);
+            processedFiles = new AtomicLong(0);
+            totalFiles = new AtomicLong(2);
+            try {
+                PublicKeyEncrypion existingPublicKey = new ObjectMapper().readValue(provider.download("publickey.json"),
+                        PublicKeyEncrypion.class);
+                if (!publicKeyEncrypion.getSalt().equals(existingPublicKey.getSalt())
+                        || !publicKeyEncrypion.getPublicKey().equals(existingPublicKey.getPublicKey())) {
+                    throw new IOException("Public key that exist in destination does not match current public key");
                 }
-                file.delete();
+            } catch (Exception exc) {
+                if (!IOUtils.hasInternet()) {
+                    throw exc;
+                }
+                log.info("Public key does not exist");
+                uploadConfigData("publickey.json",
+                        new ByteArrayInputStream(new ObjectMapper().writeValueAsBytes(publicKeyEncrypion)),
+                        false);
+            } finally {
+                processedFiles.incrementAndGet();
             }
+
+            uploadConfigData("configuration.json",
+                    new ByteArrayInputStream(InstanceFactory.getInstance(CONFIG_DATA).getBytes(Charset.forName("UTF-8"))),
+                    true);
+            processedFiles.incrementAndGet();
+
+            File parent = Paths.get(configuration.getManifest().getLocalLocation(), "logs").toFile();
+            if (parent.isDirectory()) {
+                String[] files = parent.list();
+                totalFiles.addAndGet(files.length);
+
+                for (String filename : files) {
+                    File file = new File(parent, filename);
+                    try (FileInputStream stream = new FileInputStream(file)) {
+                        processLogInputStream(logConsumer, stream);
+                    }
+                    try (FileInputStream stream = new FileInputStream(file)) {
+                        uploadConfigData(transformLogFilename(filename), stream, true);
+                    }
+                    file.delete();
+                    processedFiles.incrementAndGet();
+                }
+            }
+        } finally {
+            resetStatus();
         }
     }
 
-    public void initialize() {
+    @Override
+    public void initialize(LogConsumer logConsumer) {
         synchronized (lock) {
-            if (!initialized) {
+            initializeLogConsumer = logConsumer;
+        }
+    }
+
+    private void internalInitialize() {
+        synchronized (lock) {
+            if (initializeLogConsumer != null) {
                 try {
-                    uploadPending();
-                    initialized = true;
+                    uploadPending(initializeLogConsumer);
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to initialize metadata system for writing", e);
+                } finally {
+                    initializeLogConsumer = null;
                 }
             }
         }
     }
 
-    private void uploadConfigData(String filename, byte[] data, boolean encrypt) throws IOException {
+    private void uploadConfigData(String filename, InputStream inputStream, boolean encrypt) throws IOException {
+        byte[] data;
+        if (encrypt) {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
+                IOUtils.copyStream(inputStream, gzipStream);
+            }
+            data = encryptor.encryptBlock(outputStream.toByteArray());
+        } else {
+            data = IOUtils.readAllBytes(inputStream);
+        }
+        log.info("Uploading {} ({})", filename, readableSize(data.length));
         rateLimitController.acquireUploadPermits(manifestDestination, data.length);
-        if (encrypt)
-            data = encryptor.encryptBlock(data);
         provider.upload(filename, data);
     }
 
     private String transformLogFilename(String path) {
         String filename = Paths.get(path).getFileName().toString();
-        return "logs" + PATH_SEPARATOR + filename.replaceAll("(\\d{4}-\\d{2}-\\d{2})-", "$1" + PATH_SEPARATOR);
+        return "logs" + PATH_SEPARATOR + filename.replaceAll("(\\d{4}-\\d{2}-\\d{2})-", "$1" + PATH_SEPARATOR) + ".gz";
     }
 
     @Override
     public void addLogEntry(String type, String jsonDefinition) {
         synchronized (lock) {
-            initialize();
+            internalInitialize();
 
             try {
                 if (currentLogStream == null) {
@@ -160,28 +207,44 @@ public class ManifestManagerImpl implements ManifestManager {
                 }
                 byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(Charset.forName("UTF-8"));
                 currentLogStream.write(data);
+                currentLogStream.flush();
                 currentLogLength += data.length;
 
                 if (currentLogLength > configuration.getManifest().getMaximumUnsyncedSize()) {
-                    createNewLogFile();
+                    flushLogging();
                 }
             } catch (IOException exc) {
                 log.error("Failed to save log entry: " + type + ": " + jsonDefinition, exc);
+
+                try {
+                    flushLogging();
+                } catch (IOException exc2) {
+                    log.error("Start new log file", exc2);
+                    currentLogName = null;
+                }
             }
         }
+    }
+
+    private void flushLogging() throws IOException {
+        try {
+            InstanceFactory.getInstance(MetadataRepository.class).flushLogging();
+        } catch (Exception exc) {
+            log.error("Failed to flush repository before starting new log file", exc);
+        }
+        createNewLogFile();
     }
 
     private void createNewLogFile() throws IOException {
         closeLogFile();
         currentLogLength = 0;
-        currentLogName = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now()) + ".gz").toString();
+        currentLogName = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
 
         File dir = new File(currentLogName).getParentFile();
         if (!dir.isDirectory())
             dir.mkdirs();
 
-        FileOutputStream fileOutputStream = new FileOutputStream(currentLogName);
-        currentLogStream = new GZIPOutputStream(fileOutputStream);
+        currentLogStream = new FileOutputStream(currentLogName);
         if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
             String logName = currentLogName;
             executor.schedule(() -> {
@@ -203,57 +266,85 @@ public class ManifestManagerImpl implements ManifestManager {
     private void closeLogFile() throws IOException {
         if (currentLogStream != null) {
             currentLogStream.close();
+            currentLogStream = null;
+            currentLogLength = 0;
             try (FileInputStream stream = new FileInputStream(currentLogName)) {
-                uploadConfigData(transformLogFilename(currentLogName), IOUtils.readAllBytes(stream), true);
+                uploadConfigData(transformLogFilename(currentLogName), stream, true);
             }
             new File(currentLogName).delete();
-            currentLogStream = null;
             currentLogName = null;
         }
+    }
+
+    public void flushLog() throws IOException {
+        closeLogFile();
     }
 
     @Override
     public void replayLog(LogConsumer consumer) throws IOException {
         IOIndex index = (IOIndex) provider;
-        for (String day : index.availableKeys(LOG_ROOT)) {
-            for (String file : index.availableKeys(LOG_ROOT + PATH_SEPARATOR + day)) {
-                String path = LOG_ROOT + PATH_SEPARATOR + day;
-                if (!path.endsWith(PATH_SEPARATOR)) {
-                    path += PATH_SEPARATOR;
-                }
-                path += file;
-                byte[] data = provider.download(path);
+        List<String> days = index.availableKeys(LOG_ROOT);
+        startOperation("Replay");
+        try {
+            totalFiles = new AtomicLong(days.size());
+            processedFiles = new AtomicLong();
+            processedOperations = new AtomicLong();
 
-                try {
-                    log.info("Processing log file {}", path);
-                    byte[] unencryptedData = encryptor.decodeBlock(data);
-                    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(unencryptedData)) {
-                        try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
-                            try (InputStreamReader inputStreamReader
-                                         = new InputStreamReader(gzipInputStream)) {
-                                try (BufferedReader reader = new BufferedReader(inputStreamReader)) {
-                                    for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-                                        int ind = line.indexOf(':');
-                                        try {
-                                            consumer.replayLogEntry(line.substring(0, ind),
-                                                    line.substring(ind + 1));
-                                        } catch (Exception exc) {
-                                            log.error("Failed processing log line: " + line, exc);
-                                        }
-                                    }
-                                }
+            for (String day : days) {
+                List<String> files = index.availableKeys(LOG_ROOT + PATH_SEPARATOR + day);
+                totalFiles.addAndGet(files.size());
+
+                for (String file : files) {
+                    String path = LOG_ROOT + PATH_SEPARATOR + day;
+                    if (!path.endsWith(PATH_SEPARATOR)) {
+                        path += PATH_SEPARATOR;
+                    }
+                    path += file;
+                    byte[] data = provider.download(path);
+
+                    try {
+                        log.info("Processing log file {}", path);
+                        byte[] unencryptedData = encryptor.decodeBlock(data);
+                        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(unencryptedData)) {
+                            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                                processLogInputStream(consumer, gzipInputStream);
                             }
                         }
+                    } catch (Exception exc) {
+                        log.error("Failed to read log file " + file, exc);
                     }
-                } catch (Exception exc) {
-                    log.error("Failed to read log file " + file, exc);
+                    processedFiles.incrementAndGet();
+                }
+                processedFiles.incrementAndGet();
+            }
+        } finally {
+            log.info("Completed reprocessing logs");
+            resetStatus();
+        }
+    }
+
+    private void processLogInputStream(LogConsumer consumer, InputStream gzipInputStream) throws IOException {
+        try (InputStreamReader inputStreamReader
+                     = new InputStreamReader(gzipInputStream)) {
+            try (BufferedReader reader = new BufferedReader(inputStreamReader)) {
+                for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+                    int ind = line.indexOf(':');
+                    try {
+                        consumer.replayLogEntry(line.substring(0, ind),
+                                line.substring(ind + 1));
+                    } catch (Exception exc) {
+                        log.error("Failed processing log line: " + line, exc);
+                    }
                 }
             }
         }
     }
 
     @Override
-    public void optimizeLog(MetadataRepository existingRepository) throws IOException {
+    public void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException {
+        initialize(logConsumer);
+        internalInitialize();
+
         IOIndex index = (IOIndex) provider;
         List<String> existingLogs = new ArrayList<>();
         for (String day : index.availableKeys(LOG_ROOT)) {
@@ -266,148 +357,202 @@ public class ManifestManagerImpl implements ManifestManager {
             }
         }
 
-        LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new MetadataRepository() {
-            @Override
-            public void addFile(BackupFile file) throws IOException {
-            }
+        try {
+            LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new MetadataRepository() {
+                @Override
+                public void addFile(BackupFile file) throws IOException {
+                }
 
-            @Override
-            public List<BackupFile> file(String path) throws IOException {
-                return null;
-            }
+                @Override
+                public List<BackupFile> file(String path) throws IOException {
+                    return null;
+                }
 
-            @Override
-            public BackupFile lastFile(String path) throws IOException {
-                return null;
-            }
+                @Override
+                public BackupFile lastFile(String path) throws IOException {
+                    return null;
+                }
 
-            @Override
-            public boolean deleteFile(BackupFile file) throws IOException {
-                return false;
-            }
+                @Override
+                public boolean deleteFile(BackupFile file) throws IOException {
+                    return false;
+                }
 
-            @Override
-            public List<BackupFilePart> existingFilePart(String partHash) throws IOException {
-                return null;
-            }
+                @Override
+                public List<BackupFilePart> existingFilePart(String partHash) throws IOException {
+                    return null;
+                }
 
-            @Override
-            public boolean deleteFilePart(BackupFilePart filePart) throws IOException {
-                return false;
-            }
+                @Override
+                public boolean deleteFilePart(BackupFilePart filePart) throws IOException {
+                    return false;
+                }
 
-            @Override
-            public void addBlock(BackupBlock block) throws IOException {
-            }
+                @Override
+                public void addBlock(BackupBlock block) throws IOException {
+                }
 
-            @Override
-            public BackupBlock block(String hash) throws IOException {
-                return null;
-            }
+                @Override
+                public BackupBlock block(String hash) throws IOException {
+                    return null;
+                }
 
-            @Override
-            public boolean deleteBlock(BackupBlock block) throws IOException {
-                return false;
-            }
+                @Override
+                public boolean deleteBlock(BackupBlock block) throws IOException {
+                    return false;
+                }
 
-            @Override
-            public void addDirectory(BackupDirectory directory) throws IOException {
-            }
+                @Override
+                public void addDirectory(BackupDirectory directory) throws IOException {
+                }
 
-            @Override
-            public List<BackupDirectory> directory(String path) throws IOException {
-                return null;
-            }
+                @Override
+                public List<BackupDirectory> directory(String path) throws IOException {
+                    return null;
+                }
 
-            @Override
-            public BackupDirectory lastDirectory(String path) throws IOException {
-                return null;
-            }
+                @Override
+                public BackupDirectory lastDirectory(String path) throws IOException {
+                    return null;
+                }
 
-            @Override
-            public boolean deleteDirectory(String path, long timestamp) throws IOException {
-                return false;
-            }
+                @Override
+                public boolean deleteDirectory(String path, long timestamp) throws IOException {
+                    return false;
+                }
 
-            @Override
-            public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
-            }
+                @Override
+                public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
+                }
 
-            @Override
-            public boolean hasActivePath(String setId, String path) throws IOException {
-                return false;
-            }
+                @Override
+                public boolean hasActivePath(String setId, String path) throws IOException {
+                    return false;
+                }
 
-            @Override
-            public void popActivePath(String setId, String path) throws IOException {
-            }
+                @Override
+                public void popActivePath(String setId, String path) throws IOException {
+                }
 
-            @Override
-            public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
-                return null;
-            }
+                @Override
+                public boolean deletePartialFile(BackupPartialFile file) throws IOException {
+                    return false;
+                }
 
-            @Override
-            public void flushLogging() throws IOException {
-            }
+                @Override
+                public void savePartialFile(BackupPartialFile file) throws IOException {
 
-            @Override
-            public void open(boolean readOnly) throws IOException {
-            }
+                }
 
-            @Override
-            public void close() throws IOException {
-            }
+                @Override
+                public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
+                    return null;
+                }
 
-            @Override
-            public Stream<BackupFile> allFiles() throws IOException {
-                return null;
-            }
+                @Override
+                public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
+                    return null;
+                }
 
-            @Override
-            public Stream<BackupBlock> allBlocks() throws IOException {
-                return null;
-            }
+                @Override
+                public void flushLogging() throws IOException {
+                }
 
-            @Override
-            public Stream<BackupDirectory> allDirectories() throws IOException {
-                return null;
-            }
-        }, this);
+                @Override
+                public void open(boolean readOnly) throws IOException {
+                }
 
-        existingRepository.allFiles().forEach((file) -> {
-            try {
-                copyRepository.addFile(file);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        existingRepository.allBlocks().forEach((block) -> {
-            try {
-                copyRepository.addBlock(block);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        existingRepository.allDirectories().forEach((dir) -> {
-            try {
-                copyRepository.addDirectory(dir);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        existingRepository.getActivePaths(null).forEach((path, dir) -> {
-            for (String setId : dir.getSetIds()) {
+                @Override
+                public void close() throws IOException {
+                }
+
+                @Override
+                public Stream<BackupFile> allFiles() throws IOException {
+                    return null;
+                }
+
+                @Override
+                public Stream<BackupBlock> allBlocks() throws IOException {
+                    return null;
+                }
+
+                @Override
+                public Stream<BackupDirectory> allDirectories() throws IOException {
+                    return null;
+                }
+
+                @Override
+                public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
+
+                }
+
+                @Override
+                public void deletePendingSets(String setId) throws IOException {
+
+                }
+
+                @Override
+                public Set<BackupPendingSet> getPendingSets() throws IOException {
+                    return null;
+                }
+            }, this);
+
+            internalInitialize();
+
+            startOperation("Optimizing log");
+            processedOperations = new AtomicLong();
+
+            log.info("Processing files");
+            existingRepository.allFiles().forEach((file) -> {
+                processedOperations.incrementAndGet();
                 try {
-                    copyRepository.pushActivePath(setId, path, dir);
+                    copyRepository.addFile(file);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-            }
-        });
+            });
+            log.info("Processing blocks");
+            existingRepository.allBlocks().forEach((block) -> {
+                processedOperations.incrementAndGet();
+                try {
+                    copyRepository.addBlock(block);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            log.info("Processing directory contents");
+            existingRepository.allDirectories().forEach((dir) -> {
+                processedOperations.incrementAndGet();
+                try {
+                    copyRepository.addDirectory(dir);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            log.info("Processing active paths");
+            existingRepository.getActivePaths(null).forEach((path, dir) -> {
+                processedOperations.incrementAndGet();
+                for (String setId : dir.getSetIds()) {
+                    try {
+                        copyRepository.pushActivePath(setId, path, dir);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
 
-        for (String oldFile : existingLogs) {
-            provider.delete(oldFile);
+            copyRepository.close();
+
+            log.info("Deleting old log files");
+            totalFiles = new AtomicLong(existingLogs.size());
+            processedFiles = new AtomicLong();
+            for (String oldFile : existingLogs) {
+                provider.delete(oldFile);
+                debug(() -> log.debug("Deleted {}", oldFile));
+                processedFiles.incrementAndGet();
+            }
+        } finally {
+            resetStatus();
         }
     }
 
@@ -423,5 +568,57 @@ public class ManifestManagerImpl implements ManifestManager {
             executor.shutdownNow();
             closeLogFile();
         }
+    }
+
+    private String operation;
+    private AtomicLong totalFiles;
+    private AtomicLong processedFiles;
+    private AtomicLong processedOperations;
+    private Stopwatch operationDuration;
+
+    private void startOperation(String operation) {
+        this.operation = operation;
+        operationDuration = Stopwatch.createStarted();
+    }
+
+    @Override
+    public void resetStatus() {
+        operation = null;
+        totalFiles = null;
+        processedFiles = null;
+        processedOperations = null;
+        operationDuration = null;
+    }
+
+    @Override
+    public boolean temporal() {
+        return false;
+    }
+
+    @Override
+    public List<StatusLine> status() {
+        List<StatusLine> ret = new ArrayList<>();
+        if (operation != null) {
+            String code = operation.toUpperCase().replace(" ", "_");
+            if (processedFiles != null) {
+                ret.add(new StatusLine(getClass(), code + "_PROCESSED_FILES", operation + " processed files", processedFiles.get()));
+            }
+            if (totalFiles != null) {
+                ret.add(new StatusLine(getClass(), code + "_TOTAL_FILES", operation + " total files", totalFiles.get()));
+            }
+            if (processedOperations != null) {
+                ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations", processedOperations.get()));
+            }
+
+            if (processedOperations != null && operationDuration != null) {
+                int elapsedMilliseconds = (int) operationDuration.elapsed(TimeUnit.MILLISECONDS);
+                if (elapsedMilliseconds > 0) {
+                    long throughput = 1000 * processedOperations.get() / elapsedMilliseconds;
+                    ret.add(new StatusLine(getClass(), code + "_THROUGHPUT", operation + " throughput",
+                            throughput, throughput + " operations/s"));
+                }
+            }
+        }
+        return ret;
     }
 }

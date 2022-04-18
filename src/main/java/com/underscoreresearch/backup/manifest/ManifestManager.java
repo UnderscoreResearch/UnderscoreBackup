@@ -9,9 +9,11 @@ public interface ManifestManager {
 
     void replayLog(LogConsumer consumer) throws IOException;
 
-    void optimizeLog(MetadataRepository existingRepository) throws IOException;
+    void flushLog() throws IOException;
 
-    void initialize() throws IOException;
+    void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException;
+
+    void initialize(LogConsumer logConsumer) throws IOException;
 
     BackupContentsAccess backupContents(Long timestamp) throws IOException;
 

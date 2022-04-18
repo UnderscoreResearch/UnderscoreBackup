@@ -4,8 +4,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-public final class PasswordReader {
-    public static String readPassword(String format, Object... args)
+public final class PassphraseReader {
+    public static String readPassphrase(String format, Object... args)
             throws IOException {
         return readLine(format, args);
     }

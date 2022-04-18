@@ -1,22 +1,53 @@
 package com.underscoreresearch.backup.configuration;
 
+import static com.underscoreresearch.backup.io.IOProviderFactory.removeOldProviders;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.reflections.Reflections;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
+import com.google.inject.ProvisionException;
 import com.google.inject.name.Names;
+import com.underscoreresearch.backup.cli.ConfigurationValidator;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 
+@Slf4j
 public abstract class InstanceFactory {
     private static InstanceFactory defaultFactory;
     private static Reflections reflections = new Reflections("com.underscoreresearch.backup");
     private static boolean shutdown;
-
+    private static String[] initialArguments;
+    private static List<Runnable> shutdownHooks = new ArrayList<>();
 
     public static Reflections getReflections() {
         return reflections;
+    }
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            executeOrderedCleanupHook();
+        }));
+    }
+
+    public static boolean hasConfiguration(boolean readOnly) {
+        try {
+            ConfigurationValidator.validateConfiguration(
+                    InstanceFactory.getInstance(BackupConfiguration.class),
+                    readOnly);
+        } catch (Exception exc) {
+            System.out.println(exc.getMessage());
+            return false;
+        }
+        return true;
     }
 
     protected abstract <T> T instance(Class<T> tClass);
@@ -38,13 +69,60 @@ public abstract class InstanceFactory {
         }
     }
 
-    public static void initialize(String[] argv) {
+    public static void initialize(String[] argv, String passphrase) {
+        initialArguments = argv;
         initialize(Guice.createInjector(
-                new CommandLineModule(argv),
+                new CommandLineModule(argv, passphrase),
                 new EncryptionModule(),
                 new ErrorCorrectionModule(),
                 new BackupModule(),
                 new RestoreModule()));
+    }
+
+    public static void reloadConfiguration(String passphrase) {
+        synchronized (shutdownHooks) {
+            executeOrderedCleanupHook();
+            MetadataRepository repository = null;
+            try {
+                repository = InstanceFactory.getInstance(MetadataRepository.class);
+            } catch (ProvisionException e) {
+            }
+            try {
+                if (repository != null) {
+                    repository.close();
+                }
+            } catch (IOException e) {
+                log.error("Failed to close metadata repository");
+            }
+            shutdown = false;
+            initialize(initialArguments, passphrase);
+            ConfigurationValidator.validateConfiguration(getInstance(BackupConfiguration.class), true);
+            removeOldProviders();
+        }
+    }
+
+    public static void addOrderedCleanupHook(Runnable runnable) {
+        synchronized (shutdownHooks) {
+            shutdownHooks.add(runnable);
+        }
+    }
+
+    public static void waitForShutdown() {
+        synchronized (shutdownHooks) {
+        }
+    }
+
+    private static void executeOrderedCleanupHook() {
+        synchronized (shutdownHooks) {
+            for (Runnable shutdown : shutdownHooks) {
+                try {
+                    shutdown.run();
+                } catch (Exception exc) {
+                    log.error("Failed to run shutdown hook", exc);
+                }
+            }
+            shutdownHooks.clear();
+        }
     }
 
     public static void initialize(Injector injector) {
@@ -55,11 +133,11 @@ public abstract class InstanceFactory {
         return getFactory(tClass).instance(tClass);
     }
 
-    public static boolean shutdown() {
+    public static boolean isShutdown() {
         return shutdown;
     }
 
-    public static void shutdown(boolean shutdown) {
+    public static void shutdown() {
         InstanceFactory.shutdown = true;
     }
 

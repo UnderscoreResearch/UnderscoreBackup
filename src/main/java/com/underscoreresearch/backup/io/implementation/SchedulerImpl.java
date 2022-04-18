@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.io.implementation;
 
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -9,16 +10,29 @@ import java.util.concurrent.Executors;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.base.Stopwatch;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 @Slf4j
 public class SchedulerImpl {
     private final int maximumConcurrency;
     private ExecutorService executor;
     private List<Runnable> executingTasks = new ArrayList<>();
     private boolean shutdown;
+    private Stopwatch stopwatch = Stopwatch.createUnstarted();
+
+    protected Duration getDuration() {
+        return stopwatch.elapsed();
+    }
+
+    protected void resetDuration() {
+        stopwatch.reset();
+    }
 
     public SchedulerImpl(int maximumConcurrency) {
         this.maximumConcurrency = maximumConcurrency;
-        executor = Executors.newFixedThreadPool(maximumConcurrency);
+        executor = Executors.newFixedThreadPool(maximumConcurrency,
+                new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
     }
 
     private class SchedulerTask implements Runnable {
@@ -32,9 +46,17 @@ public class SchedulerImpl {
         public void run() {
             try {
                 runnable.run();
+            } catch (Throwable exc) {
+                log.error("Encountered error executing task", exc);
             } finally {
                 synchronized (executingTasks) {
                     executingTasks.remove(this);
+                    if (executingTasks.size() == 0) {
+                        synchronized (stopwatch) {
+                            if (stopwatch.isRunning())
+                                stopwatch.stop();
+                        }
+                    }
                     executingTasks.notifyAll();
                 }
             }
@@ -62,6 +84,10 @@ public class SchedulerImpl {
             }
         }
 
+        synchronized (stopwatch) {
+            if (!stopwatch.isRunning())
+                stopwatch.start();
+        }
         executor.submit(runnable);
     }
 
@@ -79,7 +105,8 @@ public class SchedulerImpl {
                 }
             }
 
-            debug(() -> log.debug(getClass().getSimpleName() + " shut down completed"));
+            debug(() -> log.debug(getClass().getSimpleName() + " shutdown completed"));
+            executor.shutdown();
         }
     }
 

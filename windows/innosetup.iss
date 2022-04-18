@@ -22,15 +22,18 @@ OutputDir=..\\build\\distributions
 OutputBaseFilename=underscorebackup-${applicationVersion}
 Compression=lzma
 SolidCompression=yes
+
 [Run]
-Filename: "https://github.com/UnderscoreResearch/UnderscoreBackup/blob/master/windows/README.md"; Flags: shellexec runasoriginaluser
+Filename: "{app}\\bin\\underscorebackup-gui.exe"; Flags: shellexec runasoriginaluser
 
 [Files]
 Source: "..\\build\\launch4j\\underscorebackup.exe"; DestDir: "{app}\\bin"; Flags: ignoreversion
 Source: "..\\build\\launch4j\\underscorebackup-gui.exe"; DestDir: "{app}\\bin"; Flags: ignoreversion
 Source: "..\\build\\launch4j\\lib\\*"; DestDir: "{app}\\bin\\lib"; Flags: ignoreversion
 Source: "C:\\Program Files\\Amazon Corretto\\jre8\\*"; DestDir: "{app}\\jre"; Flags: ignoreversion recursesubdirs createallsubdirs
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
+
+[icons]
+Name: "{commonstartup}\\Underscore Backup"; Filename: "{app}\\bin\\underscorebackup-gui.exe";
 
 [Registry]
 Root: "HKLM"; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}\\bin" ; Check: NeedsAddPath('{app}\\bin')

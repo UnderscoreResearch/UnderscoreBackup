@@ -14,6 +14,7 @@ import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,17 +31,18 @@ import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.implementation.BackupContentsAccessPathOnly;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
+import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.utils.LogUtil;
 
 @RequiredArgsConstructor
 @Slf4j
 public class RepositoryTrimmer {
-    private static final int MAXIMUM_PATH_DRIFT = 60 * 1000;
     private final MetadataRepository metadataRepository;
     private final BackupConfiguration configuration;
     private final boolean force;
@@ -54,8 +56,12 @@ public class RepositoryTrimmer {
 
     private synchronized NavigableSet<String> fetchPath(BackupFile file) throws IOException {
         String parent = findParent(file.getPath());
-        if (parent.equals(lastFetchedDirectory))
-            return lastFetchedDirectoryContents.getFiles();
+        if (parent.equals(lastFetchedDirectory)) {
+            if (lastFetchedDirectoryContents != null) {
+                return lastFetchedDirectoryContents.getFiles();
+            }
+            return null;
+        }
 
         lastFetchedDirectory = parent;
         lastFetchedDirectoryContents = metadataRepository.lastDirectory(parent);
@@ -76,7 +82,7 @@ public class RepositoryTrimmer {
                 HTreeMap<String, Boolean> usedBlockMap = usedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
                         Serializer.BOOLEAN).createOrOpen();
 
-                boolean hasActivePaths = trimActivepaths();
+                boolean hasActivePaths = trimActivePaths();
 
                 try {
                     trimFilesAndDirectories(usedBlockMap, hasActivePaths);
@@ -89,7 +95,7 @@ public class RepositoryTrimmer {
         }
     }
 
-    private boolean trimActivepaths() throws IOException {
+    private boolean trimActivePaths() throws IOException {
         Map<String, BackupActivePath> activepaths = metadataRepository.getActivePaths(null);
         boolean anyFound = false;
         for (Map.Entry<String, BackupActivePath> paths : activepaths.entrySet()) {
@@ -109,8 +115,8 @@ public class RepositoryTrimmer {
     private void trimBlocks(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePaths) throws IOException {
         log.info("Trimming blocks");
 
-        AtomicInteger deletedParts = new AtomicInteger();
-        AtomicInteger deletedBlocks = new AtomicInteger();
+        AtomicLong deletedParts = new AtomicLong();
+        AtomicLong deletedBlocks = new AtomicLong();
 
         Boolean FALSE = false;
 
@@ -118,31 +124,31 @@ public class RepositoryTrimmer {
                 .filter(t -> hasActivePaths
                         ? FALSE.equals(usedBlockMap.get(t.getHash()))
                         : !usedBlockMap.containsKey(t.getHash())).forEach(block -> {
-            if (InstanceFactory.shutdown())
-                throw new InterruptedException();
-            try {
-                deletedBlocks.incrementAndGet();
-                for (BackupBlockStorage storage : block.getStorage()) {
-                    IOProvider provider = IOProviderFactory.getProvider(
-                            configuration.getDestinations().get(storage.getDestination()));
-                    for (String key : storage.getParts()) {
-                        if (key != null) {
-                            try {
-                                provider.delete(key);
-                                debug(() -> log.debug("Removing block part " + key));
-                                deletedParts.incrementAndGet();
-                            } catch (IOException exc) {
-                                log.error("Failed to delete part " + key + " from " + storage.getDestination(), exc);
+                    if (InstanceFactory.isShutdown())
+                        throw new InterruptedException();
+                    try {
+                        deletedBlocks.incrementAndGet();
+                        for (BackupBlockStorage storage : block.getStorage()) {
+                            IOProvider provider = IOProviderFactory.getProvider(
+                                    configuration.getDestinations().get(storage.getDestination()));
+                            for (String key : storage.getParts()) {
+                                if (key != null) {
+                                    try {
+                                        provider.delete(key);
+                                        debug(() -> log.debug("Removing block part " + key));
+                                        deletedParts.incrementAndGet();
+                                    } catch (IOException exc) {
+                                        log.error("Failed to delete part " + key + " from " + storage.getDestination(), exc);
+                                    }
+                                }
                             }
                         }
+                        debug(() -> log.debug("Removing block " + block.getHash()));
+                        metadataRepository.deleteBlock(block);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
-                }
-                debug(() -> log.debug("Removing block " + block.getHash()));
-                metadataRepository.deleteBlock(block);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
+                });
 
         log.info("Deleted {} blocks with a total of {} parts", deletedBlocks, deletedParts);
     }
@@ -163,7 +169,7 @@ public class RepositoryTrimmer {
         String[] lastParent = new String[1];
 
         metadataRepository.allFiles().forEach((file) -> {
-            if (InstanceFactory.shutdown())
+            if (InstanceFactory.isShutdown())
                 throw new InterruptedException();
 
             if (fileVersions.size() > 0 && !file.getPath().equals(fileVersions.get(0).getPath())) {
@@ -194,7 +200,7 @@ public class RepositoryTrimmer {
         }
 
         log.info("Deleted {} file versions and {} entire files from repository", deletedVersions, deletedFiles);
-        log.info("Deleted {} directory versions and {} entire directory from repository",
+        log.info("Deleted {} directory versions and {} entire directories from repository",
                 deletedDirectoryVersions, deletedDirectories);
     }
 
@@ -213,6 +219,10 @@ public class RepositoryTrimmer {
     private void processDirectories(List<BackupDirectory> directoryVersions,
                                     AtomicInteger deletedVersions,
                                     AtomicInteger deletedDirectories) throws IOException {
+        if (directoryVersions == null) {
+            return;
+        }
+
         Long lastTimestamp = null;
         boolean any = false;
         for (BackupDirectory directory : directoryVersions) {
@@ -224,14 +234,14 @@ public class RepositoryTrimmer {
             List<BackupFile> directoryFiles = contents.directoryFiles(directory.getPath());
 
             if (directoryFiles == null
-                    || directoryFiles.stream().filter(t -> t.getLastChanged() != null).count() == 0) {
+                    || directoryFiles.stream().filter(t -> t.getAdded() != null).count() == 0) {
                 debug(() -> log.debug("Removing " + directory.getPath() + " from "
-                        + LogUtil.formatTimestamp(directory.getTimestamp())));
-                metadataRepository.deleteDirectory(directory.getPath(), directory.getTimestamp());
+                        + LogUtil.formatTimestamp(directory.getAdded())));
+                metadataRepository.deleteDirectory(directory.getPath(), directory.getAdded());
                 deletedVersions.incrementAndGet();
             } else {
                 any = true;
-                lastTimestamp = directory.getTimestamp() - 1;
+                lastTimestamp = directory.getAdded() - 1;
             }
         }
         if (!any)
@@ -270,7 +280,7 @@ public class RepositoryTrimmer {
                     anyFound = true;
                 } else {
                     debug(() -> log.debug("Removing " + file.getPath() + " from "
-                            + LogUtil.formatTimestamp(file.getLastChanged())));
+                            + LogUtil.formatTimestamp(file.getAdded())));
                     metadataRepository.deleteFile(file);
                     markFileBlocks(usedBlockMap, deletedPaths == null, file, false);
                     deletedVersions.incrementAndGet();
@@ -289,23 +299,31 @@ public class RepositoryTrimmer {
         }
     }
 
-    private void markFileBlocks(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePath, BackupFile file, boolean used) {
+    private void markFileBlocks(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePath, BackupFile file,
+                                boolean used) throws IOException {
         if (file.getLocations() != null)
-            file.getLocations()
-                    .forEach(location -> {
-                        if (location.getParts() != null)
-                            location.getParts()
-                                    .forEach(part -> markFileLocationBlocks(usedBlockMap, hasActivePath, part, used));
-                    });
+            for (BackupLocation location : file.getLocations()) {
+                if (location.getParts() != null)
+                    for (BackupFilePart part : location.getParts()) {
+                        markFileLocationBlocks(usedBlockMap, hasActivePath, part.getBlockHash(), used);
+                    }
+            }
     }
 
     private void markFileLocationBlocks(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePath,
-                                        BackupFilePart part, boolean used) {
+                                        String hash, boolean used) throws IOException {
         if (used) {
-            usedBlockMap.put(part.getBlockHash(), true);
+            usedBlockMap.put(hash, true);
         } else if (hasActivePath) {
-            if (!usedBlockMap.containsKey(part.getBlockHash())) {
-                usedBlockMap.put(part.getBlockHash(), false);
+            if (!usedBlockMap.containsKey(hash)) {
+                usedBlockMap.put(hash, false);
+            }
+        }
+
+        if (BackupBlock.isSuperBlock(hash)) {
+            BackupBlock block = metadataRepository.block(hash);
+            for (String partHash : block.getHashes()) {
+                markFileLocationBlocks(usedBlockMap, hasActivePath, partHash, used);
             }
         }
     }

@@ -76,8 +76,8 @@ public class UploadSchedulerImplTest {
                 @Override
                 public void completed(String key) {
                     synchronized (completed) {
-                        if (!key.equals("blocks" + PATH_SEPARATOR + val + PATH_SEPARATOR + "01" + PATH_SEPARATOR + "23"
-                                + PATH_SEPARATOR + "4567890")) {
+                        if (!key.equals("blocks" + PATH_SEPARATOR + "01" + PATH_SEPARATOR + "23"
+                                + PATH_SEPARATOR + "4567890" + PATH_SEPARATOR + val)) {
                             success.set(false);
                         }
                         completed.incrementAndGet();

@@ -17,4 +17,8 @@ public class BackupManifest {
     private String localLocation;
     private Integer maximumUnsyncedSize;
     private Integer maximumUnsyncedSeconds;
+
+    private String configUser;
+    private String configPassword;
+    private Boolean interactiveBackup;
 }

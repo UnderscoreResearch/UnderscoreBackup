@@ -1,0 +1,84 @@
+package com.underscoreresearch.backup.utils;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedDeque;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.Core;
+import org.apache.logging.log4j.core.Filter;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Property;
+import org.apache.logging.log4j.core.config.plugins.Plugin;
+import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
+import org.apache.logging.log4j.core.config.plugins.PluginElement;
+import org.apache.logging.log4j.core.config.plugins.PluginFactory;
+
+@Plugin(name = "ActivityAppender",
+        category = Core.CATEGORY_NAME,
+        elementType = Appender.ELEMENT_TYPE)
+public class ActivityAppender extends AbstractAppender implements StatusLogger {
+    private static final int MAX_ENTRIES = 100;
+
+    private static Map<String, ActivityAppender> APPENDERS = new HashMap<>();
+
+    private ConcurrentLinkedDeque<StatusLine> events = new ConcurrentLinkedDeque<>();
+    private ConcurrentLinkedDeque<StatusLine> errorEvents = new ConcurrentLinkedDeque<>();
+
+    protected ActivityAppender(String name, Filter filter, Layout<String> layout) {
+        super(name, filter, layout, true, Property.EMPTY_ARRAY);
+    }
+
+    @Override
+    public boolean temporal() {
+        return true;
+    }
+
+    @PluginFactory
+    public static synchronized ActivityAppender createAppender(
+            @PluginAttribute("name") String name,
+            @PluginElement("Filter") Filter filter,
+            @PluginElement("Layout") Layout<String> layout) {
+        if (!APPENDERS.containsKey(name))
+            APPENDERS.put(name, new ActivityAppender(name, filter, layout));
+        return APPENDERS.get(name);
+    }
+
+    @Override
+    public void append(LogEvent event) {
+        if (event.getLevel() != Level.DEBUG && event.getLevel() != Level.TRACE) {
+            if (event.getLevel() == Level.ERROR) {
+                addEvent(errorEvents, event);
+            } else {
+                addEvent(events, event);
+            }
+        }
+    }
+
+    private void addEvent(ConcurrentLinkedDeque<StatusLine> currentEvents, LogEvent event) {
+        while (currentEvents.size() >= MAX_ENTRIES)
+            currentEvents.removeLast();
+        currentEvents.addFirst(new StatusLine(event.getSource().getClassName(),
+                event.getLevel().name(),
+                getLayout().toSerializable(event).toString().trim()));
+    }
+
+    @Override
+    public void resetStatus() {
+        events.clear();
+        errorEvents.clear();
+    }
+
+    @Override
+    public List<StatusLine> status() {
+        List<StatusLine> ret = new ArrayList<>();
+        errorEvents.forEach(ret::add);
+        events.forEach(ret::add);
+        return ret;
+    }
+}

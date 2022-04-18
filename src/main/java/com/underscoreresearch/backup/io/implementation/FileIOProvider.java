@@ -23,10 +23,10 @@ import com.underscoreresearch.backup.model.BackupDestination;
 
 @IOPlugin(("FILE"))
 @Slf4j
-public class FileIOPRovider implements IOIndex, IOProvider {
+public class FileIOProvider implements IOIndex, IOProvider {
     private final String root;
 
-    public FileIOPRovider(BackupDestination destination) {
+    public FileIOProvider(BackupDestination destination) {
         if (!destination.getEndpointUri().contains("://")) {
             root = destination.getEndpointUri();
         } else {

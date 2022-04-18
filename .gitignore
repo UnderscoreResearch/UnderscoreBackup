@@ -3,8 +3,8 @@
 *~
 .idea
 .gradle
-gradle
 build
 target
 innosetup-expanded.iss
 dependency-reduced-pom.xml
+src/main/resources/web

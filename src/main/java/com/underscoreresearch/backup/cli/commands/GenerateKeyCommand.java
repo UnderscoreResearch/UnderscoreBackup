@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.commands;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY;
 
 import java.io.File;
+import java.io.IOException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.ParseException;
@@ -11,7 +12,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
-import com.underscoreresearch.backup.cli.PasswordReader;
+import com.underscoreresearch.backup.cli.PassphraseReader;
+import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
 
@@ -23,21 +25,38 @@ public class GenerateKeyCommand extends Command {
             throw new ParseException("Too many arguments for command");
         }
         String firstTry
-                = PasswordReader.readPassword("Please enter the seed for the private key: ");
+                = PassphraseReader.readPassphrase("Please enter the passphrase for the private key: ");
         if (firstTry == null) {
             System.exit(1);
         }
         String secondTry
-                = PasswordReader.readPassword("Reenter the seed for the private key: ");
+                = PassphraseReader.readPassphrase("Reenter the passphrase for the private key: ");
         if (secondTry == null) {
             System.exit(1);
         }
         if (!firstTry.equals(secondTry)) {
-            System.out.println("Paswords do not match");
+            System.out.println("Passphrases do not match");
             System.exit(1);
         }
+        String file = generateAndSaveNewKey(commandLine, firstTry);
+
+        System.out.println("Wrote public key to " + file);
+    }
+
+    public static String generateAndSaveNewKey(CommandLine commandLine, String firstTry) throws IOException {
         PublicKeyEncrypion publicKeyEncrypion = PublicKeyEncrypion.generateKeyWithSeed(firstTry, null);
 
+        File keyFile = getDefaultEncryptionFileName(commandLine);
+
+        new ObjectMapper().writeValue(keyFile,
+                publicKeyEncrypion.publicOnly());
+
+        ConfigurationPost.setReadOnlyFilePermissions(keyFile);
+
+        return keyFile.getAbsolutePath();
+    }
+
+    public static File getDefaultEncryptionFileName(CommandLine commandLine) {
         String file = commandLine.getOptionValue(KEY);
         if (Strings.isNullOrEmpty(file)) {
             file = EncryptionModule.DEFAULT_KEY_FILES[0];
@@ -47,9 +66,6 @@ public class GenerateKeyCommand extends Command {
         if (!keyFile.getParentFile().isDirectory())
             keyFile.getParentFile().mkdirs();
 
-        new ObjectMapper().writeValue(keyFile,
-                publicKeyEncrypion.publicOnly());
-
-        System.out.println("Wrote public key to " + file);
+        return keyFile;
     }
 }

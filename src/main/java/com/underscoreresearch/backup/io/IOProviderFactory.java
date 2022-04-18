@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.io;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -8,13 +10,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.reflections.Reflections;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
+@Slf4j
 public final class IOProviderFactory {
-    private static Map<String, Class> providerClasses;
+    private static Map<String, Class<? extends IOProvider>> providerClasses;
     private static Map<BackupDestination, IOProvider> providers = new HashMap<>();
 
     static {
@@ -23,7 +29,9 @@ public final class IOProviderFactory {
         Reflections reflections = InstanceFactory.getReflections();
         Set<Class<?>> classes = reflections.getTypesAnnotatedWith(IOPlugin.class);
 
-        for (Class<?> clz : classes) {
+        for (Class<?> untyped : classes) {
+            @SuppressWarnings("unchecked")
+            Class<IOProvider> clz = (Class<IOProvider>) untyped;
             IOPlugin plugin = clz.getAnnotation(IOPlugin.class);
             providerClasses.put(plugin.value(), clz);
         }
@@ -35,7 +43,31 @@ public final class IOProviderFactory {
         return ret;
     }
 
-    public static void registerProvider(String type, Class provider) {
+    public static void removeOldProviders() {
+        BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
+
+        Map<BackupDestination, IOProvider> newProviders = new HashMap<>();
+        for (Map.Entry<String, BackupDestination> entry : configuration.getDestinations().entrySet()) {
+            IOProvider provider = providers.remove(entry.getValue());
+            if (provider != null) {
+                newProviders.put(entry.getValue(), provider);
+            }
+        }
+
+        for (Map.Entry<BackupDestination, IOProvider> entry : providers.entrySet()) {
+            if (entry.getValue() instanceof Closeable) {
+                try {
+                    ((Closeable) entry.getValue()).close();
+                } catch (IOException e) {
+                    log.error("Failed to close IO provider for {}", entry.getKey().getEndpointUri());
+                }
+            }
+        }
+
+        providers = newProviders;
+    }
+
+    public static void registerProvider(String type, Class<? extends IOProvider> provider) {
         providerClasses.put(type, provider);
     }
 
@@ -44,13 +76,13 @@ public final class IOProviderFactory {
         if (provider != null) {
             return provider;
         }
-        Class clz = providerClasses.get(destination.getType());
+        Class<? extends IOProvider> clz = providerClasses.get(destination.getType());
         if (clz == null)
             throw new IllegalArgumentException("Unsupported provider type " + destination.getType());
 
         try {
-            Constructor constructor = clz.getConstructor(BackupDestination.class);
-            provider = (IOProvider) constructor.newInstance(destination);
+            Constructor<? extends IOProvider> constructor = clz.getConstructor(BackupDestination.class);
+            provider = constructor.newInstance(destination);
             providers.put(destination, provider);
             return provider;
         } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |

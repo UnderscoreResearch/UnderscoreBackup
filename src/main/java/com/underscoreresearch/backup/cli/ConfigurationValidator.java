@@ -4,14 +4,15 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.SystemUtils;
-
 import com.google.common.base.Strings;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
@@ -23,15 +24,14 @@ import com.underscoreresearch.backup.model.BackupManifest;
 import com.underscoreresearch.backup.model.BackupRetention;
 import com.underscoreresearch.backup.model.BackupRetentionAdditional;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupTimespan;
 
 @Slf4j
 public class ConfigurationValidator {
-    private static final String DEFAULT_LOCAL_PATH = "/var/cache/underscorebackup";
-    private static final String DEFAULT_LOCAL_WINDOWS_PATH = "C:\\UnderscoreBackup";
     private static final String DEFAULT_ENCRYPTION = "AES256";
     private static final String DEFAULT_ERROR_CORRECTION = "NONE";
-    private static final int DEFAULT_UNSYNCED_SIZE = 32 * 1024 * 1024;
+    private static final int DEFAULT_UNSYNCED_SIZE = 8 * 1024 * 1024;
 
     public static void validateConfiguration(BackupConfiguration configuration, boolean readOnly) {
         validateSets(configuration);
@@ -43,6 +43,10 @@ public class ConfigurationValidator {
         BackupManifest manifest = configuration.getManifest();
         if (manifest == null) {
             throw new IllegalArgumentException("Missing manifest section from configuration file");
+        }
+
+        if (manifest.getDestination() == null) {
+            throw new IllegalArgumentException("Missing manifest destination name");
         }
 
         BackupDestination destination = configuration.getDestinations().get(manifest.getDestination());
@@ -61,13 +65,10 @@ public class ConfigurationValidator {
 
         String local = manifest.getLocalLocation();
         if (Strings.isNullOrEmpty(local)) {
-            debug(() -> log.debug("Missing localLocation in manifest config. Defaulting to " + DEFAULT_LOCAL_PATH));
-            if (SystemUtils.IS_OS_WINDOWS) {
-                local = DEFAULT_LOCAL_WINDOWS_PATH;
-            } else {
-                local = DEFAULT_LOCAL_PATH;
-            }
-            manifest.setLocalLocation(local);
+            String defaultLocation = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
+            debug(() -> log.debug("Missing localLocation in manifest config. Defaulting to " + defaultLocation));
+            manifest.setLocalLocation(defaultLocation);
+            local = defaultLocation;
         }
 
         File file = new File(local);
@@ -112,15 +113,15 @@ public class ConfigurationValidator {
                 debug(() -> log.debug("Error correction missing on " + entry.getKey() + " defaulting to "
                         + DEFAULT_ERROR_CORRECTION));
                 destination.setErrorCorrection(DEFAULT_ERROR_CORRECTION);
-            } else {
-                ErrorCorrectorFactory.getCorrector(destination.getErrorCorrection());
+            } else if (!ErrorCorrectorFactory.hasCorrector(destination.getErrorCorrection())) {
+                throw new IllegalArgumentException("Invalid error corrector " + destination.getErrorCorrection());
             }
             if (destination.getEncryption() == null) {
                 destination.setEncryption(DEFAULT_ENCRYPTION);
                 debug(() -> log.debug("Encryption missing on " + entry.getKey() + " defaulting to "
                         + DEFAULT_ENCRYPTION));
-            } else {
-                EncryptorFactory.getEncryptor(destination.getEncryption());
+            } else if (!EncryptorFactory.hasEncryptor(destination.getEncryption())) {
+                throw new IllegalArgumentException("Invalid encryptor " + destination.getErrorCorrection());
             }
 
             if (IOProviderFactory.getProvider(entry.getValue()) == null) {
@@ -130,10 +131,9 @@ public class ConfigurationValidator {
     }
 
     private static void validateSets(BackupConfiguration configuration) {
-        if (configuration.getSets() == null || configuration.getSets().size() == 0) {
-            throw new IllegalArgumentException("No backup sets are defined");
+        if (configuration.getSets() == null) {
+            configuration.setSets(new ArrayList<>());
         }
-
         HashSet<String> existingSetIds = new HashSet<>();
         for (BackupSet backupSet : configuration.getSets()) {
             if (Strings.isNullOrEmpty(backupSet.getId())) {
@@ -189,25 +189,32 @@ public class ConfigurationValidator {
                 }
             }
 
-            if (Strings.isNullOrEmpty(backupSet.getRoot())) {
-                throw new IllegalArgumentException("Backup set " + backupSet.getId() + "missing root");
+            if (backupSet.getRoots() == null || backupSet.getRoots().size() == 0) {
+                throw new IllegalArgumentException("Backup set " + backupSet.getId() + " does not have a single root defined");
             }
 
-            File file = new File(backupSet.getRoot());
-            if (file.exists()) {
-                if (!file.isDirectory()) {
-                    throw new IllegalArgumentException("Backup set root " + backupSet.getRoot() + "is not directory");
+
+            for (BackupSetRoot root : backupSet.getRoots()) {
+                if (Strings.isNullOrEmpty(root.getPath())) {
+                    throw new IllegalArgumentException("Backup set " + backupSet.getId() + "missing root");
                 }
 
-                try {
-                    String root = file.toPath().toRealPath().toString();
-                    String existingRoot = file.toPath().toString();
-                    if (!existingRoot.equals(root)) {
-                        log.warn("Backup set root " + existingRoot + " changed to " + root);
-                        backupSet.setNormalizedRoot(PathNormalizer.normalizePath(root));
+                File file = new File(root.getPath());
+                if (file.exists()) {
+                    if (!file.isDirectory()) {
+                        throw new IllegalArgumentException("Backup set root " + root.getPath() + "is not directory");
                     }
-                } catch (IOException e) {
-                    throw new IllegalArgumentException("Can't access root " + backupSet.getRoot() + " of backup set");
+
+                    try {
+                        String rootFile = file.toPath().toRealPath().toString();
+                        String existingRoot = file.toPath().toString();
+                        if (!existingRoot.equals(rootFile)) {
+                            log.warn("Backup set root " + existingRoot + " changed to " + rootFile);
+                            root.setNormalizedPath(PathNormalizer.normalizePath(rootFile));
+                        }
+                    } catch (IOException e) {
+                        throw new IllegalArgumentException("Can't access root " + root.getPath() + " of backup set");
+                    }
                 }
             }
 

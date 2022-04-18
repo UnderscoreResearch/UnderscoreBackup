@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.hamcrest.Matchers;
 import org.hamcrest.core.Is;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
@@ -32,6 +33,7 @@ import com.underscoreresearch.backup.encryption.NoneEncryptor;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.MemoryIOProvider;
 import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -54,8 +56,8 @@ class ManifestManagerImplTest {
 
     @BeforeEach
     public void setup() throws IOException {
-        InstanceFactory.initialize(new String[]{"--private-key-seed", "test", "--config-data", "{}", "--public-key-data",
-                PUBLIC_KEY_DATA});
+        InstanceFactory.initialize(new String[]{"--passphrase", "test", "--config-data", "{}", "--public-key-data",
+                PUBLIC_KEY_DATA}, null);
 
         tempDir = Files.createTempDirectory("test").toFile();
 
@@ -82,19 +84,20 @@ class ManifestManagerImplTest {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any());
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
         manifestManager.addLogEntry("doh", "doh");
-        assertThat(memoryIOProvider.download("configuration.json"), Is.is("{}".getBytes()));
+        assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
     }
 
     @Test
     public void testUploadPending() throws IOException {
-        File file = Paths.get(tempDir.getPath(), "logs", "2020-02-02-22-00-22.222222.gz").toFile();
+        File file = Paths.get(tempDir.getPath(), "logs", "2020-02-02-22-00-22.222222").toFile();
         file.getParentFile().mkdirs();
         try (FileOutputStream stream = new FileOutputStream(file)) {
             stream.write(new byte[]{1, 2, 3});
         }
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
+        manifestManager.initialize(Mockito.mock(LogConsumer.class));
         manifestManager.addLogEntry("doh", "doh");
-        Mockito.verify(encryptor).encryptBlock(any());
+        Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any());
         assertThat(file.isFile(), Is.is(false));
         assertNotNull(memoryIOProvider.download("logs"
                 + PATH_SEPARATOR + "2020-02-02" + PATH_SEPARATOR + "22-00-22.222222.gz"));

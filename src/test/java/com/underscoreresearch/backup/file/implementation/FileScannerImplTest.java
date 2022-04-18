@@ -30,6 +30,7 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilter;
 import com.underscoreresearch.backup.model.BackupFilterType;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.utils.StateLogger;
 
 class FileScannerImplTest {
@@ -80,24 +81,27 @@ class FileScannerImplTest {
         repository.open(false);
 
         access = new FileSystemAccessImpl();
-        String root = Paths.get(".").toAbsolutePath().toString();
+        String root = Paths.get("src").toAbsolutePath().toString();
         set = BackupSet.builder()
-                .root(PathNormalizer.normalizePath(root))
+                .roots(Lists.newArrayList(BackupSetRoot.builder()
+                        .path(PathNormalizer.normalizePath(root))
+                        .filters(Lists.newArrayList(
+                                BackupFilter.builder().paths(Lists.newArrayList(".git", ".idea", "target"))
+                                        .type(BackupFilterType.EXCLUDE).build()
+                        ))
+                        .build()))
                 .id("s1")
                 .exclusions(Lists.newArrayList(
                         "\\.iml$",
                         "~$",
                         ".bak"))
-                .filters(Lists.newArrayList(
-                        BackupFilter.builder().paths(Lists.newArrayList(".git", ".idea", "target")).type(BackupFilterType.EXCLUDE).build()
-                ))
                 .build();
         backedUp = new ArrayList<>();
 
         consumer = new Consumer();
         delayedBackup = false;
 
-        scanner = new FileScannerImpl(repository, consumer, access, Mockito.mock(StateLogger.class));
+        scanner = new FileScannerImpl(repository, consumer, access, Mockito.mock(StateLogger.class), true);
     }
 
     private void backupFileSubmit(BackupFile file, BackupCompletion completionPromise) {
@@ -115,7 +119,7 @@ class FileScannerImplTest {
 
     @Test
     public void emptySet() throws IOException {
-        set.setRoot(set.getNormalizedRoot() + PATH_SEPARATOR + "path_not_used");
+        set.getRoots().get(0).setPath(set.getRoots().get(0).getNormalizedPath() + PATH_SEPARATOR + "path_not_used");
         scanner.startScanning(set);
     }
 

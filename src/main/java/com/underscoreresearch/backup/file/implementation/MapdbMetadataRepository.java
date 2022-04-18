@@ -17,10 +17,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -39,6 +41,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -47,6 +50,8 @@ import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.model.BackupPartialFile;
+import com.underscoreresearch.backup.model.BackupPendingSet;
 
 @Slf4j
 public class MapdbMetadataRepository implements MetadataRepository {
@@ -58,9 +63,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static final ObjectWriter BACKUP_PART_WRITER;
     private static final ObjectReader BACKUP_ACTIVE_READER;
     private static final ObjectWriter BACKUP_ACTIVE_WRITER;
-    private static final ObjectReader BACKUP_SET_READER;
+    private static final ObjectReader BACKUP_DIRECTORY_READER;
+    private static final ObjectWriter BACKUP_DIRECTORY_WRITER;
+    private static final ObjectReader BACKUP_PENDING_SET_READER;
+    private static final ObjectWriter BACKUP_PENDING_SET_WRITER;
+    private static final ObjectReader BACKUP_PARTIAL_FILE_READER;
+    private static final ObjectWriter BACKUP_PARTIAL_FILE_WRITER;
 
-    private static final ObjectWriter BACKUP_SET_WRITER;
     private static final String REQUEST_LOCK_FILE = "request.lock";
     private static final String LOCK_FILE = "access.lock";
 
@@ -139,12 +148,15 @@ public class MapdbMetadataRepository implements MetadataRepository {
         BACKUP_PART_WRITER = mapper.writerFor(BackupFilePart.class);
         BACKUP_ACTIVE_READER = mapper.readerFor(BackupActivePath.class);
         BACKUP_ACTIVE_WRITER = mapper.writerFor(BackupActivePath.class);
-        BACKUP_SET_READER = mapper.readerFor(new TypeReference<NavigableSet<String>>() {
+        BACKUP_DIRECTORY_READER = mapper.readerFor(new TypeReference<NavigableSet<String>>() {
         });
 
-        BACKUP_SET_WRITER = mapper.writerFor(new TypeReference<Set<String>>() {
+        BACKUP_DIRECTORY_WRITER = mapper.writerFor(new TypeReference<Set<String>>() {
         });
-
+        BACKUP_PENDING_SET_READER = mapper.readerFor(BackupPendingSet.class);
+        BACKUP_PENDING_SET_WRITER = mapper.writerFor(BackupPendingSet.class);
+        BACKUP_PARTIAL_FILE_READER = mapper.readerFor(BackupPartialFile.class);
+        BACKUP_PARTIAL_FILE_WRITER = mapper.writerFor(BackupPartialFile.class);
     }
 
     private static final String FILE_STORE = "files.db";
@@ -152,6 +164,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static final String PARTS_STORE = "parts.db";
     private static final String DIRECTORY_STORE = "directories.db";
     private static final String ACTIVE_PATH_STORE = "paths.db";
+    private static final String PENDING_SET_STORE = "pendingset.db";
+    private static final String PARTIAL_FILE_STORE = "partialfiles.db";
 
     private final String dataPath;
     private boolean open;
@@ -162,6 +176,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private DB directoryDb;
     private DB partsDb;
     private DB activePathDb;
+    private DB pendingSetDb;
+    private DB partialFileDb;
 
     private AccessLock fileLock;
 
@@ -170,6 +186,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private BTreeMap<Object[], byte[]> directoryMap;
     private BTreeMap<Object[], byte[]> partsMap;
     private BTreeMap<Object[], byte[]> activePathMap;
+    private HTreeMap<String, byte[]> pendingSetMap;
+    private HTreeMap<String, byte[]> partialFileMap;
 
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
 
@@ -183,9 +201,14 @@ public class MapdbMetadataRepository implements MetadataRepository {
         directoryDb.commit();
         partsDb.commit();
         activePathDb.commit();
+        pendingSetDb.commit();
+        partialFileDb.commit();
     }
 
     public synchronized void open(boolean readOnly) throws IOException {
+        if (open && !readOnly && this.readOnly) {
+            close();
+        }
         if (!open) {
             open = true;
             this.readOnly = readOnly;
@@ -203,7 +226,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
                 requestLock.release();
             } else {
-                scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
+                scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1,
+                        new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
                 scheduledThreadPoolExecutor.scheduleAtFixedRate(this::commit, 1, 1, TimeUnit.MINUTES);
                 scheduledThreadPoolExecutor.scheduleAtFixedRate(this::checkAccessRequest, 1, 1, TimeUnit.SECONDS);
 
@@ -239,6 +263,16 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     .fileMmapEnableIfSupported()
                     .transactionEnable())
                     .make();
+            pendingSetDb = setupReadOnly(readOnly, DBMaker
+                    .fileDB(Paths.get(dataPath, PENDING_SET_STORE).toString())
+                    .fileMmapEnableIfSupported()
+                    .transactionEnable())
+                    .make();
+            partialFileDb = setupReadOnly(readOnly, DBMaker
+                    .fileDB(Paths.get(dataPath, PARTIAL_FILE_STORE).toString())
+                    .fileMmapEnableIfSupported()
+                    .transactionEnable())
+                    .make();
 
             blockMap = blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
             fileMap = fileDb.treeMap(FILE_STORE)
@@ -253,6 +287,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
             partsMap = partsDb.treeMap(FILE_STORE)
                     .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
                     .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
+            pendingSetMap = pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
+            partialFileMap = partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
         }
     }
 
@@ -292,6 +328,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
             if (scheduledThreadPoolExecutor != null) {
                 scheduledThreadPoolExecutor.shutdownNow();
+                scheduledThreadPoolExecutor = null;
             }
 
             blockMap.close();
@@ -299,15 +336,19 @@ public class MapdbMetadataRepository implements MetadataRepository {
             directoryMap.close();
             activePathMap.close();
             partsMap.close();
+            pendingSetMap.close();
+            partialFileMap.close();
 
             blockDb.close();
             fileDb.close();
             directoryDb.close();
             partsDb.close();
             activePathDb.close();
+            pendingSetDb.close();
+            partialFileDb.close();
 
-            open = false;
             fileLock.close();
+            open = false;
         }
     }
 
@@ -330,7 +371,10 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private synchronized BackupFile decodeFile(Map.Entry<Object[], byte[]> entry) throws IOException {
         BackupFile readValue = decodeData(BACKUP_FILE_READER, entry.getValue());
         readValue.setPath((String) entry.getKey()[0]);
-        readValue.setLastChanged((Long) entry.getKey()[1]);
+        readValue.setAdded((Long) entry.getKey()[1]);
+        if (readValue.getLastChanged() == null)
+            readValue.setLastChanged(readValue.getAdded());
+
         return readValue;
     }
 
@@ -384,12 +428,36 @@ public class MapdbMetadataRepository implements MetadataRepository {
         return directoryMap.descendingMap().entrySet().stream().map((entry) -> {
             try {
                 return new BackupDirectory((String) entry.getKey()[0], (Long) entry.getKey()[1],
-                        decodeData(BACKUP_SET_READER, entry.getValue()));
+                        decodeData(BACKUP_DIRECTORY_READER, entry.getValue()));
             } catch (IOException e) {
                 log.error("Invalid directory " + entry.getKey()[0], e);
                 return new BackupDirectory();
             }
         });
+    }
+
+    @Override
+    public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
+        pendingSetMap.put(scheduledTime.getSetId(), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
+    }
+
+    @Override
+    public void deletePendingSets(String setId) throws IOException {
+        pendingSetMap.remove(setId);
+    }
+
+    @Override
+    public Set<BackupPendingSet> getPendingSets() throws IOException {
+        return pendingSetMap.entrySet().stream().map((entry) -> {
+            try {
+                BackupPendingSet set = decodeData(BACKUP_PENDING_SET_READER, entry.getValue());
+                set.setSetId(entry.getKey());
+                return set;
+            } catch (IOException e) {
+                log.error("Invalid pending set " + entry.getKey(), e);
+                return null;
+            }
+        }).filter(t -> t != null).collect(Collectors.toSet());
     }
 
     private synchronized BackupFilePart decodePath(Map.Entry<Object[], byte[]> entry) throws IOException {
@@ -446,7 +514,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             }
             directories.add(new BackupDirectory(path,
                     (Long) entry.getKey()[1],
-                    decodeData(BACKUP_SET_READER, entry.getValue())));
+                    decodeData(BACKUP_DIRECTORY_READER, entry.getValue())));
         }
         return directories;
     }
@@ -460,7 +528,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         if (query.size() > 0) {
             Map.Entry<Object[], byte[]> entry = query.lastEntry();
             return new BackupDirectory(path, (Long) entry.getKey()[1],
-                    decodeData(BACKUP_SET_READER, entry.getValue()));
+                    decodeData(BACKUP_DIRECTORY_READER, entry.getValue()));
         }
         return null;
     }
@@ -469,7 +537,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
     public synchronized void addFile(BackupFile file) throws IOException {
         ensureOpen();
 
-        fileMap.put(new Object[]{file.getPath(), file.getLastChanged()},
+        Long added;
+        if (file.getAdded() == null)
+            added = file.getLastChanged();
+        else
+            added = file.getAdded();
+
+        fileMap.put(new Object[]{file.getPath(), added},
                 encodeData(BACKUP_FILE_WRITER, strippedCopy(file)));
 
         if (file.getLocations() != null) {
@@ -489,7 +563,11 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private BackupFile strippedCopy(BackupFile file) {
-        return BackupFile.builder().length(file.getLength()).locations(file.getLocations()).build();
+        return BackupFile.builder()
+                .length(file.getLength())
+                .locations(file.getLocations())
+                .lastChanged(file.getLastChanged())
+                .build();
     }
 
     @Override
@@ -501,6 +579,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     private BackupBlock stripCopy(BackupBlock block) {
         return BackupBlock.builder().storage(block.getStorage()).format(block.getFormat()).created(block.getCreated())
+                .hashes(block.getHashes())
                 .build();
     }
 
@@ -508,8 +587,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
     public synchronized void addDirectory(BackupDirectory directory) throws IOException {
         ensureOpen();
 
-        directoryMap.put(new Object[]{directory.getPath(), directory.getTimestamp()},
-                encodeData(BACKUP_SET_WRITER, directory.getFiles()));
+        directoryMap.put(new Object[]{directory.getPath(), directory.getAdded()},
+                encodeData(BACKUP_DIRECTORY_WRITER, directory.getFiles()));
     }
 
     @Override
@@ -523,7 +602,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
     public synchronized boolean deleteFile(BackupFile file) throws IOException {
         ensureOpen();
 
-        return fileMap.remove(new Object[]{file.getPath(), file.getLastChanged()}) != null;
+        return fileMap.remove(new Object[]{file.getPath(), file.getAdded()}) != null;
     }
 
     @Override
@@ -579,6 +658,35 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
+    public synchronized boolean deletePartialFile(BackupPartialFile file) throws IOException {
+        ensureOpen();
+
+        return partialFileMap.remove(file.getFile().getPath()) != null;
+    }
+
+    @Override
+    public synchronized void savePartialFile(BackupPartialFile file) throws IOException {
+        ensureOpen();
+
+        partialFileMap.put(file.getFile().getPath(), encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
+    }
+
+    @Override
+    public synchronized BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
+        ensureOpen();
+
+        byte[] data = partialFileMap.get(file.getFile().getPath());
+        if (data != null) {
+            BackupPartialFile ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
+            if (Objects.equals(ret.getFile().getLength(), file.getFile().getLength())
+                    && Objects.equals(ret.getFile().getLastChanged(), file.getFile().getLastChanged())) {
+                return ret;
+            }
+        }
+        return null;
+    }
+
+    @Override
     public synchronized TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
         ensureOpen();
 
@@ -610,6 +718,9 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public void flushLogging() throws IOException {
+    public synchronized void flushLogging() throws IOException {
+        if (open) {
+            commit();
+        }
     }
 }

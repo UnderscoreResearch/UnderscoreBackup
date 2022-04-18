@@ -56,16 +56,16 @@ class BackupContentsAccessImplTest {
                         Sets.newTreeSet(Lists.newArrayList("file1", "file2", "dir/"))));
 
         Mockito.when(metadataRepository.file("/test/set1/file1"))
-                .thenReturn(Lists.newArrayList(BackupFile.builder().path("/test/set1/file1").lastChanged(2L).length(2L).build(),
-                        BackupFile.builder().path("/test/set1/file1").lastChanged(4L).length(4L).build()));
+                .thenReturn(Lists.newArrayList(BackupFile.builder().path("/test/set1/file1").added(2L).lastChanged(2L).length(2L).build(),
+                        BackupFile.builder().path("/test/set1/file1").added(4L).lastChanged(4L).length(4L).build()));
         Mockito.when(metadataRepository.file("/test/set1/file2"))
                 .thenReturn(Lists.newArrayList(
-                        BackupFile.builder().path("/test/set1/file2").lastChanged(4L).length(4L).build()));
+                        BackupFile.builder().path("/test/set1/file2").added(4L).lastChanged(4L).length(4L).build()));
 
         Mockito.when(metadataRepository.lastFile("/test/set1/file1"))
-                .thenReturn(BackupFile.builder().path("/test/set1/file1").lastChanged(4L).length(4L).build());
+                .thenReturn(BackupFile.builder().path("/test/set1/file1").added(4L).lastChanged(4L).length(4L).build());
         Mockito.when(metadataRepository.lastFile("/test/set1/file2"))
-                .thenReturn(BackupFile.builder().path("/test/set1/file2").lastChanged(4L).length(4L).build());
+                .thenReturn(BackupFile.builder().path("/test/set1/file2").added(4L).lastChanged(4L).length(4L).build());
 
         backupContentsAccess = new BackupContentsAccessImpl(metadataRepository, null);
         backupContentsAccessCurrent = new BackupContentsAccessImpl(metadataRepository, Instant.now().toEpochMilli());
@@ -117,7 +117,7 @@ class BackupContentsAccessImplTest {
 
     private BackupFile file(String path, Long duration) {
         if (path.endsWith("/"))
-            return BackupFile.builder().path(path).lastChanged(duration).build();
-        return BackupFile.builder().path(path).lastChanged(duration).length(duration).build();
+            return BackupFile.builder().path(path).added(duration).build();
+        return BackupFile.builder().path(path).added(duration).lastChanged(duration).length(duration).build();
     }
 }

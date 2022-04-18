@@ -27,7 +27,7 @@ public class RetryUtils {
                     throw exc;
                 }
                 if (IOUtils.hasInternet()) {
-                    log.warn("Failed call " + (i + 1) + " retrying");
+                    log.warn("Failed call retrying for the " + (i + 1) + " time ({})", exc.getMessage(), exc);
                 }
                 Thread.sleep((int) Math.pow(2, i) * retryBase);
             }

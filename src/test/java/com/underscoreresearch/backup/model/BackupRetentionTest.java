@@ -29,9 +29,9 @@ class BackupRetentionTest {
 
     @Test
     public void testDeletedOnly() {
-        testFile.setLastChanged(new BackupTimespan(9L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(9L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, null, true));
-        testFile.setLastChanged(new BackupTimespan(11L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(11L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
         assertFalse(retention.keepFile(testFile, null, true));
     }
 
@@ -51,51 +51,51 @@ class BackupRetentionTest {
 
     @Test
     void testDefaultFrequency() {
-        previousFile.setLastChanged(new BackupTimespan(5L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
-        testFile.setLastChanged(new BackupTimespan(9L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
+        previousFile.setAdded(new BackupTimespan(5L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(9L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
         assertFalse(retention.keepFile(testFile, previousFile, false));
-        testFile.setLastChanged(new BackupTimespan(11L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(11L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, previousFile, false));
     }
 
     @Test
     void testEndDefaultFrequency() {
-        previousFile.setLastChanged(new BackupTimespan(12, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
-        testFile.setLastChanged(new BackupTimespan(13, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
+        previousFile.setAdded(new BackupTimespan(12, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(13, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, previousFile, false));
     }
 
     @Test
     void testSecondOlderFrequency() {
-        previousFile.setLastChanged(new BackupTimespan(15, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
-        testFile.setLastChanged(new BackupTimespan(16, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
+        previousFile.setAdded(new BackupTimespan(15, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(16, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
         assertFalse(retention.keepFile(testFile, previousFile, false));
-        testFile.setLastChanged(new BackupTimespan(18, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(18, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, previousFile, false));
     }
 
     @Test
     void testOldestFrequency() {
-        previousFile.setLastChanged(new BackupTimespan(62, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
-        testFile.setLastChanged(new BackupTimespan(65, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
+        previousFile.setAdded(new BackupTimespan(62, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(65, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
         assertFalse(retention.keepFile(testFile, previousFile, false));
-        testFile.setLastChanged(new BackupTimespan(80, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(80, BackupTimeUnit.DAYS).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, previousFile, false));
     }
 
     @Test
     void testFirst() {
-        testFile.setLastChanged(new BackupTimespan(2, BackupTimeUnit.SECONDS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(2, BackupTimeUnit.SECONDS).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, null, false));
-        testFile.setLastChanged(new BackupTimespan(2, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(2, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, null, false));
-        testFile.setLastChanged(new BackupTimespan(2, BackupTimeUnit.HOURS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(2, BackupTimeUnit.HOURS).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, null, false));
-        testFile.setLastChanged(new BackupTimespan(2, BackupTimeUnit.WEEKS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(2, BackupTimeUnit.WEEKS).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, null, false));
-        testFile.setLastChanged(new BackupTimespan(2, BackupTimeUnit.MONTHS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(2, BackupTimeUnit.MONTHS).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, null, false));
-        testFile.setLastChanged(new BackupTimespan(2, BackupTimeUnit.YEARS).toInstant().toEpochMilli());
+        testFile.setAdded(new BackupTimespan(2, BackupTimeUnit.YEARS).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, null, false));
     }
 }
