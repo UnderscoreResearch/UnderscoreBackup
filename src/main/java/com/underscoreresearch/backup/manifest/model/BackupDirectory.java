@@ -16,6 +16,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BackupDirectory {
     private String path;
-    private Long timestamp;
+    private Long added;
     private NavigableSet<String> files;
 }

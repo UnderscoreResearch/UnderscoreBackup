@@ -19,7 +19,7 @@ public class BackupRetention {
     private TreeSet<BackupRetentionAdditional> older;
 
     public boolean keepFile(BackupFile file, BackupFile previousFile, boolean deleted) {
-        LocalDateTime fileInstant = file.toTime();
+        LocalDateTime fileInstant = file.addedToTime();
 
         BackupTimespan deletedTimespan = Optional.ofNullable(retainDeleted).orElse(new BackupTimespan());
         if (deleted && (deletedTimespan.isImmediate() || fileInstant.isBefore(deletedTimespan.toTime()))) {
@@ -43,7 +43,7 @@ public class BackupRetention {
         if (frequency == null)
             frequency = new BackupTimespan();
 
-        if (frequency.isImmediate() || frequency.toTime(previousFile.toTime()).isBefore(fileInstant)) {
+        if (frequency.isImmediate() || frequency.toTime(previousFile.addedToTime()).isBefore(fileInstant)) {
             return false;
         }
         return true;

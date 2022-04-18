@@ -4,7 +4,9 @@ import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +59,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
             BackupDirectory ret = pathEntry(root + path);
             if (ret == null)
                 return BackupFile.builder().path(root + path).build();
-            return BackupFile.builder().path(root + path).lastChanged(ret.getTimestamp()).build();
+            return BackupFile.builder().path(root + path).added(ret.getAdded()).build();
         }
         BackupFile ret = null;
         if (timestamp == null)
@@ -66,7 +68,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
             List<BackupFile> files = repository.file(root + path);
             if (files != null) {
                 for (BackupFile file : files) {
-                    if (file.getLastChanged() <= timestamp) {
+                    if (file.getAdded() <= timestamp) {
                         ret = file;
                     } else {
                         break;
@@ -89,7 +91,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         BackupDirectory ret = null;
         if (directories != null) {
             for (BackupDirectory entry : directories) {
-                if (entry.getTimestamp() <= timestamp) {
+                if (entry.getAdded() <= timestamp) {
                     ret = entry;
                 } else {
                     break;
@@ -107,15 +109,36 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         else
             normalizedRoot = path;
         BackupDirectory foundPaths = getPaths(normalizedRoot);
+
         if (foundPaths == null && normalizedRoot.length() > 1) {
             BackupFile file = createFile("", normalizedRoot.substring(0, normalizedRoot.length() - 1));
-            if (file.getLastChanged() != null) {
+            if (file.getAdded() != null) {
                 return Lists.newArrayList(file);
             }
         }
 
         if (foundPaths == null) {
             foundPaths = new BackupDirectory(path, null, new TreeSet<>());
+        }
+
+        if (normalizedRoot.equals("/") && foundPaths.getFiles().size() == 0) {
+            foundPaths = getPaths("");
+            if (foundPaths != null) {
+                List<BackupFile> files = new ArrayList<>();
+                Set<String> foundRoots = new HashSet<>();
+                for (String dirPath : foundPaths.getFiles()) {
+                    String fullPath = dirPath;
+                    int ind = fullPath.indexOf('/', 1);
+                    if (ind > 0) {
+                        fullPath = fullPath.substring(0, ind + 1);
+                    }
+                    if (foundRoots.add(fullPath)) {
+                        files.add(createFile("", fullPath));
+                    }
+                }
+                return files;
+            }
+            return null;
         }
 
         foundPaths = addRootPaths(foundPaths, normalizedRoot);

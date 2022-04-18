@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.util.Date;
 
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
@@ -26,6 +27,7 @@ import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.model.BackupPendingSet;
 
 class MapdbMetadataRepositoryTest {
     private static final String PATH = PATH_SEPARATOR + "test" + PATH_SEPARATOR + "path";
@@ -50,7 +52,7 @@ class MapdbMetadataRepositoryTest {
         backupFile = BackupFile.builder().lastChanged(Instant.EPOCH.toEpochMilli())
                 .path(PATH)
                 .locations(Lists.newArrayList(BackupLocation.builder().creation(Instant.now().toEpochMilli()).parts(
-                        Lists.newArrayList(filePart))
+                                Lists.newArrayList(filePart))
                         .build()))
                 .build();
 
@@ -76,10 +78,11 @@ class MapdbMetadataRepositoryTest {
 
         repository.addFile(backupFile);
 
+        backupFile.setAdded(backupFile.getLastChanged());
         assertThat(repository.file(PATH).get(0), Is.is(backupFile));
         assertThat(repository.existingFilePart(PART_HASH).get(0), Is.is(filePart));
 
-        backupFile.setLastChanged(backupFile.getLastChanged() + 1);
+        backupFile.setAdded(backupFile.getLastChanged() + 1);
         filePart.setBlockHash("otherhash");
 
         repository.addFile(backupFile);
@@ -201,6 +204,23 @@ class MapdbMetadataRepositoryTest {
         });
 
         assertThat(repository.allBlocks().count(), Is.is(5000L));
+    }
+
+    @Test
+    public void testPendingSet() throws IOException {
+        BackupPendingSet set1 = BackupPendingSet.builder().setId("1").schedule("abc").scheduledAt(new Date(1000)).build();
+        BackupPendingSet set2 = BackupPendingSet.builder().setId("2").schedule("def").scheduledAt(new Date(1500)).build();
+        BackupPendingSet set3 = BackupPendingSet.builder().setId("3").schedule("ghi").scheduledAt(new Date(2000)).build();
+        BackupPendingSet set1_1 = BackupPendingSet.builder().setId("1").schedule("klm").scheduledAt(new Date(2500)).build();
+        repository.addPendingSets(set1);
+        repository.addPendingSets(set2);
+        repository.addPendingSets(set3);
+
+        assertThat(repository.getPendingSets(), Is.is(Sets.newHashSet(set1, set2, set3)));
+        repository.addPendingSets(set1_1);
+        assertThat(repository.getPendingSets(), Is.is(Sets.newHashSet(set1_1, set2, set3)));
+        repository.deletePendingSets("1");
+        assertThat(repository.getPendingSets(), Is.is(Sets.newHashSet(set2, set3)));
     }
 
     @AfterEach

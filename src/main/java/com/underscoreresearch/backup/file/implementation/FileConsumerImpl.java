@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.file.implementation;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,7 @@ public class FileConsumerImpl implements FileConsumer {
     private void saveFile(BackupFile file, BackupCompletion completionPromise) {
         try {
             debug(() -> log.debug("Completed file {}", file.getPath()));
+            file.setAdded(Instant.now().toEpochMilli());
             repository.addFile(file);
             completionPromise.completed(true);
         } catch (IOException e) {

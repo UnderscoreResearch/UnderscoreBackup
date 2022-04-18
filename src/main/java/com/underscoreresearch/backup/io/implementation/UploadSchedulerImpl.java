@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
 
-import com.google.common.base.Stopwatch;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
@@ -24,7 +23,6 @@ public class UploadSchedulerImpl extends SchedulerImpl implements StatusLogger, 
     private final RateLimitController rateLimitController;
     private AtomicLong totalSize = new AtomicLong();
     private AtomicLong totalCount = new AtomicLong();
-    private Stopwatch duration;
 
     public UploadSchedulerImpl(int maximumConcurrency, RateLimitController rateLimitController) {
         super(maximumConcurrency);
@@ -33,9 +31,7 @@ public class UploadSchedulerImpl extends SchedulerImpl implements StatusLogger, 
 
     @Override
     public void scheduleUpload(BackupDestination destination, String hash, int index, byte[] data, BackupUploadCompletion completionPromise) {
-        String suggestedKey = PREFIX + index + PATH_SEPARATOR + splitHash(hash);
-        if (duration == null)
-            duration = Stopwatch.createStarted();
+        String suggestedKey = PREFIX + splitHash(hash) + PATH_SEPARATOR + index;
 
         Runnable runnable = new Runnable() {
             @Override
@@ -68,11 +64,11 @@ public class UploadSchedulerImpl extends SchedulerImpl implements StatusLogger, 
     public void resetStatus() {
         totalCount.set(0);
         totalSize.set(0);
-        duration = null;
+        resetDuration();
     }
 
     @Override
     public List<StatusLine> status() {
-        return getThroughputStatus(getClass(), "Uploaded", "objects", totalCount.get(), totalSize.get(), duration);
+        return getThroughputStatus(getClass(), "Uploaded", "objects", totalCount.get(), totalSize.get(), getDuration());
     }
 }

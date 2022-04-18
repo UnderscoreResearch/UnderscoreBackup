@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.file;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
@@ -10,6 +11,8 @@ import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupPartialFile;
+import com.underscoreresearch.backup.model.BackupPendingSet;
 
 public interface MetadataRepository {
     void addFile(BackupFile file) throws IOException;
@@ -44,6 +47,12 @@ public interface MetadataRepository {
 
     void popActivePath(String setId, String path) throws IOException;
 
+    boolean deletePartialFile(BackupPartialFile file) throws IOException;
+
+    void savePartialFile(BackupPartialFile file) throws IOException;
+
+    BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException;
+
     TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException;
 
     void flushLogging() throws IOException;
@@ -63,4 +72,10 @@ public interface MetadataRepository {
      * All directories in repository. Must be sorted by path and timestamp in descending order.
      */
     Stream<BackupDirectory> allDirectories() throws IOException;
+
+    void addPendingSets(BackupPendingSet scheduledTime) throws IOException;
+
+    void deletePendingSets(String setId) throws IOException;
+
+    Set<BackupPendingSet> getPendingSets() throws IOException;
 }

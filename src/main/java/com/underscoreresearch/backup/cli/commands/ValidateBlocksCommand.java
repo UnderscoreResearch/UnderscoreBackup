@@ -27,15 +27,7 @@ public class ValidateBlocksCommand extends SimpleCommand {
                 List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
                     for (BackupFilePart part : location.getParts()) {
                         try {
-                            BackupBlock block = repository.block(part.getBlockHash());
-                            if (block == null) {
-                                log.warn("Block hash {} does not exist", part.getBlockHash());
-                                return false;
-                            }
-                            if (block.getStorage().stream()
-                                    .anyMatch(storage -> storage.getParts().stream()
-                                            .anyMatch(blockPart -> blockPart == null))) {
-                                log.warn("Block hash {} has missing parts", part.getBlockHash());
+                            if (!validateHash(repository, part.getBlockHash())) {
                                 return false;
                             }
                         } catch (IOException e) {
@@ -66,5 +58,26 @@ public class ValidateBlocksCommand extends SimpleCommand {
         repository.flushLogging();
         manifestManager.shutdown();
         repository.close();
+    }
+
+    private boolean validateHash(MetadataRepository repository, String blockHash) throws IOException {
+        BackupBlock block = repository.block(blockHash);
+        if (block == null) {
+            log.warn("Block hash {} does not exist", block);
+            return false;
+        }
+        if (block.isSuperBlock()) {
+            for (String hash : block.getHashes()) {
+                validateHash(repository, hash);
+            }
+        } else {
+            if (block.getStorage().stream()
+                    .anyMatch(storage -> storage.getParts().stream()
+                            .anyMatch(blockPart -> blockPart == null))) {
+                log.warn("Block hash {} has missing parts", blockHash);
+                return false;
+            }
+        }
+        return true;
     }
 }

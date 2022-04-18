@@ -4,10 +4,12 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_
 import static com.underscoreresearch.backup.configuration.CommandLineModule.NEED_PRIVATE_KEY;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.PRIVATE_KEY_SEED;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.PUBLIC_KEY_DATA;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.getDefaultUserManifestLocation;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Paths;
+import java.nio.file.Files;
 
 import org.apache.commons.lang.SystemUtils;
 
@@ -17,23 +19,37 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import com.underscoreresearch.backup.cli.PasswordReader;
+import com.underscoreresearch.backup.cli.PassphraseReader;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
 import com.underscoreresearch.backup.io.IOUtils;
 
 public class EncryptionModule extends AbstractModule {
+    private static final String SYSTEM_DEFAULT_KEY_FILE = "/etc/underscorebackup/key";
     public static final String[] DEFAULT_KEY_FILES;
 
     static {
         if (SystemUtils.IS_OS_WINDOWS) {
             DEFAULT_KEY_FILES = new String[]{
-                    "C:\\UnderscoreBackup\\key"
+                    getDefaultUserManifestLocation() + "\\key"
             };
         } else {
-            DEFAULT_KEY_FILES = new String[]{
-                    Paths.get(System.getProperty("user.home"), ".underscorebackup.key").toString(),
-                    "/etc/underscorebackup/key",
-            };
+            if (Strings.isNullOrEmpty(System.getProperty("user.home"))) {
+                DEFAULT_KEY_FILES = new String[]{
+                        SYSTEM_DEFAULT_KEY_FILE
+                };
+            } else {
+                if (Files.isWritable(new File(SYSTEM_DEFAULT_KEY_FILE).toPath())) {
+                    DEFAULT_KEY_FILES = new String[]{
+                            SYSTEM_DEFAULT_KEY_FILE,
+                            getDefaultUserManifestLocation() + "/key"
+                    };
+                } else {
+                    DEFAULT_KEY_FILES = new String[]{
+                            getDefaultUserManifestLocation() + "/key",
+                            "/etc/underscorebackup/key"
+                    };
+                }
+            }
         }
     }
 
@@ -52,10 +68,10 @@ public class EncryptionModule extends AbstractModule {
             }
         }
 
-        if (needPrivateKey) {
+        if (needPrivateKey || !Strings.isNullOrEmpty(privateKeySeed)) {
             String key = privateKeySeed;
             if (Strings.isNullOrEmpty(key))
-                key = PasswordReader.readPassword("Enter seed for private key: ");
+                key = PassphraseReader.readPassphrase("Enter seed for private key: ");
             if (key == null) {
                 System.exit(1);
             }

@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.configuration;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.DEVELOPER_MODE;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -9,6 +11,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.block.assignments.GzipLargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.LargeFileBlockAssignment;
@@ -48,11 +51,18 @@ public class BackupModule extends AbstractModule {
 
     @Singleton
     @Provides
-    public ScannerScheduler scannerScheduler(BackupConfiguration configuration,
-                                             MetadataRepository repository,
-                                             RepositoryTrimmer repositoryTrimmer,
-                                             FileScanner scanner) {
-        return new ScannerSchedulerImpl(configuration, repository, repositoryTrimmer, scanner);
+    public ScannerSchedulerImpl scannerScheduler(BackupConfiguration configuration,
+                                                 MetadataRepository repository,
+                                                 RepositoryTrimmer repositoryTrimmer,
+                                                 FileScanner scanner,
+                                                 StateLogger stateLogger) {
+        return new ScannerSchedulerImpl(configuration, repository, repositoryTrimmer, scanner, stateLogger);
+    }
+
+    @Singleton
+    @Provides
+    public ScannerScheduler scannerScheduler(ScannerSchedulerImpl scannerScheduler) {
+        return scannerScheduler;
     }
 
     @Singleton
@@ -71,8 +81,9 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public FileScannerImpl fileScanner(MetadataRepository repository, FileConsumer fileConsumer,
-                                       FileSystemAccess access, StateLogger logger) {
-        return new FileScannerImpl(repository, fileConsumer, access, logger);
+                                       FileSystemAccess access, StateLogger logger,
+                                       @Named(DEVELOPER_MODE) boolean developerMode) {
+        return new FileScannerImpl(repository, fileConsumer, access, logger, developerMode);
     }
 
     @Singleton
@@ -86,10 +97,11 @@ public class BackupModule extends AbstractModule {
     @Provides
     @Singleton
     public SmallFileBlockAssignment smallFileBlockAssignment(BackupConfiguration configuration,
+                                                             BlockDownloader blockDownloader,
                                                              MetadataRepository metadataRepository,
                                                              FileBlockUploader fileBlockUploader,
                                                              FileSystemAccess fileSystemAccess) {
-        return new SmallFileBlockAssignment(fileBlockUploader, metadataRepository, fileSystemAccess,
+        return new SmallFileBlockAssignment(fileBlockUploader, blockDownloader, metadataRepository, fileSystemAccess,
                 configuration.getProperty("smallFileBlockAssignment.maximumSize", DEFAULT_SMALL_FILE_MAXIMUM_SIZE),
                 configuration.getProperty("smallFileBlockAssignment.targetSize", DEFAULT_SMALL_FILE_TARGET_SIZE));
     }
@@ -115,10 +127,16 @@ public class BackupModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public FileBlockUploader fileBlockUploader(BackupConfiguration configuration,
-                                               MetadataRepository repository,
-                                               UploadScheduler uploadScheduler) {
+    public FileBlockUploaderImpl fileBlockUploader(BackupConfiguration configuration,
+                                                   MetadataRepository repository,
+                                                   UploadScheduler uploadScheduler) {
         return new FileBlockUploaderImpl(configuration, repository, uploadScheduler);
+    }
+
+    @Provides
+    @Singleton
+    public FileBlockUploader fileBlockUploader(FileBlockUploaderImpl uploader) {
+        return uploader;
     }
 
     @Provides
@@ -135,27 +153,31 @@ public class BackupModule extends AbstractModule {
     @Provides
     @Singleton
     public GzipLargeFileBlockAssignment gzipLargeFileBlockAssignment(BackupConfiguration configuration,
+                                                                     MetadataRepository metadataRepository,
                                                                      FileBlockUploader fileBlockUploader,
+                                                                     BlockDownloader blockDownloader,
                                                                      FileSystemAccess fileSystemAccess) {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
-        return new GzipLargeFileBlockAssignment(fileBlockUploader, fileSystemAccess,
-                maxSize);
+        return new GzipLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
+                metadataRepository, maxSize);
     }
 
     @Provides
     @Singleton
     public RawLargeFileBlockAssignment rawLargeFileBlockAssignment(BackupConfiguration configuration,
+                                                                   MetadataRepository metadataRepository,
                                                                    FileBlockUploader fileBlockUploader,
+                                                                   BlockDownloader blockDownloader,
                                                                    FileSystemAccess fileSystemAccess) {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
-        return new RawLargeFileBlockAssignment(fileBlockUploader, fileSystemAccess,
-                maxSize);
+        return new RawLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
+                metadataRepository, maxSize);
     }
 
     @Singleton
     @Provides
-    public ManifestManager manifestManager(BackupConfiguration configuration,
-                                           RateLimitController rateLimitController) throws IOException {
+    public ManifestManagerImpl manifestManagerImplementation(BackupConfiguration configuration,
+                                                             RateLimitController rateLimitController) throws IOException {
         BackupDestination destination = configuration.getDestinations().get(configuration.getManifest()
                 .getDestination());
 
@@ -163,6 +185,12 @@ public class BackupModule extends AbstractModule {
                 IOProviderFactory.getProvider(destination),
                 EncryptorFactory.getEncryptor(destination.getEncryption()),
                 rateLimitController);
+    }
+
+    @Provides
+    @Singleton
+    public ManifestManager manifestManager(ManifestManagerImpl manifestManager) {
+        return manifestManager;
     }
 
     @Singleton

@@ -11,28 +11,28 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 public abstract class Command {
     public abstract void executeCommand(CommandLine commandLine) throws Exception;
 
-    public static String args(Class<Command> clz) {
+    public static String args(Class<? extends Command> clz) {
         CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
         if (plugin != null)
             return plugin.args();
         return null;
     }
 
-    public static String name(Class clz) {
+    public static String name(Class<? extends Command> clz) {
         CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
         if (plugin != null)
             return plugin.value();
         return null;
     }
 
-    public static String description(Class clz) {
+    public static String description(Class<? extends Command> clz) {
         CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
         if (plugin != null)
             return plugin.description();
         return null;
     }
 
-    public static boolean needPrivateKey(Class clz) {
+    public static boolean needPrivateKey(Class<? extends Command> clz) {
         CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
         if (plugin != null)
             return plugin.needPrivateKey();
@@ -51,16 +51,18 @@ public abstract class Command {
         return needPrivateKey(this.getClass());
     }
 
-    public static List<Class<Command>> allCommandClasses() {
-        List<Class<Command>> commands = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    public static List<Class<? extends Command>> allCommandClasses() {
+        List<Class<? extends Command>> commands = new ArrayList<>();
+
         InstanceFactory.getReflections().getTypesAnnotatedWith(CommandPlugin.class).stream()
-                .map(t -> (Class<Command>) t).forEach(commands::add);
+                .map(t -> (Class<? extends Command>) t).forEach(commands::add);
         commands.sort(Comparator.comparing(Command::name));
         return commands;
     }
 
-    public static Class<Command> findCommandClass(String name) {
-        for (Class<Command> command : Command.allCommandClasses()) {
+    public static Class<? extends Command> findCommandClass(String name) {
+        for (Class<? extends Command> command : Command.allCommandClasses()) {
             if (Command.name(command).equals(name)) {
                 return command;
             }

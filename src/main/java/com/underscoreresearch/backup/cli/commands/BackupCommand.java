@@ -12,7 +12,9 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.ScannerScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.utils.StateLogger;
 
 @CommandPlugin(value = "backup", description = "Run backup operation continuously",
         needPrivateKey = false, readonlyRepository = false)
@@ -25,35 +27,34 @@ public class BackupCommand extends SimpleCommand {
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
 
         IOUtils.waitForInternet(() -> {
-            manifestManager.initialize();
+            manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class));
             return null;
         });
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                debug(() -> log.debug("Shutdown initiated"));
+        InstanceFactory.addOrderedCleanupHook(() -> {
+            debug(() -> log.debug("Backup shutdown initiated"));
 
-                InstanceFactory.shutdown(true);
-                scheduler.shutdown();
-                uploadScheduler.shutdown();
+            InstanceFactory.shutdown();
+            scheduler.shutdown();
+            uploadScheduler.shutdown();
+            InstanceFactory.getInstance(StateLogger.class).reset();
 
-                synchronized (scheduler) {
+            synchronized (scheduler) {
 
-                    try {
-                        repository.flushLogging();
-                        manifestManager.shutdown();
-                        repository.close();
-                    } catch (IOException e) {
-                        log.error("Failed to close manifest", e);
-                    }
+                try {
+                    repository.flushLogging();
+                    manifestManager.shutdown();
+                    repository.close();
+                } catch (IOException e) {
+                    log.error("Failed to close manifest", e);
                 }
-                log.info("Backup shutdown completed");
             }
+            log.info("Backup shutdown completed");
         });
 
         synchronized (scheduler) {
             scheduler.start();
-            debug(() -> log.debug("Scheduler shut down"));
+            debug(() -> log.debug("Backup scheduler shutdown"));
         }
     }
 }

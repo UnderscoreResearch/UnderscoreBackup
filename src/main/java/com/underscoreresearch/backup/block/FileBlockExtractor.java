@@ -5,7 +5,7 @@ import java.io.IOException;
 import com.underscoreresearch.backup.model.BackupFilePart;
 
 public interface FileBlockExtractor {
-    byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException;
+    byte[] extractPart(BackupFilePart file) throws IOException;
 
     boolean shouldCache();
 }

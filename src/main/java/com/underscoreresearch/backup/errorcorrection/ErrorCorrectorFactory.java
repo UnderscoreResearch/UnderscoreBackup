@@ -6,13 +6,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.reflections.Reflections;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
+@Slf4j
 public final class ErrorCorrectorFactory {
-    private static Map<String, Class> correctors;
+    private static Map<String, Class<? extends ErrorCorrector>> correctors;
 
     static {
         correctors = new HashMap<>();
@@ -20,7 +23,9 @@ public final class ErrorCorrectorFactory {
         Reflections reflections = InstanceFactory.getReflections();
         Set<Class<?>> classes = reflections.getTypesAnnotatedWith(ErrorCorrectorPlugin.class);
 
-        for (Class<?> clz : classes) {
+        for (Class<?> untyped : classes) {
+            @SuppressWarnings("unchecked")
+            Class<? extends ErrorCorrector> clz = (Class<ErrorCorrector>) untyped;
             ErrorCorrectorPlugin plugin = clz.getAnnotation(ErrorCorrectorPlugin.class);
             correctors.put(plugin.value(), clz);
         }
@@ -32,11 +37,18 @@ public final class ErrorCorrectorFactory {
         return ret;
     }
 
+    public static boolean hasCorrector(String ec) {
+        Class<? extends ErrorCorrector> clz = correctors.get(ec);
+        if (clz == null)
+            return false;
+        return true;
+    }
+
     public static ErrorCorrector getCorrector(String ec) {
-        Class clz = correctors.get(ec);
+        Class<? extends ErrorCorrector> clz = correctors.get(ec);
         if (clz == null)
             throw new IllegalArgumentException("Unsupported error correction type " + ec);
-        return (ErrorCorrector) InstanceFactory.getInstance(clz);
+        return InstanceFactory.getInstance(clz);
     }
 
     public static List<byte[]> encodeBlocks(String ec, BackupBlockStorage storage,

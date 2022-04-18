@@ -48,7 +48,7 @@ public class DownloadSchedulerImplTest {
 
         for (int i = 0; i < 100; i++) {
             int val = i;
-            scheduler.scheduleDownload(new BackupFile(), val + "");
+            scheduler.scheduleDownload(BackupFile.builder().path(i + "").length((long) i).build(), val + "");
         }
 
         assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.greaterThan(900L));

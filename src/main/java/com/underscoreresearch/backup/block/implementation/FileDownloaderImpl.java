@@ -1,107 +1,181 @@
 package com.underscoreresearch.backup.block.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
-import lombok.RequiredArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockFormatFactory;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileDownloader;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
-@RequiredArgsConstructor
 @Slf4j
 public class FileDownloaderImpl implements FileDownloader, StatusLogger {
-    public static final String NULL_FILE = "-";
+    @Data
+    private static class Progress {
+        private long completed;
+        private long total;
+
+        public Progress(long total) {
+            this.total = total;
+        }
+    }
+
     private final MetadataRepository repository;
     private final FileSystemAccess fileSystemAccess;
-    private final RateLimitController rateLimitController;
-    private final BackupConfiguration configuration;
     private AtomicBoolean shutdown = new AtomicBoolean();
-    private AtomicLong totalSize = new AtomicLong();
-    private AtomicLong totalCount = new AtomicLong();
-    private Stopwatch duration;
+    private TreeMap<String, Progress> activeFiles = new TreeMap<>();
 
-    private LoadingCache<BackupBlock, byte[]> blockData = CacheBuilder.newBuilder().maximumSize(2)
-            .build(new CacheLoader<BackupBlock, byte[]>() {
-                @Override
-                public byte[] load(BackupBlock key) throws Exception {
-                    return downloadBlock(key);
-                }
-            });
+    public FileDownloaderImpl(MetadataRepository repository,
+                              FileSystemAccess fileSystemAccess) {
+        this.repository = repository;
+        this.fileSystemAccess = fileSystemAccess;
+    }
+
+    public static boolean isNullFile(String file) {
+        return (file != null && (file.equals("-") || file.equals("=")));
+    }
 
     @Override
     public void downloadFile(BackupFile source, String destinationFile) throws IOException {
-        if (duration == null)
-            duration = Stopwatch.createStarted();
+        Progress progress = new Progress(source.getLength());
+        synchronized (activeFiles) {
+            activeFiles.put(source.getPath(), progress);
+        }
 
-        for (int i = 0; true; i++) {
-            try {
-                BackupLocation location = source.getLocations().get(0);
-                long offset = 0;
-                for (BackupFilePart part : location.getParts()) {
-                    BackupBlock block = repository.block(part.getBlockHash());
-                    FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
-                    try {
-                        byte[] downloadedBlock;
+        try {
+            for (int i = 0; true; i++) {
+                try {
+                    if (source.getLength() == 0) {
+                        if (!isNullFile(destinationFile))
+                            fileSystemAccess.truncate(destinationFile, 0);
+                    } else {
+                        BackupLocation location = source.getLocations().get(i);
+                        long offset = 0;
 
-                        if (extractor.shouldCache())
-                            downloadedBlock = blockData.get(block);
-                        else
-                            downloadedBlock = downloadBlock(block);
+                        FileInputStream originalStream = null;
+                        if (destinationFile.equals("=")) {
+                            File originalFile = new File(PathNormalizer.physicalPath(source.getPath()));
+                            if (!originalFile.isFile()) {
+                                log.warn("File missing locally {}", originalFile.getAbsolutePath());
+                                originalFile = null;
+                            } else if (!originalFile.canRead()) {
+                                log.warn("Can't read file {} to compare", originalFile.getAbsolutePath());
+                                originalFile = null;
+                            } else if (originalFile.length() != source.getLength()) {
+                                log.warn("File size does not match {} ({} in backup, {} locally})", originalFile.getAbsolutePath(),
+                                        readableSize(source.getLength()), readableSize(originalFile.length()));
+                                originalFile = null;
+                            }
 
-                        byte[] fileData = extractor.extractPart(part, downloadedBlock);
-                        if (fileData == null) {
-                            throw new IOException("Failed to extra data for part of block " + part.getBlockHash());
+                            if (originalFile != null) {
+                                try {
+                                    originalStream = new FileInputStream(originalFile);
+                                } catch (IOException exc) {
+                                    log.warn("Can't open file {} to compare", originalFile.getAbsolutePath());
+                                }
+                            }
                         }
 
-                        if (!destinationFile.equals(NULL_FILE))
-                            fileSystemAccess.writeData(destinationFile, fileData, offset, fileData.length);
-                        offset += fileData.length;
-                    } catch (Exception exc) {
-                        throw new IOException("Failed to download " + source.getPath()
-                                + " because missing or corrupt block " + block.getHash(), exc);
+                        try {
+                            for (BackupFilePart part : location.getParts()) {
+                                List<BackupBlock> blocks = expandBlocks(part.getBlockHash());
+                                for (BackupBlock block : blocks) {
+                                    if (block == null) {
+                                        throw new IOException(String.format("File referenced block {} that doesn't exist",
+                                                part.getBlockHash()));
+                                    }
+                                    FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
+                                    try {
+                                        byte[] fileData = extractor.extractPart(part);
+                                        if (fileData == null) {
+                                            throw new IOException("Failed to extra data for part of block " + part.getBlockHash());
+                                        }
+
+                                        if (!isNullFile(destinationFile)) {
+                                            fileSystemAccess.writeData(destinationFile, fileData, offset, fileData.length);
+                                        } else if (destinationFile.equals("=")) {
+                                            for (int originalOffset = 0; originalStream != null && originalOffset < fileData.length; originalOffset += 8192) {
+                                                byte[] original = new byte[8192];
+                                                int length = Math.min(8192, fileData.length - originalOffset);
+                                                originalStream.read(original, 0, length);
+                                                for (int j = 0; j < length; j++)
+                                                    if (original[j] != fileData[j + originalOffset]) {
+                                                        log.warn("File {} does not match locally at location {}",
+                                                                PathNormalizer.physicalPath(source.getPath()), offset + j);
+                                                        originalStream.close();
+                                                        originalStream = null;
+                                                        break;
+                                                    }
+                                            }
+                                        }
+
+                                        offset += fileData.length;
+                                        progress.setCompleted(offset);
+                                    } catch (Exception exc) {
+                                        throw new IOException("Failed to download " + source.getPath()
+                                                + " because missing or corrupt block " + block.getHash(), exc);
+                                    }
+                                }
+                            }
+                        } finally {
+                            if (originalStream != null)
+                                originalStream.close();
+                        }
+
+                        if (!isNullFile(destinationFile))
+                            fileSystemAccess.truncate(destinationFile, offset);
+
+                        if (offset != source.getLength()) {
+                            throw new IOException(String.format("Expected file %s to be of size 5s but was actually %s",
+                                    source.getPath(), source.getLength(), offset));
+                        }
+                    }
+                    break;
+                } catch (IOException exc) {
+                    if (source.getLocations() == null || i == source.getLocations().size() - 1 || shutdown.get()) {
+                        throw exc;
                     }
                 }
-                if (!destinationFile.equals(NULL_FILE))
-                    fileSystemAccess.truncate(destinationFile, offset);
-                break;
-            } catch (Exception exc) {
-                if (i == source.getLocations().size() - 1 || shutdown.get()) {
-                    if (exc instanceof IOException)
-                        throw (IOException) exc;
-                    else
-                        throw new IOException("Failed to download " + source.getPath(), exc);
-                }
+            }
+        } finally {
+            synchronized (activeFiles) {
+                activeFiles.remove(source.getPath());
             }
         }
+    }
+
+    private List<BackupBlock> expandBlocks(String blockHash) throws IOException {
+        BackupBlock block = repository.block(blockHash);
+        if (block.isSuperBlock()) {
+            List<BackupBlock> blocks = new ArrayList<>();
+            for (String hash : block.getHashes()) {
+                blocks.add(repository.block(hash));
+            }
+            debug(() -> log.debug("Expanded suprt block {} to {} blocks", block.getHash(), blocks.size()));
+            return blocks;
+        }
+        return Lists.newArrayList(block);
     }
 
     @Override
@@ -109,65 +183,22 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
         shutdown.set(true);
     }
 
-    private byte[] downloadBlock(BackupBlock block) throws IOException {
-        for (int storageIndex = 0; storageIndex < block.getStorage().size(); storageIndex++) {
-            BackupBlockStorage storage = block.getStorage().get(storageIndex);
-            try {
-                byte[][] blockParts = new byte[storage.getParts().size()][];
-
-                BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
-                IOProvider provider = IOProviderFactory.getProvider(destination);
-                int completedParts = 0;
-                ErrorCorrector corrector = ErrorCorrectorFactory.getCorrector(destination.getErrorCorrection());
-                int neededParts = corrector.getMinimumSufficientParts(storage);
-                byte[] errorCorrected = null;
-
-                for (int i = 0; i < storage.getParts().size(); i++) {
-                    if (shutdown.get()) {
-                        throw new IOException("Shutting down");
-                    }
-                    try {
-                        byte[] data = provider.download(storage.getParts().get(i));
-                        totalCount.incrementAndGet();
-                        totalSize.addAndGet(data.length);
-                        blockParts[i] = data;
-                        rateLimitController.acquireDownloadPermits(destination, data.length);
-                        completedParts++;
-                    } catch (IOException exc) {
-                        log.error("Failed to download " + storage.getParts().get(i) + " from " + storage.getDestination());
-                    }
-
-                    if (completedParts >= neededParts) {
-                        try {
-                            errorCorrected = corrector.decodeErrorCorrection(storage, Lists.newArrayList(blockParts));
-                            break;
-                        } catch (Exception e) {
-                            if (i == storage.getParts().size() - 1) {
-                                throw new IOException("Failed to error correct " + block.getHash(), e);
-                            }
-                        }
-                    }
-                }
-
-                return EncryptorFactory.decodeBlock(storage, errorCorrected);
-            } catch (Exception exc) {
-                if (storageIndex == block.getStorage().size() - 1 || shutdown.get()) {
-                    throw new IOException("Failed to download block " + block.getHash() + " was unreadable", exc);
-                }
-            }
-        }
-        throw new IOException("No storage available for block");
-    }
-
     @Override
     public void resetStatus() {
-        totalCount.set(0);
-        totalSize.set(0);
-        duration = null;
+        synchronized (activeFiles) {
+            activeFiles.clear();
+        }
     }
 
     @Override
     public List<StatusLine> status() {
-        return getThroughputStatus(getClass(), "Downloaded", "objects", totalCount.get(), totalSize.get(), duration);
+        synchronized (activeFiles) {
+            return activeFiles.entrySet().stream().map(entry -> new StatusLine(getClass(),
+                    "DOWNLOADED_ACTIVE_" + entry.getKey(),
+                    "Currently downloading " + entry.getKey(),
+                    entry.getValue().getCompleted(),
+                    readableSize(entry.getValue().getCompleted()) + " / "
+                            + readableSize(entry.getValue().getTotal()))).collect(Collectors.toList());
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.io;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.concurrent.Callable;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class IOUtils {
     private static final long INTERNET_WAIT = 1000;
+    private static final int DEFAULT_BUFFER_SIZE = 8192;
 
     public static byte[] readAllBytes(InputStream stream) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -22,6 +24,17 @@ public final class IOUtils {
             outputStream.write(buffer, 0, length);
         }
         return outputStream.toByteArray();
+    }
+
+    public static long copyStream(InputStream in, OutputStream out) throws IOException {
+        long transferred = 0;
+        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+        int read;
+        while ((read = in.read(buffer, 0, DEFAULT_BUFFER_SIZE)) >= 0) {
+            out.write(buffer, 0, read);
+            transferred += read;
+        }
+        return transferred;
     }
 
     public static boolean hasInternet() {

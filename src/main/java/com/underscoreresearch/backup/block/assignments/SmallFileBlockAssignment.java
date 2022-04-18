@@ -8,12 +8,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +24,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.BlockFormatPlugin;
-import com.underscoreresearch.backup.block.FileBlockAssignment;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.encryption.Hash;
@@ -37,13 +39,16 @@ import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupSet;
 
 @RequiredArgsConstructor
 @Slf4j
 @BlockFormatPlugin("ZIP")
-public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockExtractor {
+public class SmallFileBlockAssignment extends BaseBlockAssignment implements FileBlockExtractor {
+    private static final int MAX_FILES_PER_BLOCK = 1024;
     private final FileBlockUploader uploader;
+    private final BlockDownloader blockDownloader;
     private final MetadataRepository repository;
     private final FileSystemAccess access;
     private final int maximumFileSize;
@@ -51,7 +56,10 @@ public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockE
     private Map<BackupSet, PendingFile> pendingFiles = new HashMap<>();
 
     @Override
-    public boolean assignBlocks(BackupSet set, BackupFile file, BackupBlockCompletion completionFuture) {
+    protected boolean internalAssignBlocks(BackupSet set, BackupPartialFile backupPartialFile,
+                                           BackupBlockCompletion completionFuture) {
+        BackupFile file = backupPartialFile.getFile();
+
         if (file.getLength() > maximumFileSize) {
             return false;
         }
@@ -79,19 +87,11 @@ public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockE
         return true;
     }
 
-    public boolean assignBlock(BackupSet set, byte[] data, BackupBlockCompletion completionFuture) throws IOException {
-        if (data.length > maximumFileSize) {
-            return false;
-        }
-        internalAssignBlock(set, data, completionFuture);
-
-        return true;
-    }
-
     private synchronized void internalAssignBlock(BackupSet set, byte[] data, BackupBlockCompletion completionFuture)
             throws IOException {
         PendingFile pendingFile = pendingFiles.computeIfAbsent(set, t -> new PendingFile());
-        if (pendingFile.estimateSize() + data.length >= targetSize) {
+        if (pendingFile.estimateSize() + data.length >= targetSize
+                || pendingFile.getFileCount() >= MAX_FILES_PER_BLOCK) {
             uploadPending(set, pendingFile);
             pendingFile = new PendingFile();
             pendingFiles.put(set, pendingFile);
@@ -101,7 +101,6 @@ public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockE
 
     private void uploadPending(BackupSet set, PendingFile pendingFile) {
         try {
-
             uploader.uploadBlock(set, new BackupData(pendingFile.data()), pendingFile.hash(), "ZIP", (success) -> {
                 pendingFile.complete(success);
             });
@@ -123,28 +122,62 @@ public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockE
     }
 
     @Data
-    private static class CachedData {
-        private String hash;
-        private Map<String, byte[]> unpackged = new TreeMap<>();
+    @AllArgsConstructor
+    private static class CacheEntry {
+        private boolean compressed;
+        private byte[] data;
+
+        public byte[] get() throws IOException {
+            if (compressed) {
+                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
+                    try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                        return IOUtils.readAllBytes(gzipInputStream);
+                    }
+                }
+            }
+            return data;
+        }
+    }
+
+    @Data
+    private class CachedData {
+        private static final long MINIMUM_COMPRESSED_SIZE = 8192;
+        private static final long MINIMUM_COMPRESSED_RATIO = 2;
+        private Map<String, CacheEntry> blockEntries;
 
         private CachedData(String hash) {
-            this.hash = hash;
-        }
-
-        public Map<String, byte[]> unpackData(byte[] blockData) throws IOException {
-            synchronized (unpackged) {
-                if (unpackged.size() == 0) {
-                    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(blockData)) {
-                        try (ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
-                            ZipEntry ze;
-                            while ((ze = zipInputStream.getNextEntry()) != null) {
-                                unpackged.put(ze.getName(), IOUtils.readAllBytes(zipInputStream));
+            try {
+                blockEntries = new HashMap<>();
+                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(blockDownloader.downloadBlock(hash))) {
+                    try (ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
+                        ZipEntry ze;
+                        while ((ze = zipInputStream.getNextEntry()) != null) {
+                            byte[] data = IOUtils.readAllBytes(zipInputStream);
+                            if (ze.getSize() > MINIMUM_COMPRESSED_SIZE
+                                    && ze.getSize() / ze.getCompressedSize() > MINIMUM_COMPRESSED_RATIO) {
+                                try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+                                    try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
+                                        gzipOutputStream.write(data);
+                                    }
+                                    blockEntries.put(ze.getName(), new CacheEntry(true, byteArrayOutputStream.toByteArray()));
+                                }
+                            } else {
+                                blockEntries.put(ze.getName(), new CacheEntry(false, data));
                             }
                         }
                     }
                 }
+            } catch (IOException exc) {
+                throw new RuntimeException(exc);
             }
-            return unpackged;
+        }
+
+        public byte[] get(String key) throws IOException {
+            CacheEntry entry = blockEntries.get(key);
+            if (entry != null) {
+                return entry.get();
+            }
+            return null;
         }
     }
 
@@ -159,10 +192,10 @@ public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockE
             });
 
     @Override
-    public byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException {
+    public byte[] extractPart(BackupFilePart file) throws IOException {
         try {
             CachedData data = cache.get(file.getBlockHash());
-            return data.unpackData(blockData).get(file.getBlockIndex().toString());
+            return data.get(file.getBlockIndex().toString());
         } catch (ExecutionException e) {
             throw new IOException("Failed to process contents of block " + file.getBlockHash(), e);
         }
@@ -191,9 +224,9 @@ public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockE
                     BackupBlock block = repository.block(part.getBlockHash());
                     boolean skip = false;
                     if (block != null) {
-                        for (String destinations : set.getDestinations()) {
+                        for (String destination : set.getDestinations()) {
                             if (!block.getStorage().stream()
-                                    .anyMatch(storage -> storage.getDestination().equals(destinations))) {
+                                    .anyMatch(storage -> storage.getDestination().equals(destination))) {
                                 skip = true;
                                 break;
                             }
@@ -247,6 +280,7 @@ public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockE
                 } else
                     completion.completed(null);
             });
+
         }
 
         public synchronized int estimateSize() {
@@ -269,6 +303,10 @@ public class SmallFileBlockAssignment implements FileBlockAssignment, FileBlockE
         public synchronized void complete(boolean success) {
             for (BackupCompletion completion : completions)
                 completion.completed(success);
+        }
+
+        public int getFileCount() {
+            return currentIndex;
         }
     }
 }

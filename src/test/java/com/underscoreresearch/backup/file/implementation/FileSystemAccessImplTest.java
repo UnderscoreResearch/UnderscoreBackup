@@ -62,7 +62,7 @@ class FileSystemAccessImplTest {
         access.truncate(normalizedRoot + PATH_SEPARATOR + "f1", data.length / 2);
         assertThat(new File(tempDir, "f1").length(), Is.is((long) data.length / 2));
 
-        TreeSet set = new TreeSet();
+        TreeSet<BackupFile> set = new TreeSet<>();
         set.add(expectedFile);
         assertThat(access.directoryFiles(normalizedRoot), Is.is(set));
     }
@@ -79,7 +79,7 @@ class FileSystemAccessImplTest {
                 .build();
         assertThat(expectedFile.isDirectory(), Is.is(true));
 
-        TreeSet set = new TreeSet();
+        TreeSet<BackupFile> set = new TreeSet<BackupFile>();
         set.add(expectedFile);
         assertThat(access.directoryFiles(normalizedRoot), Is.is(set));
     }

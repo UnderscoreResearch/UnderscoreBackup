@@ -1,19 +1,22 @@
+import edu.sc.seis.launch4j.tasks.Launch4jLibraryTask
+
 plugins {
     id 'java'
     id 'application'
     id 'distribution'
-    id 'edu.sc.seis.launch4j' version '2.4.6'
+    id 'edu.sc.seis.launch4j' version '2.5.2'
 }
 
 application {
-    mainClassName = 'com.underscoreresearch.backup.cli.Main'
-    applicationDefaultJvmArgs = ['-Xmx128m']
+    mainClass = 'com.underscoreresearch.backup.cli.Main'
+    applicationDefaultJvmArgs = ['-Xmx256m']
 }
 
 group 'com.underscoreresearch'
-version '0.2.2'
+version '0.3.0'
 
-sourceCompatibility = 1.8
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 sourceSets {
     main {
@@ -31,26 +34,31 @@ sourceSets {
     }
 }
 
-task consoleexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
-    mainClassName = 'com.underscoreresearch.backup.cli.Main'
-    outfile = "underscorebackup.exe"
-    headerType = "console"
-    bundledJrePath = "..\\jre"
-    bundledJre64Bit = true
-    priority = "idle"
-    jreMinVersion = 1.8
-    maxHeapSize = 128
+tasks.named("compileJava").get().dependsOn("webui")
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs += ['-Xlint:unchecked']
 }
 
-task guiexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
-    mainClassName = 'com.underscoreresearch.backup.cli.Main'
-    outfile = "underscorebackup-gui.exe"
-    headerType = "gui"
+launch4j {
+    priority = "idle"
+    jreMinVersion = JavaVersion.VERSION_1_8
+    maxHeapSize = 256
     bundledJrePath = "..\\jre"
     bundledJre64Bit = true
-    priority = "idle"
-    jreMinVersion = 1.8
-    maxHeapSize = 128
+    mainClassName = 'com.underscoreresearch.backup.cli.Main'
+}
+
+task consoleexe(type: Launch4jLibraryTask) {
+    outfile = "underscorebackup.exe"
+    headerType = "console"
+}
+
+task guiexe(type: Launch4jLibraryTask) {
+    mainClassName = 'com.underscoreresearch.backup.cli.Main'
+    cmdLine = "interactive"
+    outfile = "underscorebackup-gui.exe"
+    headerType = "gui"
 }
 
 task installerDef(type: Copy) {
@@ -68,13 +76,33 @@ task installer(dependsOn: [guiexe, consoleexe, installerDef], type:Exec) {
     args "innosetup-expanded.iss"
 }
 
+task webuiinstall(type:Exec) {
+    onlyIf {
+        !new File("src/main/resources/web/index.html").exists()
+    }
+    workingDir 'webui'
+    commandLine 'npm', "install"
+}
+
+task webui(dependsOn: [webuiinstall], type:Exec) {
+    onlyIf {
+        !new File("src/main/resources/web/index.html").exists()
+    }
+    workingDir 'webui'
+    commandLine 'npm', "run", "build"
+}
+
 task allDist {
     dependsOn installer, distZip, distTar
 }
 
+repositories {
+    mavenCentral()
+}
+
 distributions {
     main {
-        baseName 'underscorebackup'
+        distributionBaseName = 'underscorebackup'
         contents {
             from('.') {
                 include 'README.md'
@@ -85,40 +113,41 @@ distributions {
     }
 }
 
-repositories {
-    mavenCentral()
-}
 
 dependencies {
-    compile (
-            'com.amazonaws:aws-java-sdk-s3control:1.11.749',
-            'com.fasterxml.jackson.core:jackson-databind:2.10.3',
-            'com.google.guava:guava:28.2-jre',
+    implementation (
+            'software.amazon.awssdk:s3control:2.17.165',
+            'com.fasterxml.jackson.core:jackson-databind:2.13.2.2',
+            'com.google.guava:guava:31.1-jre',
+            'javax.xml.bind:jaxb-api:2.3.1',
+            'com.cronutils:cron-utils:9.1.6',
             'com.joestelmach:natty:0.13',
-            'commons-cli:commons-cli:1.4',
-            'commons-lang:commons-lang:2.6',
-            'org.apache.logging.log4j:log4j-api:2.13.1',
-            'org.apache.logging.log4j:log4j-core:2.13.1',
-            'org.apache.logging.log4j:log4j-slf4j-impl:2.13.1',
-            'com.google.inject:guice:4.2.3',
+            'commons-cli:commons-cli:1.5.0',
+            'org.apache.commons:commons-lang3:3.12.0',
+            'org.apache.logging.log4j:log4j-api:2.17.2',
+            'org.apache.logging.log4j:log4j-core:2.17.2',
+            'org.apache.logging.log4j:log4j-slf4j-impl:2.17.2',
+            'com.google.inject:guice:5.1.0',
             'org.mapdb:mapdb:3.0.8',
-            'org.projectlombok:lombok:1.18.12',
-            'org.reflections:reflections:0.9.12',
-            'org.slf4j:slf4j-api:1.7.30',
+            'org.projectlombok:lombok:1.18.22',
+            'org.reflections:reflections:0.10.2',
+            'org.slf4j:slf4j-api:1.7.36',
+            'org.takes:takes:1.19',
+            'com.hierynomus:smbj:0.11.5'
     )
 
     testImplementation (
             'org.hamcrest:hamcrest:2.2',
-            'org.junit.jupiter:junit-jupiter:5.6.0',
-            'org.mockito:mockito-junit-jupiter:3.3.3'
+            'org.junit.jupiter:junit-jupiter:5.8.2',
+            'org.mockito:mockito-junit-jupiter:4.4.0'
     )
 
     testRuntimeOnly (
-            'org.junit.jupiter:junit-jupiter-engine:5.6.0'
+            'org.junit.jupiter:junit-jupiter-engine:5.8.2'
     )
 
-    annotationProcessor 'org.projectlombok:lombok:1.18.12'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.12'
+    annotationProcessor 'org.projectlombok:lombok:1.18.22'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.22'
 }
 
 test {

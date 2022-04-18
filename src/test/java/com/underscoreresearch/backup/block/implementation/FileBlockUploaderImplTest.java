@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -27,6 +29,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
 
 class FileBlockUploaderImplTest {
@@ -39,9 +42,29 @@ class FileBlockUploaderImplTest {
     private BackupSet set;
     private boolean delay;
 
+    private static BackupConfiguration createConfiguration() {
+        BackupSet set = new BackupSet();
+        set.setId("id");
+        set.setRoots(Lists.newArrayList(BackupSetRoot.builder().path("/").build()));
+        set.setDestinations(Lists.newArrayList("dest2"));
+
+        return BackupConfiguration.builder()
+                .sets(ImmutableList.of(set))
+                .destinations(ImmutableMap.of(
+                        "dest1", BackupDestination.builder().encryption("AES256").errorCorrection("RS").build(),
+                        "dest2", BackupDestination.builder().encryption("NONE").errorCorrection("NONE").build()))
+                .build();
+    }
+
     static {
-        InstanceFactory.initialize(new String[]{"--private-key-seed", "test", "--config-data", "{}", "--public-key-data",
-                "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}"});
+        try {
+            InstanceFactory.initialize(new String[]{"--passphrase", "test", "--config-data",
+                            new ObjectMapper().writeValueAsString(createConfiguration()), "--public-key-data",
+                            "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}"},
+                    null);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @BeforeEach
@@ -76,18 +99,10 @@ class FileBlockUploaderImplTest {
             return null;
         }).when(scheduler).scheduleUpload(any(), any(), anyInt(), any(), any());
 
-        destination1 = BackupDestination.builder().encryption("AES256").errorCorrection("RS").build();
-        destination2 = BackupDestination.builder().encryption("NONE").errorCorrection("NONE").build();
-
-        set = new BackupSet();
-        set.setDestinations(Lists.newArrayList("dest2"));
-
-        configuration = BackupConfiguration.builder()
-                .sets(ImmutableList.of(set))
-                .destinations(ImmutableMap.of(
-                        "dest1", destination1,
-                        "dest2", destination2))
-                .build();
+        configuration = createConfiguration();
+        destination1 = configuration.getDestinations().get("dest1");
+        destination2 = configuration.getDestinations().get("dest2");
+        set = configuration.getSets().get(0);
 
         fileBlockUploader = new FileBlockUploaderImpl(configuration, repository, scheduler);
     }

@@ -1,7 +1,5 @@
 package com.underscoreresearch.backup.model;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -19,7 +17,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import com.underscoreresearch.backup.file.PathNormalizer;
+import com.google.common.collect.Lists;
 
 @Data
 @NoArgsConstructor
@@ -29,127 +27,108 @@ public class BackupSet {
     @Setter(AccessLevel.NONE)
     @JsonIgnore
     private List<Pattern> exclusionPatterns;
+    @JsonIgnore
+    private List<Pattern> exclusionDirectoryPatterns;
 
     private String id;
-    @JsonIgnore
-    private String normalizedRoot;
     private List<String> exclusions;
     private String schedule;
-    private List<BackupFilter> filters;
     private List<String> destinations;
     private BackupRetention retention;
-
-    public void setNormalizedRoot(String root) {
-        if (root != null && !root.endsWith(PATH_SEPARATOR)) {
-            this.normalizedRoot = root + PATH_SEPARATOR;
-        } else {
-            this.normalizedRoot = root;
-        }
-    }
-
-    public String getRoot() {
-        return PathNormalizer.physicalPath(normalizedRoot);
-    }
-
-    public void setRoot(String root) {
-        if (root != null) {
-            setNormalizedRoot(PathNormalizer.normalizePath(root));
-        } else {
-            normalizedRoot = root;
-        }
-    }
+    private List<BackupSetRoot> roots;
 
     public void setExclusions(List<String> exclusions) {
         if (exclusions != null) {
-            exclusionPatterns = exclusions.stream().map(t -> Pattern.compile(t)).collect(Collectors.toList());
+            exclusionDirectoryPatterns = new ArrayList<>();
+            exclusionPatterns = exclusions.stream().map(t -> {
+                Pattern ret = Pattern.compile(t);
+                if (!t.contains("$")) {
+                    exclusionDirectoryPatterns.add(ret);
+                }
+                return ret;
+            }).collect(Collectors.toList());
             this.exclusions = ImmutableList.copyOf(exclusions);
         } else {
-            exclusionPatterns = new ArrayList<>();
+            exclusionDirectoryPatterns = exclusionPatterns = new ArrayList<>();
         }
     }
 
     @JsonCreator
     @Builder
     public BackupSet(@JsonProperty("id") String id,
-                     @JsonProperty("root") String root,
+                     @JsonProperty("roots") List<BackupSetRoot> roots,
                      @JsonProperty("exclusions") List<String> exclusions,
                      @JsonProperty("schedule") String schedule,
-                     @JsonProperty("filters") List<BackupFilter> filters,
-                     @JsonProperty("destinations") List<String> destinations) {
-        setRoot(root);
+                     @JsonProperty("destinations") List<String> destinations,
+                     @JsonProperty("retention") BackupRetention retention,
+                     @JsonProperty("root") String root,
+                     @JsonProperty("filters") List<BackupFilter> filters) {
         setExclusions(exclusions);
 
+        // This is just for backwards compatibility with old config files.
+        if (root != null) {
+            if (roots != null) {
+                throw new IllegalArgumentException("Can't specify both roots and root");
+            }
+            this.roots = Lists.newArrayList(new BackupSetRoot(root, filters));
+        } else {
+            this.roots = roots;
+        }
+
         this.id = id;
+        this.retention = retention;
         this.schedule = schedule;
-        this.filters = filters;
         this.destinations = destinations;
     }
 
     @JsonIgnore
-    public boolean includeFile(String file) {
-        if (file.startsWith(normalizedRoot)
-                || (file.length() == normalizedRoot.length() - PATH_SEPARATOR.length() && normalizedRoot.startsWith(file))) {
-            if (file.endsWith(PATH_SEPARATOR)) {
-                file = file.substring(0, file.length() - PATH_SEPARATOR.length());
-            }
-
-            String finalFile = file;
-            if (exclusionPatterns.stream().anyMatch(pattern -> pattern.matcher(finalFile).find())) {
-                return false;
-            }
-
-            if (file.length() == normalizedRoot.length() - PATH_SEPARATOR.length()) {
-                return true;
-            } else {
-                String subPath = file.substring(normalizedRoot.length());
-                if (filters != null) {
-                    for (BackupFilter filter : filters) {
-                        String filterPath = filter.fileMatch(subPath);
-                        if (filterPath != null) {
-                            return filter.includeMatchedFile(filterPath, subPath);
-                        }
-                    }
-                }
-                return true;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    @JsonIgnore
-    public boolean inRoot(String file) {
-        if (file.startsWith(normalizedRoot)
-                || (file.length() == normalizedRoot.length() - PATH_SEPARATOR.length() && normalizedRoot.startsWith(file))) {
+    boolean checkExcluded(String finalFile) {
+        if (exclusionPatterns.stream().anyMatch(pattern -> pattern.matcher(finalFile).find())) {
             return true;
         }
         return false;
     }
 
     @JsonIgnore
-    public boolean includeDirectory(String path) {
-        if (path.startsWith(normalizedRoot)
-                || (path.length() == normalizedRoot.length() - PATH_SEPARATOR.length() && normalizedRoot.startsWith(path))) {
-            if (path.endsWith(PATH_SEPARATOR)) {
-                path = path.substring(0, path.length() - PATH_SEPARATOR.length());
-            }
-
-            if (path.length() == normalizedRoot.length() - PATH_SEPARATOR.length()) {
-                return true;
-            } else {
-                String subPath = path.substring(normalizedRoot.length());
-                if (filters != null) {
-                    for (BackupFilter filter : filters) {
-                        String filterPath = filter.fileMatch(subPath);
-                        if (filterPath != null) {
-                            return filter.includeMatchedDirectory(filterPath, subPath);
-                        }
-                    }
-                }
-                return true;
-            }
-        } else {
-            return false;
+    private boolean checkExcludedDirectory(String finalDirectory) {
+        if (exclusionDirectoryPatterns.stream().anyMatch(pattern -> pattern.matcher(finalDirectory).find())) {
+            return true;
         }
+        return false;
+    }
+
+    @JsonIgnore
+    public boolean includeFile(String file) {
+        for (BackupSetRoot root : roots) {
+            if (root.includeFile(file, this))
+                return true;
+        }
+        return false;
+    }
+
+
+    @JsonIgnore
+    public boolean inRoot(String file) {
+        for (BackupSetRoot root : roots) {
+            if (root.inRoot(file))
+                return true;
+        }
+        return false;
+    }
+
+
+    @JsonIgnore
+    public boolean includeDirectory(String path) {
+        for (BackupSetRoot root : roots) {
+            if (root.includeDirectory(path)) {
+                return !checkExcludedDirectory(path);
+            }
+        }
+        return false;
+    }
+
+    @JsonIgnore
+    public String getAllRoots() {
+        return String.join(", ", roots.stream().map(t -> t.getPath()).collect(Collectors.toList()));
     }
 }

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BackupFile implements Comparable<BackupFile> {
+    private Long added;
     private Long lastChanged;
     private Long length;
     private String path;
@@ -33,17 +34,25 @@ public class BackupFile implements Comparable<BackupFile> {
         int pathCompare = path.compareTo(backupFile.path);
         if (pathCompare != 0)
             return pathCompare;
-        if (lastChanged == backupFile.lastChanged)
+        if (added == backupFile.added)
             return 0;
-        if (lastChanged == null)
+        if (added == null)
             return -1;
-        if (backupFile.lastChanged == null)
+        if (backupFile.added == null)
             return 1;
-        return lastChanged.compareTo(backupFile.lastChanged);
+        return added.compareTo(backupFile.added);
     }
 
     @JsonIgnore
-    public LocalDateTime toTime() {
+    public LocalDateTime addedToTime() {
+        if (added != null) {
+            return LocalDateTime.ofInstant(Instant.ofEpochMilli(added), OffsetDateTime.now().getOffset());
+        }
+        return null;
+    }
+
+    @JsonIgnore
+    public LocalDateTime lastChangedToTime() {
         if (lastChanged != null) {
             return LocalDateTime.ofInstant(Instant.ofEpochMilli(lastChanged), OffsetDateTime.now().getOffset());
         }

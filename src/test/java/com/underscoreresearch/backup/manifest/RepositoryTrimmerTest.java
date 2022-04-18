@@ -40,6 +40,7 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupRetention;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupTimespan;
 
 class RepositoryTrimmerTest {
@@ -60,11 +61,15 @@ class RepositoryTrimmerTest {
 
         backupConfiguration = new BackupConfiguration();
         set1 = new BackupSet();
-        set1.setNormalizedRoot("/test1");
+        BackupSetRoot root1 = new BackupSetRoot();
+        root1.setNormalizedPath("/test1");
+        set1.setRoots(Lists.newArrayList(root1));
         set1.setId("set1");
         set1.setDestinations(Lists.newArrayList("mem"));
         set2 = new BackupSet();
-        set2.setNormalizedRoot("/test2");
+        BackupSetRoot root2 = new BackupSetRoot();
+        root2.setNormalizedPath("/test2");
+        set2.setRoots(Lists.newArrayList(root2));
         set2.setId("set2");
         set2.setDestinations(Lists.newArrayList("mem"));
         set2.setRetention(BackupRetention.builder().defaultFrequency(new BackupTimespan(1, SECONDS))
@@ -137,7 +142,7 @@ class RepositoryTrimmerTest {
                                 BackupFilePart.builder().blockHash("e").build()
                         )).build()
                 ))
-                .lastChanged(Instant.now().toEpochMilli())
+                .added(Instant.now().toEpochMilli())
                 .build();
         repository.addFile(outsideFile);
 
@@ -151,43 +156,43 @@ class RepositoryTrimmerTest {
         repository.addDirectory(BackupDirectory.builder()
                 .path("/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test1/", "test2/")))
-                .timestamp(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
+                .added(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("/test1/")
                 .files(Sets.newTreeSet(Lists.newArrayList("abc/", "def/")))
-                .timestamp(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
+                .added(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("/test1/abc/")
                 .files(Sets.newTreeSet())
-                .timestamp(new BackupTimespan(61, MINUTES).toEpochMilli())
+                .added(new BackupTimespan(61, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("/test1/abc/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test1", "test2")))
-                .timestamp(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
+                .added(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("/test1/def/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test1", "test2")))
-                .timestamp(new BackupTimespan(61, MINUTES).toEpochMilli())
+                .added(new BackupTimespan(61, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("/test1/def/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test1", "test2", "test3")))
-                .timestamp(new BackupTimespan(49 * 60 + 1, MINUTES).toEpochMilli())
+                .added(new BackupTimespan(49 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("/test2/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test4")))
-                .timestamp(new BackupTimespan(49 * 60 + 1, MINUTES).toEpochMilli())
+                .added(new BackupTimespan(49 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         trimmer = new RepositoryTrimmer(repository, backupConfiguration, true);
@@ -203,9 +208,8 @@ class RepositoryTrimmerTest {
                                     BackupFilePart.builder().blockHash("e").build()
                             )).build()
                     ))
-                    .lastChanged(new BackupTimespan(i * 60 + 1, MINUTES).toEpochMilli())
+                    .added(new BackupTimespan(i * 60 + 1, MINUTES).toEpochMilli())
                     .build());
-
         }
     }
 

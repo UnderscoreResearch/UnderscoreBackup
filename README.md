@@ -15,9 +15,9 @@ single repository.
 
 * Multi-platform support based on Java 8.
 
-* Low resource requirements, runs efficiently with only 128MB of heap memory.
+* Low resource requirements, runs efficiently with 256MB of heap memory even if the backup sets have millions of files.
 
-* Efficient storage of both large and small file with built in deduplication of data.
+* Efficient storage of both large and small file with built-in deduplication of data.
 
 * Handles backing up large files with small changes in them efficiently.
 
@@ -25,74 +25,34 @@ single repository.
 
 * Encryption, error correction and destination IO are plugin based and easily extendable.
 
-* Currently supports local file and S3 for backup destinations.
+* Supports local file, Windows Shares and S3 for backup destinations.
+
+* Fully fledged web based UI for both initial setup, monitoring and restore operations.
 
 Getting Started
 =============
 
 ## Download the binary or build it from source
 
-Download one of the releases and unpack somewhere where you can run it. On Linux it is recommended to place it in `/opt/underscorebackup`. On Windows there is no recommended default yet.
+Download one of the releases and unpack somewhere where you can run it. On Linux it is recommended to place it in `/opt/underscorebackup`. On Windows the installer will place the files in the `C:|Program Files\UnderscoreBackup\`.
 
-## Generate your public key.
+If running on Unix you should decide if you wish to run the software as root to perform a full system backup or as a specific user. Once installed simply launch the command.
 
-First thing to do is create your public key that will be used for all encryption operations. The key is derived from a passphrase and you generate it by issuing the following command.
+    > underscorebackup interactive
 
-    > underscorebackup generate-key
-    Please enter the seed for the private key: 
-    Reenter the seed for the private key: 
+It should launch a web page that will guide you through the initial setup process. If you are running from a console where it is not possible to launch a browser the first log entry should list the URL you need to go to to interact with
+the software manually. Once the configuration is complete you can also set the it up to run as a service on Linux using the provided `startbackupservice.sh` script.
 
-By default the key is written to either `c:\UnderscoreBackup\key` on Windows, or `~/.underscorebackup.key` everywhere else. If you are going to use the key on Linux for a system backup you might consider copying this key into `/etc/underscorebackup/key`.
+## File locations.
 
-Worth noting is that the public key is only able to write new information to your backup repository. It can not be used for restoring data.
+On Windows the local data files are all located in the user directory `AppData\Local\UnderscoreBackup`.
 
-**If you forget the password you used for generating your public key you will not be able to restore anything from your backups. There is no recovery method for this password so keep it safe.**
+On Unix or OSX if you run as a non root user the default location of all files will be `~/.underscoreBackup`.
 
-## Create the configuration file
+If running as root the configuration files will be located in `/etc/underscorebackup`, the data files will be in
+`/var/cache/underscorebackup` and finally the log file will be at `/var/log/underscorebackup.log`.
 
-First thing you need to do is to create a configuration file for running your backup. Here is a minimal sample configuration file for backing up most files on a Ubuntu server.
-
-    {
-        "sets": [
-            {
-                "id": "everything",
-                "root": "/",
-                "exclusions": [ "/\\.cache/", "\\.bak$", "~$", "/caches/",
-                "destinations": [ "s3" ],
-                "schedule": "0 0 6 * * ?",
-                "filters": [
-                    {
-                        "paths": [
-                            "boot",
-                            "dev",
-                            "root",
-                            "sys",
-                            "proc",
-                            "run",
-                            "tmp",
-                            "var",
-                            "lost+found",
-                        ],
-                        "type": "EXCLUDE"
-                    }
-                ]
-            }
-        ],
-        "destinations": {
-            "s3": {
-                "type": "S3",
-                "principal": "{AWS ACCESS KEY}",
-                "credential": "{AWS SECRET KEY}",
-                "endpointUri": "s3://{Bucket}/{Root Key}",
-                "properties": {
-                    "region": "{region}"
-                }
-            }
-        },
-        "manifest": {
-            "destination": "s3"
-        }
-    }
+## Backup configuration file
 
 The backup file contains several sections describing the following things.
 
@@ -190,6 +150,9 @@ Contains information of how the backup repository is managed.
 * **localLocation** - Where the local location of the repository cache should be located. If not specified defaults to `C:\UndersoreBackup\` on Windows and `/var/cache/underscorebackup` everywhere else.
 * **maximumUnsyncedSize** - Maximum size of the change log to keep locally before uploading to destination.
 * **maximumUnsyncedSeconds** - Maximum time that changes are kept locally before they are forced to be uploaded to backup destination.
+* **interactiveBackup** - If set and true then start running a backup whenever you launch in interactive mode.
+* **configUsername** - Username required to log into the config web interface.
+* **configPassword** - Password required to log into the config web interface.
 
 ## Global limits
 These are specified in a `limits` object in the root configuration object.

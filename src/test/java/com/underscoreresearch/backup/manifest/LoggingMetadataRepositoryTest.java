@@ -1,11 +1,14 @@
 package com.underscoreresearch.backup.manifest;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.HashSet;
 
+import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -21,6 +24,7 @@ import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupPendingSet;
 
 class LoggingMetadataRepositoryTest {
     private MetadataRepository repository;
@@ -163,5 +167,24 @@ class LoggingMetadataRepositoryTest {
         loggingMetadataRepository.getActivePaths(null);
         Mockito.verify(repository).getActivePaths(null);
         Mockito.verify(manifestManager, Mockito.never()).addLogEntry(anyString(), anyString());
+    }
+
+    @Test
+    public void addPendingSet() throws IOException {
+        loggingMetadataRepository.addPendingSets(new BackupPendingSet());
+        Mockito.verify(repository).addPendingSets(new BackupPendingSet());
+    }
+
+    @Test
+    public void getPendingSets() throws IOException {
+        Mockito.when(repository.getPendingSets()).thenReturn(new HashSet<>());
+        assertThat(loggingMetadataRepository.getPendingSets(), Is.is(new HashSet<>()));
+        Mockito.verify(repository).getPendingSets();
+    }
+
+    @Test
+    public void deletePendingSet() throws IOException {
+        loggingMetadataRepository.deletePendingSets("1");
+        Mockito.verify(repository).deletePendingSets("1");
     }
 }

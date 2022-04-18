@@ -12,7 +12,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 public final class EncryptorFactory {
-    private static Map<String, Class> encryptors;
+    private static Map<String, Class<? extends Encryptor>> encryptors;
 
     static {
         encryptors = new HashMap<>();
@@ -20,7 +20,9 @@ public final class EncryptorFactory {
         Reflections reflections = InstanceFactory.getReflections();
         Set<Class<?>> classes = reflections.getTypesAnnotatedWith(EncryptorPlugin.class);
 
-        for (Class<?> clz : classes) {
+        for (Class<?> untyped : classes) {
+            @SuppressWarnings("unchecked")
+            Class<? extends Encryptor> clz = (Class<Encryptor>) untyped;
             EncryptorPlugin plugin = clz.getAnnotation(EncryptorPlugin.class);
             encryptors.put(plugin.value(), clz);
         }
@@ -32,11 +34,18 @@ public final class EncryptorFactory {
         return ret;
     }
 
+    public static boolean hasEncryptor(String encryption) {
+        Class<? extends Encryptor> clz = encryptors.get(encryption);
+        if (clz == null)
+            return false;
+        return true;
+    }
+
     public static Encryptor getEncryptor(String encryption) {
-        Class clz = encryptors.get(encryption);
+        Class<? extends Encryptor> clz = encryptors.get(encryption);
         if (clz == null)
             throw new IllegalArgumentException("Unsupported encryption type " + encryption);
-        return (Encryptor) InstanceFactory.getInstance(clz);
+        return InstanceFactory.getInstance(clz);
     }
 
     public static byte[] encryptBlock(String encryption, BackupBlockStorage storage, byte[] data) {

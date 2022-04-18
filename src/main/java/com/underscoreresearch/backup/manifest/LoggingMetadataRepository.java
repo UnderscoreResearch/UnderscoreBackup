@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
@@ -31,6 +32,8 @@ import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupPartialFile;
+import com.underscoreresearch.backup.model.BackupPendingSet;
 
 @Slf4j
 public class LoggingMetadataRepository implements MetadataRepository, LogConsumer {
@@ -43,7 +46,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     private final Map<String, PendingActivePath> pendingActivePaths = new HashMap<>();
     private final Set<String> missingActivePaths = new HashSet<>();
     private final int activePathDelay;
-    private static ScheduledThreadPoolExecutor activePathSubmittors = new ScheduledThreadPoolExecutor(1);
+    private final ScheduledThreadPoolExecutor activePathSubmittors = new ScheduledThreadPoolExecutor(1,
+            new ThreadFactoryBuilder().setNameFormat("LoggingMetadataRepository-%d").build());
 
     @Data
     private static class PendingActivePath {
@@ -83,7 +87,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 })
                 .put("deleteDir", (json) -> {
                     BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
-                    repository.deleteDirectory(dir.getPath(), dir.getTimestamp());
+                    repository.deleteDirectory(dir.getPath(), dir.getAdded());
                 })
                 .put("path", (json) -> {
                     PushActivePath activePath = mapper.readValue(json, PushActivePath.class);
@@ -94,6 +98,12 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                     repository.popActivePath(activePath.getSetId(), activePath.getPath());
                 })
                 .build();
+
+        try {
+            manifestManager.initialize(this);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to initialize manifest manager", e);
+        }
     }
 
     private void submitPendingActivePaths(Duration age) {
@@ -181,6 +191,21 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
+        repository.addPendingSets(scheduledTime);
+    }
+
+    @Override
+    public void deletePendingSets(String setId) throws IOException {
+        repository.deletePendingSets(setId);
+    }
+
+    @Override
+    public Set<BackupPendingSet> getPendingSets() throws IOException {
+        return repository.getPendingSets();
+    }
+
+    @Override
     public boolean deleteFilePart(BackupFilePart filePart) throws IOException {
         writeLogEntry("deletePart", filePart);
         return repository.deleteFilePart(filePart);
@@ -206,7 +231,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
         BackupDirectory currentData;
-        if (Instant.now().toEpochMilli() - directory.getTimestamp() < CURRENT_SPAN)
+        if (Instant.now().toEpochMilli() - directory.getAdded() < CURRENT_SPAN)
             currentData = repository.lastDirectory(directory.getPath());
         else {
             List<BackupDirectory> set = repository.directory(directory.getPath());
@@ -214,7 +239,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
             currentData = null;
             if (set != null) {
                 for (BackupDirectory entry : set) {
-                    if (entry.getTimestamp() <= directory.getTimestamp()) {
+                    if (entry.getAdded() <= directory.getAdded()) {
                         currentData = entry;
                     } else {
                         break;
@@ -280,6 +305,21 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public boolean deletePartialFile(BackupPartialFile file) throws IOException {
+        return repository.deletePartialFile(file);
+    }
+
+    @Override
+    public void savePartialFile(BackupPartialFile file) throws IOException {
+        repository.savePartialFile(file);
+    }
+
+    @Override
+    public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
+        return repository.getPartialFile(file);
+    }
+
+    @Override
     public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
         flushLogging();
         return repository.getActivePaths(setId);
@@ -305,5 +345,6 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     public void close() throws IOException {
         flushLogging();
         repository.close();
+        activePathSubmittors.shutdownNow();
     }
 }
