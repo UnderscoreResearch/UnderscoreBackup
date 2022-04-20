@@ -66,7 +66,7 @@ public class AesEncryptor implements Encryptor {
 
             return ret;
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
-                InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
+                 InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
     }
@@ -95,7 +95,7 @@ public class AesEncryptor implements Encryptor {
             return cipher.doFinal(encryptedData, BLOCK_SIZE + PUBLIC_KEY_SIZE,
                     encryptedData.length - BLOCK_SIZE - PUBLIC_KEY_SIZE);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
-                InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                 InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
     }

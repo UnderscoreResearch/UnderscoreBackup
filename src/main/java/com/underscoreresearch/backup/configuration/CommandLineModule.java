@@ -108,9 +108,9 @@ public class CommandLineModule extends AbstractModule {
     }
 
     @Provides
-    @Named(DEVELOPER_MODE)
-    public boolean developerMode(CommandLine commandLine) throws ParseException {
-        return commandLine.hasOption(DEVELOPER_MODE);
+    @Named(DEBUG)
+    public boolean debug(CommandLine commandLine) throws ParseException {
+        return commandLine.hasOption(DEBUG);
     }
 
     public static Long timestamp(CommandLine commandLine) throws ParseException {
@@ -320,8 +320,8 @@ public class CommandLineModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public StateLogger stateLogger(@Named(DEVELOPER_MODE) boolean developerMode) {
-        return new StateLogger(developerMode);
+    public StateLogger stateLogger(@Named(DEBUG) boolean debug) {
+        return new StateLogger(debug);
     }
 
     @Provides

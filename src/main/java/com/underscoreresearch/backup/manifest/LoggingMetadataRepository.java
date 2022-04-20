@@ -301,7 +301,6 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 writeLogEntry("deletePath", new PushActivePath(setId, path, null));
             }
         }
-
     }
 
     @Override

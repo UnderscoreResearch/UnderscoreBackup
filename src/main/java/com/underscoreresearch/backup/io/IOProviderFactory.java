@@ -86,7 +86,7 @@ public final class IOProviderFactory {
             providers.put(destination, provider);
             return provider;
         } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
-                InvocationTargetException e) {
+                 InvocationTargetException e) {
             throw new IllegalArgumentException("Invalid provider type " + destination.getType(), e);
         }
     }
