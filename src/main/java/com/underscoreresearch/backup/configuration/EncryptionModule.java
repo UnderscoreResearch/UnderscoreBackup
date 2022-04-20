@@ -9,7 +9,6 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.getD
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
 
 import org.apache.commons.lang.SystemUtils;
 
@@ -38,7 +37,8 @@ public class EncryptionModule extends AbstractModule {
                         SYSTEM_DEFAULT_KEY_FILE
                 };
             } else {
-                if (Files.isWritable(new File(SYSTEM_DEFAULT_KEY_FILE).toPath())) {
+                File systemFile = new File(SYSTEM_DEFAULT_KEY_FILE);
+                if (systemFile.canRead() || systemFile.getParentFile().canWrite()) {
                     DEFAULT_KEY_FILES = new String[]{
                             SYSTEM_DEFAULT_KEY_FILE,
                             getDefaultUserManifestLocation() + "/key"

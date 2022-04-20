@@ -206,14 +206,22 @@ public class WebServer {
         try {
             URI uri = getConfigurationUrl();
             Desktop.getDesktop().browse(uri);
-        } catch (URISyntaxException | IOException e) {
-            log.error("Can't launch browserr", e);
+        } catch (URISyntaxException | IOException | HeadlessException e) {
+            log.error("Can't launch browser", e);
         }
     }
 
     @NotNull
     private URI getConfigurationUrl() throws URISyntaxException {
-        URI uri = new URI("http://" + getInetAddress().getHostName() + ":"
+        InetAddress address = getInetAddress();
+        String hostname = address.getHostName();
+        if (address.isAnyLocalAddress()) {
+            try {
+                hostname = InetAddress.getLocalHost().getHostName();
+            } catch (UnknownHostException e) {
+            }
+        }
+        URI uri = new URI("http://" + hostname + ":"
                 + socket.getLocalPort() + base + "/");
         return uri;
     }

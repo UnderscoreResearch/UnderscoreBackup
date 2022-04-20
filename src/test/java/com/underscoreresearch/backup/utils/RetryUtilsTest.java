@@ -50,6 +50,6 @@ class RetryUtilsTest {
                 throw new ParseException("");
             }, (exc) -> (exc instanceof ParseException));
         });
-        assertThat(integer.get(), Is.is(4));
+        assertThat(integer.get(), Is.is(6));
     }
 }

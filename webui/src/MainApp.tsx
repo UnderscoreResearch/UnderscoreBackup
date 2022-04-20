@@ -465,6 +465,8 @@ export default function MainApp() {
                                                         }}/>}/>
         </Routes>;
     } else {
+        allowBackup = false;
+        allowRestore = false;
         acceptButtonTitle = "Next";
         currentProgress = "Initial Setup";
         contents = <InitialSetup
@@ -540,7 +542,11 @@ export default function MainApp() {
     function applyChanges() {
         if (valid) {
             if (!allowBackup) {
-                applyConfig();
+                if (!state.validatedPassphrase && state.passphrase) {
+                    applyPassphrase();
+                } else {
+                    applyConfig();
+                }
             } else if (page === "restore") {
                 if (!state.validatedPassphrase && state.passphrase) {
                     applyPassphrase();
@@ -557,12 +563,8 @@ export default function MainApp() {
                         } else if (currentProgress == "Backup In Progress") {
                             changeBackup(false);
                         }
-                    } else {
-                        if (!state.validatedPassphrase && state.passphrase) {
-                            applyPassphrase();
-                        } else if (!lodashObject.isEqual(state.originalConfiguration, state.currentConfiguration)) {
-                            applyConfig();
-                        }
+                    } else if (!lodashObject.isEqual(state.originalConfiguration, state.currentConfiguration)) {
+                        applyConfig();
                     }
                 }
             }

@@ -1,6 +1,6 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.DEVELOPER_MODE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
 
 import java.io.File;
 import java.io.IOException;
@@ -82,8 +82,8 @@ public class BackupModule extends AbstractModule {
     @Provides
     public FileScannerImpl fileScanner(MetadataRepository repository, FileConsumer fileConsumer,
                                        FileSystemAccess access, StateLogger logger,
-                                       @Named(DEVELOPER_MODE) boolean developerMode) {
-        return new FileScannerImpl(repository, fileConsumer, access, logger, developerMode);
+                                       @Named(DEBUG) boolean debug) {
+        return new FileScannerImpl(repository, fileConsumer, access, logger, debug);
     }
 
     @Singleton

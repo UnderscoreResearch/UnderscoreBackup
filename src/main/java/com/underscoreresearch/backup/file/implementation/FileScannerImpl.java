@@ -51,7 +51,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     private final FileConsumer consumer;
     private final FileSystemAccess filesystem;
     private final StateLogger stateLogger;
-    private final boolean developerMode;
+    private final boolean debug;
     private final AtomicInteger outstandingFiles = new AtomicInteger();
     private final AtomicLong completedFiles = new AtomicLong();
     private final AtomicLong completedSize = new AtomicLong();
@@ -157,7 +157,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                     readableDuration(duration.elapsed())));
         }
 
-        if (outstandingFiles.get() > 0 && developerMode) {
+        if (outstandingFiles.get() > 0 && debug) {
             ret.add(new StatusLine(getClass(), "OUTSTANDING_FILES", "Outstanding backup files",
                     (long) outstandingFiles.get()));
             ret.add(new StatusLine(getClass(), "OUTSTANDING_PATHS", "Outstanding backup paths",

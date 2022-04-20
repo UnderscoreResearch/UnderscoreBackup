@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
@@ -80,6 +81,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
     private LogConsumer initializeLogConsumer;
+    private AtomicBoolean currentlyClosingLog = new AtomicBoolean();
 
     public ManifestManagerImpl(BackupConfiguration configuration,
                                IOProvider provider,
@@ -198,6 +200,8 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
     @Override
     public void addLogEntry(String type, String jsonDefinition) {
+        boolean flush = false;
+
         synchronized (lock) {
             internalInitialize();
 
@@ -211,7 +215,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 currentLogLength += data.length;
 
                 if (currentLogLength > configuration.getManifest().getMaximumUnsyncedSize()) {
-                    flushLogging();
+                    flush = true;
                 }
             } catch (IOException exc) {
                 log.error("Failed to save log entry: " + type + ": " + jsonDefinition, exc);
@@ -224,15 +228,40 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
             }
         }
+
+        if (flush) {
+            try {
+                flushLogging();
+            } catch (IOException exc) {
+                log.error("Failed to flush log");
+            }
+        }
     }
 
     private void flushLogging() throws IOException {
-        try {
-            InstanceFactory.getInstance(MetadataRepository.class).flushLogging();
-        } catch (Exception exc) {
-            log.error("Failed to flush repository before starting new log file", exc);
+        boolean performFlush = false;
+        synchronized (lock) {
+            if (!currentlyClosingLog.get()) {
+                currentlyClosingLog.set(true);
+                performFlush = true;
+            }
         }
-        createNewLogFile();
+        if (performFlush) {
+            try {
+                InstanceFactory.getInstance(MetadataRepository.class).flushLogging();
+            } catch (Exception exc) {
+                log.error("Failed to flush repository before starting new log file", exc);
+            }
+            synchronized (lock) {
+                try {
+                    closeLogFile();
+                } catch (Exception exc) {
+                    log.error("Failed to close log file", exc);
+                } finally {
+                    currentlyClosingLog.set(false);
+                }
+            }
+        }
     }
 
     private void createNewLogFile() throws IOException {

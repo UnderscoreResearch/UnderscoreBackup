@@ -84,7 +84,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
 
                 while (true) {
                     synchronized (pendingParts) {
-                        while(pendingParts.size() > 0) {
+                        while (pendingParts.size() > 0) {
                             if (InstanceFactory.isShutdown())
                                 throw new IOException("Shutting down");
                             try {
