@@ -34,6 +34,7 @@ Source: "C:\\Program Files\\Amazon Corretto\\jre8\\*"; DestDir: "{app}\\jre"; Fl
 
 [icons]
 Name: "{commonstartup}\\Underscore Backup"; Filename: "{app}\\bin\\underscorebackup-gui.exe";
+Name: "{commonprograms}\\Underscore Backup"; Filename: "{app}\\bin\\underscorebackup-gui.exe";
 
 [Registry]
 Root: "HKLM"; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}\\bin" ; Check: NeedsAddPath('{app}\\bin')

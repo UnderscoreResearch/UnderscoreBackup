@@ -126,6 +126,7 @@ public class WebServer {
 
                                     new FkRegex(base + "/api/backup-download/.*", new BackupDownloadGet(base)),
                                     new FkRegex(base + "/api/destination-download/.*", new DestinationDownloadGet(base)),
+                                    new FkRegex(base + "/api/auth-endpoint", new AuthEndpointGet(address, getConfigurationUrl())),
 
                                     new FkRegex(base + "/api/encryption-key", new TkFork(
                                             new FkMethods("POST", new KeyPost()),
@@ -175,11 +176,7 @@ public class WebServer {
             }, "Webserver");
             thread.setDaemon(true);
             thread.start();
-            try {
-                log.info("URL for configuration: " + getConfigurationUrl());
-            } catch (URISyntaxException e) {
-                log.error("Can't launch browserr", e);
-            }
+            log.info("URL for configuration: " + getConfigurationUrl());
         }
     }
 
@@ -206,13 +203,13 @@ public class WebServer {
         try {
             URI uri = getConfigurationUrl();
             Desktop.getDesktop().browse(uri);
-        } catch (URISyntaxException | IOException | HeadlessException e) {
+        } catch (IOException | HeadlessException e) {
             log.error("Can't launch browser", e);
         }
     }
 
     @NotNull
-    private URI getConfigurationUrl() throws URISyntaxException {
+    private URI getConfigurationUrl() {
         InetAddress address = getInetAddress();
         String hostname = address.getHostName();
         if (address.isAnyLocalAddress()) {
@@ -221,9 +218,12 @@ public class WebServer {
             } catch (UnknownHostException e) {
             }
         }
-        URI uri = new URI("http://" + hostname + ":"
-                + socket.getLocalPort() + base + "/");
-        return uri;
+        try {
+            return new URI("http://" + hostname + ":"
+                    + socket.getLocalPort() + base + "/");
+        } catch (URISyntaxException e) {
+            throw new RuntimeException("Internal exception, failed to create website URI", e);
+        }
     }
 
     private Fork createFiletypePath(String extension, String contentType) {

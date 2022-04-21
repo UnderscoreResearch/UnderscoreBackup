@@ -4,6 +4,8 @@ import Destination from './Destination';
 import {EditableList} from './EditableList';
 import {Alert, Stack} from "@mui/material";
 
+const temporaryStorage = window.sessionStorage;
+
 interface DestinationState {
     valid: boolean,
     destination: BackupDestination,
@@ -22,13 +24,30 @@ export interface DestinationsProps {
 }
 
 export default function Destinations(props : DestinationsProps) {
-    const [state, setState] = React.useState(props.destinations.map(dest => {
-        return {
-            valid: true,
-            destination: dest.destination,
-            id: dest.id
-        } as DestinationState
-    }));
+    const [state, setState] = React.useState(() => {
+        let destinationId : string | undefined = temporaryStorage.getItem("destinationId");
+        if (destinationId) {
+            const pendingDestination = JSON.parse(temporaryStorage.getItem("destination") as string);
+            for (let i = 0; i < props.destinations.length; i++) {
+                if (props.destinations[i].id === destinationId) {
+                    props.destinations[i].destination = pendingDestination;
+                    destinationId = undefined;
+                    break;
+                }
+            }
+            if (destinationId) {
+                props.destinations.push({destination: pendingDestination, id: destinationId});
+            }
+        }
+
+        return props.destinations.map(dest => {
+            return {
+                valid: true,
+                destination: dest.destination,
+                id: dest.id
+            } as DestinationState
+        })
+    });
 
     function sendUpdate(newState: DestinationState[]) {
         props.configurationUpdated(
@@ -75,7 +94,8 @@ export default function Destinations(props : DestinationsProps) {
             onItemChanged: destinationChanged,
             items: state,
             createItem: (item, itemUpdated: (item: DestinationState) => void) => {
-                return <Destination destination={item.destination}
+                return <Destination id={item.id}
+                                    destination={item.destination}
                                     manifestDestination={props.dontDelete.includes(item.id)}
                                     destinationUpdated={(valid, destination) => {
                                         itemUpdated({valid: valid, destination: destination, id: item.id});

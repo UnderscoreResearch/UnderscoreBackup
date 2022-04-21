@@ -13,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.3.1'
+version '0.3.2'
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
@@ -47,6 +47,7 @@ launch4j {
     bundledJrePath = "..\\jre"
     bundledJre64Bit = true
     mainClassName = 'com.underscoreresearch.backup.cli.Main'
+    icon = "${rootProject.projectDir}\\windows\\application.ico"
 }
 
 task consoleexe(type: Launch4jLibraryTask) {
@@ -116,24 +117,25 @@ distributions {
 
 dependencies {
     implementation (
-            'software.amazon.awssdk:s3control:2.17.165',
+            'com.dropbox.core:dropbox-core-sdk:4.0.1',
+            'com.cronutils:cron-utils:9.1.6',
             'com.fasterxml.jackson.core:jackson-databind:2.13.2.2',
             'com.google.guava:guava:31.1-jre',
-            'javax.xml.bind:jaxb-api:2.3.1',
-            'com.cronutils:cron-utils:9.1.6',
+            'com.google.inject:guice:5.1.0',
+            'com.hierynomus:smbj:0.11.5',
             'com.joestelmach:natty:0.13',
             'commons-cli:commons-cli:1.5.0',
+            'javax.xml.bind:jaxb-api:2.3.1',
             'org.apache.commons:commons-lang3:3.12.0',
             'org.apache.logging.log4j:log4j-api:2.17.2',
             'org.apache.logging.log4j:log4j-core:2.17.2',
             'org.apache.logging.log4j:log4j-slf4j-impl:2.17.2',
-            'com.google.inject:guice:5.1.0',
             'org.mapdb:mapdb:3.0.8',
             'org.projectlombok:lombok:1.18.22',
             'org.reflections:reflections:0.10.2',
             'org.slf4j:slf4j-api:1.7.36',
             'org.takes:takes:1.19',
-            'com.hierynomus:smbj:0.11.5'
+            'software.amazon.awssdk:s3control:2.17.165'
     )
 
     testImplementation (

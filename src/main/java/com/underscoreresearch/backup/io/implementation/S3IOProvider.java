@@ -40,7 +40,8 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 @IOPlugin(("S3"))
 @Slf4j
-public class S3IOProvider implements IOIndex, IOProvider, Closeable {
+public class
+S3IOProvider implements IOIndex, IOProvider, Closeable {
     private final BackupDestination destination;
     private final S3Client client;
     private final String root;

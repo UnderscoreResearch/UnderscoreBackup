@@ -116,13 +116,16 @@ var lastActivity : StatusLine[] = [];
 
 function defaultState() : MainAppState {
     const roots : BackupSetRoot[] = [];
-    const config : BackupConfiguration = {
-        destinations: {},
-        sets: [],
-        manifest: {
-            destination: ''
+    function defaultConfig() : BackupConfiguration {
+        return {
+            destinations: {},
+            sets: [],
+            manifest: {
+                destination: ''
+            }
         }
     }
+
     const activity : StatusLine[] = [];
 
     return {
@@ -131,8 +134,8 @@ function defaultState() : MainAppState {
         hasKey: false,
         loading: true,
         initialLoad: true,
-        originalConfiguration: config,
-        currentConfiguration: config,
+        originalConfiguration: defaultConfig(),
+        currentConfiguration: defaultConfig(),
         restoreRoots: roots,
         restoreOverwrite: false,
         initialValid: false,
@@ -425,9 +428,10 @@ export default function MainApp() {
             acceptButtonTitle = "Restore";
         } else if (allowBackup) {
             acceptButtonTitle = "Save";
-        } else {
+        } else if (currentProgress == "Restore In Progress") {
             acceptButtonTitle = "Cancel Restore";
         }
+
         contents = <Routes>
             <Route path="/" element={state.originalConfiguration.sets.length > 0 ?
                 <Status status={state.activity}/> :
@@ -481,6 +485,9 @@ export default function MainApp() {
     let hasChanges = false;
     if (!allowBackup) {
         valid = true;
+        if (!state.hasKey && state.originalConfiguration.destinations && Object.keys(state.originalConfiguration.destinations).length > 0) {
+            cancelButtonTitle = "Back";
+        }
     } else {
         valid = state.initialValid && state.destinationsValid && state.setsValid;
         if (lodashObject.isEqual(state.originalConfiguration, state.currentConfiguration)) {
@@ -493,9 +500,6 @@ export default function MainApp() {
                 cancelButtonTitle = "Revert";
             }
             allowRestore = false;
-        }
-        if (!state.hasKey && state.originalConfiguration.destinations && Object.keys(state.originalConfiguration.destinations).length > 0) {
-            cancelButtonTitle = "Back";
         }
     }
 
@@ -546,6 +550,9 @@ export default function MainApp() {
                     applyPassphrase();
                 } else {
                     applyConfig();
+                }
+                if (!completedSetup()) {
+                    navigate("sets");
                 }
             } else if (page === "restore") {
                 if (!state.validatedPassphrase && state.passphrase) {
@@ -635,14 +642,17 @@ export default function MainApp() {
                         </Box>
                         : ""}
 
-                    <Box sx={{flexGrow: 0}}>
-                        <Button sx={{my: 2, color: 'white', display: 'block'}}
-                                variant="contained"
-                                color={acceptButtonTitle !== "Cancel Restore" ? "success" : "error"} disabled={!valid}
-                                onClick={() => applyChanges()}>
-                            {acceptButtonTitle}
-                        </Button>
-                    </Box>
+                    {acceptButtonTitle ?
+                        <Box sx={{flexGrow: 0}}>
+                            <Button sx={{my: 2, color: 'white', display: 'block'}}
+                                    variant="contained"
+                                    color={acceptButtonTitle !== "Cancel Restore" ? "success" : "error"}
+                                    disabled={!valid}
+                                    onClick={() => applyChanges()}>
+                                {acceptButtonTitle}
+                            </Button>
+                        </Box>
+                        : ""}
                 </Toolbar>
             </AppBar>
             <Drawer variant="permanent" open={state.open}>
@@ -704,10 +714,10 @@ export default function MainApp() {
                 </form>
             </Box>
             <Backdrop
-                sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+                sx={{color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1}}
                 open={state.loading}
             >
-                <CircularProgress color="inherit" size={"10em"} />
+                <CircularProgress color="inherit" size={"10em"}/>
             </Backdrop>
         </Box>
     );
