@@ -216,6 +216,14 @@ export async function GetDestinationFiles(path: string, destination: string) : P
     return await MakeCall("destination-files/" + encodeURIComponent(path) + "?destination=" + encodeURIComponent(destination));
 }
 
+export async function GetAuthEndpoint() : Promise<string | undefined> {
+    const ret = await MakeCall("auth-endpoint");
+    if (ret) {
+        return ret.endpoint;
+    }
+    return undefined;
+}
+
 export async function GetEncryptionKey(passphrase: string) : Promise<boolean> {
     const ret = await MakeCall("encryption-key", {
         method: 'POST',

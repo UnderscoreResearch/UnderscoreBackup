@@ -3,7 +3,7 @@ import Paper from "@mui/material/Paper";
 import * as React from "react";
 import {Fragment} from "react";
 import {
-    Autocomplete,
+    Autocomplete, Button,
     FormControl,
     Grid,
     InputLabel,
@@ -15,9 +15,12 @@ import {
     TextField
 } from "@mui/material";
 import Box from "@mui/material/Box";
-import {BackupDestination, BackupLimits, PropertyMap} from "../api";
+import {BackupDestination, BackupLimits, GetAuthEndpoint, PropertyMap} from "../api";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import SpeedLimit from "./SpeedLimit";
+
+const DROPBOX_CLIENT_ID = 'tlt1aw0jc8wlcox';
+const temporaryStorage = window.sessionStorage;
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -26,6 +29,7 @@ interface TabPanelProps {
 }
 
 export interface DestinationProps {
+    id: string,
     destination: BackupDestination;
     destinationUpdated: (valid: boolean, val: BackupDestination) => void;
     manifestDestination? : boolean
@@ -228,6 +232,131 @@ function LocalFileDestination(props : DestinationProps) {
                        fullWidth={true}
                        value={state.endpointUri}
                        error={!state.endpointUri}
+                       onChange={(e) => updateState({
+                           ...state,
+                           endpointUri: e.target.value
+                       })}/>
+        </Grid>
+        <SharedProperties manifestDestination={props.manifestDestination}
+                          state={state} onChange={(newSate => updateState({
+            ...state,
+            ...newSate
+        }))}/>
+    </Grid>;
+}
+
+function loadDropbox(callback: () => void) {
+    if (document.getElementById("dropboxscript")) {
+        callback();
+    } else {
+        let script = document.createElement('script');
+        script.onload = function () {
+            callback();
+        };
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/dropbox.js/10.28.0/Dropbox-sdk.min.js';
+        script.id = "dropboxscript";
+        document.head.appendChild(script);
+    }
+}
+
+function DropboxDestination(props : DestinationProps) {
+    const [state, setState] = React.useState({
+        endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "",
+        accessToken: props.destination.principal ? props.destination.principal : "",
+        refreshToken: props.destination.credential ? props.destination.credential : "",
+        encryption: props.destination.encryption ? props.destination.encryption : "AES256",
+        errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
+        limits: props.destination.limits
+    });
+
+    let lastDestination = props.destination;
+    lastDestination.type = "DROPBOX";
+
+    function updateState(newState: {
+        endpointUri: string,
+        accessToken: string,
+        refreshToken: string,
+        encryption: string,
+        errorCorrection: string,
+        limits?: BackupLimits
+    }) {
+        if (props.destinationUpdated) {
+            lastDestination = {
+                type: "DROPBOX",
+                endpointUri: newState.endpointUri,
+                principal: newState.accessToken,
+                credential: newState.refreshToken,
+                encryption: newState.encryption,
+                errorCorrection: newState.errorCorrection,
+                limits: newState.limits
+            };
+            props.destinationUpdated(!(!newState.accessToken || !newState.refreshToken), lastDestination);
+        }
+        setState(newState);
+    }
+
+    async function fetchAccessToken(codeVerified: string, code: string) {
+        let redirectUri = await GetAuthEndpoint();
+        const dbxAuth = new Dropbox.DropboxAuth({
+            clientId: DROPBOX_CLIENT_ID,
+        });
+        dbxAuth.setCodeVerifier(codeVerifier);
+        dbxAuth.getAccessTokenFromCode(redirectUri, code)
+            .then((response) => {
+                updateState({
+                    ...state,
+                    accessToken: response.result.access_token,
+                    refreshToken: response.result.refresh_token
+                });
+            })
+            .catch((error) => {
+                console.error(error)
+            });
+    }
+
+    let codeVerifier = temporaryStorage.getItem("codeVerifier") as string;
+    let codeLocation = window.location.href.indexOf("code=");
+    if (codeVerifier && codeLocation) {
+        let code =  decodeURIComponent(window.location.href.substring(codeLocation + 5));
+        loadDropbox(() => fetchAccessToken(codeVerifier, code))
+        temporaryStorage.clear();
+    }
+
+    async function dropboxAuthenticateAsync() {
+            let redirectUri = await GetAuthEndpoint();
+            const dbxAuth = new Dropbox.DropboxAuth({
+                clientId: DROPBOX_CLIENT_ID,
+            });
+
+            dbxAuth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', undefined, undefined, true)
+                .then(authUrl => {
+                    temporaryStorage.clear();
+                    temporaryStorage.setItem("codeVerifier", dbxAuth.codeVerifier);
+                    temporaryStorage.setItem("destination", JSON.stringify(lastDestination));
+                    temporaryStorage.setItem("destinationId", props.id);
+                    window.location.href = authUrl;
+                })
+                .catch((error) => console.error(error));
+    }
+
+    function launchDropboxAuthentication() {
+        loadDropbox(() => dropboxAuthenticateAsync());
+    }
+
+    return <Grid container spacing={2}>
+        <Grid item xs={12}>
+            {state.accessToken ?
+                <Button variant="contained" style={{margin: "auto", display: "block", marginTop: "8px"}}
+                        onClick={launchDropboxAuthentication}>Re Authorize</Button>
+                :
+                <Button variant="contained" style={{margin: "auto", display: "block", marginTop: "8px"}}
+                        onClick={launchDropboxAuthentication}>Authorize</Button>
+            }
+        </Grid>
+        <Grid item xs={12}>
+            <TextField label="Subfolder" variant="outlined"
+                       fullWidth={true}
+                       value={state.endpointUri}
                        onChange={(e) => updateState({
                            ...state,
                            endpointUri: e.target.value
@@ -472,19 +601,24 @@ export default function Destination(props : DestinationProps) {
     const [state, setState] = React.useState(() => {
         var destinationByTab = new Map<number, TabState>();
 
+        var destination = props.destination;
+
         var defaultType = 0;
-        if (props.destination !== undefined) {
-            switch (props.destination.type) {
+        if (destination !== undefined) {
+            switch (destination.type) {
                 case "SMB":
                     defaultType = 1;
                     break;
                 case "S3":
                     defaultType = 2;
                     break;
+                case "DROPBOX":
+                    defaultType = 3;
+                    break;
             }
 
             destinationByTab.set(defaultType, {
-                destination: props.destination,
+                destination: destination,
                 valid: true
             });
         }
@@ -545,12 +679,14 @@ export default function Destination(props : DestinationProps) {
             <Tab label="Local Directory"/>
             <Tab label="Windows Share"/>
             <Tab label="S3"/>
+            <Tab label="Dropbox"/>
         </Tabs>
 
         <TabPanel value={state.type} index={0}>
             <LocalFileDestination
                 manifestDestination={props.manifestDestination}
                 destination={getTabState(0).destination}
+                id={props.id}
                 destinationUpdated={(valid, dest) => destinationUpdated(0, valid, dest)}/>
         </TabPanel>
 
@@ -558,6 +694,7 @@ export default function Destination(props : DestinationProps) {
             <WindowsShareDestination
                 manifestDestination={props.manifestDestination}
                 destination={getTabState(1).destination}
+                id={props.id}
                 destinationUpdated={(valid, dest) => destinationUpdated(1, valid, dest)}/>
         </TabPanel>
 
@@ -565,7 +702,15 @@ export default function Destination(props : DestinationProps) {
             <S3Destination
                 manifestDestination={props.manifestDestination}
                 destination={getTabState(2).destination}
+                id={props.id}
                 destinationUpdated={(valid, dest) => destinationUpdated(2, valid, dest)}/>
+        </TabPanel>
+        <TabPanel value={state.type} index={3}>
+            <DropboxDestination
+                manifestDestination={props.manifestDestination}
+                destination={getTabState(3).destination}
+                id={props.id}
+                destinationUpdated={(valid, dest) => destinationUpdated(3, valid, dest)}/>
         </TabPanel>
     </Paper>
 }

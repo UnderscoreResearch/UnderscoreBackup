@@ -7,6 +7,8 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import UIAuthentication from "./UIAuthentication";
 
+const temporaryStorage = window.sessionStorage;
+
 export interface InitialSetupProps {
     originalConfig: BackupConfiguration,
     currentConfig: BackupConfiguration,
@@ -24,7 +26,7 @@ export default function InitialSetup(props: InitialSetupProps) {
     const [state, setState] = React.useState({
         passphrase: "",
         passphraseConfirm: "",
-        manifest: props.currentConfig && props.currentConfig.manifest ? props.currentConfig.manifest : { destination: "home" }
+        manifest: props.currentConfig && props.currentConfig.manifest ? props.currentConfig.manifest : { destination: "do" }
     } as InitialSetupState)
 
     function configurationUpdate(valid: boolean, val?: BackupDestination) {
@@ -54,6 +56,12 @@ export default function InitialSetup(props: InitialSetupProps) {
         }
     }
 
+    let destinationId : string | undefined = temporaryStorage.getItem("destinationId");
+    if (destinationId) {
+        const pendingDestination = JSON.parse(temporaryStorage.getItem("destination") as string);
+        props.currentConfig.destinations[destinationId] = pendingDestination;
+    }
+
     function updateState(newState: InitialSetupState) {
         setState(newState);
         if (newState.passphrase === newState.passphraseConfirm && newState.passphrase) {
@@ -69,7 +77,7 @@ export default function InitialSetup(props: InitialSetupProps) {
         }
     }
 
-    if (props.originalConfig.destinations  && Object.keys(props.originalConfig.destinations).length == 0) {
+    if (props.originalConfig.destinations && Object.keys(props.originalConfig.destinations).length == 0) {
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
                 p: 2,
@@ -89,13 +97,14 @@ export default function InitialSetup(props: InitialSetupProps) {
                     </p>
                 </Typography>
                 <Destination manifestDestination={true} destinationUpdated={configurationUpdate}
+                             id={"d0"}
                              destination={
                                  props.currentConfig &&
                                  props.currentConfig.manifest &&
                                  props.currentConfig.manifest.destination &&
                                  props.currentConfig.destinations
                                      ? props.currentConfig.destinations[props.currentConfig.manifest.destination]
-                                     : {type: "S3", endpointUri: ""}
+                                     : {type: "DROPBOX", endpointUri: ""}
                              }/>
             </Paper>
         </Stack>;

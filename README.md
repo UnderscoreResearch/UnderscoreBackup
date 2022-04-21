@@ -25,7 +25,7 @@ single repository.
 
 * Encryption, error correction and destination IO are plugin based and easily extendable.
 
-* Supports local file, Windows Shares and S3 for backup destinations.
+* Supports Dropbox, local file, Windows Shares and S3 for backup destinations.
 
 * Fully fledged web based UI for both initial setup, monitoring and restore operations.
 

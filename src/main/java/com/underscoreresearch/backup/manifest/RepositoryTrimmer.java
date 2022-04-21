@@ -57,15 +57,15 @@ public class RepositoryTrimmer {
     private synchronized NavigableSet<String> fetchPath(BackupFile file) throws IOException {
         String parent = findParent(file.getPath());
         if (parent.equals(lastFetchedDirectory)) {
-            if (lastFetchedDirectoryContents != null) {
+            if (lastFetchedDirectoryContents != null && lastFetchedDirectoryContents.getFiles() != null) {
                 return lastFetchedDirectoryContents.getFiles();
             }
-            return null;
+            return new TreeSet<>();
         }
 
         lastFetchedDirectory = parent;
         lastFetchedDirectoryContents = metadataRepository.lastDirectory(parent);
-        if (lastFetchedDirectoryContents == null) {
+        if (lastFetchedDirectoryContents == null && lastFetchedDirectoryContents.getFiles() != null) {
             return new TreeSet<>();
         }
         return lastFetchedDirectoryContents.getFiles();
