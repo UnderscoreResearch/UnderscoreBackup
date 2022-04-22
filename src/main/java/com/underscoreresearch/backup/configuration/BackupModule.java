@@ -43,7 +43,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.StateLogger;
 
 public class BackupModule extends AbstractModule {
-    private static final int DEFAULT_LARGE_MAXIMUM_SIZE = 8 * 1024 * 1024 - 10 * 1024;
+    public static final int DEFAULT_LARGE_MAXIMUM_SIZE = 8 * 1024 * 1024 - 10 * 1024;
     private static final int DEFAULT_SMALL_FILE_TARGET_SIZE = DEFAULT_LARGE_MAXIMUM_SIZE;
     private static final int DEFAULT_SMALL_FILE_MAXIMUM_SIZE = DEFAULT_SMALL_FILE_TARGET_SIZE / 2;
     private static final int DEFAULT_UPLOAD_THREADS = 4;

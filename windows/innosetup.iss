@@ -30,7 +30,7 @@ Filename: "{app}\\bin\\underscorebackup-gui.exe"; Flags: shellexec runasoriginal
 Source: "..\\build\\launch4j\\underscorebackup.exe"; DestDir: "{app}\\bin"; Flags: ignoreversion
 Source: "..\\build\\launch4j\\underscorebackup-gui.exe"; DestDir: "{app}\\bin"; Flags: ignoreversion
 Source: "..\\build\\launch4j\\lib\\*"; DestDir: "{app}\\bin\\lib"; Flags: ignoreversion
-Source: "C:\\Program Files\\Amazon Corretto\\jre8\\*"; DestDir: "{app}\\jre"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\\build\\jre\\*"; DestDir: "{app}\\jre"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [icons]
 Name: "{commonstartup}\\Underscore Backup"; Filename: "{app}\\bin\\underscorebackup-gui.exe";
