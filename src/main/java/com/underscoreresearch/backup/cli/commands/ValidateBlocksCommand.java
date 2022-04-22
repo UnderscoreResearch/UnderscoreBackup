@@ -1,7 +1,11 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.configuration.BackupModule.DEFAULT_LARGE_MAXIMUM_SIZE;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +15,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 
@@ -20,10 +25,13 @@ import com.underscoreresearch.backup.model.BackupLocation;
 public class ValidateBlocksCommand extends SimpleCommand {
     public void executeCommand() throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+        BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
+        int maxBlockSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
 
         repository.allFiles().forEach((file) -> {
             if (file.getLocations() != null) {
+                AtomicLong maximumSize =  new AtomicLong();
                 List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
                     for (BackupFilePart part : location.getParts()) {
                         try {
@@ -33,6 +41,12 @@ public class ValidateBlocksCommand extends SimpleCommand {
                         } catch (IOException e) {
                             log.error("Failed to read block " + part.getBlockHash(), e);
                         }
+                        maximumSize.addAndGet(maxBlockSize);
+                    }
+                    if (maximumSize.get() < file.getLength()) {
+                        log.error("Not enough blocks to contain entire file size ({} < {})",
+                                readableSize(maximumSize.get()), readableSize(file.getLength()));
+                        return false;
                     }
                     return true;
                 }).collect(Collectors.toList());
@@ -40,7 +54,6 @@ public class ValidateBlocksCommand extends SimpleCommand {
                 try {
                     if (validCollections.size() != file.getLocations().size()) {
                         if (validCollections.size() == 0) {
-                            repository.deleteFile(file);
                             log.error("Storage for {} does no longer exist", file.getPath());
                             repository.deleteFile(file);
                         } else {

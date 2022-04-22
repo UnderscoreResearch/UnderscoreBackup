@@ -43,9 +43,9 @@ public class FileSystemAccessImpl implements FileSystemAccess {
 
             if (parent.isDirectory()) {
                 String[] fileNames = parent.list();
-                Arrays.sort(fileNames);
 
                 if (fileNames != null) {
+                    Arrays.sort(fileNames);
                     for (String fileName : fileNames) {
                         File file = new File(parent, fileName);
                         Path filePath = file.toPath();

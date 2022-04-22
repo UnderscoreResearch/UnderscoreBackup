@@ -4,7 +4,6 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -69,7 +68,6 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
 
         AtomicReference<BackupPartialFile> locationRef = new AtomicReference<>(backupPartialFile);
         AtomicBoolean readyToComplete = new AtomicBoolean();
-        backupPartialFile.setParts(new ArrayList<>());
 
         BackupFile file = backupPartialFile.getFile();
 
@@ -114,20 +112,9 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                                 if (!partialSuccess) {
                                     success.set(false);
                                 }
-                                if (partialCompletions.size() == 0) {
-                                    if (readyToComplete.get()) {
-                                        try {
-                                            metadataRepository.deletePartialFile(backupPartialFile);
-                                        } catch (IOException e) {
-                                            log.error("Failed to remove partial file data for {}",
-                                                    backupPartialFile.getFile().getPath());
-                                        }
-                                        if (locationRef.get() != null) {
-                                            completionFuture.completed(success.get()
-                                                    ? Lists.newArrayList(createLocation(locationRef))
-                                                    : null);
-                                        }
-                                    }
+                                if (readyToComplete.get()) {
+                                    completeIfDone(partialCompletions, backupPartialFile, locationRef, completionFuture,
+                                            success);
                                 }
                             }
                         }
@@ -177,11 +164,27 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
 
         synchronized (partialCompletions) {
             readyToComplete.set(true);
-            if (partialCompletions.size() == 0) {
-                completionFuture.completed(success.get() ? Lists.newArrayList(createLocation(locationRef)) : null);
-            }
+            completeIfDone(partialCompletions, backupPartialFile, locationRef, completionFuture, success);
         }
         return true;
+    }
+
+    private void completeIfDone(Set<BackupCompletion> partialCompletions,
+                                BackupPartialFile backupPartialFile, AtomicReference<BackupPartialFile> locationRef,
+                                BackupBlockCompletion completionFuture, AtomicBoolean success) {
+        if (partialCompletions.size() == 0) {
+            try {
+                metadataRepository.deletePartialFile(backupPartialFile);
+            } catch (IOException e) {
+                log.error("Failed to remove partial file data for {}",
+                        backupPartialFile.getFile().getPath());
+            }
+            if (locationRef.get() != null) {
+                completionFuture.completed(success.get()
+                        ? Lists.newArrayList(createLocation(locationRef))
+                        : null);
+            }
+        }
     }
 
     private BackupLocation createLocation(AtomicReference<BackupPartialFile> locationRef) {

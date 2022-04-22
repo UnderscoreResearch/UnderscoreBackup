@@ -13,7 +13,7 @@ A backup solution with the following features.
 * Designed from the ground up to manage very large backup sets with multiple TB of data and millions of file in a
 single repository.
 
-* Multi-platform support based on Java 8.
+* Multi-platform support based on Java 11.
 
 * Low resource requirements, runs efficiently with 256MB of heap memory even if the backup sets have millions of files.
 

@@ -168,7 +168,7 @@ public class CommandLineModule extends AbstractModule {
                 return new File(defaultUserManifestLocation(), "config.json")
                         .getAbsolutePath();
             }
-            if (new File(DEFAULT_CONFIG).exists()) {
+            if (new File(DEFAULT_CONFIG).canRead()) {
                 return DEFAULT_CONFIG;
             }
             return new File(defaultUserManifestLocation(), "config.json")

@@ -147,7 +147,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                             fileSystemAccess.truncate(destinationFile, offset);
 
                         if (offset != source.getLength()) {
-                            throw new IOException(String.format("Expected file %s to be of size 5s but was actually %s",
+                            throw new IOException(String.format("Expected file %s to be of size %s but was actually %s",
                                     source.getPath(), source.getLength(), offset));
                         }
                     }
