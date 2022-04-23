@@ -66,11 +66,13 @@ public class ConfigurationPost extends JsonWrap {
         }
         ConfigurationValidator.validateConfiguration(configuration, false);
         File file = new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION));
+        boolean exists = file.exists();
         try (OutputStreamWriter writer = new FileWriter(file)) {
             writer.write(config);
         }
 
-        setReadOnlyFilePermissions(file);
+        if (!exists)
+            setReadOnlyFilePermissions(file);
     }
 
     public static void setReadOnlyFilePermissions(File file) throws IOException {

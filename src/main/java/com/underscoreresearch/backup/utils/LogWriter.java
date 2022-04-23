@@ -60,9 +60,12 @@ public class LogWriter extends AbstractAppender {
             }
             try {
                 if (!Strings.isEmpty(fileName)) {
+                    boolean exists = new File(fileName).exists();
                     stream = new FileOutputStream(fileName, true);
 
-                    setReadOnlyFilePermissions(new File(fileName));
+                    if (!exists) {
+                        setReadOnlyFilePermissions(new File(fileName));
+                    }
                 }
             } catch (IOException e) {
                 System.err.println(String.format("Can't open %s for writing, disabling file logging", fileName));

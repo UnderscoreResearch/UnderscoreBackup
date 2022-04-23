@@ -58,6 +58,8 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     private boolean shutdown;
     private Stopwatch duration;
 
+    private Duration lastPath;
+
     @Override
     public boolean startScanning(BackupSet backupSet) throws IOException {
         lock.lock();
@@ -110,6 +112,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         lock.unlock();
 
         stateLogger.logInfo();
+        stateLogger.reset();
 
         return !shutdown;
     }
@@ -177,6 +180,12 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         boolean anyIncluded = false;
 
         lock.unlock();
+
+        if (duration != null && (lastPath == null || lastPath.toMinutes() != duration.elapsed().toMinutes())) {
+            lastPath = duration.elapsed();
+            log.info("Started processing {}", currentPath);
+        }
+
         Set<BackupFile> directoryFiles = filesystem.directoryFiles(currentPath);
         lock.lock();
 

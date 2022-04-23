@@ -6,8 +6,8 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
@@ -24,6 +24,8 @@ import org.mapdb.DBMaker;
 import org.mapdb.HTreeMap;
 import org.mapdb.Serializer;
 
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOProvider;
@@ -39,16 +41,44 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.utils.LogUtil;
+import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.StatusLogger;
 
 @RequiredArgsConstructor
 @Slf4j
-public class RepositoryTrimmer {
+public class RepositoryTrimmer implements StatusLogger {
     private final MetadataRepository metadataRepository;
     private final BackupConfiguration configuration;
     private final boolean force;
 
     private String lastFetchedDirectory;
     private BackupDirectory lastFetchedDirectoryContents;
+
+    private Stopwatch stopwatch = Stopwatch.createUnstarted();
+    private AtomicLong processedSteps = new AtomicLong();
+    private Duration lastHeartbeat;
+
+    @Override
+    public void resetStatus() {
+        stopwatch.reset();
+        processedSteps.set(0L);
+    }
+
+    @Override
+    public List<StatusLine> status() {
+        if (stopwatch.isRunning()) {
+            long elapsedMilliseconds = stopwatch.elapsed().toMillis();
+            if (elapsedMilliseconds > 0) {
+                long throughput = 1000 * processedSteps.get() / elapsedMilliseconds;
+                return Lists.newArrayList(
+                        new StatusLine(getClass(), "TRIMMING_THROUGHPUT", "Trimming throughput",
+                                throughput, throughput + " steps/s"),
+                        new StatusLine(getClass(), "TRIMMING_STEPS", "Trimming steps completed",
+                                processedSteps.get(), processedSteps.get() + " steps"));
+            }
+        }
+        return new ArrayList<>();
+    }
 
     private static class InterruptedException extends RuntimeException {
 
@@ -65,7 +95,7 @@ public class RepositoryTrimmer {
 
         lastFetchedDirectory = parent;
         lastFetchedDirectoryContents = metadataRepository.lastDirectory(parent);
-        if (lastFetchedDirectoryContents == null && lastFetchedDirectoryContents.getFiles() != null) {
+        if (lastFetchedDirectoryContents == null || lastFetchedDirectoryContents.getFiles() == null) {
             return new TreeSet<>();
         }
         return lastFetchedDirectoryContents.getFiles();
@@ -78,6 +108,7 @@ public class RepositoryTrimmer {
             try (DB usedBlockDb = DBMaker
                     .fileDB(tempFile)
                     .fileMmapEnableIfSupported()
+                    .fileDeleteAfterClose()
                     .make()) {
                 HTreeMap<String, Boolean> usedBlockMap = usedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
                         Serializer.BOOLEAN).createOrOpen();
@@ -85,9 +116,14 @@ public class RepositoryTrimmer {
                 boolean hasActivePaths = trimActivePaths();
 
                 try {
+                    stopwatch.start();
+                    lastHeartbeat = Duration.ZERO;
+
                     trimFilesAndDirectories(usedBlockMap, hasActivePaths);
                     trimBlocks(usedBlockMap, hasActivePaths);
                 } catch (InterruptedException exc) {
+                } finally {
+                    stopwatch.stop();
                 }
             }
         } finally {
@@ -127,6 +163,7 @@ public class RepositoryTrimmer {
                     if (InstanceFactory.isShutdown())
                         throw new InterruptedException();
                     try {
+                        processedSteps.incrementAndGet();
                         deletedBlocks.incrementAndGet();
                         for (BackupBlockStorage storage : block.getStorage()) {
                             IOProvider provider = IOProviderFactory.getProvider(
@@ -172,6 +209,13 @@ public class RepositoryTrimmer {
             if (InstanceFactory.isShutdown())
                 throw new InterruptedException();
 
+            if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
+                lastHeartbeat = stopwatch.elapsed();
+                log.info("Trimming {}", file.getPath());
+            }
+
+            processedSteps.incrementAndGet();
+
             if (fileVersions.size() > 0 && !file.getPath().equals(fileVersions.get(0).getPath())) {
                 try {
                     processFiles(fileVersions, usedBlockMap, deletedPaths, deletedVersions, deletedFiles);
@@ -207,18 +251,22 @@ public class RepositoryTrimmer {
     private void processDeletedPaths(final NavigableSet<String> deletedPaths, final String parent,
                                      final AtomicInteger deletedDirectoryVersions, AtomicInteger deletedDirectories)
             throws IOException {
-        Iterator<String> iterator = deletedPaths.descendingIterator();
-        while (iterator.hasNext()) {
-            String path = iterator.next();
-            if (parent == null || !path.startsWith(parent)) {
-                processDirectories(metadataRepository.directory(path), deletedDirectoryVersions, deletedDirectories);
+        while (deletedPaths.size() > 0) {
+            String path = deletedPaths.last();
+            if (parent == null || !parent.startsWith(path)) {
+                processDirectories(path, deletedPaths, deletedDirectoryVersions, deletedDirectories);
+                deletedPaths.remove(path);
+            } else {
+                break;
             }
         }
     }
 
-    private void processDirectories(List<BackupDirectory> directoryVersions,
+    private void processDirectories(String path,
+                                    NavigableSet<String> deletedPaths,
                                     AtomicInteger deletedVersions,
                                     AtomicInteger deletedDirectories) throws IOException {
+        List<BackupDirectory> directoryVersions = metadataRepository.directory(path);
         if (directoryVersions == null) {
             return;
         }
@@ -244,8 +292,10 @@ public class RepositoryTrimmer {
                 lastTimestamp = directory.getAdded() - 1;
             }
         }
-        if (!any)
+        if (!any) {
+            deletedPaths.add(findParent(path));
             deletedDirectories.incrementAndGet();
+        }
     }
 
     private void processFiles(List<BackupFile> files, HTreeMap<String, Boolean> usedBlockMap,

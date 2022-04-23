@@ -74,8 +74,9 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                         long offset = 0;
 
                         FileInputStream originalStream = null;
+                        File originalFile = null;
                         if (destinationFile.equals("=")) {
-                            File originalFile = new File(PathNormalizer.physicalPath(source.getPath()));
+                            originalFile = new File(PathNormalizer.physicalPath(source.getPath()));
                             if (!originalFile.isFile()) {
                                 log.warn("File missing locally {}", originalFile.getAbsolutePath());
                                 originalFile = null;
@@ -121,10 +122,16 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                                                 originalStream.read(original, 0, length);
                                                 for (int j = 0; j < length; j++)
                                                     if (original[j] != fileData[j + originalOffset]) {
-                                                        log.warn("File {} does not match locally at location {}",
+                                                        String message = String.format("File %s does not match locally at location %s",
                                                                 PathNormalizer.physicalPath(source.getPath()), offset + j);
+
+                                                        if (originalFile.lastModified() == source.getLastChanged())
+                                                            throw new IOException(message);
+
+                                                        log.warn(message);
                                                         originalStream.close();
                                                         originalStream = null;
+                                                        originalFile = null;
                                                         break;
                                                     }
                                             }

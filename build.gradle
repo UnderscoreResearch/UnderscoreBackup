@@ -12,7 +12,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.3.3'
+version '0.3.4'
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -35,6 +35,20 @@ sourceSets {
 
 runtime {
     options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+    modules = ['java.logging',
+               'java.sql',
+               'java.desktop',
+               'java.xml',
+               'jdk.unsupported',
+               'java.security.jgss',
+               'java.rmi',
+               'java.naming',
+               'java.compiler',
+               'java.scripting',
+               'java.management',
+               'jdk.compiler',
+               'java.instrument',
+               'jdk.crypto.ec']
 }
 
 tasks.runtime.doLast {
