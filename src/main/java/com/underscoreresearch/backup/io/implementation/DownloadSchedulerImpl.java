@@ -82,7 +82,6 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                         .fileDB(file)
                         .fileDeleteAfterClose()
                         .fileMmapEnableIfSupported()
-                        .transactionEnable()
                         .make();
                 fileMap = fileDb.treeMap("PENDING_RESTORE")
                         .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))

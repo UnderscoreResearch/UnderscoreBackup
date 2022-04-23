@@ -31,7 +31,7 @@ public class ValidateBlocksCommand extends SimpleCommand {
 
         repository.allFiles().forEach((file) -> {
             if (file.getLocations() != null) {
-                AtomicLong maximumSize =  new AtomicLong();
+                AtomicLong maximumSize = new AtomicLong();
                 List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
                     for (BackupFilePart part : location.getParts()) {
                         try {
