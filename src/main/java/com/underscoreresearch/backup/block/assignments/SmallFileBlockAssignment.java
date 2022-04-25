@@ -232,7 +232,7 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
                             }
                         }
                     } else {
-                        log.error("Block " + part.getBlockHash() + " did not exist");
+                        log.warn("Block " + part.getBlockHash() + " did not exist");
                         skip = true;
                     }
                     if (!skip) {

@@ -18,6 +18,7 @@ import com.underscoreresearch.backup.block.assignments.LargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.RawLargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.SmallFileBlockAssignment;
 import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
+import com.underscoreresearch.backup.cli.commands.BlockValidator;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.FileScanner;
@@ -160,6 +161,14 @@ public class BackupModule extends AbstractModule {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
         return new GzipLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
                 metadataRepository, maxSize);
+    }
+
+    @Provides
+    @Singleton
+    public BlockValidator blockValidator(MetadataRepository repository,
+                                         BackupConfiguration configuration) {
+        int maxBlockSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
+        return new BlockValidator(repository, configuration, maxBlockSize);
     }
 
     @Provides

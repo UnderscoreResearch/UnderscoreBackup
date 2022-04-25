@@ -68,6 +68,8 @@ public interface MetadataRepository {
 
     Stream<BackupBlock> allBlocks() throws IOException;
 
+    Stream<BackupFilePart> allFileParts() throws IOException;
+
     /**
      * All directories in repository. Must be sorted by path and timestamp in descending order.
      */

@@ -422,6 +422,20 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
+    public synchronized Stream<BackupFilePart> allFileParts() throws IOException {
+        ensureOpen();
+
+        return partsMap.entrySet().stream().map((entry) -> {
+            try {
+                return decodePath(entry);
+            } catch (IOException e) {
+                log.error("Invalid block " + entry.getKey(), e);
+                return BackupFilePart.builder().build();
+            }
+        }).filter(t -> t.getPartHash() != null);
+    }
+
+    @Override
     public Stream<BackupDirectory> allDirectories() throws IOException {
         ensureOpen();
 

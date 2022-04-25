@@ -1,10 +1,14 @@
 package com.underscoreresearch.backup.utils;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedDeque;
+
+import lombok.Getter;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.Appender;
@@ -19,6 +23,8 @@ import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Plugin(name = "ActivityAppender",
         category = Core.CATEGORY_NAME,
         elementType = Appender.ELEMENT_TYPE)
@@ -27,8 +33,20 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
 
     private static Map<String, ActivityAppender> APPENDERS = new HashMap<>();
 
-    private ConcurrentLinkedDeque<StatusLine> events = new ConcurrentLinkedDeque<>();
-    private ConcurrentLinkedDeque<StatusLine> errorEvents = new ConcurrentLinkedDeque<>();
+    private static class LogStatusLine extends StatusLine {
+        @Getter
+        @JsonIgnore
+        private Instant expire;
+
+        public LogStatusLine(String reporter, String code, String message) {
+            super(reporter, code, message);
+
+            this.expire = Instant.now().plus(Duration.ofHours(12));
+        }
+    }
+
+    private ConcurrentLinkedDeque<LogStatusLine> events = new ConcurrentLinkedDeque<>();
+    private ConcurrentLinkedDeque<LogStatusLine> errorEvents = new ConcurrentLinkedDeque<>();
 
     protected ActivityAppender(String name, Filter filter, Layout<String> layout) {
         super(name, filter, layout, true, Property.EMPTY_ARRAY);
@@ -57,13 +75,16 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
             } else {
                 addEvent(events, event);
             }
+            if (errorEvents.size() > 0 && errorEvents.getLast().getExpire().isBefore(Instant.now())) {
+                errorEvents.removeLast();
+            }
         }
     }
 
-    private void addEvent(ConcurrentLinkedDeque<StatusLine> currentEvents, LogEvent event) {
+    private void addEvent(ConcurrentLinkedDeque<LogStatusLine> currentEvents, LogEvent event) {
         while (currentEvents.size() >= MAX_ENTRIES)
             currentEvents.removeLast();
-        currentEvents.addFirst(new StatusLine(event.getSource().getClassName(),
+        currentEvents.addFirst(new LogStatusLine(event.getSource().getClassName(),
                 event.getLevel().name(),
                 getLayout().toSerializable(event).toString().trim()));
     }
