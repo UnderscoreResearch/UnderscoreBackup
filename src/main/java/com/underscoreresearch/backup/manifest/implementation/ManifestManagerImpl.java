@@ -506,6 +506,11 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
 
                 @Override
+                public Stream<BackupFilePart> allFileParts() throws IOException {
+                    return null;
+                }
+
+                @Override
                 public Stream<BackupDirectory> allDirectories() throws IOException {
                     return null;
                 }

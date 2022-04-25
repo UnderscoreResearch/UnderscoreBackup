@@ -211,7 +211,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
             if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                 lastHeartbeat = stopwatch.elapsed();
-                log.info("Trimming {}", file.getPath());
+                log.info("Processing path {}", file.getPath());
             }
 
             processedSteps.incrementAndGet();

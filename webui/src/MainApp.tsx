@@ -399,6 +399,10 @@ export default function MainApp() {
             currentProgress = "Initializing Backup";
         } else if (state.activity.some(item => item.code.startsWith("BACKUP_"))) {
             currentProgress = "Backup In Progress";
+        } else if (state.activity.some(item => item.code.startsWith("TRIMMING_"))) {
+            currentProgress = "Trimming Repository";
+        } else if (state.activity.some(item => item.code.startsWith("VALIDATE_"))) {
+            currentProgress = "Validating Repository";
         } else if (state.activity.some(item => item.code.startsWith("RESTORE_"))) {
             currentProgress = "Restore In Progress";
             allowRestore = false;
@@ -517,7 +521,10 @@ export default function MainApp() {
             if (currentProgress == "Currently Inactive" && state.originalConfiguration.sets.length > 0 && !hasChanges) {
                 valid = true;
                 acceptButtonTitle = "Start Backup";
-            } else if (currentProgress === "Backup In Progress") {
+            } else if (currentProgress === "Backup In Progress"
+                || currentProgress === "Initializing Backup"
+                || currentProgress === "Trimming Repository"
+                || currentProgress === "Validating Repository") {
                 valid = true;
                 acceptButtonTitle = "Pause Backup";
             }
@@ -567,7 +574,7 @@ export default function MainApp() {
                     if (completedSetup()) {
                         if (acceptButtonTitle == "Start Backup") {
                             changeBackup(true);
-                        } else if (currentProgress == "Backup In Progress") {
+                        } else if (acceptButtonTitle == "Pause Backup") {
                             changeBackup(false);
                         }
                     } else if (!lodashObject.isEqual(state.originalConfiguration, state.currentConfiguration)) {

@@ -186,6 +186,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public Stream<BackupFilePart> allFileParts() throws IOException {
+        return repository.allFileParts();
+    }
+
+    @Override
     public Stream<BackupDirectory> allDirectories() throws IOException {
         return repository.allDirectories();
     }

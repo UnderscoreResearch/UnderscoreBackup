@@ -67,6 +67,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
 
         stateLogger.reset();
         duration = Stopwatch.createStarted();
+        lastPath = Duration.ZERO;
 
         pendingPaths = stripExcludedPendingPaths(backupSet, repository.getActivePaths(backupSet.getId()));
 

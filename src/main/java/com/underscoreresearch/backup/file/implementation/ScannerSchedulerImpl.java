@@ -29,6 +29,7 @@ import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.cli.commands.BlockValidator;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -107,6 +108,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         lock.lock();
         while (!shutdown) {
             int i = 0;
+            boolean anyRan = false;
             while (i < pendingSets.length && !shutdown) {
                 if (pendingSets[i]) {
                     lock.unlock();
@@ -114,6 +116,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                     try {
                         log.info("Started scanning {} for {}", set.getAllRoots(), set.getId());
                         if (scanner.startScanning(set)) {
+                            anyRan = true;
                             synchronized (scheduledTimes) {
                                 Date date = scheduledTimes.get(set.getId());
                                 if (date != null && date.after(new Date())) {
@@ -150,14 +153,18 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                     break;
                 }
                 try {
-                    log.info("Pausing for next scheduled scan");
                     try {
-                        InstanceFactory.getInstance(ManifestManager.class).flushLog();
-                        InstanceFactory.getInstance(StateLogger.class).reset();
+                        if (anyRan) {
+                            InstanceFactory.getInstance(ManifestManager.class).flushLog();
+                            InstanceFactory.getInstance(StateLogger.class).reset();
+                            InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
+                            InstanceFactory.getInstance(StateLogger.class).reset();
+                        }
                         repository.close();
                     } catch (IOException e) {
                         log.error("Failed to close repository before waiting", e);
                     }
+                    log.info("Paused for next scheduled scan");
                     System.gc();
                     pending = true;
                     condition.await();

@@ -12,7 +12,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.3.4'
+version '0.3.5'
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -155,11 +155,11 @@ dependencies {
             'org.apache.logging.log4j:log4j-core:2.17.2',
             'org.apache.logging.log4j:log4j-slf4j-impl:2.17.2',
             'org.mapdb:mapdb:3.0.8',
-            'org.projectlombok:lombok:1.18.22',
+            'org.projectlombok:lombok:1.18.24',
             'org.reflections:reflections:0.10.2',
             'org.slf4j:slf4j-api:1.7.36',
             'org.takes:takes:1.19',
-            'software.amazon.awssdk:s3control:2.17.165'
+            'software.amazon.awssdk:s3control:2.17.174'
     )
 
     testImplementation (
@@ -172,8 +172,8 @@ dependencies {
             'org.junit.jupiter:junit-jupiter-engine:5.8.2'
     )
 
-    annotationProcessor 'org.projectlombok:lombok:1.18.22'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.22'
+    annotationProcessor 'org.projectlombok:lombok:1.18.24'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
 }
 
 test {

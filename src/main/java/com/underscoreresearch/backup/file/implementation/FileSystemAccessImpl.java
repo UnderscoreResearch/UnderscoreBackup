@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,7 +57,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                                             .path(path + PATH_SEPARATOR + fileName + PATH_SEPARATOR)
                                             .build());
                                 } else {
-                                    log.debug("Skipping unreadable directory " + filePath.toAbsolutePath());
+                                    debug(() -> log.debug("Skipping unreadable directory " + filePath.toAbsolutePath()));
                                 }
                             } else if (file.isFile()) {
                                 if (Files.isReadable(filePath)) {
@@ -66,7 +67,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                                             .lastChanged(file.lastModified())
                                             .build());
                                 } else {
-                                    log.debug("Skipping unreadable file " + filePath.toAbsolutePath());
+                                    debug(() -> log.debug("Skipping unreadable file " + filePath.toAbsolutePath()));
                                 }
                             }
                         }
