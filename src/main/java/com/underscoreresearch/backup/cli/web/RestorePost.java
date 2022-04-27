@@ -1,7 +1,9 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -119,6 +121,9 @@ public class RestorePost extends JsonWrap {
 
                     try {
                         RestoreExecutor restoreExecutor = new RestoreExecutor(contents);
+                        if (!isNullFile(destination)) {
+                            new File(destination).mkdirs();
+                        }
                         restoreExecutor.restorePaths(request.files, destination, true, request.overwrite);
                     } catch (Exception exc) {
                         log.error("Failed to complete restore", exc);

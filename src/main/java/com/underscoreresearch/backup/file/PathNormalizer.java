@@ -16,9 +16,9 @@ public final class PathNormalizer {
             return "/";
         }
 
-        File file = new File(path);
         String ret;
         try {
+            File file = new File(System.getProperty("user.dir"), path).getCanonicalFile();
             ret = file.toPath().toRealPath().toString();
         } catch (IOException exc) {
             ret = path;

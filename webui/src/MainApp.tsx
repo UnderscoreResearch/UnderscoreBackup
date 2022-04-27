@@ -5,6 +5,7 @@ import MuiDrawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
 import MuiAppBar, {AppBarProps as MuiAppBarProps} from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
+import Slide from '@mui/material/Slide';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
@@ -386,7 +387,7 @@ export default function MainApp() {
     }, [location.pathname]);
 
     let currentProgress;
-    let acceptButtonTitle;
+    let acceptButtonTitle : string = "";
     let cancelButtonTitle = "";
     let allowRestore = true;
     let allowBackup = true;
@@ -485,7 +486,7 @@ export default function MainApp() {
     }
 
 
-    let valid;
+    let valid = false;
     let hasChanges = false;
     if (!allowBackup) {
         valid = true;
@@ -694,31 +695,51 @@ export default function MainApp() {
                                         hasKey={state.hasKey}/>
 
                 }
+
+                <Slide direction="right" in={state.open}>
+                    <Typography
+                        color="darkgray"
+                        noWrap
+                        fontSize={14}
+                        style={{position: "absolute", bottom: "8px", right: "8px", width: "220px", textAlign: "right"}}
+                    >
+                        {state.defaults ?
+                            <span>Version <span style={{fontWeight: "bold"}} >{state.defaults.version}</span></span>
+                            : ""}
+                    </Typography>
+                </Slide>
             </Drawer>
             <Box
                 component="main"
                 sx={{
-                    backgroundColor: (theme) =>
-                        theme.palette.mode === 'light'
-                            ? theme.palette.grey[100]
-                            : theme.palette.grey[900],
                     flexGrow: 1,
                     height: '100vh',
-                    overflow: 'auto',
-                }}
-            >
+                    overflow: 'hidden',
+                }}>
                 <Toolbar/>
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault()
-                    }}
-                    noValidate
-                    autoComplete="off"
-                >
-                    <Box sx={{margin: 6}}>
-                        {contents}
-                    </Box>
-                </form>
+                <Box
+                    component="main"
+                    sx={{
+                        backgroundColor: (theme) =>
+                            theme.palette.mode === 'light'
+                                ? theme.palette.grey[100]
+                                : theme.palette.grey[900],
+                        height: '100vh',
+                        overflow: 'auto',
+                    }}>
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault()
+                        }}
+                        noValidate
+                        autoComplete="off"
+                    >
+                        <Box sx={{margin: 6}}>
+                            {contents}
+                        </Box>
+                    </form>
+                    <div style={{height: "32px"}}/>
+                </Box>
             </Box>
             <Backdrop
                 sx={{color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1}}

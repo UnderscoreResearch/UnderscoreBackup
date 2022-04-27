@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -44,6 +45,7 @@ public class DefaultsGet extends JsonWrap {
     private static class DefaultsResponse {
         private String defaultRestoreFolder;
         private String pathSeparator;
+        private String version;
         private BackupSet set;
     }
 
@@ -113,6 +115,7 @@ public class DefaultsGet extends JsonWrap {
                         .build();
                 return new RsText(WRITER.writeValueAsString(DefaultsResponse.builder()
                         .set(set)
+                        .version(VersionCommand.getVersion())
                         .pathSeparator(File.separator)
                         .defaultRestoreFolder(defaultRestore).build()));
             } catch (Exception exc) {

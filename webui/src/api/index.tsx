@@ -114,6 +114,7 @@ export interface BackupFile {
 export interface BackupDefaults {
     set: BackupSet,
     pathSeparator: string,
+    version: string,
     defaultRestoreFolder: string
 }
 
@@ -177,6 +178,7 @@ export async function GetDefaults() : Promise<BackupDefaults> {
         return {
             defaultRestoreFolder: "/",
             pathSeparator: "/",
+            version: "",
             set: {
                 id: "home",
                 roots: [],
@@ -224,7 +226,7 @@ export async function GetAuthEndpoint() : Promise<string | undefined> {
     return undefined;
 }
 
-export async function GetEncryptionKey(passphrase: string) : Promise<boolean> {
+export async function GetEncryptionKey(passphrase?: string) : Promise<boolean> {
     const ret = await MakeCall("encryption-key", {
         method: 'POST',
         headers: {
