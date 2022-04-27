@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -10,6 +12,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -36,6 +39,16 @@ public final class Main {
     }
 
     public static void main(String[] argv) {
+        if (!Strings.isNullOrEmpty(System.getProperty("startup.directory"))) {
+            File chdir = new File(System.getProperty("startup.directory"));
+            if (chdir.exists()) {
+                try {
+                    System.setProperty("user.dir", chdir.getCanonicalPath());
+                } catch (IOException e) {
+                    log.error("Invalid current working directory {}", System.getProperty("startup.directory"), e);
+                }
+            }
+        }
         InstanceFactory.initialize(argv, null);
 
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {

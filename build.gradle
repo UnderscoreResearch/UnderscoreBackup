@@ -12,7 +12,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.3.5'
+version '0.3.6'
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -32,6 +32,21 @@ sourceSets {
         }
     }
 }
+
+task createProperties(dependsOn: processResources) {
+    doLast {
+        new File("$buildDir/resources/main/version.properties").withWriter { w ->
+            Properties p = new Properties()
+            p['version'] = project.version.toString()
+            p.store w, null
+        }
+    }
+}
+
+classes {
+    dependsOn createProperties
+}
+
 
 runtime {
     options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
@@ -70,6 +85,8 @@ launch4j {
     maxHeapSize = 256
     bundledJrePath = "..\\jre"
     bundledJre64Bit = true
+    jvmOptions = ["-Dstartup.directory=\"%OLDPWD%\""]
+    jreRuntimeBits = "64"
     mainClassName = 'com.underscoreresearch.backup.cli.Main'
     icon = "${rootProject.projectDir}/windows/application.ico"
 }
