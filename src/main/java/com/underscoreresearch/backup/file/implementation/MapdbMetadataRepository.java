@@ -93,10 +93,10 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     try {
                         Thread.interrupted();
                         lock = channel.tryLock(0, Long.MAX_VALUE, !exclusive);
-                        if (exclusive && lock != null) {
-                            writePid();
+                        if (lock == null || lock.isValid()) {
+                            return lock != null;
                         }
-                        return lock != null;
+                        release();
                     } catch (ClosedChannelException e) {
                         ensureOpenFile();
                     } catch (FileLockInterruptionException e) {
@@ -122,10 +122,6 @@ public class MapdbMetadataRepository implements MetadataRepository {
                         Thread.interrupted();
                         do {
                             lock = channel.lock(0, Long.MAX_VALUE, !exclusive);
-
-                            if (exclusive) {
-                                writePid();
-                            }
                         } while (lock == null || !lock.isValid());
                         break;
                     } catch (ClosedChannelException e) {
@@ -136,37 +132,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
             }
         }
 
-        private void writePid() throws ClosedChannelException {
-            try {
-                byte[] data = (ManagementFactory.getRuntimeMXBean().getPid() + "\n")
-                        .getBytes(StandardCharsets.UTF_8);
-                ByteBuffer buffer = ByteBuffer.wrap(data);
-                lock.channel().position(0);
-                lock.channel().write(buffer);
-                lock.channel().truncate(data.length);
-            } catch (IOException e) {
-                log.warn("Failed to write PID to lock file", e);
-                try {
-                    lock.close();
-                } catch (ClosedChannelException exc) {
-                    lock = null;
-                    throw exc;
-                } catch (IOException exc) {
-                    log.error("Failed to close lock", e);
-                }
-                lock = null;
-            }
-        }
-
         public synchronized void release() throws IOException {
             if (lock != null) {
-                if (!lock.isShared()) {
-                    try {
-                        channel.truncate(0);
-                    } catch (IOException exc) {
-                        log.error("Failed to remove PID from lock file {}", filename, exc);
-                    }
-                }
                 lock.close();
                 lock = null;
             }
@@ -260,8 +227,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
             open = true;
             this.readOnly = readOnly;
 
-            File requestFile = Paths.get(dataPath, REQUEST_LOCK_FILE).toFile();
             if (readOnly) {
+                File requestFile = Paths.get(dataPath, REQUEST_LOCK_FILE).toFile();
                 fileLock = new AccessLock(Paths.get(dataPath, LOCK_FILE).toString());
 
                 AccessLock requestLock = new AccessLock(requestFile.getAbsolutePath());
