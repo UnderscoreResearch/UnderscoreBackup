@@ -6,7 +6,7 @@ import {BackupTimespan} from "../api";
 export interface DurationProps {
     timespan?: BackupTimespan,
     onChange: (timespan?: BackupTimespan) => void,
-    noFoever? : boolean
+    noFoever?: boolean
     title: title
 }
 
@@ -45,7 +45,7 @@ export default function Timespan(props: DurationProps) {
             <TextField variant="standard"
                        defaultValue={state.duration}
                        inputProps={{min: 1, style: {textAlign: "right"}}}
-                       style={{ width: "80px" }}
+                       style={{width: "80px"}}
                        type={"number"}
                        onBlur={(e) => updateState({
                            duration: e.target.value as number,

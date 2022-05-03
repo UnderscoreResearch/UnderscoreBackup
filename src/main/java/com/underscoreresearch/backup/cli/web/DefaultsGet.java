@@ -63,7 +63,7 @@ public class DefaultsGet extends JsonWrap {
             try {
                 String physicalHome = System.getProperty("user.home");
                 String defaultRestore = Paths.get(
-                        FileSystemView.getFileSystemView().getDefaultDirectory().getPath(),
+                        physicalHome,
                         "Restore").toString();
                 String home = PathNormalizer.normalizePath(physicalHome);
                 if (home.endsWith("/")) {

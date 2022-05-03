@@ -7,10 +7,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.management.ManagementFactory;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.FileLockInterruptionException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,9 +89,21 @@ public class MapdbMetadataRepository implements MetadataRepository {
         public synchronized boolean tryLock(boolean exclusive) throws IOException {
             ensureOpenFile();
             if (lock == null) {
-                lock = channel.tryLock(0, Long.MAX_VALUE, exclusive);
+                while (true) {
+                    try {
+                        Thread.interrupted();
+                        lock = channel.tryLock(0, Long.MAX_VALUE, !exclusive);
+                        if (exclusive && lock != null) {
+                            writePid();
+                        }
+                        return lock != null;
+                    } catch (ClosedChannelException e) {
+                        ensureOpenFile();
+                    } catch (FileLockInterruptionException e) {
+                    }
+                }
             }
-            return lock != null;
+            return true;
         }
 
         private void ensureOpenFile() throws IOException {
@@ -105,7 +120,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 while (true) {
                     try {
                         Thread.interrupted();
-                        lock = channel.lock(0, Long.MAX_VALUE, exclusive);
+                        do {
+                            lock = channel.lock(0, Long.MAX_VALUE, !exclusive);
+
+                            if (exclusive) {
+                                writePid();
+                            }
+                        } while (lock == null || !lock.isValid());
                         break;
                     } catch (ClosedChannelException e) {
                         ensureOpenFile();
@@ -115,19 +136,45 @@ public class MapdbMetadataRepository implements MetadataRepository {
             }
         }
 
+        private void writePid() throws ClosedChannelException {
+            try {
+                byte[] data = (ManagementFactory.getRuntimeMXBean().getPid() + "\n")
+                        .getBytes(StandardCharsets.UTF_8);
+                ByteBuffer buffer = ByteBuffer.wrap(data);
+                lock.channel().position(0);
+                lock.channel().write(buffer);
+                lock.channel().truncate(data.length);
+            } catch (IOException e) {
+                log.warn("Failed to write PID to lock file", e);
+                try {
+                    lock.close();
+                } catch (ClosedChannelException exc) {
+                    lock = null;
+                    throw exc;
+                } catch (IOException exc) {
+                    log.error("Failed to close lock", e);
+                }
+                lock = null;
+            }
+        }
+
         public synchronized void release() throws IOException {
             if (lock != null) {
+                if (!lock.isShared()) {
+                    try {
+                        channel.truncate(0);
+                    } catch (IOException exc) {
+                        log.error("Failed to remove PID from lock file {}", filename, exc);
+                    }
+                }
                 lock.close();
                 lock = null;
             }
         }
 
         @Override
-        public void close() throws IOException {
-            if (lock != null) {
-                lock.close();
-                lock = null;
-            }
+        public synchronized void close() throws IOException {
+            release();
             if (channel != null) {
                 channel.close();
             }

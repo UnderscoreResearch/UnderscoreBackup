@@ -8,7 +8,7 @@ export interface SetsProps {
     sets: BackupSet[],
     defaults: BackupDefaults,
     destinations: DestinationProp[],
-    configurationUpdated: (valid : boolean, destinations: BackupSet[]) => void
+    configurationUpdated: (valid: boolean, destinations: BackupSet[]) => void
 }
 
 interface SetState {
@@ -16,7 +16,7 @@ interface SetState {
     set: BackupSet
 }
 
-export default function Sets(props : SetsProps) {
+export default function Sets(props: SetsProps) {
     const [state, setState] = React.useState(props.sets.map(dest => {
         return {
             valid: true,
@@ -32,7 +32,7 @@ export default function Sets(props : SetsProps) {
         return "s" + i;
     }
 
-    function createEmptySet() : SetState {
+    function createEmptySet(): SetState {
         const useState = props.sets.length > 0 ? state[0].set : props.defaults.set;
         return {
             set: {

@@ -1,6 +1,6 @@
 import {DisplayError} from "../App";
 
-function determineBaseApi() : string {
+function determineBaseApi(): string {
     if (window.location.pathname.startsWith("/fixed/")) {
         return "http://localhost:12345/fixed/api/";
     } else {
@@ -29,7 +29,7 @@ export interface BackupTimespan {
 }
 
 export type PropertyMap = {
-    [key : string] : string
+    [key: string]: string
 }
 
 export interface BackupRetentionAdditional {
@@ -67,7 +67,7 @@ export interface BackupManifest {
     localLocation?: string,
     maximumUnsyncedSize?: number,
     maximumUnsyncedSeconds?: number
-
+    optimizeSchedule?: string,
     configUser?: string
     configPassword?: string
     interactiveBackup?: boolean
@@ -93,7 +93,7 @@ export interface BackupGlobalLimits {
 }
 
 export type DestinationMap = {
-    [key : string] : BackupDestination
+    [key: string]: BackupDestination
 }
 
 export interface BackupConfiguration {
@@ -143,7 +143,7 @@ function reportError(errors: any) {
     DisplayError(errors.toString());
 }
 
-async function MakeCall(api: string, init?: RequestInit) : Promise<any | undefined> {
+async function MakeCall(api: string, init?: RequestInit): Promise<any | undefined> {
     try {
         const response = await fetch(baseApi + api, init);
         if (!response.ok) {
@@ -168,11 +168,11 @@ async function MakeCall(api: string, init?: RequestInit) : Promise<any | undefin
     }
 }
 
-export async function GetConfiguration() : Promise<BackupConfiguration | undefined> {
+export async function GetConfiguration(): Promise<BackupConfiguration | undefined> {
     return await MakeCall("configuration");
 }
 
-export async function GetDefaults() : Promise<BackupDefaults> {
+export async function GetDefaults(): Promise<BackupDefaults> {
     const defaults = await MakeCall("defaults");
     if (!defaults) {
         return {
@@ -190,15 +190,15 @@ export async function GetDefaults() : Promise<BackupDefaults> {
     return defaults;
 }
 
-export async function GetRemoteConfiguration() : Promise<BackupConfiguration | undefined> {
+export async function GetRemoteConfiguration(): Promise<BackupConfiguration | undefined> {
     return await MakeCall("remote-configuration");
 }
 
-export async function GetLocalFiles(path: string) : Promise<BackupFile[] | undefined> {
+export async function GetLocalFiles(path: string): Promise<BackupFile[] | undefined> {
     return await MakeCall("local-files/" + encodeURIComponent(path));
 }
 
-export async function GetBackupFiles(path: string, timestamp?: Date) : Promise<BackupFile[] | undefined> {
+export async function GetBackupFiles(path: string, timestamp?: Date): Promise<BackupFile[] | undefined> {
     let url = "backup-files/" + encodeURIComponent(path);
     if (timestamp) {
         url += "?timestamp=" + timestamp.getTime();
@@ -206,7 +206,7 @@ export async function GetBackupFiles(path: string, timestamp?: Date) : Promise<B
     return await MakeCall(url);
 }
 
-export async function GetActivity(temporal: boolean) : Promise<StatusLine[] | undefined> {
+export async function GetActivity(temporal: boolean): Promise<StatusLine[] | undefined> {
     const ret = await MakeCall("activity?temporal=" + (temporal ? "true" : "false")) as StatusResponse;
     if (ret) {
         return ret.status;
@@ -214,11 +214,11 @@ export async function GetActivity(temporal: boolean) : Promise<StatusLine[] | un
     return undefined;
 }
 
-export async function GetDestinationFiles(path: string, destination: string) : Promise<BackupFile[] | undefined> {
+export async function GetDestinationFiles(path: string, destination: string): Promise<BackupFile[] | undefined> {
     return await MakeCall("destination-files/" + encodeURIComponent(path) + "?destination=" + encodeURIComponent(destination));
 }
 
-export async function GetAuthEndpoint() : Promise<string | undefined> {
+export async function GetAuthEndpoint(): Promise<string | undefined> {
     const ret = await MakeCall("auth-endpoint");
     if (ret) {
         return ret.endpoint;
@@ -226,7 +226,7 @@ export async function GetAuthEndpoint() : Promise<string | undefined> {
     return undefined;
 }
 
-export async function GetEncryptionKey(passphrase?: string) : Promise<boolean> {
+export async function GetEncryptionKey(passphrase?: string): Promise<boolean> {
     const ret = await MakeCall("encryption-key", {
         method: 'POST',
         headers: {
@@ -243,11 +243,11 @@ export async function GetEncryptionKey(passphrase?: string) : Promise<boolean> {
     return ret.specified;
 }
 
-export function GetFileDownloadUrl(file: BackupFile) : string {
+export function GetFileDownloadUrl(file: BackupFile): string {
     return baseApi + "download" + file.path;
 }
 
-export async function PutEncryptionKey(passphrase: string) : Promise<boolean> {
+export async function PutEncryptionKey(passphrase: string): Promise<boolean> {
     const ret = await MakeCall("encryption-key", {
         method: 'PUT',
         headers: {
@@ -264,7 +264,7 @@ export async function PutEncryptionKey(passphrase: string) : Promise<boolean> {
     return true;
 }
 
-export async function PostConfiguration(config : BackupConfiguration) : Promise<boolean> {
+export async function PostConfiguration(config: BackupConfiguration): Promise<boolean> {
     const ret = await MakeCall("configuration", {
         method: 'POST',
         headers: {
@@ -279,7 +279,7 @@ export async function PostConfiguration(config : BackupConfiguration) : Promise<
     return ret;
 }
 
-export async function PostRemoteRestore(passphrase : string) : Promise<boolean> {
+export async function PostRemoteRestore(passphrase: string): Promise<boolean> {
     const ret = await MakeCall("remote-configuration/rebuild", {
         method: 'POST',
         headers: {
@@ -296,7 +296,7 @@ export async function PostRemoteRestore(passphrase : string) : Promise<boolean> 
     return ret;
 }
 
-export async function PostRestartSets(sets?: string[]) : Promise<boolean> {
+export async function PostRestartSets(sets?: string[]): Promise<boolean> {
     const ret = await MakeCall("sets/restart", {
         method: 'POST',
         headers: {
@@ -313,7 +313,7 @@ export async function PostRestartSets(sets?: string[]) : Promise<boolean> {
     return ret;
 }
 
-export async function PostRestore(request: BackupRestoreRequest) : Promise<boolean> {
+export async function PostRestore(request: BackupRestoreRequest): Promise<boolean> {
     const ret = await MakeCall("restore", {
         method: 'POST',
         headers: {

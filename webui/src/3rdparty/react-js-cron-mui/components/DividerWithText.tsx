@@ -1,7 +1,7 @@
 import React from "react";
 import {useTheme} from '@mui/material';
 
-const DividerWithText = ({ children }:any) => {
+const DividerWithText = ({children}: any) => {
     const theme = useTheme();
     return (
         <div style={{
@@ -11,7 +11,7 @@ const DividerWithText = ({ children }:any) => {
             <div style={{
                 borderBottom: "2px solid darkgray",
                 width: "2em"
-            }} />
+            }}/>
             <span style={{
                 paddingTop: theme.spacing(0.5),
                 paddingBottom: theme.spacing(0.5),
@@ -24,7 +24,7 @@ const DividerWithText = ({ children }:any) => {
             <div style={{
                 borderBottom: "2px solid darkgray",
                 width: "100%"
-            }} />
+            }}/>
         </div>
     );
 };

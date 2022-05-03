@@ -1,0 +1,8 @@
+#!/bin/sh
+
+su -l $USER -c 'launchctl unload ~/Library/LaunchAgents/com.underscoreresearch.UnderscoreBackup.plist' || true
+rm -rf ~/Library/UnderscoreBackup || true
+cp -r UnderscoreBackup ~/Library/UnderscoreBackup
+perl -pe 's/HOME/$ENV{HOME}/' < com.underscoreresearch.UnderscoreBackup.plist > ~/Library/LaunchAgents/com.underscoreresearch.UnderscoreBackup.plist
+su -l $USER -c 'launchctl load ~/Library/LaunchAgents/com.underscoreresearch.UnderscoreBackup.plist' || true
+su -l $USER -c 'launchctl start com.underscoreresearch.UnderscoreBackup.plist' || true

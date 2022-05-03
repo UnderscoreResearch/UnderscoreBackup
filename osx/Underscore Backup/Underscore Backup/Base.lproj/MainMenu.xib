@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
+            <connections>
+                <outlet property="delegate" destination="Voe-Tx-rLC" id="GzC-gU-4Uq"/>
+            </connections>
+        </customObject>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
+        <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="Underscore_Backup" customModuleProvider="target">
+            <connections>
+                <outlet property="configureItem" destination="V4k-90-LhR" id="R6P-Pb-WxU"/>
+                <outlet property="menu" destination="Q5k-jH-vks" id="566-RV-zim"/>
+                <outlet property="pauseItem" destination="dgf-ha-xeQ" id="Rvw-NA-TvB"/>
+            </connections>
+        </customObject>
+        <customObject id="YLy-65-1bz" customClass="NSFontManager"/>
+        <menu id="Q5k-jH-vks">
+            <items>
+                <menuItem title="Configure..." id="V4k-90-LhR">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="configure:" target="Voe-Tx-rLC" id="LMG-Kb-CXA"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Pause" id="dgf-ha-xeQ">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="pauseItem:" target="Voe-Tx-rLC" id="TwS-LE-4No"/>
+                    </connections>
+                </menuItem>
+            </items>
+            <point key="canvasLocation" x="164" y="167"/>
+        </menu>
+    </objects>
+</document>

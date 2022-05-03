@@ -21,8 +21,23 @@ import com.underscoreresearch.backup.utils.StateLogger;
 @Slf4j
 public class BackupCommand extends SimpleCommand {
     public void executeCommand() throws Exception {
-        ScannerScheduler scheduler = InstanceFactory.getInstance(ScannerScheduler.class);
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+        repository.getPendingSets().stream()
+                .filter(pendingSet -> pendingSet.getScheduledAt() == null && !pendingSet.getSetId().equals(""))
+                .forEach(pendingSet -> {
+                    try {
+                        repository.deletePendingSets(pendingSet.getSetId());
+                    } catch (IOException e) {
+                        log.error("Failed to remove completed non recurring backup set", e);
+                    }
+                });
+
+        executeBackup();
+    }
+
+    public static void executeBackup() throws Exception {
+        MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+        ScannerScheduler scheduler = InstanceFactory.getInstance(ScannerScheduler.class);
         UploadScheduler uploadScheduler = InstanceFactory.getInstance(UploadScheduler.class);
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
 

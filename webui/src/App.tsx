@@ -5,7 +5,7 @@ import {SnackbarCloseReason} from "@mui/material/Snackbar/Snackbar";
 import {BrowserRouter} from "react-router-dom";
 import {createTheme} from "@mui/material/styles";
 
-var internalDisplayError : (newMessage: string) => void;
+var internalDisplayError: (newMessage: string) => void;
 
 export function DisplayError(newMessage: string) {
     internalDisplayError(newMessage);
@@ -51,7 +51,7 @@ export default function App() {
             </Alert>
         </Snackbar>
         <ThemeProvider theme={mdTheme}>
-            <BrowserRouter basename={firstPath} >
+            <BrowserRouter basename={firstPath}>
                 <MainApp/>
             </BrowserRouter>
         </ThemeProvider>

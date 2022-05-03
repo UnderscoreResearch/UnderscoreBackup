@@ -1,10 +1,11 @@
 import * as React from "react";
 import {BackupConfiguration, BackupGlobalLimits, BackupManifest, PropertyMap} from "../api";
-import {Grid, Paper, Stack, TextField} from "@mui/material";
+import {Checkbox, FormControlLabel, Grid, Paper, Stack, TextField} from "@mui/material";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import SpeedLimit from "./SpeedLimit";
 import PropertyMapEditor from "./PropertyMapEditor";
 import UIAuthentication from "./UIAuthentication";
+import Cron from "../3rdparty/react-js-cron-mui";
 
 export interface SettingsProps {
     config: BackupConfiguration,
@@ -104,6 +105,39 @@ export default function Settings(props: SettingsProps) {
                                        maximumDownloadThreads: e.target.value as number
                                    }
                                })}/>
+                </Grid>
+            </Grid>
+        </Paper>
+        <Paper sx={{p: 2}}>
+            <DividerWithText>Advanced Settings</DividerWithText>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <FormControlLabel control={<Checkbox
+                        checked={state.manifest.optimizeSchedule !== undefined}
+                        onChange={(e) => updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                optimizeSchedule: e.target.checked ? "0 0 1 * *" : undefined
+                            }
+                        })}
+                    />} label="Automatically optimize log"/>
+                </Grid>
+                <Grid item xs={12}>
+                    <Cron disabled={state.manifest.optimizeSchedule === undefined}
+                          value={state.manifest.optimizeSchedule ? state.manifest.optimizeSchedule : "0 0 1 * *"}
+                          setValue={(newSchedule: string) => {
+                              if (state.manifest.optimizeSchedule !== undefined) {
+                                  updateState({
+                                      ...state,
+                                      manifest: {
+                                          ...state.manifest,
+                                          optimizeSchedule: newSchedule
+                                      }
+                                  })
+                              }
+                          }} clockFormat='12-hour-clock'
+                          clearButton={false}/>
                 </Grid>
             </Grid>
         </Paper>

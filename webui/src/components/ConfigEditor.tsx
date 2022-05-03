@@ -5,8 +5,8 @@ import {DisplayError} from '../App';
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import * as React from "react";
 
-export default function ConfigEditor(props : {
-    config : BackupConfiguration,
+export default function ConfigEditor(props: {
+    config: BackupConfiguration,
     onChange: (newConfig: BackupConfiguration) => void
 }) {
     function handleChange() {

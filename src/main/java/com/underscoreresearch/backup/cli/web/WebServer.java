@@ -3,6 +3,8 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.BIND_ADDRESS;
 
 import java.awt.*;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -11,9 +13,12 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
 
+import com.underscoreresearch.backup.cli.UIManager;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.lang.SystemUtils;
 import org.jetbrains.annotations.NotNull;
 import org.takes.Request;
 import org.takes.Response;
@@ -116,6 +121,8 @@ public class WebServer {
                                             new FkMethods("POST", new RestorePost()))),
                                     new FkRegex(base + "/api/remote-configuration/rebuild", new TkFork(
                                             new FkMethods("POST", new RemoteRestorePost()))),
+                                    new FkRegex(base + "/api/backup/pause", new TkFork(
+                                            new FkMethods("GET", new BackupPauseGet()))),
                                     new FkRegex(base + "/api/sets/restart", new TkFork(
                                             new FkMethods("POST", new RestartSetsPost()))),
 
@@ -176,7 +183,22 @@ public class WebServer {
             }, "Webserver");
             thread.setDaemon(true);
             thread.start();
-            log.info("URL for configuration: " + getConfigurationUrl());
+
+            URI configUrl = getConfigurationUrl();
+
+            log.info("URL for configuration: " + configUrl);
+
+            try {
+                File urlFile = new File(InstanceFactory.getInstance(CommandLineModule.URL_LOCATION));
+                urlFile.getParentFile().mkdirs();
+                urlFile.deleteOnExit();
+                try (FileWriter writer = new FileWriter(urlFile)) {
+                    writer.write(configUrl.toString());
+                }
+                ConfigurationPost.setReadOnlyFilePermissions(urlFile);
+            } catch (Exception exc) {
+                log.warn("Failed to write configuration location to disk", exc);
+            }
         }
     }
 
@@ -202,7 +224,11 @@ public class WebServer {
     public void launchPage() {
         try {
             URI uri = getConfigurationUrl();
-            Desktop.getDesktop().browse(uri);
+            if (SystemUtils.IS_OS_MAC_OSX) {
+                Runtime.getRuntime().exec(new String[] {"open", uri.toString()});
+            } else {
+                Desktop.getDesktop().browse(uri);
+            }
         } catch (IOException | HeadlessException e) {
             log.error("Can't launch browser", e);
         }

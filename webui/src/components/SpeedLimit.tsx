@@ -13,7 +13,7 @@ interface SpeedLimitState {
     unit: string
 };
 
-function decodeSpeed(speed? :number) : SpeedLimitState{
+function decodeSpeed(speed?: number): SpeedLimitState {
     if (!speed) {
         return {
             speed: 10,
@@ -45,9 +45,9 @@ function decodeSpeed(speed? :number) : SpeedLimitState{
 export default function SpeedLimit(props: SpeedLimitProps) {
     const [state, setState] = React.useState(decodeSpeed(props.speed));
 
-    function updateState(newState : SpeedLimitState) {
+    function updateState(newState: SpeedLimitState) {
         if (newState.enabled) {
-            switch(newState.unit) {
+            switch (newState.unit) {
                 case "MB":
                     props.onChange(newState.speed * 1024 * 1024);
                     break;
@@ -82,10 +82,11 @@ export default function SpeedLimit(props: SpeedLimitProps) {
                        ...state,
                        speed: e.target.value as number,
                    })}/>
-        <Select disabled={!state.enabled} style={{minWidth: "10em", margin: "4px"}} value={state.unit} onChange={(e) => updateState({
-            ...state,
-            unit: e.target.value
-        })}>
+        <Select disabled={!state.enabled} style={{minWidth: "10em", margin: "4px"}} value={state.unit}
+                onChange={(e) => updateState({
+                    ...state,
+                    unit: e.target.value
+                })}>
             <MenuItem value={"B"}>B/s</MenuItem>
             <MenuItem value={"KB"}>KB/s</MenuItem>
             <MenuItem value={"MB"}>MB/s</MenuItem>

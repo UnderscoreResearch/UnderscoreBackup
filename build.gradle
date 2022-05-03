@@ -12,7 +12,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.3.6'
+version '0.3.7'
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -66,13 +66,6 @@ runtime {
                'jdk.crypto.ec']
 }
 
-tasks.runtime.doLast {
-    copy {
-        from('src/main/resources')
-        into("$buildDir/image/bin")
-    }
-}
-
 tasks.named("compileJava").get().dependsOn("webui")
 
 tasks.withType(JavaCompile) {
@@ -113,7 +106,7 @@ task installerDef(type: Copy) {
 }
 
 task installer(dependsOn: [jre, guiexe, consoleexe, installerDef], type:Exec) {
-    workingDir 'windows'
+    workingDir "${rootProject.projectDir}/windows"
     executable 'C:\\Program Files (x86)\\Inno Setup 6\\iscc.exe'
     args "innosetup-expanded.iss"
 }
@@ -182,7 +175,7 @@ dependencies {
     testImplementation (
             'org.hamcrest:hamcrest:2.2',
             'org.junit.jupiter:junit-jupiter:5.8.2',
-            'org.mockito:mockito-junit-jupiter:4.4.0'
+            'org.mockito:mockito-junit-jupiter:4.5.1'
     )
 
     testRuntimeOnly (
@@ -195,4 +188,20 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+task installerPkg(dependsOn: ["runtime"], type:Exec) {
+    workingDir "${rootProject.projectDir}"
+    executable 'osx/createinstaller.sh'
+    args "${project.version}"
+}
+
+task uninstallerPkg(type:Exec) {
+    workingDir "${rootProject.projectDir}"
+    executable 'osx/createuninstaller.sh'
+    args "${project.version}"
+}
+
+task allDistOsx {
+    dependsOn installerPkg, uninstallerPkg, distZip, distTar
 }

@@ -1,19 +1,12 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -29,12 +22,14 @@ import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.cli.commands.BlockValidator;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.ScannerScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.RepositoryTrimmer;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -62,7 +57,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private final Map<String, Date> scheduledTimes = new HashMap<>();
     private boolean shutdown;
     private boolean scheduledRestart;
-    private boolean pending;
+    private boolean running;
+    private RepositoryTrimmer.Statistics statistics;
 
     public ScannerSchedulerImpl(BackupConfiguration configuration,
                                 MetadataRepository repository,
@@ -105,7 +101,10 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     public void start() {
         boolean hasSchedules = initializeScheduler();
 
+        updateOptimizeSchedule();
+
         lock.lock();
+        running = true;
         while (!shutdown) {
             int i = 0;
             boolean anyRan = false;
@@ -114,12 +113,14 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                     lock.unlock();
                     BackupSet set = configuration.getSets().get(i);
                     try {
-                        log.info("Started scanning {} for {}", set.getAllRoots(), set.getId());
+                        String message = String.format("Started scanning %s for %s", set.getAllRoots(), set.getId());
+                        log.info(message);
+                        UIManager.displayInfoMessage(message);
                         if (scanner.startScanning(set)) {
                             anyRan = true;
                             synchronized (scheduledTimes) {
                                 Date date = scheduledTimes.get(set.getId());
-                                if (date != null && date.after(new Date())) {
+                                if (date == null || date.after(new Date())) {
                                     try {
                                         repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
                                     } catch (IOException e) {
@@ -130,7 +131,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                             pendingSets[i] = false;
                             i++;
                             if (set.getRetention() != null) {
-                                trimmer.trimRepository();
+                                statistics = trimmer.trimRepository();
                             }
                         } else {
                             while (!shutdown && !scheduledRestart && !IOUtils.hasInternet()) {
@@ -149,33 +150,68 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
             }
 
             if (!shutdown) {
-                if (!hasSchedules) {
-                    break;
-                }
                 try {
                     try {
                         if (anyRan) {
-                            InstanceFactory.getInstance(ManifestManager.class).flushLog();
-                            InstanceFactory.getInstance(StateLogger.class).reset();
-                            InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
-                            InstanceFactory.getInstance(StateLogger.class).reset();
+                            backupCompletedCleanup();
                         }
                         repository.close();
                     } catch (IOException e) {
                         log.error("Failed to close repository before waiting", e);
                     }
+                    UIManager.displayInfoMessage("Backup completed");
+                    if (!hasSchedules) {
+                        break;
+                    }
+
                     log.info("Paused for next scheduled scan");
                     System.gc();
-                    pending = true;
+                    running = false;
                     condition.await();
                 } catch (InterruptedException e) {
                     log.error("Failed to wait", e);
                 }
-                pending = false;
+                running = true;
             }
         }
+        running = false;
         lock.unlock();
         stateLogger.reset();
+    }
+
+    private void updateOptimizeSchedule() {
+        try {
+            BackupPendingSet backupPendingSet = getOptimizeSchedulePendingSet();
+            if (backupPendingSet == null || !Objects.equals(backupPendingSet.getSchedule(),
+                    configuration.getManifest().getOptimizeSchedule())) {
+                updateOptimizeSchedule(repository, configuration.getManifest().getOptimizeSchedule());
+            }
+        } catch (IOException exc) {
+            log.error("Failed to check for optimize repository schedule", exc);
+        }
+    }
+
+    private void backupCompletedCleanup() throws IOException {
+        InstanceFactory.getInstance(ManifestManager.class).flushLog();
+        InstanceFactory.getInstance(StateLogger.class).reset();
+        InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
+        InstanceFactory.getInstance(StateLogger.class).reset();
+        BackupPendingSet pendingSet = getOptimizeSchedulePendingSet();
+        if (pendingSet != null
+                && pendingSet.getScheduledAt() != null
+                && pendingSet.getScheduledAt().before(new Date())) {
+            InstanceFactory.getInstance(ManifestManager.class)
+                    .optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
+            InstanceFactory.getInstance(StateLogger.class).reset();
+        }
+    }
+
+    private BackupPendingSet getOptimizeSchedulePendingSet() throws IOException {
+        Optional<BackupPendingSet> ret = repository.getPendingSets().stream().filter(t -> t.getSetId().equals(""))
+                .findAny();
+        if (ret.isPresent())
+            return ret.get();
+        return null;
     }
 
     private boolean initializeScheduler() {
@@ -206,10 +242,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                 BackupSet set = configuration.getSets().get(i);
                 BackupPendingSet pendingSet = pendingScheduled.remove(set.getId());
                 if (pendingSet != null
-                        && pendingSet.getSchedule().equals(set.getSchedule())
-                        && pendingSet.getScheduledAt().after(new Date())) {
-                    hasSchedules = true;
-                    scheduleNextAt(set, i, pendingSet.getScheduledAt());
+                        && Objects.equals(pendingSet.getSchedule(), set.getSchedule())
+                        && (pendingSet.getScheduledAt() == null || pendingSet.getScheduledAt().after(new Date()))) {
+                    if (pendingSet.getScheduledAt() != null) {
+                        hasSchedules = true;
+                        scheduleNextAt(set, i, pendingSet.getScheduledAt());
+                    }
                 } else {
                     deletePendingSet(set.getId());
                     pendingSets[i] = true;
@@ -218,10 +256,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         scheduleNext(set, i);
                     }
                 }
-            }
-
-            for (String setId : pendingScheduled.keySet()) {
-                deletePendingSet(setId);
             }
         } finally {
             lock.unlock();
@@ -237,31 +271,58 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         }
     }
 
-    private void scheduleNext(BackupSet set, int index) {
-        try {
-            CronParser parser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX));
-            Cron expression = parser.parse(set.getSchedule()).validate();
-
-            ZonedDateTime now = ZonedDateTime.now();
-            ExecutionTime scheduler = ExecutionTime.forCron(expression);
-            Optional<ZonedDateTime> nextExecution = scheduler.nextExecution(now);
-            if (nextExecution.isPresent()) {
-                Date date = Date.from(nextExecution.get().toInstant());
-                ;
-                if (date.getTime() - new Date().getTime() > 0) {
-                    scheduleNextAt(set, index, date);
-                }
-            } else {
-                synchronized (scheduledTimes) {
-                    scheduledTimes.remove(set.getId());
-                }
-                deletePendingSet(set.getId());
-                log.warn("No new time to schedule set");
+    public static void updateOptimizeSchedule(MetadataRepository copyRepository,
+                                              String schedule) throws IOException {
+        if (schedule != null) {
+            Date date = getNextScheduleDate(schedule);
+            if (date != null) {
+                BackupPendingSet pendingSet = BackupPendingSet.builder()
+                        .setId("")
+                        .scheduledAt(date)
+                        .schedule(schedule)
+                        .build();
+                copyRepository.addPendingSets(pendingSet);
             }
+        }
+    }
 
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid cron expression, will not reschedule after initial run: {}",
-                    set.getSchedule(), e);
+    private static Date getNextScheduleDate(String schedule) {
+        if (schedule != null) {
+            try {
+                CronParser parser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX));
+                Cron expression = parser.parse(schedule).validate();
+
+                ZonedDateTime now = ZonedDateTime.now();
+                ExecutionTime scheduler = ExecutionTime.forCron(expression);
+                Optional<ZonedDateTime> nextExecution = scheduler.nextExecution(now);
+                if (nextExecution.isPresent()) {
+                    Date date = Date.from(nextExecution.get().toInstant());
+
+                    if (date.getTime() - new Date().getTime() > 0) {
+                        return date;
+                    }
+                } else {
+                    log.warn("No new time to schedule");
+                }
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid cron expression, will not reschedule after initial run: {}",
+                        schedule, e);
+            }
+        }
+        return null;
+    }
+
+    private void scheduleNext(BackupSet set, int index) {
+        Date date = getNextScheduleDate(set.getSchedule());
+        if (date != null) {
+            if (date.getTime() - new Date().getTime() > 0) {
+                scheduleNextAt(set, index, date);
+            }
+        } else {
+            synchronized (scheduledTimes) {
+                scheduledTimes.remove(set.getId());
+            }
+            deletePendingSet(set.getId());
         }
     }
 
@@ -314,15 +375,44 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
 
     @Override
     public List<StatusLine> status() {
-        if (!pending) {
+        if (running) {
             return new ArrayList<>();
         }
         synchronized (scheduledTimes) {
-            return scheduledTimes.entrySet().stream().map(item ->
+            List<StatusLine> ret = scheduledTimes.entrySet().stream().map(item ->
                     new StatusLine(getClass(), "SCHEDULED_BACKUP_" + item.getKey(),
                             String.format("Scheduled next run of set %d at %s",
                                     indexOfSet(item.getKey()),
                                     formatTimestamp(item.getValue().getTime())))).collect(Collectors.toList());
+
+            if (statistics != null) {
+                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILES",
+                        "Total files in repository",
+                        statistics.getFiles(),
+                        statistics.getFiles() + ""));
+                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILE_VERSIONS",
+                        "Total file versions in repository",
+                        statistics.getFileVersions(),
+                        statistics.getFileVersions() + ""));
+                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE",
+                        "Total file size in repository",
+                        statistics.getTotalSize(),
+                        readableSize(statistics.getTotalSize())));
+                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE_LAST_VERSION",
+                        "Total file last version size in repository",
+                        statistics.getTotalSizeLastVersion(),
+                        readableSize(statistics.getTotalSizeLastVersion())));
+                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCKS",
+                        "Total blocks",
+                        statistics.getBlocks(),
+                        statistics.getBlocks() + ""));
+                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCK_PARTS",
+                        "Total block parts",
+                        statistics.getBlockParts(),
+                        statistics.getBlockParts() + ""));
+            }
+
+            return ret;
         }
     }
 

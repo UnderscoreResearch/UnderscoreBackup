@@ -10,7 +10,6 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @CommandPlugin(value = "optimize-log", description = "Optimize repository log", needPrivateKey = false,
         readonlyRepository = false)
@@ -19,8 +18,6 @@ public class OptimizeLogCommand extends Command {
 
     @Override
     public void executeCommand(CommandLine commandLine) throws Exception {
-        BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
-
         log.info("Rebuilding logs from repository");
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
 
