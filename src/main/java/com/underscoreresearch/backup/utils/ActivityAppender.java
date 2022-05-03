@@ -24,6 +24,7 @@ import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.underscoreresearch.backup.cli.UIManager;
 
 @Plugin(name = "ActivityAppender",
         category = Core.CATEGORY_NAME,
@@ -72,6 +73,7 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
         if (event.getLevel() != Level.DEBUG && event.getLevel() != Level.TRACE) {
             if (event.getLevel() == Level.ERROR) {
                 addEvent(errorEvents, event);
+                UIManager.displayErrorMessage(event.getMessage().getFormattedMessage());
             } else {
                 addEvent(events, event);
             }

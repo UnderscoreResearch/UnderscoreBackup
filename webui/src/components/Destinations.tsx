@@ -20,12 +20,12 @@ export interface DestinationProp {
 export interface DestinationsProps {
     destinations: DestinationProp[],
     dontDelete: string[]
-    configurationUpdated: (valid : boolean, destinations: DestinationProp[]) => void
+    configurationUpdated: (valid: boolean, destinations: DestinationProp[]) => void
 }
 
-export default function Destinations(props : DestinationsProps) {
+export default function Destinations(props: DestinationsProps) {
     const [state, setState] = React.useState(() => {
-        let destinationId : string | undefined = temporaryStorage.getItem("destinationId");
+        let destinationId: string | undefined = temporaryStorage.getItem("destinationId");
         if (destinationId) {
             const pendingDestination = JSON.parse(temporaryStorage.getItem("destination") as string);
             for (let i = 0; i < props.destinations.length; i++) {

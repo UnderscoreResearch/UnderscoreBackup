@@ -3,7 +3,7 @@ import {Checkbox, FormControlLabel, Stack, TextField} from "@mui/material";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import SetTreeView from "./SetTreeView"
+import FileTreeView from "./FileTreeView"
 import {BackupDefaults, BackupSetRoot, GetBackupFiles} from '../api';
 import DateTimePicker from '@mui/lab/DateTimePicker';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
@@ -132,11 +132,11 @@ export default function Restore(props: RestoreProps) {
                 p: 2
             }}>
                 <DividerWithText>Contents selection</DividerWithText>
-                <SetTreeView roots={state.roots}
-                             defaults={props.defaults}
-                             stateValue={state.current || ! state.timestamp ? "" : state.timestamp.getTime().toString()}
-                             fileFetcher={(path) => GetBackupFiles(path, state.current ? undefined : state.timestamp)}
-                             onChange={updateSelection}/>
+                <FileTreeView roots={state.roots}
+                              defaults={props.defaults}
+                              stateValue={state.current || !state.timestamp ? "" : state.timestamp.getTime().toString()}
+                              fileFetcher={(path) => GetBackupFiles(path, state.current ? undefined : state.timestamp)}
+                              onChange={updateSelection}/>
             </Paper>
             <Paper sx={{
                 p: 2
@@ -194,21 +194,23 @@ export default function Restore(props: RestoreProps) {
                                 });
                             }
                         }}/>} label="Only verify backup" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
-                    <FormControlLabel control={<Checkbox disabled={state.destination !== "-" && state.destination !== "="}
-                                                         checked={state.destination === "="}
-                                                         onChange={(e) => {
-                                                             if (e.target.checked) {
-                                                                 updateState({
-                                                                     ...state,
-                                                                     destination: "="
-                                                                 });
-                                                             } else {
-                                                                 updateState({
-                                                                     ...state,
-                                                                     destination: "-"
-                                                                 });
-                                                             }
-                                                         }}/>} label="Compare against local files" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
+                    <FormControlLabel
+                        control={<Checkbox disabled={state.destination !== "-" && state.destination !== "="}
+                                           checked={state.destination === "="}
+                                           onChange={(e) => {
+                                               if (e.target.checked) {
+                                                   updateState({
+                                                       ...state,
+                                                       destination: "="
+                                                   });
+                                               } else {
+                                                   updateState({
+                                                       ...state,
+                                                       destination: "-"
+                                                   });
+                                               }
+                                           }}/>} label="Compare against local files"
+                        style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
 
                 </div>
             </Paper>

@@ -2,6 +2,11 @@ package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEVELOPER_MODE;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -29,6 +34,13 @@ public class InteractiveCommand extends SimpleCommand {
 
         try {
             BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
+            if (configuration.getManifest() != null && configuration.getManifest().getLocalLocation() != null) {
+                File file = new File(configuration.getManifest().getLocalLocation(), "server.pid");
+                try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+                    writer.write(ManagementFactory.getRuntimeMXBean().getPid() + "\n");
+                }
+                file.deleteOnExit();
+            }
 
             try {
                 InstanceFactory.getInstance(PublicKeyEncrypion.class);
@@ -59,7 +71,7 @@ public class InteractiveCommand extends SimpleCommand {
                     && configuration.getManifest().getInteractiveBackup() != null
                     && configuration.getManifest().getInteractiveBackup()) {
                 InstanceFactory.getInstance(MetadataRepository.class).open(false);
-                new BackupCommand().executeCommand();
+                BackupCommand.executeBackup();
             }
         }
     }

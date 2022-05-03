@@ -26,15 +26,16 @@ export default function InitialSetup(props: InitialSetupProps) {
     const [state, setState] = React.useState({
         passphrase: "",
         passphraseConfirm: "",
-        manifest: props.currentConfig && props.currentConfig.manifest ? props.currentConfig.manifest : { destination: "do" }
+        manifest: props.currentConfig && props.currentConfig.manifest ? props.currentConfig.manifest : {destination: "do"}
     } as InitialSetupState)
 
     function configurationUpdate(valid: boolean, val?: BackupDestination) {
         if (valid) {
             var manifest = {
-                destination: "d0"
+                destination: "d0",
+                optimizeSchedule: "0 0 1 * *"
             };
-            if (props.config && props.config.manifest) {
+            if (props.currentConfig && props.currentConfig.manifest) {
                 manifest = {
                     ...props.currentConfig.manifest,
                     ...manifest
@@ -56,7 +57,7 @@ export default function InitialSetup(props: InitialSetupProps) {
         }
     }
 
-    let destinationId : string | undefined = temporaryStorage.getItem("destinationId");
+    let destinationId: string | null = temporaryStorage.getItem("destinationId");
     if (destinationId) {
         const pendingDestination = JSON.parse(temporaryStorage.getItem("destination") as string);
         props.currentConfig.destinations[destinationId] = pendingDestination;

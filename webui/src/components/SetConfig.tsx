@@ -1,6 +1,6 @@
 import * as React from "react";
 import {BackupDefaults, BackupFilter, BackupRetentionAdditional, BackupSet, BackupSetRoot, GetLocalFiles} from "../api";
-import SetTreeView from './SetTreeView'
+import FileTreeView from './FileTreeView'
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import Cron from "../3rdparty/react-js-cron-mui";
 import {EditableList} from "./EditableList";
@@ -52,13 +52,12 @@ function TabPanel(props: TabPanelProps) {
     );
 }
 
-function expandFilters(filters: BackupFilter[]) : BackupFilter[]
-{
-    let ret : BackupFilter[] = [];
+function expandFilters(filters: BackupFilter[]): BackupFilter[] {
+    let ret: BackupFilter[] = [];
     filters.forEach(filter => {
         if (filter.paths.length > 1) {
             filter.paths.forEach(path => {
-                let children : BackupFilter[]|undefined;
+                let children: BackupFilter[] | undefined;
                 if (filter.children) {
                     children = expandFilters(JSON.parse(JSON.stringify(filter.children)));
                 }
@@ -75,7 +74,7 @@ function expandFilters(filters: BackupFilter[]) : BackupFilter[]
     return ret;
 }
 
-function expandRoots(set : BackupSet, defaults: BackupDefaults) : BackupSet {
+function expandRoots(set: BackupSet, defaults: BackupDefaults): BackupSet {
     for (let i = 0; i < set.roots.length; i++) {
         const root = set.roots[i];
         if (root.filters)
@@ -87,7 +86,7 @@ function expandRoots(set : BackupSet, defaults: BackupDefaults) : BackupSet {
 }
 
 
-function createExclusionControl(item, itemUpdated: (item: string) => void): React.ReactElement {
+function createExclusionControl(item: string, itemUpdated: (item: string) => void): React.ReactElement {
     return <TextField variant="standard"
                       fullWidth={true}
                       defaultValue={item}
@@ -142,7 +141,7 @@ function AdditionalTimespans(props: {
     }
 
     function createNewItem(): BackupRetentionAdditional {
-        const olderState = props.state.set.retention.older;
+        const olderState = props.state.set.retention ? props.state.set.retention.older : undefined;
         if (olderState && olderState.length > 0) {
             const lastItem = olderState[olderState.length - 1];
             return {
@@ -173,7 +172,7 @@ function AdditionalTimespans(props: {
     });
 }
 
-export default function SetConfig(props : SetProps) {
+export default function SetConfig(props: SetProps) {
     const [state, setState] = React.useState(() => {
         return {
             tab: 0,
@@ -187,13 +186,15 @@ export default function SetConfig(props : SetProps) {
     }
 
     function changedSchedule(value: string) {
-        updateState({
-            ...state,
-            set: {
-                ...state.set,
-                schedule: value
-            }
-        })
+        if (state.set.schedule !== undefined) {
+            updateState({
+                ...state,
+                set: {
+                    ...state.set,
+                    schedule: value
+                }
+            })
+        }
     }
 
     function exclusionsChanged(items: string[]) {
@@ -230,7 +231,7 @@ export default function SetConfig(props : SetProps) {
             <Tab label="Advanced"/>
         </Tabs>
         <TabPanel value={state.tab} index={0}>
-            <SetTreeView
+            <FileTreeView
                 fileFetcher={GetLocalFiles}
                 defaults={props.defaults}
                 roots={state.set.roots}
@@ -239,10 +240,23 @@ export default function SetConfig(props : SetProps) {
             />
         </TabPanel>
         <TabPanel value={state.tab} index={1}>
-            <Cron value={state.set.schedule} setValue={changedSchedule} clockFormat='12-hour-clock'
+            <FormControlLabel control={<Checkbox
+                checked={state.set.schedule !== undefined}
+                onChange={(e) => updateState({
+                    ...state,
+                    set: {
+                        ...state.set,
+                        schedule: e.target.checked ? "0 3 * * *" : undefined
+                    }
+                })}
+            />} label="Run on schedule"/>
+
+            <Cron disabled={state.set.schedule === undefined}
+                  value={state.set.schedule ? state.set.schedule : "0 3 * * *"} setValue={changedSchedule}
+                  clockFormat='12-hour-clock'
                   clearButton={false}/>
             <DividerWithText>Retention</DividerWithText>
-            <Timespan timespan={state.set.retention.defaultFrequency}
+            <Timespan timespan={state.set.retention ? state.set.retention.defaultFrequency : undefined}
                       onChange={(newTimespace) => updateState({
                           ...state,
                           set: {
@@ -254,11 +268,12 @@ export default function SetConfig(props : SetProps) {
                           }
                       })}
                       title={"Initially keep at most one version per "}/>
-            <AdditionalTimespans items={state.set.retention.older ? state.set.retention.older : []}
-                                 state={state}
-                                 updateState={updateState}/>
+            <AdditionalTimespans
+                items={state.set.retention && state.set.retention.older ? state.set.retention.older : []}
+                state={state}
+                updateState={updateState}/>
 
-            <Timespan timespan={state.set.retention.retainDeleted}
+            <Timespan timespan={state.set.retention ? state.set.retention.retainDeleted : undefined}
                       onChange={(newTimespace) => updateState({
                           ...state,
                           set: {

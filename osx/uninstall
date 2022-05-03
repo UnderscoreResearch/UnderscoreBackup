@@ -1,0 +1,5 @@
+#!/bin/sh
+
+su -l $USER -c 'launchctl unload ~/Library/LaunchAgents/com.underscoreresearch.UnderscoreBackup.plist' || true
+rm -rf ~/Library/UnderscoreBackup || true
+rm -f ~/Library/LaunchAgents/com.underscoreresearch.UnderscoreBackup.plist || true

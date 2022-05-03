@@ -7,7 +7,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -110,10 +109,10 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
         Instant expired = Instant.now().minus(age);
 
         synchronized (pendingActivePaths) {
-            Iterator<Map.Entry<String, PendingActivePath>> iterator = pendingActivePaths.entrySet().iterator();
-            while (iterator.hasNext()) {
+            HashSet<String> entriesToRemove = new HashSet<>();
+
+            for (Map.Entry<String, PendingActivePath> entry : pendingActivePaths.entrySet()) {
                 try {
-                    Map.Entry<String, PendingActivePath> entry = iterator.next();
                     if (!entry.getValue().getSubmitted().isAfter(expired)) {
                         int ind = entry.getKey().indexOf(PATH_SEPARATOR);
                         String setId = entry.getKey().substring(0, ind);
@@ -122,12 +121,14 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                         repository.pushActivePath(setId, path, entry.getValue().getPath());
                         writeLogEntry("path", new PushActivePath(setId, path, entry.getValue().getPath()));
                         missingActivePaths.remove(entry.getKey());
-                        iterator.remove();
+                        entriesToRemove.add(entry.getKey());
                     }
                 } catch (IOException e) {
                     log.error("Failed to serialzie pending files", e);
                 }
             }
+
+            entriesToRemove.forEach(pendingActivePaths::remove);
         }
     }
 

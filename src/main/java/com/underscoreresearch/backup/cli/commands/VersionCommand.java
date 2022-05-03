@@ -22,8 +22,7 @@ public class VersionCommand extends SimpleCommand {
             if (version != null) {
                 return version;
             }
-        }
-        catch (IOException exc) {
+        } catch (IOException exc) {
             log.warn("Failed to read version", exc);
         }
 

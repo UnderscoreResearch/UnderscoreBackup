@@ -7,70 +7,70 @@ import {classNames} from '../utils'
 import {UNITS} from '../constants'
 
 export default function Minutes(props: MinutesProps) {
-  const {
-    value,
-    setValue,
-    locale,
-    className,
-    disabled,
-    readOnly,
-    leadingZero,
-    clockFormat,
-    period,
-    ...selectProps
-  } = props
-  const internalClassName = useMemo(
-    () =>
-      classNames({
-        'react-js-cron-field': true,
-        'react-js-cron-minutes': true,
-        [`${className}-field`]: !!className,
-        [`${className}-minutes`]: !!className,
-      }),
-    [className]
-  )
+    const {
+        value,
+        setValue,
+        locale,
+        className,
+        disabled,
+        readOnly,
+        leadingZero,
+        clockFormat,
+        period,
+        ...selectProps
+    } = props
+    const internalClassName = useMemo(
+        () =>
+            classNames({
+                'react-js-cron-field': true,
+                'react-js-cron-minutes': true,
+                [`${className}-field`]: !!className,
+                [`${className}-minutes`]: !!className,
+            }),
+        [className]
+    )
 
-  return (
-    <div className={internalClassName}>
-      {period === 'hour'
-        ? locale.prefixMinutesForHourPeriod !== '' && (
-            <span>
+    return (
+        <div className={internalClassName}>
+            {period === 'hour'
+                ? locale.prefixMinutesForHourPeriod !== '' && (
+                <span>
               {locale.prefixMinutesForHourPeriod ||
-                DEFAULT_LOCALE_EN.prefixMinutesForHourPeriod}
+                  DEFAULT_LOCALE_EN.prefixMinutesForHourPeriod}
             </span>
-          )
-        : locale.prefixMinutes !== '' && (
-            <span>
+            )
+                : locale.prefixMinutes !== '' && (
+                <span>
               {locale.prefixMinutes || DEFAULT_LOCALE_EN.prefixMinutes}
             </span>
-          )}
+            )}
 
-      <CustomSelect
-        placeholder={
-          period === 'hour'
-            ? locale.emptyMinutesForHourPeriod ||
-              DEFAULT_LOCALE_EN.emptyMinutesForHourPeriod
-            : locale.emptyMinutes || DEFAULT_LOCALE_EN.emptyMinutes
-        }
-        value={value}
-        unit={UNITS[0]}
-        setValue={setValue}
-        locale={locale}
-        className={className}
-        disabled={disabled}
-        readOnly={readOnly}
-        leadingZero={leadingZero}
-        clockFormat={clockFormat}
-        period={period}
-        {...selectProps}
-      />
+            <CustomSelect
+                placeholder={
+                    period === 'hour'
+                        ? locale.emptyMinutesForHourPeriod ||
+                        DEFAULT_LOCALE_EN.emptyMinutesForHourPeriod
+                        : locale.emptyMinutes || DEFAULT_LOCALE_EN.emptyMinutes
+                }
+                value={value}
+                unit={UNITS[0]}
+                setValue={setValue}
+                locale={locale}
+                className={className}
+                disabled={disabled}
+                readOnly={readOnly}
+                leadingZero={leadingZero}
+                clockFormat={clockFormat}
+                period={period}
+                {...selectProps}
+            />
 
-      {period === 'hour' && locale.suffixMinutesForHourPeriod !== '' && (
-        <span>
+            {period === 'hour' && locale.suffixMinutesForHourPeriod !== '' && (
+                <span>
           {locale.suffixMinutesForHourPeriod ||
-            DEFAULT_LOCALE_EN.suffixMinutesForHourPeriod}
+              DEFAULT_LOCALE_EN.suffixMinutesForHourPeriod}
         </span>
-      )}
-    </div>
-  )
+            )}
+        </div>
+    )
 }

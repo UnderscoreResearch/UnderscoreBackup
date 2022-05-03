@@ -11,6 +11,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.lang.SystemUtils;
 
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -49,6 +50,7 @@ public final class Main {
                 }
             }
         }
+
         InstanceFactory.initialize(argv, null);
 
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -60,36 +62,38 @@ public final class Main {
 
         try {
             CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
+
             if (commandLine.getArgList().size() == 0) {
                 help();
-            } else {
-                Class<? extends Command> command = Command.findCommandClass(commandLine.getArgList().get(0));
-                if (command != null) {
-                    CommandPlugin commandDef = command.getAnnotation(CommandPlugin.class);
+                System.exit(0);
+            }
+            Class<? extends Command> command = Command.findCommandClass(commandLine.getArgList().get(0));
+            if (command != null) {
+                CommandPlugin commandDef = command.getAnnotation(CommandPlugin.class);
 
-                    if (commandDef.needConfiguration()) {
-                        if (!InstanceFactory.hasConfiguration(commandDef.readonlyRepository())) {
-                            System.exit(1);
-                        }
-
-                        InstanceFactory.getInstance(MetadataRepository.class).open(commandDef.readonlyRepository());
+                if (commandDef.needConfiguration()) {
+                    if (!InstanceFactory.hasConfiguration(commandDef.readonlyRepository())) {
+                        System.exit(1);
                     }
 
-                    scheduledThreadPoolExecutor.scheduleAtFixedRate(() -> {
-                                InstanceFactory.getInstance(StateLogger.class).logDebug();
-                            }, 1, 1,
-                            TimeUnit.MINUTES);
-
-                    Command commandInstance = InstanceFactory.getInstance(command);
-                    commandInstance.executeCommand(commandLine);
-                    System.exit(0);
+                    InstanceFactory.getInstance(MetadataRepository.class).open(commandDef.readonlyRepository());
                 }
 
-                System.out.println("Unknown command: " + commandLine.getArgList().get(0));
-                System.out.println();
-                help();
-                System.exit(1);
+                scheduledThreadPoolExecutor.scheduleAtFixedRate(() -> {
+                            InstanceFactory.getInstance(StateLogger.class).logDebug();
+                        }, 1, 1,
+                        TimeUnit.MINUTES);
+
+                Command commandInstance = InstanceFactory.getInstance(command);
+                commandInstance.executeCommand(commandLine);
+                System.exit(0);
             }
+
+            System.out.println("Unknown command: " + commandLine.getArgList().get(0));
+            System.out.println();
+            help();
+            System.exit(1);
+
             System.exit(0);
         } catch (Exception exc) {
             Throwable parseException = exc;

@@ -7,7 +7,7 @@ import com.underscoreresearch.backup.cli.Command;
 
 public abstract class SimpleCommand extends Command {
     public void executeCommand(CommandLine commandLine) throws Exception {
-        if (commandLine.getArgList().size() != 1) {
+        if (commandLine.getArgList().size() > 1) {
             throw new ParseException("Too many arguments for command");
         }
         executeCommand();

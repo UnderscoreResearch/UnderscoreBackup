@@ -57,6 +57,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String OVER_WRITE = "over-write";
     public static final String TIMESTAMP = "timestamp";
     public static final String BIND_ADDRESS = "bind-address";
+    public static final String URL_LOCATION = "URL_LOCATION";
 
     private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
     private static final String DEFAULT_LOCAL_PATH = "/var/cache/underscorebackup";
@@ -130,6 +131,23 @@ public class CommandLineModule extends AbstractModule {
             }
         }
         throw new ParseException("Failed to derive date from parameter: " + commandLine.getOptionValue(TIMESTAMP));
+    }
+
+    @Provides
+    @Singleton
+    @Named(URL_LOCATION)
+    public String getUrlLocation() {
+        try {
+            if (SystemUtils.IS_OS_MAC_OSX) {
+                return new File(System.getProperty("user.home"),
+                        "Library/Containers/com.underscoreresearch.UnderscoreBackup.UI/Data/Applications/configuration.url")
+                        .getCanonicalPath();
+            }
+
+            return new File(getDefaultUserManifestLocation(), "configuration.url").getCanonicalPath();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Provides

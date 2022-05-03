@@ -14,353 +14,353 @@ import {getCronStringFromValues, setValuesFromCronString} from './converter'
 import './styles.css'
 
 export default function Cron(props: CronProps) {
-  const {
-    clearButton = true,
-    clearButtonProps = {},
-    clearButtonAction = 'fill-with-every',
-    locale = DEFAULT_LOCALE_EN,
-    value = '',
-    setValue,
-    displayError = true,
-    onError,
-    className,
-    defaultPeriod = 'day',
-    allowEmpty = 'for-default-value',
-    humanizeLabels = true,
-    humanizeValue = false,
-    disabled = false,
-    readOnly = false,
-    leadingZero = false,
-    shortcuts = [
-      '@yearly',
-      '@annually',
-      '@monthly',
-      '@weekly',
-      '@daily',
-      '@midnight',
-      '@hourly',
-    ],
-    clockFormat,
-    ...selectProps
-  } = props
-  const internalValueRef = useRef<string>(value)
-  const defaultPeriodRef = useRef<PeriodType>(defaultPeriod)
-  const [period, setPeriod] = useState<PeriodType | string | undefined>()
-  const [monthDays, setMonthDays] = useState<number[] | undefined>()
-  const [months, setMonths] = useState<number[] | undefined>()
-  const [weekDays, setWeekDays] = useState<number[] | undefined>()
-  const [hours, setHours] = useState<number[] | undefined>()
-  const [minutes, setMinutes] = useState<number[] | undefined>()
-  const [error, setInternalError] = useState<boolean>(false)
-  const [valueCleared, setValueCleared] = useState<boolean>(false)
-  const previousValueCleared = usePrevious(valueCleared)
-  const localeJSON = JSON.stringify(locale)
-
-  useEffect(
-    () => {
-      setValuesFromCronString(
-        value,
-        setInternalError,
+    const {
+        clearButton = true,
+        clearButtonProps = {},
+        clearButtonAction = 'fill-with-every',
+        locale = DEFAULT_LOCALE_EN,
+        value = '',
+        setValue,
+        displayError = true,
         onError,
-        allowEmpty,
-        internalValueRef,
-        true,
-        locale,
-        shortcuts,
-        setMinutes,
-        setHours,
-        setMonthDays,
-        setMonths,
-        setWeekDays,
-        setPeriod
-      )
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  )
+        className,
+        defaultPeriod = 'day',
+        allowEmpty = 'for-default-value',
+        humanizeLabels = true,
+        humanizeValue = false,
+        disabled = false,
+        readOnly = false,
+        leadingZero = false,
+        shortcuts = [
+            '@yearly',
+            '@annually',
+            '@monthly',
+            '@weekly',
+            '@daily',
+            '@midnight',
+            '@hourly',
+        ],
+        clockFormat,
+        ...selectProps
+    } = props
+    const internalValueRef = useRef<string>(value)
+    const defaultPeriodRef = useRef<PeriodType>(defaultPeriod)
+    const [period, setPeriod] = useState<PeriodType | string | undefined>()
+    const [monthDays, setMonthDays] = useState<number[] | undefined>()
+    const [months, setMonths] = useState<number[] | undefined>()
+    const [weekDays, setWeekDays] = useState<number[] | undefined>()
+    const [hours, setHours] = useState<number[] | undefined>()
+    const [minutes, setMinutes] = useState<number[] | undefined>()
+    const [error, setInternalError] = useState<boolean>(false)
+    const [valueCleared, setValueCleared] = useState<boolean>(false)
+    const previousValueCleared = usePrevious(valueCleared)
+    const localeJSON = JSON.stringify(locale)
 
-  useEffect(
-    () => {
-      if (value !== internalValueRef.current) {
-        setValuesFromCronString(
-          value,
-          setInternalError,
-          onError,
-          allowEmpty,
-          internalValueRef,
-          false,
-          locale,
-          shortcuts,
-          setMinutes,
-          setHours,
-          setMonthDays,
-          setMonths,
-          setWeekDays,
-          setPeriod
-        )
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [value, internalValueRef, localeJSON, allowEmpty, shortcuts]
-  )
+    useEffect(
+        () => {
+            setValuesFromCronString(
+                value,
+                setInternalError,
+                onError,
+                allowEmpty,
+                internalValueRef,
+                true,
+                locale,
+                shortcuts,
+                setMinutes,
+                setHours,
+                setMonthDays,
+                setMonths,
+                setWeekDays,
+                setPeriod
+            )
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    )
 
-  useEffect(
-    () => {
-      // Only change the value if a user touched a field
-      // and if the user didn't use the clear button
-      if (
-        (period ||
-          minutes ||
-          months ||
-          monthDays ||
-          weekDays ||
-          hours ||
-          minutes) &&
-        !valueCleared &&
-        !previousValueCleared
-      ) {
-        const cron = getCronStringFromValues(
-          period || defaultPeriodRef.current,
-          months,
-          monthDays,
-          weekDays,
-          hours,
-          minutes,
-          humanizeValue
-        )
+    useEffect(
+        () => {
+            if (value !== internalValueRef.current) {
+                setValuesFromCronString(
+                    value,
+                    setInternalError,
+                    onError,
+                    allowEmpty,
+                    internalValueRef,
+                    false,
+                    locale,
+                    shortcuts,
+                    setMinutes,
+                    setHours,
+                    setMonthDays,
+                    setMonths,
+                    setWeekDays,
+                    setPeriod
+                )
+            }
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [value, internalValueRef, localeJSON, allowEmpty, shortcuts]
+    )
 
-        setValue(cron)
-        internalValueRef.current = cron
+    useEffect(
+        () => {
+            // Only change the value if a user touched a field
+            // and if the user didn't use the clear button
+            if (
+                (period ||
+                    minutes ||
+                    months ||
+                    monthDays ||
+                    weekDays ||
+                    hours ||
+                    minutes) &&
+                !valueCleared &&
+                !previousValueCleared
+            ) {
+                const cron = getCronStringFromValues(
+                    period || defaultPeriodRef.current,
+                    months,
+                    monthDays,
+                    weekDays,
+                    hours,
+                    minutes,
+                    humanizeValue
+                )
 
-        onError && onError(undefined)
-        setInternalError(false)
-      } else if (valueCleared) {
-        setValueCleared(false)
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      period,
-      monthDays,
-      months,
-      weekDays,
-      hours,
-      minutes,
-      humanizeValue,
-      valueCleared,
-    ]
-  )
+                setValue(cron)
+                internalValueRef.current = cron
 
-  const handleClear = useCallback(
-    () => {
-      setMonthDays(undefined)
-      setMonths(undefined)
-      setWeekDays(undefined)
-      setHours(undefined)
-      setMinutes(undefined)
+                onError && onError(undefined)
+                setInternalError(false)
+            } else if (valueCleared) {
+                setValueCleared(false)
+            }
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [
+            period,
+            monthDays,
+            months,
+            weekDays,
+            hours,
+            minutes,
+            humanizeValue,
+            valueCleared,
+        ]
+    )
 
-      // When clearButtonAction is 'empty'
-      let newValue = ''
+    const handleClear = useCallback(
+        () => {
+            setMonthDays(undefined)
+            setMonths(undefined)
+            setWeekDays(undefined)
+            setHours(undefined)
+            setMinutes(undefined)
 
-      const newPeriod =
-        period !== 'reboot' && period ? period : defaultPeriodRef.current
+            // When clearButtonAction is 'empty'
+            let newValue = ''
 
-      if (newPeriod !== period) {
-        setPeriod(newPeriod)
-      }
+            const newPeriod =
+                period !== 'reboot' && period ? period : defaultPeriodRef.current
 
-      // When clearButtonAction is 'fill-with-every'
-      if (clearButtonAction === 'fill-with-every') {
-        const cron = getCronStringFromValues(
-          newPeriod,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined
-        )
+            if (newPeriod !== period) {
+                setPeriod(newPeriod)
+            }
 
-        newValue = cron
-      }
+            // When clearButtonAction is 'fill-with-every'
+            if (clearButtonAction === 'fill-with-every') {
+                const cron = getCronStringFromValues(
+                    newPeriod,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined
+                )
 
-      setValue(newValue)
-      internalValueRef.current = newValue
+                newValue = cron
+            }
 
-      setValueCleared(true)
+            setValue(newValue)
+            internalValueRef.current = newValue
 
-      if (allowEmpty === 'never' && clearButtonAction === 'empty') {
-        setInternalError(true)
-        setError(onError, locale)
-      } else {
-        onError && onError(undefined)
-        setInternalError(false)
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [period, setValue, onError, clearButtonAction]
-  )
+            setValueCleared(true)
 
-  const internalClassName = useMemo(
-    () =>
-      classNames({
-        'react-js-cron': true,
-        'react-js-cron-error': error && displayError,
-        'react-js-cron-disabled': disabled,
-        'react-js-cron-read-only': readOnly,
-        [`${className}`]: !!className,
-        [`${className}-error`]: error && displayError && !!className,
-        [`${className}-disabled`]: disabled && !!className,
-        [`${className}-read-only`]: readOnly && !!className,
-      }),
-    [className, error, displayError, disabled, readOnly]
-  )
+            if (allowEmpty === 'never' && clearButtonAction === 'empty') {
+                setInternalError(true)
+                setError(onError, locale)
+            } else {
+                onError && onError(undefined)
+                setInternalError(false)
+            }
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [period, setValue, onError, clearButtonAction]
+    )
 
-  const {
-    className: clearButtonClassNameProp,
-    ...otherClearButtonProps
-  } = clearButtonProps
-  const clearButtonClassName = useMemo(
-    () =>
-      classNames({
-        'react-js-cron-clear-button': true,
-        [`${className}-clear-button`]: !!className,
-        [`${clearButtonClassNameProp}`]: !!clearButtonClassNameProp,
-      }),
-    [className, clearButtonClassNameProp]
-  )
+    const internalClassName = useMemo(
+        () =>
+            classNames({
+                'react-js-cron': true,
+                'react-js-cron-error': error && displayError,
+                'react-js-cron-disabled': disabled,
+                'react-js-cron-read-only': readOnly,
+                [`${className}`]: !!className,
+                [`${className}-error`]: error && displayError && !!className,
+                [`${className}-disabled`]: disabled && !!className,
+                [`${className}-read-only`]: readOnly && !!className,
+            }),
+        [className, error, displayError, disabled, readOnly]
+    )
 
-  const otherClearButtonPropsJSON = JSON.stringify(otherClearButtonProps)
-  const clearButtonNode = useMemo(
-    () => {
-      if (clearButton && !readOnly) {
-        return (
-          <Button
-          style={{marginLeft:'10px'}}
-            className={clearButtonClassName}
-            variant='contained'
-            color='secondary'
-            disabled={disabled}
-            onClick={handleClear}
-          >
-            {locale.clearButtonText || DEFAULT_LOCALE_EN.clearButtonText}
-          </Button>
-        )
-      }
+    const {
+        className: clearButtonClassNameProp,
+        ...otherClearButtonProps
+    } = clearButtonProps
+    const clearButtonClassName = useMemo(
+        () =>
+            classNames({
+                'react-js-cron-clear-button': true,
+                [`${className}-clear-button`]: !!className,
+                [`${clearButtonClassNameProp}`]: !!clearButtonClassNameProp,
+            }),
+        [className, clearButtonClassNameProp]
+    )
 
-      return null
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      clearButton,
-      readOnly,
-      localeJSON,
-      clearButtonClassName,
-      disabled,
-      otherClearButtonPropsJSON,
-      handleClear,
-    ]
-  )
+    const otherClearButtonPropsJSON = JSON.stringify(otherClearButtonProps)
+    const clearButtonNode = useMemo(
+        () => {
+            if (clearButton && !readOnly) {
+                return (
+                    <Button
+                        style={{marginLeft: '10px'}}
+                        className={clearButtonClassName}
+                        variant='contained'
+                        color='secondary'
+                        disabled={disabled}
+                        onClick={handleClear}
+                    >
+                        {locale.clearButtonText || DEFAULT_LOCALE_EN.clearButtonText}
+                    </Button>
+                )
+            }
 
-  const periodForRender = period || defaultPeriodRef.current
+            return null
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [
+            clearButton,
+            readOnly,
+            localeJSON,
+            clearButtonClassName,
+            disabled,
+            otherClearButtonPropsJSON,
+            handleClear,
+        ]
+    )
 
-  return (
-    <div className={internalClassName}>
-      <Period
-        value={periodForRender}
-        setValue={setPeriod}
-        locale={locale}
-        className={className}
-        disabled={disabled}
-        readOnly={readOnly}
-        shortcuts={shortcuts}
-        {...selectProps}
-      />
+    const periodForRender = period || defaultPeriodRef.current
 
-      {periodForRender === 'reboot' ? (
-        clearButtonNode
-      ) : (
-          <>
-            {periodForRender === 'year' && (
-              <Months
-                value={months}
-                setValue={setMonths}
+    return (
+        <div className={internalClassName}>
+            <Period
+                value={periodForRender}
+                setValue={setPeriod}
                 locale={locale}
                 className={className}
-                humanizeLabels={humanizeLabels}
                 disabled={disabled}
                 readOnly={readOnly}
-                period={periodForRender}
+                shortcuts={shortcuts}
                 {...selectProps}
-              />
+            />
+
+            {periodForRender === 'reboot' ? (
+                clearButtonNode
+            ) : (
+                <>
+                    {periodForRender === 'year' && (
+                        <Months
+                            value={months}
+                            setValue={setMonths}
+                            locale={locale}
+                            className={className}
+                            humanizeLabels={humanizeLabels}
+                            disabled={disabled}
+                            readOnly={readOnly}
+                            period={periodForRender}
+                            {...selectProps}
+                        />
+                    )}
+
+                    {(periodForRender === 'year' || periodForRender === 'month') && (
+                        <MonthDays
+                            value={monthDays}
+                            setValue={setMonthDays}
+                            locale={locale}
+                            className={className}
+                            weekDays={weekDays}
+                            disabled={disabled}
+                            readOnly={readOnly}
+                            leadingZero={leadingZero}
+                            period={periodForRender}
+                            {...selectProps}
+                        />
+                    )}
+
+                    {(periodForRender === 'year' ||
+                        periodForRender === 'month' ||
+                        periodForRender === 'week') && (
+                        <WeekDays
+                            value={weekDays}
+                            setValue={setWeekDays}
+                            locale={locale}
+                            className={className}
+                            humanizeLabels={humanizeLabels}
+                            monthDays={monthDays}
+                            disabled={disabled}
+                            readOnly={readOnly}
+                            period={periodForRender}
+                            {...selectProps}
+                        />
+                    )}
+
+                    <div>
+                        {periodForRender !== 'minute' && periodForRender !== 'hour' && (
+                            <Hours
+                                value={hours}
+                                setValue={setHours}
+                                locale={locale}
+                                className={className}
+                                disabled={disabled}
+                                readOnly={readOnly}
+                                leadingZero={leadingZero}
+                                clockFormat={clockFormat}
+                                period={periodForRender}
+                                {...selectProps}
+                            />
+                        )}
+
+                        {periodForRender !== 'minute' && (
+                            <Minutes
+                                value={minutes}
+                                setValue={setMinutes}
+                                locale={locale}
+                                period={periodForRender}
+                                className={className}
+                                disabled={disabled}
+                                readOnly={readOnly}
+                                leadingZero={leadingZero}
+                                clockFormat={clockFormat}
+                                {...selectProps}
+                            />
+                        )}
+
+                        {clearButtonNode}
+                    </div>
+                </>
             )}
-
-            {(periodForRender === 'year' || periodForRender === 'month') && (
-              <MonthDays
-                value={monthDays}
-                setValue={setMonthDays}
-                locale={locale}
-                className={className}
-                weekDays={weekDays}
-                disabled={disabled}
-                readOnly={readOnly}
-                leadingZero={leadingZero}
-                period={periodForRender}
-                {...selectProps}
-              />
-            )}
-
-            {(periodForRender === 'year' ||
-              periodForRender === 'month' ||
-              periodForRender === 'week') && (
-                <WeekDays
-                  value={weekDays}
-                  setValue={setWeekDays}
-                  locale={locale}
-                  className={className}
-                  humanizeLabels={humanizeLabels}
-                  monthDays={monthDays}
-                  disabled={disabled}
-                  readOnly={readOnly}
-                  period={periodForRender}
-                  {...selectProps}
-                />
-              )}
-
-            <div>
-              {periodForRender !== 'minute' && periodForRender !== 'hour' && (
-                <Hours
-                  value={hours}
-                  setValue={setHours}
-                  locale={locale}
-                  className={className}
-                  disabled={disabled}
-                  readOnly={readOnly}
-                  leadingZero={leadingZero}
-                  clockFormat={clockFormat}
-                  period={periodForRender}
-                  {...selectProps}
-                />
-              )}
-
-              {periodForRender !== 'minute' && (
-                <Minutes
-                  value={minutes}
-                  setValue={setMinutes}
-                  locale={locale}
-                  period={periodForRender}
-                  className={className}
-                  disabled={disabled}
-                  readOnly={readOnly}
-                  leadingZero={leadingZero}
-                  clockFormat={clockFormat}
-                  {...selectProps}
-                />
-              )}
-
-              {clearButtonNode}
-            </div>
-          </>
-        )}
-    </div>
-  )
+        </div>
+    )
 }

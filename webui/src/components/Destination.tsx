@@ -3,7 +3,8 @@ import Paper from "@mui/material/Paper";
 import * as React from "react";
 import {Fragment} from "react";
 import {
-    Autocomplete, Button,
+    Autocomplete,
+    Button,
     FormControl,
     Grid,
     InputLabel,
@@ -32,7 +33,7 @@ export interface DestinationProps {
     id: string,
     destination: BackupDestination;
     destinationUpdated: (valid: boolean, val: BackupDestination) => void;
-    manifestDestination? : boolean
+    manifestDestination?: boolean
 }
 
 export interface TabState {
@@ -99,9 +100,11 @@ interface SharedState {
     limits: BackupLimits
 }
 
-function SharedProperties(props : { manifestDestination?: boolean,
+function SharedProperties(props: {
+    manifestDestination?: boolean,
     state: SharedState,
-    onChange: (newState: SharedState) => void}) {
+    onChange: (newState: SharedState) => void
+}) {
 
     const [state, setState] = React.useState({
         encryption: props.state.encryption,
@@ -199,7 +202,7 @@ function SharedProperties(props : { manifestDestination?: boolean,
     </Fragment>
 }
 
-function LocalFileDestination(props : DestinationProps) {
+function LocalFileDestination(props: DestinationProps) {
     const [state, setState] = React.useState({
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "",
         encryption: props.destination.encryption ? props.destination.encryption : "AES256",
@@ -259,7 +262,7 @@ function loadDropbox(callback: () => void) {
     }
 }
 
-function DropboxDestination(props : DestinationProps) {
+function DropboxDestination(props: DestinationProps) {
     const [state, setState] = React.useState({
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "",
         accessToken: props.destination.principal ? props.destination.principal : "",
@@ -317,26 +320,26 @@ function DropboxDestination(props : DestinationProps) {
     let codeVerifier = temporaryStorage.getItem("codeVerifier") as string;
     let codeLocation = window.location.href.indexOf("code=");
     if (codeVerifier && codeLocation) {
-        let code =  decodeURIComponent(window.location.href.substring(codeLocation + 5));
+        let code = decodeURIComponent(window.location.href.substring(codeLocation + 5));
         loadDropbox(() => fetchAccessToken(codeVerifier, code))
         temporaryStorage.clear();
     }
 
     async function dropboxAuthenticateAsync() {
-            let redirectUri = await GetAuthEndpoint();
-            const dbxAuth = new Dropbox.DropboxAuth({
-                clientId: DROPBOX_CLIENT_ID,
-            });
+        let redirectUri = await GetAuthEndpoint();
+        const dbxAuth = new Dropbox.DropboxAuth({
+            clientId: DROPBOX_CLIENT_ID,
+        });
 
-            dbxAuth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', undefined, undefined, true)
-                .then(authUrl => {
-                    temporaryStorage.clear();
-                    temporaryStorage.setItem("codeVerifier", dbxAuth.codeVerifier);
-                    temporaryStorage.setItem("destination", JSON.stringify(lastDestination));
-                    temporaryStorage.setItem("destinationId", props.id);
-                    window.location.href = authUrl;
-                })
-                .catch((error) => console.error(error));
+        dbxAuth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', undefined, undefined, true)
+            .then(authUrl => {
+                temporaryStorage.clear();
+                temporaryStorage.setItem("codeVerifier", dbxAuth.codeVerifier);
+                temporaryStorage.setItem("destination", JSON.stringify(lastDestination));
+                temporaryStorage.setItem("destinationId", props.id);
+                window.location.href = authUrl;
+            })
+            .catch((error) => console.error(error));
     }
 
     function launchDropboxAuthentication() {
@@ -370,7 +373,7 @@ function DropboxDestination(props : DestinationProps) {
     </Grid>;
 }
 
-function WindowsShareDestination(props : DestinationProps) {
+function WindowsShareDestination(props: DestinationProps) {
     const [state, setState] = React.useState({
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "\\\\",
         username: props.destination.principal ? props.destination.principal : "",
@@ -467,7 +470,7 @@ function WindowsShareDestination(props : DestinationProps) {
 }
 
 
-function S3Destination(props : DestinationProps) {
+function S3Destination(props: DestinationProps) {
     const [state, setState] = React.useState({
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "s3://",
         accessKeyId: props.destination.principal ? props.destination.principal : "",
@@ -596,7 +599,7 @@ function S3Destination(props : DestinationProps) {
     </Grid>
 }
 
-export default function Destination(props : DestinationProps) {
+export default function Destination(props: DestinationProps) {
 
     const [state, setState] = React.useState(() => {
         var destinationByTab = new Map<number, TabState>();

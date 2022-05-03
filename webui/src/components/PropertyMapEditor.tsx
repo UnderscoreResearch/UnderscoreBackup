@@ -11,10 +11,10 @@ interface StateProperty {
 
 export interface PropertyMapEditorProps {
     properties?: PropertyMap,
-    onChange: (properties : PropertyMap) => void
+    onChange: (properties: PropertyMap) => void
 }
 
-function decodeProperties(properties: PropertyMap | undefined) : StateProperty[] {
+function decodeProperties(properties: PropertyMap | undefined): StateProperty[] {
     let ret = [] as StateProperty[];
     if (properties) {
         Object.keys(properties).forEach(key => {

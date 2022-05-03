@@ -132,6 +132,7 @@ class RepositoryTrimmerTest {
         outsideFile = BackupFile
                 .builder()
                 .path("/outside")
+                .length(10L)
                 .locations(Lists.newArrayList(
                         BackupLocation.builder().parts(Lists.newArrayList(
                                 BackupFilePart.builder().blockHash("b").build(),
@@ -203,6 +204,7 @@ class RepositoryTrimmerTest {
             repository.addFile(BackupFile
                     .builder()
                     .path(path)
+                    .length((long) i)
                     .locations(Lists.newArrayList(
                             BackupLocation.builder().parts(Lists.newArrayList(
                                     BackupFilePart.builder().blockHash("e").build()

@@ -22,13 +22,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -41,6 +38,8 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.implementation.NullRepository;
+import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOUtils;
@@ -49,15 +48,8 @@ import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.manifest.model.BackupDirectory;
-import com.underscoreresearch.backup.model.BackupActivePath;
-import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupPartialFile;
-import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
@@ -214,7 +206,8 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 currentLogStream.flush();
                 currentLogLength += data.length;
 
-                if (currentLogLength > configuration.getManifest().getMaximumUnsyncedSize()) {
+                if (!currentlyClosingLog.get()
+                        && currentLogLength > configuration.getManifest().getMaximumUnsyncedSize()) {
                     flush = true;
                 }
             } catch (IOException exc) {
@@ -387,149 +380,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         }
 
         try {
-            LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new MetadataRepository() {
-                @Override
-                public void addFile(BackupFile file) throws IOException {
-                }
-
-                @Override
-                public List<BackupFile> file(String path) throws IOException {
-                    return null;
-                }
-
-                @Override
-                public BackupFile lastFile(String path) throws IOException {
-                    return null;
-                }
-
-                @Override
-                public boolean deleteFile(BackupFile file) throws IOException {
-                    return false;
-                }
-
-                @Override
-                public List<BackupFilePart> existingFilePart(String partHash) throws IOException {
-                    return null;
-                }
-
-                @Override
-                public boolean deleteFilePart(BackupFilePart filePart) throws IOException {
-                    return false;
-                }
-
-                @Override
-                public void addBlock(BackupBlock block) throws IOException {
-                }
-
-                @Override
-                public BackupBlock block(String hash) throws IOException {
-                    return null;
-                }
-
-                @Override
-                public boolean deleteBlock(BackupBlock block) throws IOException {
-                    return false;
-                }
-
-                @Override
-                public void addDirectory(BackupDirectory directory) throws IOException {
-                }
-
-                @Override
-                public List<BackupDirectory> directory(String path) throws IOException {
-                    return null;
-                }
-
-                @Override
-                public BackupDirectory lastDirectory(String path) throws IOException {
-                    return null;
-                }
-
-                @Override
-                public boolean deleteDirectory(String path, long timestamp) throws IOException {
-                    return false;
-                }
-
-                @Override
-                public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
-                }
-
-                @Override
-                public boolean hasActivePath(String setId, String path) throws IOException {
-                    return false;
-                }
-
-                @Override
-                public void popActivePath(String setId, String path) throws IOException {
-                }
-
-                @Override
-                public boolean deletePartialFile(BackupPartialFile file) throws IOException {
-                    return false;
-                }
-
-                @Override
-                public void savePartialFile(BackupPartialFile file) throws IOException {
-
-                }
-
-                @Override
-                public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
-                    return null;
-                }
-
-                @Override
-                public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
-                    return null;
-                }
-
-                @Override
-                public void flushLogging() throws IOException {
-                }
-
-                @Override
-                public void open(boolean readOnly) throws IOException {
-                }
-
-                @Override
-                public void close() throws IOException {
-                }
-
-                @Override
-                public Stream<BackupFile> allFiles() throws IOException {
-                    return null;
-                }
-
-                @Override
-                public Stream<BackupBlock> allBlocks() throws IOException {
-                    return null;
-                }
-
-                @Override
-                public Stream<BackupFilePart> allFileParts() throws IOException {
-                    return null;
-                }
-
-                @Override
-                public Stream<BackupDirectory> allDirectories() throws IOException {
-                    return null;
-                }
-
-                @Override
-                public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
-
-                }
-
-                @Override
-                public void deletePendingSets(String setId) throws IOException {
-
-                }
-
-                @Override
-                public Set<BackupPendingSet> getPendingSets() throws IOException {
-                    return null;
-                }
-            }, this);
+            LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this);
 
             internalInitialize();
 
@@ -574,6 +425,21 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                     }
                 }
             });
+
+            log.info("Processing pending sets");
+            existingRepository.getPendingSets().forEach((pendingSet) -> {
+                processedOperations.incrementAndGet();
+                try {
+                    if (pendingSet.getSetId() != "") {
+                        copyRepository.addPendingSets(pendingSet);
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            ScannerSchedulerImpl.updateOptimizeSchedule(copyRepository,
+                    configuration.getManifest().getOptimizeSchedule());
 
             copyRepository.close();
 

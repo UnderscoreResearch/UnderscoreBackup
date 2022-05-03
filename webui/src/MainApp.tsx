@@ -50,7 +50,7 @@ interface AppBarProps extends MuiAppBarProps {
 
 const AppBar = styled(MuiAppBar, {
     shouldForwardProp: (prop) => prop !== 'open',
-})<AppBarProps>(({ theme, open }) => ({
+})<AppBarProps>(({theme, open}) => ({
     zIndex: theme.zIndex.drawer + 1,
     transition: theme.transitions.create(['width', 'margin'], {
         easing: theme.transitions.easing.sharp,
@@ -66,8 +66,8 @@ const AppBar = styled(MuiAppBar, {
     }),
 }));
 
-const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' })(
-    ({ theme, open }) => ({
+const Drawer = styled(MuiDrawer, {shouldForwardProp: (prop) => prop !== 'open'})(
+    ({theme, open}) => ({
         '& .MuiDrawer-paper': {
             position: 'relative',
             whiteSpace: 'nowrap',
@@ -113,11 +113,12 @@ interface MainAppState {
     activity: StatusLine[]
 }
 
-var lastActivity : StatusLine[] = [];
+var lastActivity: StatusLine[] = [];
 
-function defaultState() : MainAppState {
-    const roots : BackupSetRoot[] = [];
-    function defaultConfig() : BackupConfiguration {
+function defaultState(): MainAppState {
+    const roots: BackupSetRoot[] = [];
+
+    function defaultConfig(): BackupConfiguration {
         return {
             destinations: {},
             sets: [],
@@ -127,7 +128,7 @@ function defaultState() : MainAppState {
         }
     }
 
-    const activity : StatusLine[] = [];
+    const activity: StatusLine[] = [];
 
     return {
         open: true,
@@ -387,7 +388,7 @@ export default function MainApp() {
     }, [location.pathname]);
 
     let currentProgress;
-    let acceptButtonTitle : string = "";
+    let acceptButtonTitle: string = "";
     let cancelButtonTitle = "";
     let allowRestore = true;
     let allowBackup = true;
@@ -413,7 +414,7 @@ export default function MainApp() {
             allowRestore = false;
             allowBackup = false;
         } else if (state.activity.some(item => item.code.startsWith("OPTIMIZING_"))) {
-            currentProgress = "Optimizing Local Repository";
+            currentProgress = "Optimizing Log";
             allowRestore = false;
             allowBackup = false;
         } else {
@@ -704,7 +705,7 @@ export default function MainApp() {
                         style={{position: "absolute", bottom: "8px", right: "8px", width: "220px", textAlign: "right"}}
                     >
                         {state.defaults ?
-                            <span>Version <span style={{fontWeight: "bold"}} >{state.defaults.version}</span></span>
+                            <span>Version <span style={{fontWeight: "bold"}}>{state.defaults.version}</span></span>
                             : ""}
                     </Typography>
                 </Slide>

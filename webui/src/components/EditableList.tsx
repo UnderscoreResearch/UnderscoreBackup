@@ -30,7 +30,7 @@ export interface EditableListState<Type> {
 
 var counter = 1;
 
-export function EditableList<Type>(props : EditableListProps<Type>) : React.ReactElement {
+export function EditableList<Type>(props: EditableListProps<Type>): React.ReactElement {
     const [state, setState] = React.useState(() => {
             return {
                 items: props.items.map((item) => {
@@ -93,7 +93,7 @@ export function EditableList<Type>(props : EditableListProps<Type>) : React.Reac
         }
 
         if (props.deleteBelow) {
-            var dropElement : ReactElement | undefined;
+            var dropElement: ReactElement | undefined;
             if (allowDrop || allowUp || allowDown) {
                 dropElement =
                     <div style={{width: "100%"}}>
@@ -151,7 +151,7 @@ export function EditableList<Type>(props : EditableListProps<Type>) : React.Reac
             </Collapse>
         } else {
             return <Collapse key={item.key}>
-                <div style={{ width: "100%", marginBottom: props.verticalSpacing ? props.verticalSpacing : "1em" }}>
+                <div style={{width: "100%", marginBottom: props.verticalSpacing ? props.verticalSpacing : "1em"}}>
                     {props.createItem(item.item, itemUpdated)}
                 </div>
             </Collapse>
