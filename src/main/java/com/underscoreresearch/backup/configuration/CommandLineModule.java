@@ -136,7 +136,7 @@ public class CommandLineModule extends AbstractModule {
     @Provides
     @Singleton
     @Named(URL_LOCATION)
-    public String getUrlLocation() {
+    public String getUrlLocation(@Named(DEFAULT_MANIFEST_LOCATION) String manifestLocation) {
         try {
             if (SystemUtils.IS_OS_MAC_OSX) {
                 return new File(System.getProperty("user.home"),
@@ -144,7 +144,7 @@ public class CommandLineModule extends AbstractModule {
                         .getCanonicalPath();
             }
 
-            return new File(getDefaultUserManifestLocation(), "configuration.url").getCanonicalPath();
+            return new File(manifestLocation, "configuration.url").getCanonicalPath();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
