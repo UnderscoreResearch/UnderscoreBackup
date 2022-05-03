@@ -154,12 +154,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                     try {
                         if (anyRan) {
                             backupCompletedCleanup();
+                            UIManager.displayInfoMessage("Backup completed");
                         }
                         repository.close();
                     } catch (IOException e) {
                         log.error("Failed to close repository before waiting", e);
                     }
-                    UIManager.displayInfoMessage("Backup completed");
                     if (!hasSchedules) {
                         break;
                     }
