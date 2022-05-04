@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActiveFile;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -195,15 +196,17 @@ class MapdbMetadataRepositoryTest {
             repository.addBlock(BackupBlock.builder().hash(i + "").build());
         }
 
-        repository.allBlocks().filter(t -> Integer.parseInt(t.getHash()) % 2 == 0).forEach(t -> {
-            try {
-                repository.deleteBlock(t);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
+        try (CloseableLock ignored = repository.acquireLock()) {
+            repository.allBlocks().filter(t -> Integer.parseInt(t.getHash()) % 2 == 0).forEach(t -> {
+                try {
+                    repository.deleteBlock(t);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
 
-        assertThat(repository.allBlocks().count(), Is.is(5000L));
+            assertThat(repository.allBlocks().count(), Is.is(5000L));
+        }
     }
 
     @Test

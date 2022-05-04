@@ -9,15 +9,16 @@ import java.time.Instant;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.underscoreresearch.backup.cli.web.ConfigurationPost;
-import com.underscoreresearch.backup.configuration.CommandLineModule;
-import com.underscoreresearch.backup.model.BackupConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
-import com.underscoreresearch.backup.cli.web.WebServer;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
 import org.apache.commons.lang.SystemUtils;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.underscoreresearch.backup.cli.web.ConfigurationPost;
+import com.underscoreresearch.backup.cli.web.WebServer;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class UIManager {
@@ -30,7 +31,7 @@ public class UIManager {
             try {
                 String path = new File(System.getProperty("user.home"), "Library/UnderscoreBackup/Underscore Backup.app")
                         .getCanonicalPath();
-                Runtime.getRuntime().exec(new String[] {"open", path});
+                Runtime.getRuntime().exec(new String[]{"open", path});
             } catch (Exception e) {
                 log.error("Failed to launch tray component", e);
             }

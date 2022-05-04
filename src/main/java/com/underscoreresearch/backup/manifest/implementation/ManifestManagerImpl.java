@@ -21,11 +21,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -37,6 +39,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
@@ -50,6 +53,7 @@ import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.utils.AccessLock;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
@@ -66,7 +70,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private final IOProvider provider;
     private final Encryptor encryptor;
 
-    private String currentLogName;
+    private AccessLock currentLogLock;
     private OutputStream currentLogStream;
     private long currentLogLength;
     private Object lock = new Object();
@@ -126,26 +130,39 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                     true);
             processedFiles.incrementAndGet();
 
-            File parent = Paths.get(configuration.getManifest().getLocalLocation(), "logs").toFile();
-            if (parent.isDirectory()) {
-                String[] files = parent.list();
-                totalFiles.addAndGet(files.length);
+            List<File> files = existingLogFiles();
 
-                for (String filename : files) {
-                    File file = new File(parent, filename);
-                    try (FileInputStream stream = new FileInputStream(file)) {
-                        processLogInputStream(logConsumer, stream);
+            if (files.size() > 0) {
+                totalFiles.addAndGet(files.size());
+
+                for (File file : files) {
+                    try (AccessLock lock = new AccessLock(file.getAbsolutePath())) {
+                        if (lock.tryLock(true)) {
+                            try (FileInputStream stream = new FileInputStream(file)) {
+                                processLogInputStream(logConsumer, stream);
+                            }
+                            try (FileInputStream stream = new FileInputStream(file)) {
+                                uploadConfigData(transformLogFilename(file.getAbsolutePath()), stream, true);
+                            }
+                            file.delete();
+                        } else {
+                            log.warn("Log file {} locked by other process", file.getAbsolutePath());
+                        }
                     }
-                    try (FileInputStream stream = new FileInputStream(file)) {
-                        uploadConfigData(transformLogFilename(filename), stream, true);
-                    }
-                    file.delete();
                     processedFiles.incrementAndGet();
                 }
             }
         } finally {
             resetStatus();
         }
+    }
+
+    private List<File> existingLogFiles() throws IOException {
+        File parent = Paths.get(configuration.getManifest().getLocalLocation(), "logs").toFile();
+        if (parent.isDirectory()) {
+            return Arrays.stream(parent.list()).map(file -> new File(parent, file)).collect(Collectors.toList());
+        }
+        return new ArrayList<>();
     }
 
     @Override
@@ -217,7 +234,12 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                     flushLogging();
                 } catch (IOException exc2) {
                     log.error("Start new log file", exc2);
-                    currentLogName = null;
+                    try {
+                        currentLogLock.close();
+                    } catch (IOException e) {
+                        log.error("Failed to close lock", e);
+                    }
+                    currentLogLock = null;
                 }
             }
         }
@@ -260,18 +282,20 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private void createNewLogFile() throws IOException {
         closeLogFile();
         currentLogLength = 0;
-        currentLogName = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
+        String filename = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
+        currentLogLock = new AccessLock(filename);
+        currentLogLock.lock(true);
 
-        File dir = new File(currentLogName).getParentFile();
+        File dir = new File(filename).getParentFile();
         if (!dir.isDirectory())
             dir.mkdirs();
 
-        currentLogStream = new FileOutputStream(currentLogName);
+        currentLogStream = new FileOutputStream(filename);
         if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
-            String logName = currentLogName;
+            String logName = filename;
             executor.schedule(() -> {
                         synchronized (lock) {
-                            if (logName.equals(currentLogName)) {
+                            if (currentLogLock != null && logName.equals(currentLogLock.getFilename())) {
                                 try {
                                     createNewLogFile();
                                 } catch (IOException exc) {
@@ -290,16 +314,20 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             currentLogStream.close();
             currentLogStream = null;
             currentLogLength = 0;
-            try (FileInputStream stream = new FileInputStream(currentLogName)) {
-                uploadConfigData(transformLogFilename(currentLogName), stream, true);
+            String filename = currentLogLock.getFilename();
+            try (FileInputStream stream = new FileInputStream(filename)) {
+                uploadConfigData(transformLogFilename(filename), stream, true);
             }
-            new File(currentLogName).delete();
-            currentLogName = null;
+            currentLogLock.close();
+            currentLogLock = null;
+            new File(filename).delete();
         }
     }
 
     public void flushLog() throws IOException {
-        closeLogFile();
+        synchronized (lock) {
+            closeLogFile();
+        }
     }
 
     @Override
@@ -366,6 +394,12 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     public void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException {
         initialize(logConsumer);
         internalInitialize();
+        flushLogging();
+
+        if (existingLogFiles().size() > 0) {
+            log.warn("Still having pending log files, can't optimize");
+            return;
+        }
 
         IOIndex index = (IOIndex) provider;
         List<String> existingLogs = new ArrayList<>();
@@ -379,7 +413,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             }
         }
 
-        try {
+        try (CloseableLock ignored = existingRepository.acquireLock()) {
             LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this);
 
             internalInitialize();

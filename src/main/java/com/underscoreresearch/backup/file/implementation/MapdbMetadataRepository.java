@@ -2,18 +2,8 @@ package com.underscoreresearch.backup.file.implementation;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.lang.management.ManagementFactory;
-import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.channels.FileLockInterruptionException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +15,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
@@ -32,6 +23,7 @@ import java.util.zip.GZIPOutputStream;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.jetbrains.annotations.NotNull;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
@@ -46,6 +38,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -55,6 +48,7 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
+import com.underscoreresearch.backup.utils.AccessLock;
 
 @Slf4j
 public class MapdbMetadataRepository implements MetadataRepository {
@@ -76,78 +70,27 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static final String REQUEST_LOCK_FILE = "request.lock";
     private static final String LOCK_FILE = "access.lock";
 
-    private static class AccessLock implements Closeable {
-        private String filename;
-        private RandomAccessFile file;
-        private FileChannel channel;
-        private FileLock lock;
-
-        public AccessLock(String filename) throws FileNotFoundException {
-            this.filename = filename;
-        }
-
-        public synchronized boolean tryLock(boolean exclusive) throws IOException {
-            ensureOpenFile();
-            if (lock == null) {
-                while (true) {
-                    try {
-                        Thread.interrupted();
-                        lock = channel.tryLock(0, Long.MAX_VALUE, !exclusive);
-                        if (lock == null || lock.isValid()) {
-                            return lock != null;
-                        }
-                        release();
-                    } catch (ClosedChannelException e) {
-                        ensureOpenFile();
-                    } catch (FileLockInterruptionException e) {
-                    }
-                }
-            }
-            return true;
-        }
-
-        private void ensureOpenFile() throws IOException {
-            if (channel == null || !channel.isOpen()) {
-                close();
-                file = new RandomAccessFile(filename, "rw");
-                channel = file.getChannel();
-            }
-        }
-
-        public synchronized void lock(boolean exclusive) throws IOException {
-            ensureOpenFile();
-            if (lock == null) {
-                while (true) {
-                    try {
-                        Thread.interrupted();
-                        do {
-                            lock = channel.lock(0, Long.MAX_VALUE, !exclusive);
-                        } while (lock == null || !lock.isValid());
-                        break;
-                    } catch (ClosedChannelException e) {
-                        ensureOpenFile();
-                    } catch (FileLockInterruptionException e) {
-                    }
-                }
-            }
-        }
-
-        public synchronized void release() throws IOException {
-            if (lock != null) {
-                lock.close();
-                lock = null;
-            }
+    private class MapDbRepositoryLock extends CloseableLock {
+        public MapDbRepositoryLock() {
+            MapdbMetadataRepository.this.explicitLock.lock();
         }
 
         @Override
-        public synchronized void close() throws IOException {
-            release();
-            if (channel != null) {
-                channel.close();
-            }
-            if (file != null) {
-                file.close();
-            }
+        public void close() {
+            MapdbMetadataRepository.this.explicitLock.unlock();
+        }
+    }
+
+    private class MapDbOpenLock extends MapDbRepositoryLock {
+        public MapDbOpenLock() {
+            super();
+            MapdbMetadataRepository.this.openLock.lock();
+        }
+
+        @Override
+        public void close() {
+            MapdbMetadataRepository.this.openLock.unlock();
+            super.close();
         }
     }
 
@@ -205,108 +148,111 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
 
+    private ReentrantLock explicitLock = new ReentrantLock();
+    private ReentrantLock openLock = new ReentrantLock();
+
     public MapdbMetadataRepository(String dataPath) throws IOException {
         this.dataPath = dataPath;
     }
 
     private void commit() {
-        blockDb.commit();
-        fileDb.commit();
-        directoryDb.commit();
-        partsDb.commit();
-        activePathDb.commit();
-        pendingSetDb.commit();
-        partialFileDb.commit();
-    }
-
-    public synchronized void open(boolean readOnly) throws IOException {
-        if (open && !readOnly && this.readOnly) {
-            close();
-        }
-        if (!open) {
-            open = true;
-            this.readOnly = readOnly;
-
-            if (readOnly) {
-                File requestFile = Paths.get(dataPath, REQUEST_LOCK_FILE).toFile();
-                fileLock = new AccessLock(Paths.get(dataPath, LOCK_FILE).toString());
-
-                AccessLock requestLock = new AccessLock(requestFile.getAbsolutePath());
-                if (!fileLock.tryLock(false)) {
-                    log.info("Waiting for repository access from other process");
-                    requestLock.lock(false);
-                }
-                fileLock.lock(false);
-
-                requestLock.release();
-            } else {
-                scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1,
-                        new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
-                scheduledThreadPoolExecutor.scheduleAtFixedRate(this::commit, 1, 1, TimeUnit.MINUTES);
-                scheduledThreadPoolExecutor.scheduleAtFixedRate(this::checkAccessRequest, 1, 1, TimeUnit.SECONDS);
-
-                fileLock = new AccessLock(Paths.get(dataPath, LOCK_FILE).toString());
-                if (!fileLock.tryLock(true)) {
-                    log.info("Waiting for repository access from other process");
-                    fileLock.lock(true);
-                }
+        openLock.lock();
+        try {
+            if (open) {
+                blockDb.commit();
+                fileDb.commit();
+                directoryDb.commit();
+                partsDb.commit();
+                activePathDb.commit();
+                pendingSetDb.commit();
+                partialFileDb.commit();
             }
-
-            blockDb = setupReadOnly(readOnly, DBMaker
-                    .fileDB(Paths.get(dataPath, BLOCK_STORE).toString())
-                    .fileMmapEnableIfSupported()
-                    .transactionEnable())
-                    .make();
-            fileDb = setupReadOnly(readOnly, DBMaker
-                    .fileDB(Paths.get(dataPath, FILE_STORE).toString())
-                    .fileMmapEnableIfSupported()
-                    .transactionEnable())
-                    .make();
-            directoryDb = setupReadOnly(readOnly, DBMaker
-                    .fileDB(Paths.get(dataPath, DIRECTORY_STORE).toString())
-                    .fileMmapEnableIfSupported()
-                    .transactionEnable())
-                    .make();
-            partsDb = setupReadOnly(readOnly, DBMaker
-                    .fileDB(Paths.get(dataPath, PARTS_STORE).toString())
-                    .fileMmapEnableIfSupported()
-                    .transactionEnable())
-                    .make();
-            activePathDb = setupReadOnly(readOnly, DBMaker
-                    .fileDB(Paths.get(dataPath, ACTIVE_PATH_STORE).toString())
-                    .fileMmapEnableIfSupported()
-                    .transactionEnable())
-                    .make();
-            pendingSetDb = setupReadOnly(readOnly, DBMaker
-                    .fileDB(Paths.get(dataPath, PENDING_SET_STORE).toString())
-                    .fileMmapEnableIfSupported()
-                    .transactionEnable())
-                    .make();
-            partialFileDb = setupReadOnly(readOnly, DBMaker
-                    .fileDB(Paths.get(dataPath, PARTIAL_FILE_STORE).toString())
-                    .fileMmapEnableIfSupported()
-                    .transactionEnable())
-                    .make();
-
-            blockMap = blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
-            fileMap = fileDb.treeMap(FILE_STORE)
-                    .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
-                    .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-            directoryMap = directoryDb.treeMap(FILE_STORE)
-                    .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
-                    .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-            activePathMap = activePathDb.treeMap(ACTIVE_PATH_STORE)
-                    .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
-                    .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-            partsMap = partsDb.treeMap(FILE_STORE)
-                    .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
-                    .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-            pendingSetMap = pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
-            partialFileMap = partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
+        } finally {
+            openLock.unlock();
         }
     }
 
-    private synchronized void checkAccessRequest() {
+    public void open(boolean readOnly) throws IOException    {
+        try (MapDbRepositoryLock ignored = new MapDbOpenLock()) {
+            if (open && !readOnly && this.readOnly) {
+                close();
+            }
+            if (!open) {
+                open = true;
+                this.readOnly = readOnly;
+
+                if (readOnly) {
+                    File requestFile = Paths.get(dataPath, REQUEST_LOCK_FILE).toFile();
+                    fileLock = new AccessLock(Paths.get(dataPath, LOCK_FILE).toString());
+
+                    AccessLock requestLock = new AccessLock(requestFile.getAbsolutePath());
+                    if (!fileLock.tryLock(false)) {
+                        log.info("Waiting for repository access from other process");
+                        requestLock.lock(false);
+                    }
+                    fileLock.lock(false);
+
+                    requestLock.release();
+                } else {
+                    scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1,
+                            new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
+                    scheduledThreadPoolExecutor.scheduleAtFixedRate(this::commit, 30, 30, TimeUnit.SECONDS);
+                    scheduledThreadPoolExecutor.scheduleAtFixedRate(this::checkAccessRequest, 1, 1, TimeUnit.SECONDS);
+
+                    fileLock = new AccessLock(Paths.get(dataPath, LOCK_FILE).toString());
+                    if (!fileLock.tryLock(true)) {
+                        log.info("Waiting for repository access from other process");
+                        fileLock.lock(true);
+                    }
+                }
+
+                blockDb = createDb(readOnly, BLOCK_STORE);
+                fileDb = createDb(readOnly, FILE_STORE);
+                directoryDb = createDb(readOnly, DIRECTORY_STORE);
+                partsDb = createDb(readOnly, PARTS_STORE);
+                activePathDb = createDb(readOnly, ACTIVE_PATH_STORE);
+                pendingSetDb = createDb(readOnly, PENDING_SET_STORE);
+                partialFileDb = createDb(readOnly, PARTIAL_FILE_STORE);
+
+                blockMap = blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
+                fileMap = fileDb.treeMap(FILE_STORE)
+                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
+                        .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
+                directoryMap = directoryDb.treeMap(FILE_STORE)
+                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
+                        .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
+                activePathMap = activePathDb.treeMap(ACTIVE_PATH_STORE)
+                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
+                        .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
+                partsMap = partsDb.treeMap(FILE_STORE)
+                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
+                        .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
+                pendingSetMap = pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
+                partialFileMap = partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
+            }
+        }
+    }
+
+    @NotNull
+    private DB createDb(boolean readOnly, String blockStore) {
+        DBMaker.Maker maker = DBMaker
+                .fileDB(Paths.get(dataPath, blockStore).toString())
+                .fileMmapEnableIfSupported()
+                .fileMmapPreclearDisable()
+                .transactionEnable();
+        if (readOnly)
+            maker.readOnly();
+        return maker.make();
+    }
+
+    private void checkAccessRequest() {
+        try {
+            if (!explicitLock.tryLock(500, TimeUnit.MILLISECONDS)) {
+                return;
+            }
+        } catch (InterruptedException e) {
+            return;
+        }
         try {
             AccessLock requestLock = new AccessLock(Paths.get(dataPath, REQUEST_LOCK_FILE).toString());
 
@@ -327,6 +273,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
             }
         } catch (Exception exc) {
             log.error("Failed to give access to other process", exc);
+        } finally {
+            explicitLock.unlock();
         }
     }
 
@@ -336,53 +284,57 @@ public class MapdbMetadataRepository implements MetadataRepository {
         return dbMaker;
     }
 
-    public synchronized void close() throws IOException {
-        if (open) {
-            commit();
+    public void close() throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbOpenLock()) {
+            if (open) {
+                commit();
 
-            if (scheduledThreadPoolExecutor != null) {
-                scheduledThreadPoolExecutor.shutdownNow();
-                scheduledThreadPoolExecutor = null;
+                if (scheduledThreadPoolExecutor != null) {
+                    scheduledThreadPoolExecutor.shutdownNow();
+                    scheduledThreadPoolExecutor = null;
+                }
+
+                blockMap.close();
+                fileMap.close();
+                directoryMap.close();
+                activePathMap.close();
+                partsMap.close();
+                pendingSetMap.close();
+                partialFileMap.close();
+
+                blockDb.close();
+                fileDb.close();
+                directoryDb.close();
+                partsDb.close();
+                activePathDb.close();
+                pendingSetDb.close();
+                partialFileDb.close();
+
+                fileLock.close();
+                open = false;
             }
-
-            blockMap.close();
-            fileMap.close();
-            directoryMap.close();
-            activePathMap.close();
-            partsMap.close();
-            pendingSetMap.close();
-            partialFileMap.close();
-
-            blockDb.close();
-            fileDb.close();
-            directoryDb.close();
-            partsDb.close();
-            activePathDb.close();
-            pendingSetDb.close();
-            partialFileDb.close();
-
-            fileLock.close();
-            open = false;
         }
     }
 
     @Override
-    public synchronized List<BackupFile> file(String path) throws IOException {
-        ensureOpen();
+    public List<BackupFile> file(String path) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        Map<Object[], byte[]> query =
-                fileMap.prefixSubMap(new Object[]{path});
-        List<BackupFile> files = null;
-        for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
-            if (files == null) {
-                files = new ArrayList<>();
+            Map<Object[], byte[]> query =
+                    fileMap.prefixSubMap(new Object[]{path});
+            List<BackupFile> files = null;
+            for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
+                if (files == null) {
+                    files = new ArrayList<>();
+                }
+                files.add(decodeFile(entry));
             }
-            files.add(decodeFile(entry));
+            return files;
         }
-        return files;
     }
 
-    private synchronized BackupFile decodeFile(Map.Entry<Object[], byte[]> entry) throws IOException {
+    private BackupFile decodeFile(Map.Entry<Object[], byte[]> entry) throws IOException {
         BackupFile readValue = decodeData(BACKUP_FILE_READER, entry.getValue());
         readValue.setPath((String) entry.getKey()[0]);
         readValue.setAdded((Long) entry.getKey()[1]);
@@ -393,22 +345,31 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized List<BackupFilePart> existingFilePart(String partHash) throws IOException {
-        ensureOpen();
+    public List<BackupFilePart> existingFilePart(String partHash) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        Map<Object[], byte[]> query =
-                partsMap.prefixSubMap(new Object[]{partHash});
-        List<BackupFilePart> parts = null;
-        for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
-            if (parts == null)
-                parts = new ArrayList<>();
-            parts.add(decodePath(entry));
+            Map<Object[], byte[]> query =
+                    partsMap.prefixSubMap(new Object[]{partHash});
+            List<BackupFilePart> parts = null;
+            for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
+                if (parts == null)
+                    parts = new ArrayList<>();
+                parts.add(decodePath(entry));
+            }
+            return parts;
         }
-        return parts;
+    }
+
+    private void ensureLocked() {
+        if (!explicitLock.isHeldByCurrentThread()) {
+            throw new IllegalAccessError("Called without acquiring lock");
+        }
     }
 
     @Override
-    public synchronized Stream<BackupFile> allFiles() throws IOException {
+    public Stream<BackupFile> allFiles() throws IOException {
+        ensureLocked();
         ensureOpen();
 
         return fileMap.descendingMap().entrySet().stream().map((entry) -> {
@@ -422,7 +383,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized Stream<BackupBlock> allBlocks() throws IOException {
+    public Stream<BackupBlock> allBlocks() throws IOException {
+        ensureLocked();
         ensureOpen();
 
         return blockMap.entrySet().stream().map((entry) -> {
@@ -436,7 +398,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized Stream<BackupFilePart> allFileParts() throws IOException {
+    public Stream<BackupFilePart> allFileParts() throws IOException {
+        ensureLocked();
         ensureOpen();
 
         return partsMap.entrySet().stream().map((entry) -> {
@@ -451,6 +414,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     @Override
     public Stream<BackupDirectory> allDirectories() throws IOException {
+        ensureLocked();
         ensureOpen();
 
         return directoryMap.descendingMap().entrySet().stream().map((entry) -> {
@@ -466,29 +430,46 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     @Override
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
-        pendingSetMap.put(scheduledTime.getSetId(), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            pendingSetMap.put(scheduledTime.getSetId(), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
+        }
     }
 
     @Override
     public void deletePendingSets(String setId) throws IOException {
-        pendingSetMap.remove(setId);
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            pendingSetMap.remove(setId);
+        }
     }
 
     @Override
     public Set<BackupPendingSet> getPendingSets() throws IOException {
-        return pendingSetMap.entrySet().stream().map((entry) -> {
-            try {
-                BackupPendingSet set = decodeData(BACKUP_PENDING_SET_READER, entry.getValue());
-                set.setSetId(entry.getKey());
-                return set;
-            } catch (IOException e) {
-                log.error("Invalid pending set " + entry.getKey(), e);
-                return null;
-            }
-        }).filter(t -> t != null).collect(Collectors.toSet());
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            return pendingSetMap.entrySet().stream().map((entry) -> {
+                try {
+                    BackupPendingSet set = decodeData(BACKUP_PENDING_SET_READER, entry.getValue());
+                    set.setSetId(entry.getKey());
+                    return set;
+                } catch (IOException e) {
+                    log.error("Invalid pending set " + entry.getKey(), e);
+                    return null;
+                }
+            }).filter(t -> t != null).collect(Collectors.toSet());
+        }
     }
 
-    private synchronized BackupFilePart decodePath(Map.Entry<Object[], byte[]> entry) throws IOException {
+    @Override
+    public CloseableLock acquireLock() {
+        return new MapDbRepositoryLock();
+    }
+
+    private BackupFilePart decodePath(Map.Entry<Object[], byte[]> entry) throws IOException {
         BackupFilePart readValue = decodeData(BACKUP_PART_READER, entry.getValue());
         readValue.setPartHash((String) entry.getKey()[0]);
         readValue.setBlockHash((String) entry.getKey()[1]);
@@ -496,90 +477,98 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized BackupFile lastFile(String path) throws IOException {
-        ensureOpen();
+    public BackupFile lastFile(String path) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        NavigableMap<Object[], byte[]> query =
-                fileMap.prefixSubMap(new Object[]{path});
-        if (query.size() > 0) {
-            Map.Entry<Object[], byte[]> entry = query.lastEntry();
-            return decodeFile(entry);
+            NavigableMap<Object[], byte[]> query =
+                    fileMap.prefixSubMap(new Object[]{path});
+            if (query.size() > 0) {
+                Map.Entry<Object[], byte[]> entry = query.lastEntry();
+                return decodeFile(entry);
+            }
+            return null;
         }
-        return null;
     }
 
     @Override
-    public synchronized BackupBlock block(String hash) throws IOException {
-        ensureOpen();
+    public BackupBlock block(String hash) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        byte[] data = blockMap.get(hash);
-        if (data != null) {
-            BackupBlock block = decodeBlock(hash, data);
-            block.setHash(hash);
-            return block;
+            byte[] data = blockMap.get(hash);
+            if (data != null) {
+                BackupBlock block = decodeBlock(hash, data);
+                block.setHash(hash);
+                return block;
+            }
+            return null;
         }
-        return null;
     }
 
-    private synchronized BackupBlock decodeBlock(String hash, byte[] data) throws IOException {
-        ensureOpen();
-
+    private BackupBlock decodeBlock(String hash, byte[] data) throws IOException {
         BackupBlock block = decodeData(BACKUP_BLOCK_READER, data);
         block.setHash(hash);
         return block;
     }
 
     @Override
-    public synchronized List<BackupDirectory> directory(String path) throws IOException {
-        ensureOpen();
+    public List<BackupDirectory> directory(String path) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        Map<Object[], byte[]> query =
-                directoryMap.prefixSubMap(new Object[]{path});
-        List<BackupDirectory> directories = null;
-        for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
-            if (directories == null) {
-                directories = new ArrayList<>();
+            Map<Object[], byte[]> query =
+                    directoryMap.prefixSubMap(new Object[]{path});
+            List<BackupDirectory> directories = null;
+            for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
+                if (directories == null) {
+                    directories = new ArrayList<>();
+                }
+                directories.add(new BackupDirectory(path,
+                        (Long) entry.getKey()[1],
+                        decodeData(BACKUP_DIRECTORY_READER, entry.getValue())));
             }
-            directories.add(new BackupDirectory(path,
-                    (Long) entry.getKey()[1],
-                    decodeData(BACKUP_DIRECTORY_READER, entry.getValue())));
+            return directories;
         }
-        return directories;
     }
 
     @Override
-    public synchronized BackupDirectory lastDirectory(String path) throws IOException {
-        ensureOpen();
+    public BackupDirectory lastDirectory(String path) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        NavigableMap<Object[], byte[]> query =
-                directoryMap.prefixSubMap(new Object[]{path});
-        if (query.size() > 0) {
-            Map.Entry<Object[], byte[]> entry = query.lastEntry();
-            return new BackupDirectory(path, (Long) entry.getKey()[1],
-                    decodeData(BACKUP_DIRECTORY_READER, entry.getValue()));
+            NavigableMap<Object[], byte[]> query =
+                    directoryMap.prefixSubMap(new Object[]{path});
+            if (query.size() > 0) {
+                Map.Entry<Object[], byte[]> entry = query.lastEntry();
+                return new BackupDirectory(path, (Long) entry.getKey()[1],
+                        decodeData(BACKUP_DIRECTORY_READER, entry.getValue()));
+            }
+            return null;
         }
-        return null;
     }
 
     @Override
-    public synchronized void addFile(BackupFile file) throws IOException {
-        ensureOpen();
+    public void addFile(BackupFile file) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        Long added;
-        if (file.getAdded() == null)
-            added = file.getLastChanged();
-        else
-            added = file.getAdded();
+            Long added;
+            if (file.getAdded() == null)
+                added = file.getLastChanged();
+            else
+                added = file.getAdded();
 
-        fileMap.put(new Object[]{file.getPath(), added},
-                encodeData(BACKUP_FILE_WRITER, strippedCopy(file)));
+            fileMap.put(new Object[]{file.getPath(), added},
+                    encodeData(BACKUP_FILE_WRITER, strippedCopy(file)));
 
-        if (file.getLocations() != null) {
-            for (BackupLocation location : file.getLocations()) {
-                for (BackupFilePart part : location.getParts()) {
-                    if (part.getPartHash() != null) {
-                        partsMap.put(new Object[]{part.getPartHash(), part.getBlockHash()},
-                                encodeData(BACKUP_PART_WRITER, strippedCopy(part)));
+            if (file.getLocations() != null) {
+                for (BackupLocation location : file.getLocations()) {
+                    for (BackupFilePart part : location.getParts()) {
+                        if (part.getPartHash() != null) {
+                            partsMap.put(new Object[]{part.getPartHash(), part.getBlockHash()},
+                                    encodeData(BACKUP_PART_WRITER, strippedCopy(part)));
+                        }
                     }
                 }
             }
@@ -599,10 +588,12 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized void addBlock(BackupBlock block) throws IOException {
-        ensureOpen();
+    public void addBlock(BackupBlock block) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        blockMap.put(block.getHash(), encodeData(BACKUP_BLOCK_WRITER, stripCopy(block)));
+            blockMap.put(block.getHash(), encodeData(BACKUP_BLOCK_WRITER, stripCopy(block)));
+        }
     }
 
     private BackupBlock stripCopy(BackupBlock block) {
@@ -612,46 +603,58 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized void addDirectory(BackupDirectory directory) throws IOException {
-        ensureOpen();
+    public void addDirectory(BackupDirectory directory) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        directoryMap.put(new Object[]{directory.getPath(), directory.getAdded()},
-                encodeData(BACKUP_DIRECTORY_WRITER, directory.getFiles()));
+            directoryMap.put(new Object[]{directory.getPath(), directory.getAdded()},
+                    encodeData(BACKUP_DIRECTORY_WRITER, directory.getFiles()));
+        }
     }
 
     @Override
-    public synchronized boolean deleteBlock(BackupBlock block) throws IOException {
-        ensureOpen();
+    public boolean deleteBlock(BackupBlock block) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        return blockMap.remove(block.getHash()) != null;
+            return blockMap.remove(block.getHash()) != null;
+        }
     }
 
     @Override
-    public synchronized boolean deleteFile(BackupFile file) throws IOException {
-        ensureOpen();
+    public boolean deleteFile(BackupFile file) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        return fileMap.remove(new Object[]{file.getPath(), file.getAdded()}) != null;
+            return fileMap.remove(new Object[]{file.getPath(), file.getAdded()}) != null;
+        }
     }
 
     @Override
-    public synchronized boolean deleteFilePart(BackupFilePart part) throws IOException {
-        ensureOpen();
+    public boolean deleteFilePart(BackupFilePart part) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        return partsMap.remove(new Object[]{part.getPartHash(), part.getBlockHash()}) != null;
+            return partsMap.remove(new Object[]{part.getPartHash(), part.getBlockHash()}) != null;
+        }
     }
 
     @Override
-    public synchronized boolean deleteDirectory(String path, long timestamp) throws IOException {
-        ensureOpen();
+    public boolean deleteDirectory(String path, long timestamp) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        return directoryMap.remove(new Object[]{path, timestamp}) != null;
+            return directoryMap.remove(new Object[]{path, timestamp}) != null;
+        }
     }
 
     @Override
-    public synchronized void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
-        ensureOpen();
+    public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        activePathMap.put(new Object[]{setId, path}, encodeData(BACKUP_ACTIVE_WRITER, pendingFiles));
+            activePathMap.put(new Object[]{setId, path}, encodeData(BACKUP_ACTIVE_WRITER, pendingFiles));
+        }
     }
 
     private byte[] encodeData(ObjectWriter writer, Object obj) throws IOException {
@@ -672,71 +675,83 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized boolean hasActivePath(String setId, String path) throws IOException {
-        ensureOpen();
+    public boolean hasActivePath(String setId, String path) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        return activePathMap.containsKey(new Object[]{setId, path});
-    }
-
-    @Override
-    public synchronized void popActivePath(String setId, String path) throws IOException {
-        ensureOpen();
-
-        activePathMap.remove(new Object[]{setId, path});
-    }
-
-    @Override
-    public synchronized boolean deletePartialFile(BackupPartialFile file) throws IOException {
-        ensureOpen();
-
-        return partialFileMap.remove(file.getFile().getPath()) != null;
-    }
-
-    @Override
-    public synchronized void savePartialFile(BackupPartialFile file) throws IOException {
-        ensureOpen();
-
-        partialFileMap.put(file.getFile().getPath(), encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
-    }
-
-    @Override
-    public synchronized BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
-        ensureOpen();
-
-        byte[] data = partialFileMap.get(file.getFile().getPath());
-        if (data != null) {
-            BackupPartialFile ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
-            if (Objects.equals(ret.getFile().getLength(), file.getFile().getLength())
-                    && Objects.equals(ret.getFile().getLastChanged(), file.getFile().getLastChanged())) {
-                return ret;
-            }
+            return activePathMap.containsKey(new Object[]{setId, path});
         }
-        return null;
     }
 
     @Override
-    public synchronized TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
-        ensureOpen();
+    public void popActivePath(String setId, String path) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
 
-        Map<Object[], byte[]> readMap = activePathMap;
-        if (setId != null)
-            readMap = activePathMap.prefixSubMap(new Object[]{setId});
-
-        TreeMap<String, BackupActivePath> ret = new TreeMap<>();
-        for (Map.Entry<Object[], byte[]> entry : readMap.entrySet()) {
-            BackupActivePath activePath = decodeData(BACKUP_ACTIVE_READER, entry.getValue());
-            String path = (String) entry.getKey()[1];
-            activePath.setParentPath(path);
-            activePath.setSetIds(Lists.newArrayList((String) entry.getKey()[0]));
-
-            BackupActivePath existingActive = ret.get(path);
-            if (existingActive != null) {
-                activePath.mergeChanges(existingActive);
-            }
-
-            ret.put(path, activePath);
+            activePathMap.remove(new Object[]{setId, path});
         }
-        return ret;
+    }
+
+    @Override
+    public boolean deletePartialFile(BackupPartialFile file) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            return partialFileMap.remove(file.getFile().getPath()) != null;
+        }
+    }
+
+    @Override
+    public void savePartialFile(BackupPartialFile file) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            partialFileMap.put(file.getFile().getPath(), encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
+        }
+    }
+
+    @Override
+    public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            byte[] data = partialFileMap.get(file.getFile().getPath());
+            if (data != null) {
+                BackupPartialFile ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
+                if (Objects.equals(ret.getFile().getLength(), file.getFile().getLength())
+                        && Objects.equals(ret.getFile().getLastChanged(), file.getFile().getLastChanged())) {
+                    return ret;
+                }
+            }
+            return null;
+        }
+    }
+
+    @Override
+    public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            Map<Object[], byte[]> readMap = activePathMap;
+            if (setId != null)
+                readMap = activePathMap.prefixSubMap(new Object[]{setId});
+
+            TreeMap<String, BackupActivePath> ret = new TreeMap<>();
+            for (Map.Entry<Object[], byte[]> entry : readMap.entrySet()) {
+                BackupActivePath activePath = decodeData(BACKUP_ACTIVE_READER, entry.getValue());
+                String path = (String) entry.getKey()[1];
+                activePath.setParentPath(path);
+                activePath.setSetIds(Lists.newArrayList((String) entry.getKey()[0]));
+
+                BackupActivePath existingActive = ret.get(path);
+                if (existingActive != null) {
+                    activePath.mergeChanges(existingActive);
+                }
+
+                ret.put(path, activePath);
+            }
+            return ret;
+        }
     }
 
     private void ensureOpen() throws IOException {
@@ -746,9 +761,11 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public synchronized void flushLogging() throws IOException {
-        if (open) {
-            commit();
+    public void flushLogging() throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            if (open) {
+                commit();
+            }
         }
     }
 }

@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
@@ -220,22 +221,24 @@ class RepositoryTrimmerTest {
         repository.pushActivePath("set3", "/test1/", new BackupActivePath());
         trimmer.trimRepository();
 
-        assertThat(repository.allFiles()
-                        .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
-                Is.is(ImmutableMap.of("/test1/def/test1", 13,
-                        "/test1/def/test2", 13,
-                        "/test1/def/test3", 12,
-                        "/test2/test4", 26)));
+        try (CloseableLock ignored = repository.acquireLock()) {
+            assertThat(repository.allFiles()
+                            .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
+                    Is.is(ImmutableMap.of("/test1/def/test1", 13,
+                            "/test1/def/test2", 13,
+                            "/test1/def/test3", 12,
+                            "/test2/test4", 26)));
 
-        assertThat(repository.allDirectories()
-                        .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
-                Is.is(ImmutableMap.of("/", 1,
-                        "/test1/", 1,
-                        "/test1/def/", 2,
-                        "/test2/", 1)));
+            assertThat(repository.allDirectories()
+                            .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
+                    Is.is(ImmutableMap.of("/", 1,
+                            "/test1/", 1,
+                            "/test1/def/", 2,
+                            "/test2/", 1)));
 
-        assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
-                Is.is(ImmutableSet.of("e")));
+            assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
+                    Is.is(ImmutableSet.of("e")));
+        }
 
         IOIndex provider = (IOIndex) IOProviderFactory.getProvider(destination);
         assertThat(provider.availableKeys("/"), Is.is(Lists.newArrayList("l", "m")));
@@ -247,23 +250,25 @@ class RepositoryTrimmerTest {
         repository.pushActivePath("set1", "/test1/", new BackupActivePath());
         trimmer.trimRepository();
 
-        assertThat(repository.allFiles()
-                        .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
-                Is.is(ImmutableMap.of("/test1/def/test1", 13,
-                        "/test1/def/test2", 13,
-                        "/test1/def/test3", 12,
-                        "/test2/test4", 26)));
+        try (CloseableLock ignored = repository.acquireLock()) {
+            assertThat(repository.allFiles()
+                            .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
+                    Is.is(ImmutableMap.of("/test1/def/test1", 13,
+                            "/test1/def/test2", 13,
+                            "/test1/def/test3", 12,
+                            "/test2/test4", 26)));
 
-        assertThat(repository.allDirectories()
-                        .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
-                Is.is(ImmutableMap.of("/", 1,
-                        "/test1/", 1,
-                        "/test1/abc/", 2,
-                        "/test1/def/", 2,
-                        "/test2/", 1)));
+            assertThat(repository.allDirectories()
+                            .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
+                    Is.is(ImmutableMap.of("/", 1,
+                            "/test1/", 1,
+                            "/test1/abc/", 2,
+                            "/test1/def/", 2,
+                            "/test2/", 1)));
 
-        assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
-                Is.is(ImmutableSet.of("a", "e")));
+            assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
+                    Is.is(ImmutableSet.of("a", "e")));
+        }
 
         IOIndex provider = (IOIndex) IOProviderFactory.getProvider(destination);
         assertThat(provider.availableKeys("/"), Is.is(Lists.newArrayList("b", "c", "d", "e", "l", "m")));

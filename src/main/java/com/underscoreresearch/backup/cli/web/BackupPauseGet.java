@@ -1,29 +1,18 @@
 package com.underscoreresearch.backup.cli.web;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.underscoreresearch.backup.cli.ConfigurationValidator;
-import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupConfiguration;
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
+
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.SystemUtils;
+
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.Take;
-import org.takes.rq.RqPrint;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.nio.file.Files;
-import java.nio.file.attribute.PosixFilePermission;
-import java.util.HashSet;
-
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_FILE_LOCATION;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class BackupPauseGet extends JsonWrap {

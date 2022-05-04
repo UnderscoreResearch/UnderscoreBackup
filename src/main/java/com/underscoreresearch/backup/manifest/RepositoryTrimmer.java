@@ -27,6 +27,7 @@ import org.mapdb.Serializer;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
@@ -62,6 +63,7 @@ public class RepositoryTrimmer implements StatusLogger {
         private long deletedDirectoryVersions;
         private long deletedDirectories;
         private long deletedBlockParts;
+        private long deletedBlockPartReferences;
 
         private synchronized void addFiles(long files) {
             this.files += files;
@@ -109,6 +111,10 @@ public class RepositoryTrimmer implements StatusLogger {
 
         private synchronized void addDeletedBlockParts(long deletedParts) {
             this.deletedBlockParts += deletedParts;
+        }
+
+        private synchronized void addDeletedBlockPartReferences(long deletedParts) {
+            this.deletedBlockPartReferences += deletedParts;
         }
     }
 
@@ -183,7 +189,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
                 boolean hasActivePaths = trimActivePaths();
 
-                try {
+                try (CloseableLock ignored = metadataRepository.acquireLock()) {
                     stopwatch.start();
                     lastHeartbeat = Duration.ZERO;
 
@@ -264,8 +270,29 @@ public class RepositoryTrimmer implements StatusLogger {
                     }
                 });
 
-        log.info("Deleted {} blocks with a total of {} parts",
-                statistics.getDeletedBlocks(), statistics.getDeletedBlockParts());
+        log.info("Trimming partial references");
+        metadataRepository.allFileParts().forEach((part) -> {
+            if (InstanceFactory.isShutdown())
+                throw new RuntimeException(new java.lang.InterruptedException());
+            processedSteps.incrementAndGet();
+
+            try {
+                if (metadataRepository.block(part.getBlockHash()) == null) {
+                    debug(() -> log.debug("Removing file part {} references non existing block {}",
+                            part.getPartHash(), part.getBlockHash()));
+                    statistics.addDeletedBlockPartReferences(1);
+                    metadataRepository.deleteFilePart(part);
+                }
+            } catch (IOException exc) {
+                log.error("Encountered issue validating part {} for block {}", part.getPartHash(),
+                        part.getBlockHash());
+            }
+        });
+
+
+        log.info("Deleted {} blocks with a total of {} parts and {} part references",
+                statistics.getDeletedBlocks(), statistics.getDeletedBlockParts(),
+                statistics.getDeletedBlockPartReferences());
     }
 
     private void trimFilesAndDirectories(HTreeMap<String, Boolean> usedBlockMap,

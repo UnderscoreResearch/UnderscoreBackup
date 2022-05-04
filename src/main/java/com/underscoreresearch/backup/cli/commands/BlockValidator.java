@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -39,7 +40,7 @@ public class BlockValidator implements StatusLogger {
         lastHeartbeat = Duration.ZERO;
 
         log.info("Validating all blocks of files");
-        try {
+        try (CloseableLock ignored = repository.acquireLock()) {
             repository.allFiles().forEach((file) -> {
                 if (InstanceFactory.isShutdown())
                     throw new RuntimeException(new InterruptedException());
@@ -88,23 +89,6 @@ public class BlockValidator implements StatusLogger {
                 }
             });
 
-            log.info("Validating partial blocks");
-            repository.allFileParts().forEach((part) -> {
-                if (InstanceFactory.isShutdown())
-                    throw new RuntimeException(new InterruptedException());
-                processedSteps.incrementAndGet();
-
-                try {
-                    if (!validateHash(repository, part.getBlockHash(), null, maxBlockSize)) {
-                        log.warn("File part {} references non existing block {}", part.getPartHash(), part.getBlockHash());
-                        repository.deleteFilePart(part);
-                    }
-                } catch (IOException exc) {
-                    log.error("Encountered issue validating part {} for block {}", part.getPartHash(),
-                            part.getBlockHash());
-                }
-            });
-
             log.info("Completed block validation");
         } catch (RuntimeException exc) {
             if (exc.getCause() instanceof InterruptedException) {
@@ -119,7 +103,7 @@ public class BlockValidator implements StatusLogger {
                                  int maxBlockSize) throws IOException {
         BackupBlock block = repository.block(blockHash);
         if (block == null) {
-            log.warn("Block hash {} does not exist", blockHash);
+            log.error("Block hash {} does not exist", blockHash);
             return false;
         }
         if (block.isSuperBlock()) {

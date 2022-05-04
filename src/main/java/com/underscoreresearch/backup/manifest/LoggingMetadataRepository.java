@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
@@ -209,6 +210,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public Set<BackupPendingSet> getPendingSets() throws IOException {
         return repository.getPendingSets();
+    }
+
+    @Override
+    public CloseableLock acquireLock() {
+        return repository.acquireLock();
     }
 
     @Override

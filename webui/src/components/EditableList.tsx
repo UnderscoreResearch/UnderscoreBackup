@@ -90,6 +90,7 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
                     items: newItems
                 }
             );
+            props.onItemChanged(newItems.map(item => item.item));
         }
 
         if (props.deleteBelow) {
