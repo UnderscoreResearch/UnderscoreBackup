@@ -24,7 +24,8 @@ public class TrimRepositoryCommand extends Command {
 
         RepositoryTrimmer trimmer = new RepositoryTrimmer(repository, configuration, commandLine.hasOption(FORCE));
         trimmer.trimRepository();
-        repository.close();
+        repository.flushLogging();
         manager.shutdown();
+        repository.close();
     }
 }

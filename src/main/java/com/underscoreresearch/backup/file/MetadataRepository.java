@@ -80,4 +80,6 @@ public interface MetadataRepository {
     void deletePendingSets(String setId) throws IOException;
 
     Set<BackupPendingSet> getPendingSets() throws IOException;
+
+    CloseableLock acquireLock();
 }

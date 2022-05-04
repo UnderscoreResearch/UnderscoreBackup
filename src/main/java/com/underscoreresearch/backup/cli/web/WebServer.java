@@ -13,8 +13,6 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
 
-import com.underscoreresearch.backup.cli.UIManager;
-import com.underscoreresearch.backup.configuration.CommandLineModule;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -40,6 +38,7 @@ import org.takes.http.FtBasic;
 import org.takes.misc.Opt;
 import org.takes.tk.TkWithType;
 
+import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -225,7 +224,7 @@ public class WebServer {
         try {
             URI uri = getConfigurationUrl();
             if (SystemUtils.IS_OS_MAC_OSX) {
-                Runtime.getRuntime().exec(new String[] {"open", uri.toString()});
+                Runtime.getRuntime().exec(new String[]{"open", uri.toString()});
             } else {
                 Desktop.getDesktop().browse(uri);
             }

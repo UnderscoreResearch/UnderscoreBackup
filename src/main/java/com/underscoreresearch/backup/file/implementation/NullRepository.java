@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -156,5 +157,14 @@ public class NullRepository implements MetadataRepository {
     @Override
     public Set<BackupPendingSet> getPendingSets() throws IOException {
         return null;
+    }
+
+    @Override
+    public CloseableLock acquireLock() {
+        return new CloseableLock() {
+            @Override
+            public void close() {
+            }
+        };
     }
 }
