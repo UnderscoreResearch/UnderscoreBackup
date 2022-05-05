@@ -201,10 +201,6 @@ public class ConfigurationValidator {
 
                 File file = new File(root.getPath());
                 if (file.exists()) {
-                    if (!file.isDirectory()) {
-                        throw new IllegalArgumentException("Backup set root " + root.getPath() + "is not directory");
-                    }
-
                     try {
                         String rootFile = file.toPath().toRealPath().toString();
                         String existingRoot = file.toPath().toString();

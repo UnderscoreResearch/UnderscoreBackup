@@ -38,16 +38,24 @@ public abstract class InstanceFactory {
         }));
     }
 
+    private static BackupConfiguration cachedConfig;
+    private static boolean cachedHasConfig;
+
     public static boolean hasConfiguration(boolean readOnly) {
         try {
-            ConfigurationValidator.validateConfiguration(
-                    InstanceFactory.getInstance(BackupConfiguration.class),
+            BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+            if (cachedConfig == config) {
+                return cachedHasConfig;
+            }
+            cachedConfig = config;
+            ConfigurationValidator.validateConfiguration(config,
                     readOnly);
+            cachedHasConfig = true;
         } catch (Exception exc) {
             System.out.println(exc.getMessage());
-            return false;
+            cachedHasConfig = false;
         }
-        return true;
+        return cachedHasConfig;
     }
 
     protected abstract <T> T instance(Class<T> tClass);

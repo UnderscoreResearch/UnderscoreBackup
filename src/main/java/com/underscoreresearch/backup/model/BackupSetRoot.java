@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.model;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 
 import java.util.List;
 
@@ -33,9 +34,7 @@ public class BackupSetRoot {
 
     @JsonIgnore
     public boolean includeFile(String file, BackupSet set) {
-        if (file.startsWith(normalizedPath)
-                || (file.length() == normalizedPath.length() - PATH_SEPARATOR.length() && normalizedPath.startsWith(file))
-                || normalizedPath.equals("/")) {
+        if (fileInRoot(file)) {
             if (file.endsWith(PATH_SEPARATOR)) {
                 file = file.substring(0, file.length() - PATH_SEPARATOR.length());
             }
@@ -45,10 +44,10 @@ public class BackupSetRoot {
                 return false;
             }
 
-            if (file.length() == normalizedPath.length() - PATH_SEPARATOR.length()) {
+            if (withoutFinalSeparator(file).length() == withoutFinalSeparator(normalizedPath).length()) {
                 return true;
             } else {
-                String subPath = file.substring(normalizedPath.length());
+                String subPath = getSubPath(file);
                 if (filters != null) {
                     for (BackupFilter filter : filters) {
                         String filterPath = filter.fileMatch(subPath);
@@ -64,10 +63,29 @@ public class BackupSetRoot {
         }
     }
 
+    private boolean fileInRoot(String file) {
+        return withoutFinalSeparator(file).equals(withoutFinalSeparator(normalizedPath))
+                || file.startsWith(withFinalSeparator(normalizedPath))
+                || normalizedPath.equals(ROOT);
+    }
+
+    private static String withFinalSeparator(String path) {
+        if (path.endsWith(PATH_SEPARATOR))
+            return path;
+        return path + PATH_SEPARATOR;
+    }
+
+    private static String withoutFinalSeparator(String path) {
+        if (path.endsWith(PATH_SEPARATOR))
+            return path.substring(0, path.length() - 1);
+        return path;
+    }
+
     @JsonIgnore
     public boolean inRoot(String file) {
-        if (file.startsWith(normalizedPath)
-                || (file.length() == normalizedPath.length() - PATH_SEPARATOR.length() && normalizedPath.startsWith(file))) {
+        if (file.equals(normalizedPath)
+                || file.startsWith(withFinalSeparator(normalizedPath))
+                || normalizedPath.equals(ROOT)) {
             return true;
         }
         return false;
@@ -75,16 +93,12 @@ public class BackupSetRoot {
 
     @JsonIgnore
     public boolean includeDirectory(String path) {
-        if (path.startsWith(normalizedPath)
-                || (path.length() == normalizedPath.length() - PATH_SEPARATOR.length() && normalizedPath.startsWith(path))) {
-            if (path.endsWith(PATH_SEPARATOR)) {
-                path = path.substring(0, path.length() - PATH_SEPARATOR.length());
-            }
+        if (fileInRoot(path)) {
 
-            if (path.length() == normalizedPath.length() - PATH_SEPARATOR.length()) {
+            if (withoutFinalSeparator(path).length() == withoutFinalSeparator(normalizedPath).length()) {
                 return true;
             } else {
-                String subPath = path.substring(normalizedPath.length());
+                String subPath = getSubPath(path);
                 if (filters != null) {
                     for (BackupFilter filter : filters) {
                         String filterPath = filter.fileMatch(subPath);
@@ -100,13 +114,22 @@ public class BackupSetRoot {
         }
     }
 
+    private String getSubPath(String path) {
+        String subPath;
+        if (path.startsWith(normalizedPath)) {
+            subPath = path.substring(normalizedPath.length());
+        } else {
+            subPath = path;
+        }
+        if (subPath.startsWith(PATH_SEPARATOR)) {
+            subPath = subPath.substring(1);
+        }
+        return subPath;
+    }
+
     @JsonIgnore
     public void setNormalizedPath(String path) {
-        if (path != null && !path.endsWith(PATH_SEPARATOR)) {
-            this.normalizedPath = path + PATH_SEPARATOR;
-        } else {
-            this.normalizedPath = path;
-        }
+        this.normalizedPath = path;
     }
 
     public String getPath() {

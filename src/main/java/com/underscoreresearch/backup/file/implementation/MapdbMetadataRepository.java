@@ -711,6 +711,15 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
+    public void clearPartialFiles() throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            partialFileMap.clear();
+        }
+    }
+
+    @Override
     public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
         try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
             ensureOpen();

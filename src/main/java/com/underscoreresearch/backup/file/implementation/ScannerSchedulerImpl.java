@@ -38,6 +38,7 @@ import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.ScannerScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.io.implementation.DownloadSchedulerImpl;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.RepositoryTrimmer;
@@ -67,7 +68,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private boolean shutdown;
     private boolean scheduledRestart;
     private boolean running;
-    private RepositoryTrimmer.Statistics statistics;
+    private static RepositoryTrimmer.Statistics statistics;
 
     public ScannerSchedulerImpl(BackupConfiguration configuration,
                                 MetadataRepository repository,
@@ -384,7 +385,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
 
     @Override
     public List<StatusLine> status() {
-        if (running) {
+        if (running || InstanceFactory.getInstance(DownloadSchedulerImpl.class).status().size() > 0) {
             return new ArrayList<>();
         }
         synchronized (scheduledTimes) {

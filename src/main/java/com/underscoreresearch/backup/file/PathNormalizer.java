@@ -10,21 +10,33 @@ import lombok.NoArgsConstructor;
 public final class PathNormalizer {
 
     public static final String PATH_SEPARATOR = "/";
+    public static final String ROOT = "/";
 
     public static String normalizePath(final String path) {
-        if (path.equals("/") || path.equals(File.separator)) {
-            return "/";
+        if (path.equals(ROOT) || path.equals(File.separator)) {
+            return ROOT;
         }
 
         String ret;
+        boolean directory = path.endsWith(File.separator);
         try {
-            File file = new File(System.getProperty("user.dir"), path).getCanonicalFile();
-            ret = file.toPath().toRealPath().toString();
+            File file = new File(path);
+            if (!file.isAbsolute())
+                file = new File(System.getProperty("user.dir"), path);
+            file = file.getCanonicalFile();
+            if (file.exists()) {
+                directory = file.isDirectory();
+            }
+            ret = file.getAbsolutePath();
         } catch (IOException exc) {
             ret = path;
         }
         ret = ret.replace(File.separator, PATH_SEPARATOR);
-        if (path.endsWith(File.separator) && !ret.endsWith(PATH_SEPARATOR)) {
+        if (ret.endsWith(PATH_SEPARATOR)) {
+            if (!directory && ret.length() > 1) {
+                ret = ret.substring(0, ret.length() - 1);
+            }
+        } else if (directory) {
             ret += PATH_SEPARATOR;
         }
         return ret;

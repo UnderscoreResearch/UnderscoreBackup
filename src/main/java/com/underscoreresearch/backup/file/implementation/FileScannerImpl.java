@@ -29,6 +29,7 @@ import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActiveFile;
@@ -279,23 +280,25 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     }
 
     private boolean addPendingPath(BackupSet set, String path) {
-        if (!path.endsWith(PATH_SEPARATOR)) {
-            path = path + PATH_SEPARATOR;
-        }
         if (pendingPaths.containsKey(path))
             return true;
 
         lock.unlock();
 
-        Set<BackupActiveFile> files = filesystem.directoryFiles(path).stream()
-                .map(file -> new BackupActiveFile(BackupActivePath.stripPath(file.getPath())))
-                .collect(Collectors.toSet());
+        BackupActivePath activePath;
+        if (path.endsWith(PATH_SEPARATOR)) {
+            Set<BackupActiveFile> files = filesystem.directoryFiles(path).stream()
+                    .map(file -> new BackupActiveFile(BackupActivePath.stripPath(file.getPath())))
+                    .collect(Collectors.toSet());
+            activePath = new BackupActivePath(path, files);
+        } else {
+            activePath = new BackupActivePath("", Sets.newHashSet(new BackupActiveFile(path)));
+        }
 
         lock.lock();
-        if (files.size() == 0)
+        if (activePath.getFiles().size() == 0)
             return false;
 
-        BackupActivePath activePath = new BackupActivePath(path, files);
         pendingPaths.put(path, activePath);
 
         final String debugPath = path;
@@ -316,9 +319,11 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                     repository.popActivePath(set.getId(), currentPath);
                     Set<String> includedPaths = pending.includedPaths();
                     if (includedPaths.size() > 0) {
-                        repository.addDirectory(new BackupDirectory(currentPath,
-                                Instant.now().toEpochMilli(),
-                                Sets.newTreeSet(includedPaths)));
+                        if (currentPath.endsWith(PATH_SEPARATOR)) {
+                            repository.addDirectory(new BackupDirectory(currentPath,
+                                    Instant.now().toEpochMilli(),
+                                    Sets.newTreeSet(includedPaths)));
+                        }
                     }
                 } catch (IOException e) {
                     log.error("Failed to record completing " + currentPath, e);

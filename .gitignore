@@ -5,6 +5,7 @@
 .gradle
 build
 target
+builddist.sh
 innosetup-expanded.iss
 dependency-reduced-pom.xml
 src/main/resources/web

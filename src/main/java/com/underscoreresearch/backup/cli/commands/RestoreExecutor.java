@@ -40,8 +40,8 @@ public class RestoreExecutor {
             if (currentDestination != null) {
                 if (!isNullFile(currentDestination)) {
                     currentDestination = PathNormalizer.normalizePath(currentDestination);
-                    if (!currentDestination.endsWith("/")) {
-                        currentDestination += "/";
+                    if (!currentDestination.endsWith(PATH_SEPARATOR)) {
+                        currentDestination += PATH_SEPARATOR;
                     }
                     if (rootPaths.size() != 1) {
                         currentDestination += stripDrive(rootPath);

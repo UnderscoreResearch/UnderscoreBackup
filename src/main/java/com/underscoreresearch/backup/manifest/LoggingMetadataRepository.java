@@ -45,7 +45,6 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     private final Map<String, LogReader> decoders;
     private final Map<String, PendingActivePath> pendingActivePaths = new HashMap<>();
     private final Set<String> missingActivePaths = new HashSet<>();
-    private final int activePathDelay;
     private final ScheduledThreadPoolExecutor activePathSubmittors = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat("LoggingMetadataRepository-%d").build());
 
@@ -70,7 +69,6 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                                      int activePathDelay) {
         this.repository = repository;
         this.manifestManager = manifestManager;
-        this.activePathDelay = activePathDelay;
 
         activePathSubmittors.scheduleAtFixedRate(() -> submitPendingActivePaths(Duration.ofMillis(activePathDelay)),
                 Math.min(activePathDelay, 1000), Math.min(activePathDelay, 1000), TimeUnit.MILLISECONDS);
@@ -323,6 +321,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public void savePartialFile(BackupPartialFile file) throws IOException {
         repository.savePartialFile(file);
+    }
+
+    @Override
+    public void clearPartialFiles() throws IOException {
+        repository.clearPartialFiles();
     }
 
     @Override

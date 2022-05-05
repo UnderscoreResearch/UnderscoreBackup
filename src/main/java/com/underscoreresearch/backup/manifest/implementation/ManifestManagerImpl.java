@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import com.underscoreresearch.backup.utils.NonClosingInputStream;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,7 +74,6 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private final Encryptor encryptor;
 
     private AccessLock currentLogLock;
-    private OutputStream currentLogStream;
     private long currentLogLength;
     private Object lock = new Object();
     private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
@@ -138,17 +140,19 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 for (File file : files) {
                     try (AccessLock lock = new AccessLock(file.getAbsolutePath())) {
                         if (lock.tryLock(true)) {
-                            try (FileInputStream stream = new FileInputStream(file)) {
-                                processLogInputStream(logConsumer, stream);
-                            }
-                            try (FileInputStream stream = new FileInputStream(file)) {
-                                uploadConfigData(transformLogFilename(file.getAbsolutePath()), stream, true);
-                            }
-                            file.delete();
+                            InputStream stream = new NonClosingInputStream(Channels
+                                    .newInputStream(lock.getLockedChannel()));
+                            processLogInputStream(logConsumer, stream);
+
+                            lock.getLockedChannel().position(0);
+
+                            uploadConfigData(transformLogFilename(file.getAbsolutePath()), stream, true);
                         } else {
                             log.warn("Log file {} locked by other process", file.getAbsolutePath());
                         }
                     }
+
+                    file.delete();
                     processedFiles.incrementAndGet();
                 }
             }
@@ -215,12 +219,12 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             internalInitialize();
 
             try {
-                if (currentLogStream == null) {
+                if (currentLogLock == null) {
                     createNewLogFile();
                 }
                 byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(Charset.forName("UTF-8"));
-                currentLogStream.write(data);
-                currentLogStream.flush();
+                currentLogLock.getLockedChannel().write(ByteBuffer.wrap(data));
+                currentLogLock.getLockedChannel().force(false);
                 currentLogLength += data.length;
 
                 if (!currentlyClosingLog.get()
@@ -283,6 +287,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         closeLogFile();
         currentLogLength = 0;
         String filename = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
+        new File(filename).getParentFile().mkdirs();
         currentLogLock = new AccessLock(filename);
         currentLogLock.lock(true);
 
@@ -290,7 +295,6 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         if (!dir.isDirectory())
             dir.mkdirs();
 
-        currentLogStream = new FileOutputStream(filename);
         if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
             String logName = filename;
             executor.schedule(() -> {
@@ -310,15 +314,14 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     }
 
     private void closeLogFile() throws IOException {
-        if (currentLogStream != null) {
-            currentLogStream.close();
-            currentLogStream = null;
-            currentLogLength = 0;
+        if (currentLogLock != null) {
+            currentLogLock.getLockedChannel().position(0);
             String filename = currentLogLock.getFilename();
-            try (FileInputStream stream = new FileInputStream(filename)) {
+            try (InputStream stream = Channels.newInputStream(currentLogLock.getLockedChannel())) {
                 uploadConfigData(transformLogFilename(filename), stream, true);
             }
             currentLogLock.close();
+            currentLogLength = 0;
             currentLogLock = null;
             new File(filename).delete();
         }
@@ -373,9 +376,9 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         }
     }
 
-    private void processLogInputStream(LogConsumer consumer, InputStream gzipInputStream) throws IOException {
+    private void processLogInputStream(LogConsumer consumer, InputStream inputStream) throws IOException {
         try (InputStreamReader inputStreamReader
-                     = new InputStreamReader(gzipInputStream)) {
+                     = new InputStreamReader(inputStream)) {
             try (BufferedReader reader = new BufferedReader(inputStreamReader)) {
                 for (String line = reader.readLine(); line != null; line = reader.readLine()) {
                     int ind = line.indexOf(':');

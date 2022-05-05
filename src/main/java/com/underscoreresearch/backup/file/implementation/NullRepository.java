@@ -103,6 +103,11 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
+    public void clearPartialFiles() throws IOException {
+
+    }
+
+    @Override
     public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
         return null;
     }
