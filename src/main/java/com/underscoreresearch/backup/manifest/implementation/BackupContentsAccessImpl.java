@@ -57,6 +57,8 @@ public class BackupContentsAccessImpl extends BackupContentsAccessPathOnly {
                     int ind = rootPath.indexOf(PATH_SEPARATOR, normalizedRoot.length());
                     if (ind >= 0) {
                         foundPaths.getFiles().add(rootPath.substring(normalizedRoot.length(), ind + 1));
+                    } else if (rootPath.length() > normalizedRoot.length()) {
+                        foundPaths.getFiles().add(rootPath.substring(normalizedRoot.length()));
                     }
                 }
             }

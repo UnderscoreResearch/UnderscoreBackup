@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -65,7 +67,7 @@ public class DefaultsGet extends JsonWrap {
                         physicalHome,
                         "Restore").toString();
                 String home = PathNormalizer.normalizePath(physicalHome);
-                if (home.endsWith("/")) {
+                if (home.endsWith(PATH_SEPARATOR)) {
                     home = home.substring(0, home.length() - 1);
                 }
                 BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);

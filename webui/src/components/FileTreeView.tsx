@@ -62,7 +62,7 @@ interface SetTreeViewState {
 export interface SetTreeViewPropsNG {
     roots: BackupSetRoot[],
     fileFetcher: (node: string) => Promise<BackupFile[] | undefined>,
-    stateValue: "",
+    stateValue: string,
     defaults: BackupDefaults,
     onChange: (roots: BackupSetRoot[]) => void
 }

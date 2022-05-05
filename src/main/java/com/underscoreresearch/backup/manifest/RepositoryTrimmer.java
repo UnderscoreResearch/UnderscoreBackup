@@ -195,6 +195,9 @@ public class RepositoryTrimmer implements StatusLogger {
 
                     trimFilesAndDirectories(usedBlockMap, hasActivePaths, statistics);
                     trimBlocks(usedBlockMap, hasActivePaths, statistics);
+
+                    if (!hasActivePaths)
+                        metadataRepository.clearPartialFiles();
                 } catch (InterruptedException exc) {
                 } finally {
                     stopwatch.stop();

@@ -58,7 +58,7 @@ public final class DestinationDecoder {
     public static String decodePath(Request req, String base) throws IOException {
         Href href = new RqHref.Base(req).href();
         String path = href.path();
-        if (!path.startsWith(base + "/") || path.equals(base)) {
+        if (!path.startsWith(base + PATH_SEPARATOR) || path.equals(base)) {
             throw new HttpException(
                     HttpURLConnection.HTTP_BAD_REQUEST,
                     "Invalid path specified"

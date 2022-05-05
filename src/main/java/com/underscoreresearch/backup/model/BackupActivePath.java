@@ -62,7 +62,7 @@ public class BackupActivePath {
 
     public BackupActivePath(String parent, Set<BackupActiveFile> files) {
         String realParent;
-        if (!parent.endsWith(PATH_SEPARATOR))
+        if (parent.length() > 0 && !parent.endsWith(PATH_SEPARATOR))
             realParent = parent + PATH_SEPARATOR;
         else
             realParent = parent;

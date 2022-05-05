@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -121,7 +122,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
             foundPaths = new BackupDirectory(path, null, new TreeSet<>());
         }
 
-        if (normalizedRoot.equals("/") && foundPaths.getFiles().size() == 0) {
+        if (normalizedRoot.equals(ROOT) && foundPaths.getFiles().size() == 0) {
             foundPaths = getPaths("");
             if (foundPaths != null) {
                 List<BackupFile> files = new ArrayList<>();

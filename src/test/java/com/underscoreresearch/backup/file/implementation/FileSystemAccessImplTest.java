@@ -34,17 +34,17 @@ class FileSystemAccessImplTest {
     public void testFile() throws IOException {
         String normalizedRoot = PathNormalizer.normalizePath(tempDir.getPath());
 
-        access.writeData(normalizedRoot + PATH_SEPARATOR + "f1", data, 0, data.length);
+        access.writeData(normalizedRoot + "f1", data, 0, data.length);
 
         byte[] read = new byte[data.length];
-        assertThat(access.readData(normalizedRoot + PATH_SEPARATOR + "f1", read, 0, data.length), Is.is(data.length));
+        assertThat(access.readData(normalizedRoot + "f1", read, 0, data.length), Is.is(data.length));
         for (int i = 0; i < read.length; i++)
             assertThat(read[i], Is.is((byte) i));
 
-        access.writeData(normalizedRoot + PATH_SEPARATOR + "f1", data, data.length / 4, data.length / 2);
+        access.writeData(normalizedRoot + "f1", data, data.length / 4, data.length / 2);
 
         read = new byte[data.length];
-        assertThat(access.readData(normalizedRoot + PATH_SEPARATOR + "f1", read, data.length / 2, data.length / 2),
+        assertThat(access.readData(normalizedRoot + "f1", read, data.length / 2, data.length / 2),
                 Is.is(data.length / 2));
 
         for (int i = 0; i < read.length / 4; i++)
@@ -54,12 +54,12 @@ class FileSystemAccessImplTest {
         for (int i = read.length / 2; i < read.length; i++)
             assertThat("Position " + i, read[i], Is.is((byte) 0));
 
-        access.truncate(normalizedRoot + PATH_SEPARATOR + "f1", data.length / 2);
-        BackupFile expectedFile = BackupFile.builder().path(normalizedRoot + PATH_SEPARATOR + "f1")
+        access.truncate(normalizedRoot + "f1", data.length / 2);
+        BackupFile expectedFile = BackupFile.builder().path(normalizedRoot + "f1")
                 .lastChanged(new File(tempDir, "f1").lastModified()).length((long) data.length / 2).build();
         assertThat(expectedFile.isDirectory(), Is.is(false));
 
-        access.truncate(normalizedRoot + PATH_SEPARATOR + "f1", data.length / 2);
+        access.truncate(normalizedRoot + "f1", data.length / 2);
         assertThat(new File(tempDir, "f1").length(), Is.is((long) data.length / 2));
 
         TreeSet<BackupFile> set = new TreeSet<>();
@@ -71,11 +71,11 @@ class FileSystemAccessImplTest {
     public void testDirectory() throws IOException {
         String normalizedRoot = PathNormalizer.normalizePath(tempDir.getPath());
 
-        access.writeData(normalizedRoot + PATH_SEPARATOR + "d1" + PATH_SEPARATOR
+        access.writeData(normalizedRoot + "d1" + PATH_SEPARATOR
                 + "d2" + PATH_SEPARATOR
                 + "f1", data, 0, data.length);
 
-        BackupFile expectedFile = BackupFile.builder().path(normalizedRoot + PATH_SEPARATOR + "d1" + PATH_SEPARATOR)
+        BackupFile expectedFile = BackupFile.builder().path(normalizedRoot + "d1" + PATH_SEPARATOR)
                 .build();
         assertThat(expectedFile.isDirectory(), Is.is(true));
 

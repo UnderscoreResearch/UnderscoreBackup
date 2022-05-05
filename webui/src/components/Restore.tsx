@@ -69,10 +69,10 @@ export default function Restore(props: RestoreProps) {
         });
     }
 
-    function handleChangedDate(newValue?: Date) {
+    function handleChangedDate(newValue: Date | null) {
         updateState({
             ...state,
-            timestamp: newValue
+            timestamp: newValue ? newValue : undefined
         });
     }
 

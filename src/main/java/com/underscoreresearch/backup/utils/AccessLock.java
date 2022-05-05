@@ -3,10 +3,7 @@ package com.underscoreresearch.backup.utils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.channels.FileLockInterruptionException;
+import java.nio.channels.*;
 
 import lombok.Getter;
 
@@ -16,6 +13,14 @@ public class AccessLock implements Closeable {
     private RandomAccessFile file;
     private FileChannel channel;
     private FileLock lock;
+
+    public synchronized FileChannel getLockedChannel() throws IOException {
+        if (lock != null) {
+            return lock.channel();
+        } else {
+            throw new IOException("Tried getting channel of unheld lock");
+        }
+    }
 
     public AccessLock(String filename) {
         this.filename = filename;
@@ -69,7 +74,9 @@ public class AccessLock implements Closeable {
 
     public synchronized void release() throws IOException {
         if (lock != null) {
-            lock.close();
+            if (lock.channel().isOpen()) {
+                lock.close();
+            }
             lock = null;
         }
     }
@@ -77,7 +84,7 @@ public class AccessLock implements Closeable {
     @Override
     public synchronized void close() throws IOException {
         release();
-        if (channel != null) {
+        if (channel != null && channel.isOpen()) {
             channel.close();
         }
         if (file != null) {

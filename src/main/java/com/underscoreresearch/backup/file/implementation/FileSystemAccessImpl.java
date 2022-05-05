@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
@@ -40,7 +41,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                         .build());
             }
         } else {
-            File parent = new File(PathNormalizer.physicalPath(path + PATH_SEPARATOR));
+            File parent = new File(PathNormalizer.physicalPath(!path.contains(PATH_SEPARATOR) ? path + PATH_SEPARATOR : path));
 
             if (parent.isDirectory()) {
                 String[] fileNames = parent.list();
@@ -74,6 +75,19 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                     }
                 } else {
                     log.warn("Failed to get list of files for " + parent);
+                }
+            } else if (parent.exists()) {
+                Path parentPath = parent.toPath();
+                if (!Files.isSymbolicLink(parentPath) && parent.isFile()) {
+                    if (Files.isReadable(parentPath)) {
+                        files.add(BackupFile.builder()
+                                .path(path)
+                                .length(parent.length())
+                                .lastChanged(parent.lastModified())
+                                .build());
+                    } else {
+                        debug(() -> log.debug("Skipping unreadable file " + parentPath.toAbsolutePath()));
+                    }
                 }
             }
         }

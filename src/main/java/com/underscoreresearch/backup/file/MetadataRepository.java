@@ -51,6 +51,8 @@ public interface MetadataRepository {
 
     void savePartialFile(BackupPartialFile file) throws IOException;
 
+    void clearPartialFiles() throws IOException;
+
     BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException;
 
     TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException;
