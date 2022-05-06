@@ -17,13 +17,14 @@ import java.util.stream.Collectors;
 
 import org.hamcrest.Matchers;
 import org.hamcrest.core.Is;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -56,13 +57,12 @@ class ManifestManagerImplTest {
 
     @BeforeEach
     public void setup() throws IOException {
-        InstanceFactory.initialize(new String[]{"--passphrase", "test", "--config-data", "{}", "--public-key-data",
-                PUBLIC_KEY_DATA}, null);
-
         tempDir = Files.createTempDirectory("test").toFile();
 
         configuration = BackupConfiguration.builder()
                 .destinations(ImmutableMap.of("TEST", BackupDestination.builder()
+                        .type("FILE")
+                        .endpointUri("file:///test/")
                         .encryption("AES256")
                         .build()))
                 .manifest(BackupManifest.builder()
@@ -73,6 +73,11 @@ class ManifestManagerImplTest {
                         .build())
                 .build();
 
+        String configurationData = new ObjectMapper().writeValueAsString(configuration);
+
+        InstanceFactory.initialize(new String[]{"--passphrase", "test", "--config-data", configurationData,
+                "--public-key-data", PUBLIC_KEY_DATA}, null);
+
         rateLimitController = Mockito.mock(RateLimitController.class);
         memoryIOProvider = Mockito.spy(new MemoryIOProvider(null));
         memoryIOProvider.upload("publickey.json", PUBLIC_KEY_DATA.getBytes("UTF-8"));
@@ -81,7 +86,7 @@ class ManifestManagerImplTest {
 
     @Test
     public void testUploadConfig() throws IOException {
-        Mockito.verify(encryptor, Mockito.never()).encryptBlock(any());
+        Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any());
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
         manifestManager.addLogEntry("doh", "doh");
         assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
@@ -97,7 +102,7 @@ class ManifestManagerImplTest {
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
         manifestManager.initialize(Mockito.mock(LogConsumer.class));
         manifestManager.addLogEntry("doh", "doh");
-        Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any());
+        Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any());
         assertThat(file.isFile(), Is.is(false));
         assertNotNull(memoryIOProvider.download("logs"
                 + PATH_SEPARATOR + "2020-02-02" + PATH_SEPARATOR + "22-00-22.222222.gz"));
@@ -135,7 +140,7 @@ class ManifestManagerImplTest {
         repository.flushLogging();
         manifestManager.shutdown();
 
-        Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any());
+        Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any());
 
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
@@ -144,7 +149,7 @@ class ManifestManagerImplTest {
         compareInvocations(firstRepository, secondRepository);
     }
 
-    private void compareInvocations(MetadataRepository repository1, MetadataRepository repository2) {
+    private void compareInvocations(MetadataRepository repository1, MetadataRepository repository2) throws JsonProcessingException {
         List<Invocation> det1 = stripInvications(repository1);
         List<Invocation> det2 = stripInvications(repository2);
         assertThat(det1.size(), Is.is(det2.size()));
@@ -155,7 +160,6 @@ class ManifestManagerImplTest {
         }
     }
 
-    @NotNull
     private List<Invocation> stripInvications(MetadataRepository repository1) {
         return Mockito.mockingDetails(repository1).getInvocations().stream()
                 .filter(t -> {

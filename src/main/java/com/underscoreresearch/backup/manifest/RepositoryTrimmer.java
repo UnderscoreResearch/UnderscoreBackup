@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.manifest;
 import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
 import java.io.File;
 import java.io.IOException;
@@ -143,9 +144,9 @@ public class RepositoryTrimmer implements StatusLogger {
                 long throughput = 1000 * processedSteps.get() / elapsedMilliseconds;
                 return Lists.newArrayList(
                         new StatusLine(getClass(), "TRIMMING_THROUGHPUT", "Trimming throughput",
-                                throughput, throughput + " steps/s"),
+                                throughput, readableNumber(throughput) + " steps/s"),
                         new StatusLine(getClass(), "TRIMMING_STEPS", "Trimming steps completed",
-                                processedSteps.get(), processedSteps.get() + " steps"));
+                                processedSteps.get(), readableNumber(processedSteps.get()) + " steps"));
             }
         }
         return new ArrayList<>();

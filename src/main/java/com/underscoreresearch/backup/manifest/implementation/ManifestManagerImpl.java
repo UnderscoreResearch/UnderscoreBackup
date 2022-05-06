@@ -3,18 +3,16 @@ package com.underscoreresearch.backup.manifest.implementation;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.Charset;
@@ -33,7 +31,6 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import com.underscoreresearch.backup.utils.NonClosingInputStream;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,6 +54,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.AccessLock;
+import com.underscoreresearch.backup.utils.NonClosingInputStream;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
@@ -197,7 +195,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
                 IOUtils.copyStream(inputStream, gzipStream);
             }
-            data = encryptor.encryptBlock(outputStream.toByteArray());
+            data = encryptor.encryptBlock(null, outputStream.toByteArray());
         } else {
             data = IOUtils.readAllBytes(inputStream);
         }
@@ -337,6 +335,8 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     public void replayLog(LogConsumer consumer) throws IOException {
         IOIndex index = (IOIndex) provider;
         List<String> days = index.availableKeys(LOG_ROOT);
+        days.sort(String::compareTo);
+
         startOperation("Replay");
         try {
             totalFiles = new AtomicLong(days.size());
@@ -347,6 +347,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 List<String> files = index.availableKeys(LOG_ROOT + PATH_SEPARATOR + day);
                 totalFiles.addAndGet(files.size());
 
+                files.sort(String::compareTo);
                 for (String file : files) {
                     String path = LOG_ROOT + PATH_SEPARATOR + day;
                     if (!path.endsWith(PATH_SEPARATOR)) {
@@ -357,7 +358,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
                     try {
                         log.info("Processing log file {}", path);
-                        byte[] unencryptedData = encryptor.decodeBlock(data);
+                        byte[] unencryptedData = encryptor.decodeBlock(null, data);
                         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(unencryptedData)) {
                             try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
                                 processLogInputStream(consumer, gzipInputStream);
@@ -552,7 +553,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 if (elapsedMilliseconds > 0) {
                     long throughput = 1000 * processedOperations.get() / elapsedMilliseconds;
                     ret.add(new StatusLine(getClass(), code + "_THROUGHPUT", operation + " throughput",
-                            throughput, throughput + " operations/s"));
+                            throughput, readableNumber(throughput) + " operations/s"));
                 }
             }
         }

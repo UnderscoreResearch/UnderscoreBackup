@@ -53,6 +53,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String CONFIG = "config";
     public static final String DEVELOPER_MODE = "developer-mode";
     public static final String HUMAN_READABLE = "human-readable";
+    public static final String BACKFILL_ENCRYPTION = "backfill-encryption";
     public static final String RECURSIVE = "recursive";
     public static final String OVER_WRITE = "over-write";
     public static final String TIMESTAMP = "timestamp";
@@ -95,6 +96,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption("h", HUMAN_READABLE, false, "Display human readable sizes");
         options.addOption("R", RECURSIVE, false, "Process restore or list operation recursively");
         options.addOption("o", OVER_WRITE, false, "Overwrite existing files when restoring");
+        options.addOption(null, BACKFILL_ENCRYPTION, false, "Backfill encryption property during block validation");
         options.addOption("t", TIMESTAMP, true, "Timestamp to use for restore operations");
 
         return options;

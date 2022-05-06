@@ -2,7 +2,6 @@ package com.underscoreresearch.backup.errorcorrection.implementation;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.List;
 import java.util.zip.CRC32;
 
@@ -33,9 +32,7 @@ public class ReedSolomonErrorCorrector implements ErrorCorrector {
 
     public List<byte[]> encodeErrorCorrection(BackupBlockStorage storage, byte[] originalData)
             throws Exception {
-        if (storage.getProperties() == null)
-            storage.setProperties(new HashMap<>());
-        storage.getProperties().put(DATA_SHARDS, Integer.toString(dataShards));
+        storage.addProperty(DATA_SHARDS, Integer.toString(dataShards));
         storage.setEc("RS");
         int shardSize = (originalData.length + dataShards - 1) / dataShards;
 
@@ -50,7 +47,7 @@ public class ReedSolomonErrorCorrector implements ErrorCorrector {
             }
         }
         if (originalData.length != shardSize * dataShards)
-            storage.getProperties().put(EC_LENGTH, Integer.toString(originalData.length));
+            storage.addProperty(EC_LENGTH, Integer.toString(originalData.length));
 
         ReedSolomon reedSolomon = ReedSolomon.create(dataShards, parityShards);
         reedSolomon.encodeParity(shards, 0, shardSize);

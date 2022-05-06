@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
@@ -138,9 +139,9 @@ public class BlockValidator implements StatusLogger {
                 long throughput = 1000 * processedSteps.get() / elapsedMilliseconds;
                 return Lists.newArrayList(
                         new StatusLine(getClass(), "VALIDATE_THROUGHPUT", "Validating blocks throughput",
-                                throughput, throughput + " steps/s"),
+                                throughput, readableNumber(throughput) + " steps/s"),
                         new StatusLine(getClass(), "VALIDATE_STEPS", "Validating blocks steps completed",
-                                processedSteps.get(), processedSteps.get() + " steps"));
+                                processedSteps.get(), readableNumber(processedSteps.get()) + " steps"));
             }
         }
         return new ArrayList<>();

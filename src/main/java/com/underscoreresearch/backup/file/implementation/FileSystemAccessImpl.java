@@ -1,7 +1,6 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 

@@ -23,8 +23,8 @@ class NoneEncryptorTest {
             byte[] data = new byte[i];
             random.nextBytes(data);
 
-            byte[] encryptedData = encryptor.encryptBlock(data);
-            byte[] decryptedData = encryptor.decodeBlock(encryptedData);
+            byte[] encryptedData = encryptor.encryptBlock(null, data);
+            byte[] decryptedData = encryptor.decodeBlock(null, encryptedData);
 
             assertThat(decryptedData, Is.is(data));
             assertThat(decryptedData, Is.is(encryptedData));

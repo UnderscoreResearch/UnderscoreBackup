@@ -1,7 +1,6 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -398,28 +397,22 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
             if (statistics != null) {
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILES",
                         "Total files in repository",
-                        statistics.getFiles(),
-                        statistics.getFiles() + ""));
+                        statistics.getFiles()));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILE_VERSIONS",
                         "Total file versions in repository",
-                        statistics.getFileVersions(),
-                        statistics.getFileVersions() + ""));
+                        statistics.getFileVersions()));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE",
                         "Total file size in repository",
-                        statistics.getTotalSize(),
-                        readableSize(statistics.getTotalSize())));
+                        statistics.getTotalSize()));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE_LAST_VERSION",
                         "Total file last version size in repository",
-                        statistics.getTotalSizeLastVersion(),
-                        readableSize(statistics.getTotalSizeLastVersion())));
+                        statistics.getTotalSizeLastVersion()));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCKS",
                         "Total blocks",
-                        statistics.getBlocks(),
-                        statistics.getBlocks() + ""));
+                        statistics.getBlocks()));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCK_PARTS",
                         "Total block parts",
-                        statistics.getBlockParts(),
-                        statistics.getBlockParts() + ""));
+                        statistics.getBlockParts()));
             }
 
             return ret;

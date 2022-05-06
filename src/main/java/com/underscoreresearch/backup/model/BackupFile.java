@@ -12,8 +12,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import org.jetbrains.annotations.NotNull;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -30,7 +28,7 @@ public class BackupFile implements Comparable<BackupFile> {
     private List<BackupLocation> locations;
 
     @Override
-    public int compareTo(@NotNull BackupFile backupFile) {
+    public int compareTo(BackupFile backupFile) {
         int pathCompare = path.compareTo(backupFile.path);
         if (pathCompare != 0)
             return pathCompare;

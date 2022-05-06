@@ -34,7 +34,7 @@ public class BackupSetRoot {
 
     @JsonIgnore
     public boolean includeFile(String file, BackupSet set) {
-        if (fileInRoot(file)) {
+        if (inRoot(file)) {
             if (file.endsWith(PATH_SEPARATOR)) {
                 file = file.substring(0, file.length() - PATH_SEPARATOR.length());
             }
@@ -63,12 +63,6 @@ public class BackupSetRoot {
         }
     }
 
-    private boolean fileInRoot(String file) {
-        return withoutFinalSeparator(file).equals(withoutFinalSeparator(normalizedPath))
-                || file.startsWith(withFinalSeparator(normalizedPath))
-                || normalizedPath.equals(ROOT);
-    }
-
     private static String withFinalSeparator(String path) {
         if (path.endsWith(PATH_SEPARATOR))
             return path;
@@ -83,17 +77,14 @@ public class BackupSetRoot {
 
     @JsonIgnore
     public boolean inRoot(String file) {
-        if (file.equals(normalizedPath)
+        return withoutFinalSeparator(file).equals(withoutFinalSeparator(normalizedPath))
                 || file.startsWith(withFinalSeparator(normalizedPath))
-                || normalizedPath.equals(ROOT)) {
-            return true;
-        }
-        return false;
+                || normalizedPath.equals(ROOT);
     }
 
     @JsonIgnore
     public boolean includeDirectory(String path) {
-        if (fileInRoot(path)) {
+        if (inRoot(path)) {
 
             if (withoutFinalSeparator(path).length() == withoutFinalSeparator(normalizedPath).length()) {
                 return true;

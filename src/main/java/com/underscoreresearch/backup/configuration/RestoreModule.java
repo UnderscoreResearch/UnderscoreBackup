@@ -17,7 +17,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 
 public class RestoreModule extends AbstractModule {
     private static final int DEFAULT_DOWNLOAD_THREADS = 4;
-    private static final String DOWNLOAD_THREADS = "DOWNLOAD_THREADS";
+    public static final String DOWNLOAD_THREADS = "DOWNLOAD_THREADS";
 
     @Named(DOWNLOAD_THREADS)
     @Provides

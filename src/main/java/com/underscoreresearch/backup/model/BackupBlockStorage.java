@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.model;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -8,6 +9,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -25,4 +27,11 @@ public class BackupBlockStorage {
     @JsonProperty("props")
     private Map<String, String> properties;
     private List<String> parts;
+
+    @JsonIgnore
+    public void addProperty(String key, String value) {
+        if (properties == null)
+            properties = new HashMap<>();
+        properties.put(key, value);
+    }
 }

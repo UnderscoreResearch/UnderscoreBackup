@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBU
 import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
+import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -53,6 +54,10 @@ public final class LogUtil {
             return String.format("%.1f KB", ((double) length) / 1024);
         }
         return String.format("%s B", length);
+    }
+
+    public static String readableNumber(long num) {
+        return NumberFormat.getNumberInstance().format(num);
     }
 
     public static String readableDuration(Duration duration) {

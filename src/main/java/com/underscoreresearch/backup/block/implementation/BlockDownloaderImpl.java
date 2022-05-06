@@ -61,62 +61,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         for (int storageIndex = 0; storageIndex < block.getStorage().size(); storageIndex++) {
             BackupBlockStorage storage = block.getStorage().get(storageIndex);
             try {
-                byte[][] blockParts = new byte[storage.getParts().size()][];
-
-                BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
-                IOProvider provider = IOProviderFactory.getProvider(destination);
-                AtomicInteger completedParts = new AtomicInteger(0);
-                ErrorCorrector corrector = ErrorCorrectorFactory.getCorrector(destination.getErrorCorrection());
-                int neededParts = corrector.getMinimumSufficientParts(storage);
-                byte[] errorCorrected = null;
-                Set<Integer> pendingParts = new HashSet<>();
-
-                int i = 0;
-                while (i < storage.getParts().size() && i < neededParts) {
-                    if (InstanceFactory.isShutdown()) {
-                        throw new IOException("Shutting down");
-                    }
-
-                    downloadPart(storage, blockParts, destination, provider, completedParts, pendingParts, i);
-
-                    i++;
-                }
-
-                while (true) {
-                    synchronized (pendingParts) {
-                        while (pendingParts.size() > 0) {
-                            if (InstanceFactory.isShutdown())
-                                throw new IOException("Shutting down");
-                            try {
-                                pendingParts.wait(1000);
-                            } catch (InterruptedException exc) {
-                            }
-                        }
-                    }
-
-                    if (completedParts.get() >= neededParts) {
-                        try {
-                            errorCorrected = corrector.decodeErrorCorrection(storage, Lists.newArrayList(blockParts));
-                            break;
-                        } catch (Exception e) {
-                            if (i == storage.getParts().size() - 1) {
-                                throw new IOException("Failed to error correct " + block.getHash(), e);
-                            }
-                        }
-                    }
-
-                    if (i >= storage.getParts().size() || InstanceFactory.isShutdown())
-                        break;
-
-                    downloadPart(storage, blockParts, destination, provider, completedParts, pendingParts, i);
-                    i++;
-                }
-
-                if (errorCorrected == null) {
-                    throw new IOException("Failed to fetch enough data to restore it");
-                }
-                blockCount.incrementAndGet();
-                return EncryptorFactory.decodeBlock(storage, errorCorrected);
+                return EncryptorFactory.decodeBlock(storage, downloadEncryptedBlockStorage(block, storage));
             } catch (Exception exc) {
                 if (storageIndex == block.getStorage().size() - 1 || InstanceFactory.isShutdown()) {
                     throw new IOException("Failed to download block " + block.getHash() + " was unreadable", exc);
@@ -124,6 +69,65 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
             }
         }
         throw new IOException("No storage available for block");
+    }
+
+    public byte[] downloadEncryptedBlockStorage(BackupBlock block, BackupBlockStorage storage) throws IOException {
+        byte[][] blockParts = new byte[storage.getParts().size()][];
+
+        BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
+        IOProvider provider = IOProviderFactory.getProvider(destination);
+        AtomicInteger completedParts = new AtomicInteger(0);
+        ErrorCorrector corrector = ErrorCorrectorFactory.getCorrector(destination.getErrorCorrection());
+        int neededParts = corrector.getMinimumSufficientParts(storage);
+        byte[] errorCorrected = null;
+        Set<Integer> pendingParts = new HashSet<>();
+
+        int i = 0;
+        while (i < storage.getParts().size() && i < neededParts) {
+            if (InstanceFactory.isShutdown()) {
+                throw new IOException("Shutting down");
+            }
+
+            downloadPart(storage, blockParts, destination, provider, completedParts, pendingParts, i);
+
+            i++;
+        }
+
+        while (true) {
+            synchronized (pendingParts) {
+                while (pendingParts.size() > 0) {
+                    if (InstanceFactory.isShutdown())
+                        throw new IOException("Shutting down");
+                    try {
+                        pendingParts.wait(1000);
+                    } catch (InterruptedException exc) {
+                    }
+                }
+            }
+
+            if (completedParts.get() >= neededParts) {
+                try {
+                    errorCorrected = corrector.decodeErrorCorrection(storage, Lists.newArrayList(blockParts));
+                    break;
+                } catch (Exception e) {
+                    if (i == storage.getParts().size() - 1) {
+                        throw new IOException("Failed to error correct " + block.getHash(), e);
+                    }
+                }
+            }
+
+            if (i >= storage.getParts().size() || InstanceFactory.isShutdown())
+                break;
+
+            downloadPart(storage, blockParts, destination, provider, completedParts, pendingParts, i);
+            i++;
+        }
+
+        if (errorCorrected == null) {
+            throw new IOException("Failed to fetch enough data to restore it");
+        }
+        blockCount.incrementAndGet();
+        return errorCorrected;
     }
 
     private void downloadPart(BackupBlockStorage storage,
@@ -168,7 +172,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         List<StatusLine> ret = getThroughputStatus(getClass(), "Downloaded", "objects", totalCount.get(),
                 totalSize.get(), getDuration());
         if (blockCount.get() > 0) {
-            ret.add(new StatusLine(getClass(), "DOWNLOADED_BLOCKS", "Downloaded blocks", blockCount.get(), blockCount.get() + ""));
+            ret.add(new StatusLine(getClass(), "DOWNLOADED_BLOCKS", "Downloaded blocks", blockCount.get()));
         }
         return ret;
     }

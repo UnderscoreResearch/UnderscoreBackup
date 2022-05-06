@@ -65,7 +65,7 @@ public class RebuildRepositoryCommand extends Command {
             return new String(data, StandardCharsets.UTF_8);
         } catch (IOException exc) {
             Encryptor encryptor = EncryptorFactory.getEncryptor(destination.getEncryption());
-            try (ByteArrayInputStream stream = new ByteArrayInputStream(encryptor.decodeBlock(data))) {
+            try (ByteArrayInputStream stream = new ByteArrayInputStream(encryptor.decodeBlock(null, data))) {
                 try (GZIPInputStream gzipInputStream = new GZIPInputStream(stream)) {
                     return new String(IOUtils.readAllBytes(gzipInputStream), StandardCharsets.UTF_8);
                 }

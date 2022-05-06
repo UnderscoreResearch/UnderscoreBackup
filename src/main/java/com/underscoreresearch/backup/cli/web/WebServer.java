@@ -17,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.lang.SystemUtils;
-import org.jetbrains.annotations.NotNull;
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.Take;
@@ -233,7 +232,6 @@ public class WebServer {
         }
     }
 
-    @NotNull
     private URI getConfigurationUrl() {
         InetAddress address = getInetAddress();
         String hostname = address.getHostName();

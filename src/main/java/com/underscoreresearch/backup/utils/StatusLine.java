@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.utils;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
+
 import lombok.Data;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -58,7 +60,7 @@ public class StatusLine {
 
     public String getValueString() {
         if (valueString == null && value != null)
-            return value.toString();
+            return readableNumber(value);
         return valueString;
     }
 
