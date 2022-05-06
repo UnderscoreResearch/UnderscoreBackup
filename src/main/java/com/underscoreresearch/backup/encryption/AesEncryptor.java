@@ -15,6 +15,8 @@ import javax.inject.Inject;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+
 @Slf4j
 @EncryptorPlugin("AES256")
 public class AesEncryptor implements Encryptor {
@@ -22,6 +24,7 @@ public class AesEncryptor implements Encryptor {
     private static final int PUBLIC_KEY_SIZE = 32;
     private static final String KEY_ALGORITHM = "AES";
     private static final String ENCRYPTION_ALGORITHM = "AES/CBC/PKCS5Padding";
+    public static final String PUBLIC_KEY = "p";
 
     private final PublicKeyEncrypion key;
     private static SecureRandom random = new SecureRandom();
@@ -32,7 +35,7 @@ public class AesEncryptor implements Encryptor {
     }
 
     @Override
-    public byte[] encryptBlock(byte[] data) {
+    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data) {
         byte[] iv = new byte[BLOCK_SIZE];
         synchronized (random) {
             random.nextBytes(iv);
@@ -49,6 +52,9 @@ public class AesEncryptor implements Encryptor {
             byte[] publicKey = Hash.decodeBytes(privateKey.getPublicKey());
             if (publicKey.length != PUBLIC_KEY_SIZE) {
                 throw new IllegalStateException("Wrong publicKey length");
+            }
+            if (storage != null) {
+                storage.addProperty(PUBLIC_KEY, privateKey.getPublicKey());
             }
             int estimatedSize = (data.length + BLOCK_SIZE) / BLOCK_SIZE * BLOCK_SIZE + BLOCK_SIZE + PUBLIC_KEY_SIZE;
             byte[] ret = new byte[estimatedSize];
@@ -72,7 +78,7 @@ public class AesEncryptor implements Encryptor {
     }
 
     @Override
-    public byte[] decodeBlock(byte[] encryptedData) {
+    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData) {
         byte[] iv = new byte[BLOCK_SIZE];
         byte[] publicKeyBytes = new byte[PUBLIC_KEY_SIZE];
 
@@ -98,5 +104,19 @@ public class AesEncryptor implements Encryptor {
                  InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
+    }
+
+    @Override
+    public void backfillEncryption(BackupBlockStorage storage, byte[] encryptedData) {
+        byte[] publicKeyBytes = new byte[PUBLIC_KEY_SIZE];
+
+        System.arraycopy(encryptedData, BLOCK_SIZE, publicKeyBytes, 0, PUBLIC_KEY_SIZE);
+
+        storage.addProperty(PUBLIC_KEY, Hash.encodeBytes(publicKeyBytes));
+    }
+
+    @Override
+    public boolean validStorage(BackupBlockStorage storage) {
+        return storage.getProperties() != null && storage.getProperties().containsKey(PUBLIC_KEY);
     }
 }

@@ -157,7 +157,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
     @Override
     public List<StatusLine> status() {
         if (totalBlocks.get() > 0) {
-            return Lists.newArrayList(new StatusLine(getClass(), "UPLOADED_BLOCKS", "Uploaded blocks", totalBlocks.get(), totalBlocks.get() + ""));
+            return Lists.newArrayList(new StatusLine(getClass(), "UPLOADED_BLOCKS", "Uploaded blocks", totalBlocks.get()));
         }
         return new ArrayList<>();
     }

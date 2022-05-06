@@ -158,11 +158,11 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
             ret.add(new StatusLine(getClass(), "RESTORE_DURATION", "Total duration", duration.elapsed().toMillis(), readableDuration(duration.elapsed())));
         }
         if (failedCount.get() > 0) {
-            ret.add(new StatusLine(getClass(), "RESTORED_OBJECTS_FAILED", "Failed to restore files", failedCount.get(), failedCount.get() + ""));
+            ret.add(new StatusLine(getClass(), "RESTORED_OBJECTS_FAILED", "Failed to restore files", failedCount.get()));
         }
         if (pendingOutstanding.get() > 0) {
             long count = pendingOutstanding.get();
-            ret.add(new StatusLine(getClass(), "RESTORED_OBJECTS_PENDING", "Pending files to restore", count, count + ""));
+            ret.add(new StatusLine(getClass(), "RESTORED_OBJECTS_PENDING", "Pending files to restore", count));
         }
         return ret;
     }

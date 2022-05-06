@@ -50,10 +50,10 @@ public final class EncryptorFactory {
 
     public static byte[] encryptBlock(String encryption, BackupBlockStorage storage, byte[] data) {
         storage.setEncryption(encryption);
-        return getEncryptor(encryption).encryptBlock(data);
+        return getEncryptor(encryption).encryptBlock(storage, data);
     }
 
     public static byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData) {
-        return getEncryptor(storage.getEncryption()).decodeBlock(encryptedData);
+        return getEncryptor(storage.getEncryption()).decodeBlock(storage, encryptedData);
     }
 }

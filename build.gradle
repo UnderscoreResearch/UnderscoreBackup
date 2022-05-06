@@ -12,7 +12,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.9.2'
+version '0.9.3'
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -128,7 +128,7 @@ task webui(dependsOn: [webuiinstall], type:Exec) {
 }
 
 task allDist {
-    dependsOn installer, distZip, distTar
+    dependsOn installer, distZip, distTar, test
 }
 
 repositories {
@@ -203,5 +203,5 @@ task uninstallerPkg(type:Exec) {
 }
 
 task allDistOsx {
-    dependsOn installerPkg, uninstallerPkg, distZip, distTar
+    dependsOn installerPkg, uninstallerPkg, distZip, distTar, test
 }

@@ -23,7 +23,6 @@ import java.util.zip.GZIPOutputStream;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.jetbrains.annotations.NotNull;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
@@ -172,7 +171,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         }
     }
 
-    public void open(boolean readOnly) throws IOException    {
+    public void open(boolean readOnly) throws IOException {
         try (MapDbRepositoryLock ignored = new MapDbOpenLock()) {
             if (open && !readOnly && this.readOnly) {
                 close();
@@ -233,7 +232,6 @@ public class MapdbMetadataRepository implements MetadataRepository {
         }
     }
 
-    @NotNull
     private DB createDb(boolean readOnly, String blockStore) {
         DBMaker.Maker maker = DBMaker
                 .fileDB(Paths.get(dataPath, blockStore).toString())
