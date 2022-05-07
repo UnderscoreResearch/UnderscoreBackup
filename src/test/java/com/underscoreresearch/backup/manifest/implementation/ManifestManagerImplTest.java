@@ -47,7 +47,7 @@ import com.underscoreresearch.backup.model.BackupManifest;
 
 class ManifestManagerImplTest {
     private static final String PUBLIC_KEY_DATA = "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}";
-    ;
+
     private BackupConfiguration configuration;
     private RateLimitController rateLimitController;
     private ManifestManagerImpl manifestManager;

@@ -15,6 +15,8 @@ public interface ManifestManager {
 
     void initialize(LogConsumer logConsumer) throws IOException;
 
+    void setDisabledFlushing(boolean disabledFlushing);
+
     BackupContentsAccess backupContents(Long timestamp) throws IOException;
 
     void shutdown() throws IOException;

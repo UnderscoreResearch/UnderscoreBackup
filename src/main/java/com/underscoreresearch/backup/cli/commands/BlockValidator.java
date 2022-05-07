@@ -18,6 +18,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupFilePart;
@@ -30,6 +31,7 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 public class BlockValidator implements StatusLogger {
     private final MetadataRepository repository;
     private final BackupConfiguration configuration;
+    private final ManifestManager manifestManager;
     private final int maxBlockSize;
 
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
@@ -41,6 +43,7 @@ public class BlockValidator implements StatusLogger {
         lastHeartbeat = Duration.ZERO;
 
         log.info("Validating all blocks of files");
+        manifestManager.setDisabledFlushing(true);
         try (CloseableLock ignored = repository.acquireLock()) {
             repository.allFiles().forEach((file) -> {
                 if (InstanceFactory.isShutdown())
@@ -92,8 +95,9 @@ public class BlockValidator implements StatusLogger {
 
             log.info("Completed block validation");
         } catch (RuntimeException exc) {
+            manifestManager.setDisabledFlushing(false);
             if (exc.getCause() instanceof InterruptedException) {
-                log.info("Cancelled processing", exc);
+                log.info("Cancelled processing");
             } else {
                 throw exc;
             }

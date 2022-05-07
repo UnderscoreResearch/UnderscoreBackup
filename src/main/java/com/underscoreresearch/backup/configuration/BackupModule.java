@@ -69,8 +69,9 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public RepositoryTrimmer metadataTrimmer(MetadataRepository repository,
-                                             BackupConfiguration configuration) {
-        return new RepositoryTrimmer(repository, configuration, false);
+                                             BackupConfiguration configuration,
+                                             ManifestManager manifestManager) {
+        return new RepositoryTrimmer(repository, configuration, manifestManager, false);
     }
 
     @Singleton
@@ -166,9 +167,10 @@ public class BackupModule extends AbstractModule {
     @Provides
     @Singleton
     public BlockValidator blockValidator(MetadataRepository repository,
-                                         BackupConfiguration configuration) {
+                                         BackupConfiguration configuration,
+                                         ManifestManager manifestManager) {
         int maxBlockSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
-        return new BlockValidator(repository, configuration, maxBlockSize);
+        return new BlockValidator(repository, configuration, manifestManager, maxBlockSize);
     }
 
     @Provides

@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -70,6 +72,10 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private final BackupDestination manifestDestination;
     private final IOProvider provider;
     private final Encryptor encryptor;
+
+    @Getter
+    @Setter
+    private boolean disabledFlushing;
 
     private AccessLock currentLogLock;
     private long currentLogLength;
@@ -222,7 +228,9 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
                 byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(Charset.forName("UTF-8"));
                 currentLogLock.getLockedChannel().write(ByteBuffer.wrap(data));
-                currentLogLock.getLockedChannel().force(false);
+                if (!disabledFlushing) {
+                    currentLogLock.getLockedChannel().force(false);
+                }
                 currentLogLength += data.length;
 
                 if (!currentlyClosingLog.get()
@@ -417,6 +425,8 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             }
         }
 
+        disabledFlushing = true;
+
         try (CloseableLock ignored = existingRepository.acquireLock()) {
             LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this);
 
@@ -491,6 +501,8 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             }
         } finally {
             resetStatus();
+
+            disabledFlushing = false;
         }
     }
 
