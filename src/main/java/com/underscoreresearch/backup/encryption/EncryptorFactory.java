@@ -37,8 +37,16 @@ public final class EncryptorFactory {
     public static boolean hasEncryptor(String encryption) {
         Class<? extends Encryptor> clz = encryptors.get(encryption);
         if (clz == null)
-            return false;
+            throw new IllegalArgumentException("Unsupported encryption type " + encryption);
         return true;
+    }
+
+    public static boolean requireStorage(String encryption) {
+        Class<? extends Encryptor> clz = encryptors.get(encryption);
+        if (clz == null)
+            return false;
+        EncryptorPlugin plugin = clz.getAnnotation(EncryptorPlugin.class);
+        return plugin.requireStorage();
     }
 
     public static Encryptor getEncryptor(String encryption) {

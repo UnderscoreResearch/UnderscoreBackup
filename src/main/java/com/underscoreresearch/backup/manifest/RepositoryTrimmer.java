@@ -121,6 +121,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
     private final MetadataRepository metadataRepository;
     private final BackupConfiguration configuration;
+    private final ManifestManager manifestManager;
     private final boolean force;
 
     private String lastFetchedDirectory;
@@ -175,6 +176,8 @@ public class RepositoryTrimmer implements StatusLogger {
 
     public synchronized Statistics trimRepository() throws IOException {
         File tempFile = File.createTempFile("block", ".db");
+
+        manifestManager.setDisabledFlushing(true);
         try {
             tempFile.delete();
 
@@ -208,6 +211,7 @@ public class RepositoryTrimmer implements StatusLogger {
             return statistics;
         } finally {
             tempFile.delete();
+            manifestManager.setDisabledFlushing(false);
         }
     }
 

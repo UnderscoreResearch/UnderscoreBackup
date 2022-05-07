@@ -59,7 +59,7 @@ public class ConfigurationValidator {
             throw new IllegalArgumentException("This destination does not support listing files and can not be used as metadata destination");
         }
 
-        if (EncryptorFactory.getEncryptor(destination.getEncryption()).requireStorage()) {
+        if (EncryptorFactory.requireStorage(destination.getEncryption())) {
             throw new IllegalArgumentException("Encryption for destination used by metadata ust not require storage");
         }
 

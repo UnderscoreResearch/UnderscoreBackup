@@ -51,11 +51,13 @@ class RepositoryTrimmerTest {
     private BackupSet set1;
     private BackupSet set2;
     private BackupDestination destination;
+    private ManifestManager manifestManager;
     private RepositoryTrimmer trimmer;
     private BackupFile outsideFile;
 
     @BeforeEach
     public void setup() throws IOException {
+        manifestManager = Mockito.mock(ManifestManager.class);
         tempDir = Files.createTempDirectory("test").toFile();
         repository = Mockito.spy(new MapdbMetadataRepository(tempDir.getPath()));
         repository.open(false);
@@ -197,7 +199,7 @@ class RepositoryTrimmerTest {
                 .added(new BackupTimespan(49 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
-        trimmer = new RepositoryTrimmer(repository, backupConfiguration, true);
+        trimmer = new RepositoryTrimmer(repository, backupConfiguration, manifestManager, true);
     }
 
     private void addFile(String path, int startHours) throws IOException {
@@ -276,7 +278,7 @@ class RepositoryTrimmerTest {
 
     @Test
     public void testOutsideNonForce() throws IOException {
-        trimmer = new RepositoryTrimmer(repository, backupConfiguration, false);
+        trimmer = new RepositoryTrimmer(repository, backupConfiguration, manifestManager, false);
         trimmer.trimRepository();
 
         Mockito.verify(repository, Mockito.never()).deleteFile(outsideFile);

@@ -10,15 +10,7 @@ public interface Encryptor {
     default void backfillEncryption(BackupBlockStorage storage, byte[] encryptedBlob) {
     }
 
-    default boolean requireStorage() {
-        return false;
-    }
-
-    ;
-
     default boolean validStorage(BackupBlockStorage storage) {
         return true;
     }
-
-    ;
 }
