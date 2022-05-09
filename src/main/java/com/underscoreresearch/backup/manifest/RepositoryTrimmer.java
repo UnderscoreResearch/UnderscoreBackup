@@ -411,8 +411,6 @@ public class RepositoryTrimmer implements StatusLogger {
                               Set<String> deletedPaths,
                               Statistics statistics) throws IOException {
         BackupSet set = findSet(files.get(0));
-        statistics.addFiles(1);
-        statistics.addFileVersions(files.size());
         if (set == null) {
             if (!force) {
                 log.warn("File not in set {},} use force flag to delete", files.get(0).getPath());
@@ -425,8 +423,8 @@ public class RepositoryTrimmer implements StatusLogger {
                         anyFound = true;
                     }
                 }
-                statistics.addFiles(1);
                 statistics.addFileVersions(files.size());
+                statistics.addFiles(1);
             } else {
                 log.warn("File not in set, deleting {}", files.get(0).getPath());
                 for (BackupFile file : files) {
@@ -464,8 +462,6 @@ public class RepositoryTrimmer implements StatusLogger {
             if (!anyFound) {
                 statistics.addDeletedFiles(1);
                 addToDeletedPaths(deletedPaths, files.get(0));
-            } else {
-                statistics.addFiles(1);
             }
         }
     }

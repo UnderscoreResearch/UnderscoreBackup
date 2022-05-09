@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -403,10 +404,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         statistics.getFileVersions()));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE",
                         "Total file size in repository",
-                        statistics.getTotalSize()));
+                        statistics.getTotalSize(),
+                        readableSize(statistics.getTotalSize())));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE_LAST_VERSION",
                         "Total file last version size in repository",
-                        statistics.getTotalSizeLastVersion()));
+                        statistics.getTotalSizeLastVersion(),
+                        readableSize(statistics.getTotalSizeLastVersion())));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCKS",
                         "Total blocks",
                         statistics.getBlocks()));
