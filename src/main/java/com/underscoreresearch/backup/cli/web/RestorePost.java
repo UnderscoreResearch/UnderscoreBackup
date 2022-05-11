@@ -123,7 +123,7 @@ public class RestorePost extends JsonWrap {
 
                     try {
                         RestoreExecutor restoreExecutor = new RestoreExecutor(contents);
-                        if (!isNullFile(destination)) {
+                        if (destination != null && !isNullFile(destination)) {
                             new File(destination).mkdirs();
                         }
                         restoreExecutor.restorePaths(request.files, destination, true, request.overwrite);

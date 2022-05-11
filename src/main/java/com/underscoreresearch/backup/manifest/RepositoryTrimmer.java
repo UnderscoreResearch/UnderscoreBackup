@@ -281,7 +281,7 @@ public class RepositoryTrimmer implements StatusLogger {
         log.info("Trimming partial references");
         metadataRepository.allFileParts().forEach((part) -> {
             if (InstanceFactory.isShutdown())
-                throw new RuntimeException(new java.lang.InterruptedException());
+                throw new InterruptedException();
             processedSteps.incrementAndGet();
 
             try {

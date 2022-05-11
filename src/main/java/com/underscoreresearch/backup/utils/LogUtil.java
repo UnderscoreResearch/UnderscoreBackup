@@ -31,7 +31,6 @@ public final class LogUtil {
 
         //get current TimeZone using getTimeZone method of Calendar class
         LOCAL_TIMEZONE = now.getTimeZone();
-        ;
 
         FILE_TIME_FORMATTER = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
     }

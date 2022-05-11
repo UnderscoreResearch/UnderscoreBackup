@@ -3,6 +3,7 @@ import {GetActivity, StatusLine} from "../api";
 import {LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableRow} from "@mui/material";
 import LogTable from "./LogTable";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
+import './Status.css'
 
 export interface StatusProps {
     status: StatusLine[]
@@ -13,21 +14,32 @@ export interface StatusState {
 }
 
 function StatusRow(row: StatusLine) {
+    let hasSecondRow;
+    let progress;
+    if (row.totalValue && row.value !== undefined) {
+        hasSecondRow = true;
+        progress = 100 * row.value / row.totalValue;
+    } else {
+        hasSecondRow = false;
+        progress = 0;
+    }
+    const className = hasSecondRow ? "cell-with-progress" : "cell-without-progress";
+
     return <React.Fragment>
         <TableRow
             key={row.code}
             sx={{'&:last-child td, &:last-child th': {border: 0}}}
         >
-            <TableCell component="th" scope="row">
+            <TableCell className={className}>
                 {row.message}
             </TableCell>
-            <TableCell align="right"><b>{row.valueString}</b></TableCell>
+            <TableCell className={className} align="right"><b>{row.valueString}</b></TableCell>
         </TableRow>
         {
-            row.totalValue && row.value !== undefined ?
+            hasSecondRow ?
                 <TableRow>
                     <TableCell component="th" scope="row" colSpan={2}>
-                        <LinearProgress variant="determinate" value={100 * row.value / row.totalValue}/>
+                        <LinearProgress variant="determinate" value={progress}/>
                     </TableCell>
                 </TableRow>
                 : ""

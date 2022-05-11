@@ -59,7 +59,6 @@ import com.underscoreresearch.backup.utils.AccessLock;
 import com.underscoreresearch.backup.utils.NonClosingInputStream;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
-import org.jetbrains.annotations.NotNull;
 
 @Slf4j
 public class ManifestManagerImpl implements ManifestManager, StatusLogger {
@@ -324,7 +323,6 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         }
     }
 
-    @NotNull
     private String createLogFilename() {
         String filename;
         filename = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();

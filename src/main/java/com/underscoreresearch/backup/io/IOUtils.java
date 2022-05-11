@@ -6,13 +6,19 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.TemporalAmount;
 import java.util.concurrent.Callable;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class IOUtils {
     private static final long INTERNET_WAIT = 1000;
+    private static final Duration INTERNET_SUCCESS_CACHE = Duration.ofSeconds(2);
+    private static Instant internetSuccessfulUntil = null;
     private static final int DEFAULT_BUFFER_SIZE = 8192;
 
     public static byte[] readAllBytes(InputStream stream) throws IOException {
@@ -39,20 +45,26 @@ public final class IOUtils {
 
     public static boolean hasInternet() {
         try {
-            URL url = new URL("http://www.example.com");
+            if (internetSuccessfulUntil != null && Instant.now().isBefore(internetSuccessfulUntil)) {
+                return true;
+            }
+            URL url = new URL("https://www.example.com");
             URLConnection connection = url.openConnection();
             connection.connect();
+            internetSuccessfulUntil = Instant.now().plus(INTERNET_SUCCESS_CACHE);
             return true;
         } catch (IOException e) {
             return false;
         }
     }
 
-    public static void waitForInternet(Callable<Void> callable) throws Exception {
+    public static <T> T waitForInternet(Callable<T> callable) throws Exception {
         for (int i = 0; true; i++) {
             try {
-                callable.call();
-                break;
+                if (InstanceFactory.isShutdown()) {
+                    throw new InterruptedException("Shutting down");
+                }
+                return callable.call();
             } catch (Exception exc) {
                 if (!IOUtils.hasInternet()) {
                     do {

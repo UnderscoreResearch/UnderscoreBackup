@@ -26,10 +26,16 @@ public class RetryUtils {
                 if (retries == i || (shouldRetry != null && !shouldRetry.apply(exc))) {
                     throw exc;
                 }
+                Thread.sleep((int) Math.pow(2, i) * retryBase);
                 if (IOUtils.hasInternet()) {
                     log.warn("Failed call retrying for the " + (i + 1) + " time ({})", exc.getMessage(), exc);
+                } else {
+                    try {
+                        return IOUtils.waitForInternet(callable);
+                    } catch (Exception internetExc) {
+                        log.warn("Failed to wait for internet", internetExc);
+                    }
                 }
-                Thread.sleep((int) Math.pow(2, i) * retryBase);
             }
         }
     }
