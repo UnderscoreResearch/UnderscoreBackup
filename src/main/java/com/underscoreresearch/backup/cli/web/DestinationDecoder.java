@@ -81,7 +81,7 @@ public final class DestinationDecoder {
         }
 
         BackupContentsAccess access = new BackupContentsAccessImpl(
-                InstanceFactory.getInstance(MetadataRepository.class), timestamp);
+                InstanceFactory.getInstance(MetadataRepository.class), timestamp, false);
 
         List<BackupFile> ret = access.directoryFiles(path);
         return ret != null ? ret : new ArrayList<>();

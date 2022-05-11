@@ -128,7 +128,7 @@ export default function LogTable(props: LogTableProps) {
     };
 
     if (rows.length == 0) {
-        return "";
+        return <div/>;
     }
 
     return (

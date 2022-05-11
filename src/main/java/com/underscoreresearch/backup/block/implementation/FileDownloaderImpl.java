@@ -204,6 +204,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                     "DOWNLOADED_ACTIVE_" + entry.getKey(),
                     "Currently downloading " + entry.getKey(),
                     entry.getValue().getCompleted(),
+                    entry.getValue().getTotal(),
                     readableSize(entry.getValue().getCompleted()) + " / "
                             + readableSize(entry.getValue().getTotal()))).collect(Collectors.toList());
         }

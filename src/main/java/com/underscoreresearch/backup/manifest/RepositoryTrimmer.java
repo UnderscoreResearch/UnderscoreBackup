@@ -387,7 +387,7 @@ public class RepositoryTrimmer implements StatusLogger {
                 return;
             }
             BackupContentsAccessPathOnly contents = new BackupContentsAccessPathOnly(metadataRepository,
-                    lastTimestamp);
+                    lastTimestamp, false);
             List<BackupFile> directoryFiles = contents.directoryFiles(directory.getPath());
 
             if (directoryFiles == null
@@ -439,16 +439,18 @@ public class RepositoryTrimmer implements StatusLogger {
             NavigableSet<String> parent = fetchPath(files.get(0));
             boolean deleted = !parent.contains(stripPath(files.get(0).getPath()));
             BackupFile lastFile = null;
-            boolean anyFound = false;
+            int keptCopies = 0;
             for (BackupFile file : files) {
-                if (set.getRetention().keepFile(file, lastFile, deleted)) {
+                if (set.getRetention().keepFile(file, lastFile, deleted)
+                        && (set.getRetention().getMaximumVersions() == null
+                        || keptCopies < set.getRetention().getMaximumVersions())) {
                     lastFile = file;
                     markFileBlocks(usedBlockMap, deletedPaths == null, file, true);
-                    if (!anyFound) {
+                    if (keptCopies == 0) {
                         statistics.addTotalSizeLastVersion(file.getLength());
                         statistics.addFiles(1);
-                        anyFound = true;
                     }
+                    keptCopies++;
                     statistics.addTotalSize(file.getLength());
                     statistics.addFileVersions(1);
                 } else {
@@ -459,7 +461,7 @@ public class RepositoryTrimmer implements StatusLogger {
                     statistics.addDeletedVersions(1);
                 }
             }
-            if (!anyFound) {
+            if (keptCopies == 0) {
                 statistics.addDeletedFiles(1);
                 addToDeletedPaths(deletedPaths, files.get(0));
             }

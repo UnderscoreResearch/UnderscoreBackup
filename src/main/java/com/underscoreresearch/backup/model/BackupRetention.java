@@ -18,6 +18,8 @@ public class BackupRetention {
     private BackupTimespan defaultFrequency;
     private TreeSet<BackupRetentionAdditional> older;
 
+    private Integer maximumVersions;
+
     public boolean keepFile(BackupFile file, BackupFile previousFile, boolean deleted) {
         LocalDateTime fileInstant = file.addedToTime();
 

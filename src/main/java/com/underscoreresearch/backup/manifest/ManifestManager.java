@@ -17,7 +17,7 @@ public interface ManifestManager {
 
     void setDisabledFlushing(boolean disabledFlushing);
 
-    BackupContentsAccess backupContents(Long timestamp) throws IOException;
+    BackupContentsAccess backupContents(Long timestamp, boolean includeDeleted) throws IOException;
 
     void shutdown() throws IOException;
 }

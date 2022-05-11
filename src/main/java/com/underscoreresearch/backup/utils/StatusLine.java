@@ -15,6 +15,7 @@ public class StatusLine {
     private String code;
     private String message;
     private Long value;
+    private Long totalValue;
     private String valueString;
 
     public String getReporter() {
@@ -55,6 +56,16 @@ public class StatusLine {
         this.code = code;
         this.message = message;
         this.value = value;
+        this.valueString = valueString;
+    }
+
+    public StatusLine(Class reporterClass, String code, String message, Long value, Long totalValue,
+                      String valueString) {
+        this.reporterClass = reporterClass;
+        this.code = code;
+        this.message = message;
+        this.value = value;
+        this.totalValue = totalValue;
         this.valueString = valueString;
     }
 

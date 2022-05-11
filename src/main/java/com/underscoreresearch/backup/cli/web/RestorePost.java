@@ -48,6 +48,7 @@ public class RestorePost extends JsonWrap {
         private List<BackupSetRoot> files;
         private boolean overwrite;
         private Long timestamp;
+        private boolean includeDeleted;
 
         @JsonCreator
         @Builder
@@ -95,7 +96,8 @@ public class RestorePost extends JsonWrap {
                 try {
                     MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
                     ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
-                    BackupContentsAccess contents = manifestManager.backupContents(request.timestamp);
+                    BackupContentsAccess contents = manifestManager.backupContents(request.timestamp,
+                            request.includeDeleted);
                     FileDownloader downloader = InstanceFactory.getInstance(FileDownloader.class);
 
                     InstanceFactory.addOrderedCleanupHook(() -> {

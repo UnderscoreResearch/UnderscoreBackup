@@ -39,6 +39,7 @@ export interface BackupRetentionAdditional {
 
 export interface BackupRetention {
     retainDeleted?: BackupTimespan,
+    maximumVersions?: number,
     defaultFrequency?: BackupTimespan,
     older?: BackupRetentionAdditional[]
 }
@@ -123,6 +124,7 @@ export interface StatusLine {
     code: string,
     message: string,
     value?: number,
+    totalValue?: number,
     valueString?: string
 }
 
@@ -135,7 +137,8 @@ export interface BackupRestoreRequest {
     destination?: string,
     files: BackupSetRoot[],
     overwrite: boolean,
-    timestamp?: number
+    timestamp?: number,
+    includeDeleted?: boolean
 }
 
 function reportError(errors: any) {

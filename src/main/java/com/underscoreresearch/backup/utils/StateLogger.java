@@ -136,7 +136,9 @@ public class StateLogger implements StatusLogger {
     public List<StatusLine> status() {
         if (debugMemory && lastHeapUsage.get() > 0) {
             return Lists.newArrayList(
-                    new StatusLine(getClass(), "HEAP_MEMORY", "Heap memory usage", lastHeapUsage.get(),
+                    new StatusLine(getClass(), "HEAP_MEMORY", "Heap memory usage",
+                            lastHeapUsage.get(),
+                            lastHeapUsageMax.get(),
                             readableSize(lastHeapUsage.get()) + " / " + readableSize(lastHeapUsageMax.get())),
                     new StatusLine(getClass(), "HEAP_AFTER_GC", "Heap memory usage after GC", lastMemoryAfterGCUse.get(),
                             lastMemoryAfterGCUse.get() + "%"),
