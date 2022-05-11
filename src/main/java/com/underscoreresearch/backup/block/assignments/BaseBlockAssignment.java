@@ -37,6 +37,7 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Status
                         "UPLOADED_ACTIVE_" + entry.getFile().getPath(),
                         "Currently uploading " + entry.getFile().getPath(),
                         completed,
+                        entry.getFile().getLength(),
                         readableSize(completed) + " / "
                                 + readableSize(entry.getFile().getLength()));
             }).collect(Collectors.toList());

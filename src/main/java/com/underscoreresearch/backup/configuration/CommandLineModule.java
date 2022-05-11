@@ -54,6 +54,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String DEVELOPER_MODE = "developer-mode";
     public static final String HUMAN_READABLE = "human-readable";
     public static final String BACKFILL_ENCRYPTION = "backfill-encryption";
+    public static final String INCLUDE_DELETED = "include-deleted";
     public static final String RECURSIVE = "recursive";
     public static final String OVER_WRITE = "over-write";
     public static final String TIMESTAMP = "timestamp";
@@ -91,6 +92,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption(null, PRIVATE_KEY_SEED, true, "Private key passphrase");
         options.addOption(null, DEVELOPER_MODE, false, "Developer mode");
         options.addOption(null, LOG_FILE, true, "Log file location");
+        options.addOption(null, INCLUDE_DELETED, true, "Include deleted files from repository");
         options.addOption(null, NO_LOG, false, "Don't write to a log file");
         options.addOption(null, BIND_ADDRESS, true, "Specify the address to bind UI webserver to (Default localhost)");
         options.addOption("h", HUMAN_READABLE, false, "Display human readable sizes");

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {GetActivity, StatusLine} from "../api";
-import {Paper, Stack, Table, TableBody, TableCell, TableContainer, TableRow} from "@mui/material";
+import {LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableRow} from "@mui/material";
 import LogTable from "./LogTable";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 
@@ -9,9 +9,30 @@ export interface StatusProps {
 }
 
 export interface StatusState {
-    logs: StatusLine[],
-    page: number,
-    itemsPerPage: number
+    logs: StatusLine[]
+}
+
+function StatusRow(row: StatusLine) {
+    return <React.Fragment>
+        <TableRow
+            key={row.code}
+            sx={{'&:last-child td, &:last-child th': {border: 0}}}
+        >
+            <TableCell component="th" scope="row">
+                {row.message}
+            </TableCell>
+            <TableCell align="right"><b>{row.valueString}</b></TableCell>
+        </TableRow>
+        {
+            row.totalValue && row.value !== undefined ?
+                <TableRow>
+                    <TableCell component="th" scope="row" colSpan={2}>
+                        <LinearProgress variant="determinate" value={100 * row.value / row.totalValue}/>
+                    </TableCell>
+                </TableRow>
+                : ""
+        }
+    </React.Fragment>;
 }
 
 export default function Status(props: StatusProps) {
@@ -49,17 +70,7 @@ export default function Status(props: StatusProps) {
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
-                            {statusItems.map((row) => (
-                                <TableRow
-                                    key={row.code}
-                                    sx={{'&:last-child td, &:last-child th': {border: 0}}}
-                                >
-                                    <TableCell component="th" scope="row">
-                                        {row.message}
-                                    </TableCell>
-                                    <TableCell align="right"><b>{row.valueString}</b></TableCell>
-                                </TableRow>
-                            ))}
+                            {statusItems.map((row) => StatusRow(row))}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -72,17 +83,7 @@ export default function Status(props: StatusProps) {
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
-                            {activeItems.map((row) => (
-                                <TableRow
-                                    key={row.code}
-                                    sx={{'&:last-child td, &:last-child th': {border: 0}}}
-                                >
-                                    <TableCell component="th" scope="row">
-                                        {row.message}
-                                    </TableCell>
-                                    <TableCell align="right"><b>{row.valueString}</b></TableCell>
-                                </TableRow>
-                            ))}
+                            {activeItems.map((row) => StatusRow(row))}
                         </TableBody>
                     </Table>
                 </TableContainer>

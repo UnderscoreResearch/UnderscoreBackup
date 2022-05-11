@@ -15,7 +15,8 @@ export interface RestorePropsChange {
     timestamp?: Date,
     roots: BackupSetRoot[],
     destination?: string,
-    overwrite: boolean
+    overwrite: boolean,
+    includeDeleted?: boolean
 }
 
 export interface RestoreProps {
@@ -27,7 +28,8 @@ export interface RestoreProps {
     defaults: BackupDefaults,
     roots: BackupSetRoot[],
     onChange: (state: RestorePropsChange) => void,
-    validatedPassphrase: boolean
+    validatedPassphrase: boolean,
+    includeDeleted?: boolean
 }
 
 export interface RestoreState {
@@ -36,7 +38,8 @@ export interface RestoreState {
     current: boolean,
     roots: BackupSetRoot[],
     overwrite: boolean,
-    destination?: string
+    destination?: string,
+    includeDeleted?: boolean
 }
 
 export default function Restore(props: RestoreProps) {
@@ -46,7 +49,8 @@ export default function Restore(props: RestoreProps) {
         timestamp: props.timestamp,
         current: !props.timestamp,
         overwrite: props.overwrite,
-        destination: props.destination ? props.destination : props.defaultDestination
+        destination: props.destination ? props.destination : props.defaultDestination,
+        includeDeleted: props.includeDeleted
     });
 
     function updateState(newState: RestoreState) {
@@ -56,6 +60,7 @@ export default function Restore(props: RestoreProps) {
                 timestamp: newState.current ? undefined : newState.timestamp,
                 overwrite: newState.overwrite,
                 destination: newState.destination,
+                includeDeleted: newState.includeDeleted,
                 roots: newState.roots
             });
         }
@@ -125,6 +130,13 @@ export default function Restore(props: RestoreProps) {
                             onChange={handleChangedDate}
                             renderInput={(params) => <TextField {...params} />}
                         />
+                        <FormControlLabel control={<Checkbox checked={state.includeDeleted} onChange={(e) => {
+                            updateState({
+                                ...state,
+                                includeDeleted: e.target.checked
+                            });
+                        }
+                        }/>} label="Include deleted files" style={{marginLeft: "8px"}}/>
                     </div>
                 </LocalizationProvider>
             </Paper>

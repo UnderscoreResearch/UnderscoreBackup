@@ -87,6 +87,7 @@ public class DefaultsGet extends JsonWrap {
                         "(?i)\\.ost$",
                         "(?i)/te?mp/",
                         "/node_modules/",
+                        "/npm-cache/",
                         "/\\.cache/",
                         "/\\.npm/",
                         "/\\#[^\\/]*\\#/",

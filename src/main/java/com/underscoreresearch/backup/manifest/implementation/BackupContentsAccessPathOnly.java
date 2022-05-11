@@ -22,10 +22,12 @@ import com.underscoreresearch.backup.model.BackupFile;
 public class BackupContentsAccessPathOnly implements BackupContentsAccess {
     private final MetadataRepository repository;
     private final Long timestamp;
+    private final boolean includeDeleted;
 
-    public BackupContentsAccessPathOnly(MetadataRepository repository, Long timestamp) {
+    public BackupContentsAccessPathOnly(MetadataRepository repository, Long timestamp, boolean includeDeleted) {
         this.repository = repository;
         this.timestamp = timestamp;
+        this.includeDeleted = includeDeleted;
     }
 
     protected BackupDirectory getPaths(String path) throws IOException {
@@ -45,6 +47,17 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
                 ret = entry;
             } else {
                 ret = null;
+            }
+        }
+
+        if (ret != null && includeDeleted) {
+            List<BackupDirectory> otherDir = repository.directory(path);
+            if (otherDir != null) {
+                for (BackupDirectory dir : otherDir) {
+                    if (timestamp != null && dir.getAdded() > timestamp)
+                        break;
+                    ret.getFiles().addAll(dir.getFiles());
+                }
             }
         }
 

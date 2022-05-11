@@ -389,11 +389,16 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
             return new ArrayList<>();
         }
         synchronized (scheduledTimes) {
-            List<StatusLine> ret = scheduledTimes.entrySet().stream().map(item ->
-                    new StatusLine(getClass(), "SCHEDULED_BACKUP_" + item.getKey(),
-                            String.format("Scheduled next run of set %d at %s",
-                                    indexOfSet(item.getKey()),
-                                    formatTimestamp(item.getValue().getTime())))).collect(Collectors.toList());
+            List<StatusLine> ret = scheduledTimes
+                    .entrySet()
+                    .stream()
+                    .map(item ->
+                            new StatusLine(getClass(), "SCHEDULED_BACKUP_" + item.getKey(),
+                                    String.format("Scheduled next run of set %d",
+                                            indexOfSet(item.getKey())),
+                                    item.getValue().getTime(),
+                                    formatTimestamp(item.getValue().getTime())))
+                    .collect(Collectors.toList());
 
             if (statistics != null) {
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILES",

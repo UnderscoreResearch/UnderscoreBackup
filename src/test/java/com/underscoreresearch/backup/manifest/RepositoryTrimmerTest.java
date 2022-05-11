@@ -76,7 +76,8 @@ class RepositoryTrimmerTest {
         set2.setId("set2");
         set2.setDestinations(Lists.newArrayList("mem"));
         set2.setRetention(BackupRetention.builder().defaultFrequency(new BackupTimespan(1, SECONDS))
-                .retainDeleted(new BackupTimespan(1, YEARS)).build());
+                .retainDeleted(new BackupTimespan(1, YEARS))
+                .build());
         destination = new BackupDestination();
         destination.setType("MEMORY");
         backupConfiguration.setDestinations(ImmutableMap.of("mem", destination));
@@ -220,7 +221,6 @@ class RepositoryTrimmerTest {
 
     @Test
     public void testFiles() throws IOException {
-        repository.pushActivePath("set3", "/test1/", new BackupActivePath());
         trimmer.trimRepository();
 
         try (CloseableLock ignored = repository.acquireLock()) {
@@ -230,6 +230,36 @@ class RepositoryTrimmerTest {
                             "/test1/def/test2", 13,
                             "/test1/def/test3", 12,
                             "/test2/test4", 26)));
+
+            assertThat(repository.allDirectories()
+                            .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
+                    Is.is(ImmutableMap.of("/", 1,
+                            "/test1/", 1,
+                            "/test1/def/", 2,
+                            "/test2/", 1)));
+
+            assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
+                    Is.is(ImmutableSet.of("e")));
+        }
+
+        IOIndex provider = (IOIndex) IOProviderFactory.getProvider(destination);
+        assertThat(provider.availableKeys("/"), Is.is(Lists.newArrayList("l", "m")));
+        assertThat(repository.getActivePaths(null).size(), Is.is(0));
+    }
+
+    @Test
+    public void testMaxFiles() throws IOException {
+        set1.getRetention().setMaximumVersions(1);
+        set2.getRetention().setMaximumVersions(1);
+        trimmer.trimRepository();
+
+        try (CloseableLock ignored = repository.acquireLock()) {
+            assertThat(repository.allFiles()
+                            .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
+                    Is.is(ImmutableMap.of("/test1/def/test1", 1,
+                            "/test1/def/test2", 1,
+                            "/test1/def/test3", 1,
+                            "/test2/test4", 1)));
 
             assertThat(repository.allDirectories()
                             .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),

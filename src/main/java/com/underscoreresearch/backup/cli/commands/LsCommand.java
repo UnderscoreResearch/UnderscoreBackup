@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.LogUtil.printFile;
@@ -31,7 +32,8 @@ public class LsCommand extends Command {
     @Override
     public void executeCommand(CommandLine commandLine) throws Exception {
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
-        BackupContentsAccess contents = manifestManager.backupContents(CommandLineModule.timestamp(commandLine));
+        BackupContentsAccess contents = manifestManager.backupContents(CommandLineModule.timestamp(commandLine),
+                commandLine.hasOption(INCLUDE_DELETED));
 
         List<String> paths = commandLine.getArgList().subList(1, commandLine.getArgList().size());
         if (paths.size() == 0) {

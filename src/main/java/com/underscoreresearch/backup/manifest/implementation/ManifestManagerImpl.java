@@ -59,6 +59,7 @@ import com.underscoreresearch.backup.utils.AccessLock;
 import com.underscoreresearch.backup.utils.NonClosingInputStream;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
+import org.jetbrains.annotations.NotNull;
 
 @Slf4j
 public class ManifestManagerImpl implements ManifestManager, StatusLogger {
@@ -78,6 +79,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private boolean disabledFlushing;
 
     private AccessLock currentLogLock;
+    private String lastLogFilename;
     private long currentLogLength;
     private Object lock = new Object();
     private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
@@ -292,9 +294,12 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private void createNewLogFile() throws IOException {
         closeLogFile();
         currentLogLength = 0;
-        String filename = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
+        String filename;
+        filename = createLogFilename();
+
         new File(filename).getParentFile().mkdirs();
         currentLogLock = new AccessLock(filename);
+        lastLogFilename = filename;
         currentLogLock.lock(true);
 
         File dir = new File(filename).getParentFile();
@@ -317,6 +322,21 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                     configuration.getManifest().getMaximumUnsyncedSeconds(),
                     TimeUnit.SECONDS);
         }
+    }
+
+    @NotNull
+    private String createLogFilename() {
+        String filename;
+        filename = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
+        while (filename.equals(lastLogFilename)) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+            }
+            debug(() -> log.warn("Had to wait a bit to get a unique filename for log"));
+            filename = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
+        }
+        return filename;
     }
 
     private void closeLogFile() throws IOException {
@@ -348,7 +368,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         startOperation("Replay");
         try {
             totalFiles = new AtomicLong(days.size());
-            processedFiles = new AtomicLong();
+            processedFiles = new AtomicLong(0L);
             processedOperations = new AtomicLong();
 
             for (String day : days) {
@@ -507,9 +527,9 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     }
 
     @Override
-    public BackupContentsAccess backupContents(Long timestamp) throws IOException {
+    public BackupContentsAccess backupContents(Long timestamp, boolean includeDeleted) throws IOException {
         return new BackupContentsAccessImpl(InstanceFactory.getInstance(MetadataRepository.class),
-                timestamp);
+                timestamp, includeDeleted);
     }
 
     @Override
@@ -550,11 +570,10 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         List<StatusLine> ret = new ArrayList<>();
         if (operation != null) {
             String code = operation.toUpperCase().replace(" ", "_");
-            if (processedFiles != null) {
-                ret.add(new StatusLine(getClass(), code + "_PROCESSED_FILES", operation + " processed files", processedFiles.get()));
-            }
-            if (totalFiles != null) {
-                ret.add(new StatusLine(getClass(), code + "_TOTAL_FILES", operation + " total files", totalFiles.get()));
+            if (processedFiles != null && totalFiles != null) {
+                ret.add(new StatusLine(getClass(), code + "_PROCESSED_FILES", operation + " processed files",
+                        processedFiles.get(), totalFiles.get(),
+                        readableNumber(processedFiles.get()) + " / " + readableNumber(totalFiles.get())));
             }
             if (processedOperations != null) {
                 ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations", processedOperations.get()));

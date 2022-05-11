@@ -19,8 +19,9 @@ public class BackupContentsAccessImpl extends BackupContentsAccessPathOnly {
     private Map<String, BackupActivePath> activePaths;
     private Set<String> rootPaths;
 
-    public BackupContentsAccessImpl(MetadataRepository repository, Long timestamp) throws IOException {
-        super(repository, timestamp);
+    public BackupContentsAccessImpl(MetadataRepository repository, Long timestamp, boolean includeDeleted)
+            throws IOException {
+        super(repository, timestamp, includeDeleted);
 
         if (timestamp == null)
             activePaths = repository.getActivePaths(null);

@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.OVER_WRITE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
@@ -38,7 +39,8 @@ public class RestoreCommand extends Command {
     public void executeCommand(CommandLine commandLine) throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
-        BackupContentsAccess contents = manifestManager.backupContents(CommandLineModule.timestamp(commandLine));
+        BackupContentsAccess contents = manifestManager.backupContents(CommandLineModule.timestamp(commandLine),
+                commandLine.hasOption(INCLUDE_DELETED));
         FileDownloader downloader = InstanceFactory.getInstance(FileDownloader.class);
 
         String destination;
