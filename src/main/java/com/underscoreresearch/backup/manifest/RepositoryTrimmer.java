@@ -129,6 +129,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private AtomicLong processedSteps = new AtomicLong();
+    private AtomicLong totalSteps = new AtomicLong();
     private Duration lastHeartbeat;
 
     @Override
@@ -147,7 +148,9 @@ public class RepositoryTrimmer implements StatusLogger {
                         new StatusLine(getClass(), "TRIMMING_THROUGHPUT", "Trimming throughput",
                                 throughput, readableNumber(throughput) + " steps/s"),
                         new StatusLine(getClass(), "TRIMMING_STEPS", "Trimming steps completed",
-                                processedSteps.get(), readableNumber(processedSteps.get()) + " steps"));
+                                processedSteps.get(), totalSteps.get(),
+                                readableNumber(processedSteps.get()) + " / " +
+                                        readableNumber(totalSteps.get()) + " steps"));
             }
         }
         return new ArrayList<>();
@@ -194,6 +197,9 @@ public class RepositoryTrimmer implements StatusLogger {
                 boolean hasActivePaths = trimActivePaths();
 
                 try (CloseableLock ignored = metadataRepository.acquireLock()) {
+                    totalSteps.addAndGet(metadataRepository.getBlockCount()
+                            + metadataRepository.getPartCount()
+                            + metadataRepository.getFileCount());
                     stopwatch.start();
                     lastHeartbeat = Duration.ZERO;
 

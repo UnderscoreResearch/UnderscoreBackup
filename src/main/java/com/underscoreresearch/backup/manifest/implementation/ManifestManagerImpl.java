@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import com.underscoreresearch.backup.model.BackupActivePath;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -450,8 +452,15 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
             internalInitialize();
 
+            TreeMap<String, BackupActivePath> activePaths = existingRepository.getActivePaths(null);
+
             startOperation("Optimizing log");
             processedOperations = new AtomicLong();
+            totalOperations = new AtomicLong(existingRepository.getFileCount()
+                    + existingRepository.getBlockCount()
+                    + existingRepository.getDirectoryCount()
+                    + activePaths.size()
+                    + configuration.getSets().size() + 1);
 
             log.info("Processing files");
             existingRepository.allFiles().forEach((file) -> {
@@ -481,7 +490,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
             });
             log.info("Processing active paths");
-            existingRepository.getActivePaths(null).forEach((path, dir) -> {
+            activePaths.forEach((path, dir) -> {
                 processedOperations.incrementAndGet();
                 for (String setId : dir.getSetIds()) {
                     try {
@@ -540,6 +549,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
     private String operation;
     private AtomicLong totalFiles;
+    private AtomicLong totalOperations;
     private AtomicLong processedFiles;
     private AtomicLong processedOperations;
     private Stopwatch operationDuration;
@@ -574,7 +584,14 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                         readableNumber(processedFiles.get()) + " / " + readableNumber(totalFiles.get())));
             }
             if (processedOperations != null) {
-                ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations", processedOperations.get()));
+                if (totalOperations != null) {
+                    ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
+                            processedOperations.get(), totalOperations.get(),
+                            readableNumber(processedOperations.get()) + " / " + readableNumber(totalOperations.get())));
+                } else {
+                    ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
+                            processedOperations.get()));
+                }
             }
 
             if (processedOperations != null && operationDuration != null) {

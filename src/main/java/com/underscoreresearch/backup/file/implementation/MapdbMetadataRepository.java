@@ -213,21 +213,31 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 pendingSetDb = createDb(readOnly, PENDING_SET_STORE);
                 partialFileDb = createDb(readOnly, PARTIAL_FILE_STORE);
 
-                blockMap = blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
+                blockMap = blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY)
+                        .counterEnable()
+                        .createOrOpen();
                 fileMap = fileDb.treeMap(FILE_STORE)
                         .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
+                        .counterEnable()
                         .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
                 directoryMap = directoryDb.treeMap(FILE_STORE)
                         .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
+                        .counterEnable()
                         .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
                 activePathMap = activePathDb.treeMap(ACTIVE_PATH_STORE)
                         .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
+                        .counterEnable()
                         .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
                 partsMap = partsDb.treeMap(FILE_STORE)
                         .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
+                        .counterEnable()
                         .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-                pendingSetMap = pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
-                partialFileMap = partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY).createOrOpen();
+                pendingSetMap = pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY)
+                        .counterEnable()
+                        .createOrOpen();
+                partialFileMap = partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY)
+                        .counterEnable()
+                        .createOrOpen();
             }
         }
     }
@@ -773,6 +783,34 @@ public class MapdbMetadataRepository implements MetadataRepository {
             if (open) {
                 commit();
             }
+        }
+    }
+
+    public long getBlockCount() throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+            return blockMap.size();
+        }
+    }
+
+    public long getFileCount() throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+            return fileMap.size();
+        }
+    }
+
+    public long getDirectoryCount() throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+            return directoryMap.size();
+        }
+    }
+
+    public long getPartCount() throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+            return partsMap.size();
         }
     }
 }
