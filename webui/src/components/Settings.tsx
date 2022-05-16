@@ -127,7 +127,8 @@ export default function Settings(props: SettingsProps) {
                     <Cron disabled={state.manifest.optimizeSchedule === undefined}
                           value={state.manifest.optimizeSchedule ? state.manifest.optimizeSchedule : "0 0 1 * *"}
                           setValue={(newSchedule: string) => {
-                              if (state.manifest.optimizeSchedule !== undefined) {
+                              if (state.manifest.optimizeSchedule !== undefined &&
+                                  state.manifest.optimizeSchedule !== newSchedule) {
                                   updateState({
                                       ...state,
                                       manifest: {

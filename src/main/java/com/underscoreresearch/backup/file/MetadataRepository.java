@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
+import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -84,4 +85,12 @@ public interface MetadataRepository {
     Set<BackupPendingSet> getPendingSets() throws IOException;
 
     CloseableLock acquireLock();
+
+    long getBlockCount() throws IOException;
+
+    long getFileCount() throws IOException;
+
+    long getDirectoryCount() throws IOException;
+
+    long getPartCount() throws IOException;
 }

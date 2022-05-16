@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.commands;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -20,23 +21,20 @@ public class RepositoryInfoCommand extends SimpleCommand {
         AtomicLong totalOriginalCurrentSize = new AtomicLong();
         AtomicLong totalBlocks = new AtomicLong();
         AtomicLong totalParts = new AtomicLong();
-        String[] lastPath = new String[1];
-        long[] lastLength = new long[1];
+        AtomicReference<String> lastPath = new AtomicReference<>("");
 
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            repository.allFiles().forEach((file) -> {
-                if (!file.getPath().equals(lastPath[0])) {
-                    lastPath[0] = file.getPath();
+            repository.allFiles().forEachOrdered((file) -> {
+                if (!file.getPath().equals(lastPath.get())) {
+                    lastPath.set(file.getPath());
                     totalFiles.incrementAndGet();
-                    totalOriginalCurrentSize.addAndGet(lastLength[0]);
+                    totalOriginalCurrentSize.addAndGet(file.getLength());
                 }
-                lastLength[0] = file.getLength();
                 totalVersions.incrementAndGet();
                 totalOriginalSize.addAndGet(file.getLength());
             });
-            totalOriginalCurrentSize.addAndGet(lastLength[0]);
 
             System.out.println("Files: " + totalFiles.get());
             System.out.println("Last version file size: " + readableSize(totalOriginalCurrentSize.get()));

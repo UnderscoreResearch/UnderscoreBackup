@@ -36,6 +36,7 @@ public class BlockValidator implements StatusLogger {
 
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private AtomicLong processedSteps = new AtomicLong();
+    private AtomicLong totalSteps = new AtomicLong();
     private Duration lastHeartbeat;
 
     public void validateBlocks() throws IOException {
@@ -45,6 +46,7 @@ public class BlockValidator implements StatusLogger {
         log.info("Validating all blocks of files");
         manifestManager.setDisabledFlushing(true);
         try (CloseableLock ignored = repository.acquireLock()) {
+            totalSteps.set(repository.getFileCount());
             repository.allFiles().forEach((file) -> {
                 if (InstanceFactory.isShutdown())
                     throw new RuntimeException(new InterruptedException());
@@ -145,7 +147,9 @@ public class BlockValidator implements StatusLogger {
                         new StatusLine(getClass(), "VALIDATE_THROUGHPUT", "Validating blocks throughput",
                                 throughput, readableNumber(throughput) + " steps/s"),
                         new StatusLine(getClass(), "VALIDATE_STEPS", "Validating blocks steps completed",
-                                processedSteps.get(), readableNumber(processedSteps.get()) + " steps"));
+                                processedSteps.get(), totalSteps.get(),
+                                readableNumber(processedSteps.get()) + " / "
+                                        + readableNumber(totalSteps.get()) + " steps"));
             }
         }
         return new ArrayList<>();

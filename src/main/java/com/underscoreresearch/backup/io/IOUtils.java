@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.TemporalAmount;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ public final class IOUtils {
     private static final long INTERNET_WAIT = 1000;
     private static final Duration INTERNET_SUCCESS_CACHE = Duration.ofSeconds(2);
     private static Instant internetSuccessfulUntil = null;
+    private static AtomicBoolean waitingForInternetMessage = new AtomicBoolean();
     private static final int DEFAULT_BUFFER_SIZE = 8192;
 
     public static byte[] readAllBytes(InputStream stream) throws IOException {
@@ -59,27 +61,45 @@ public final class IOUtils {
     }
 
     public static <T> T waitForInternet(Callable<T> callable) throws Exception {
-        for (int i = 0; true; i++) {
-            try {
-                if (InstanceFactory.isShutdown()) {
-                    throw new InterruptedException("Shutting down");
+        boolean clearFlag = false;
+        try {
+            for (int i = 0; true; i++) {
+                try {
+                    if (InstanceFactory.isShutdown()) {
+                        throw new InterruptedException("Shutting down");
+                    }
+                    return callable.call();
+                } catch (Exception exc) {
+                    if (!IOUtils.hasInternet()) {
+                        do {
+                            if (i == 0) {
+                                clearFlag = true;
+                                synchronized (waitingForInternetMessage) {
+                                    if (!waitingForInternetMessage.get()) {
+                                        log.warn("Waiting for internet access to continue");
+                                        waitingForInternetMessage.set(true);
+                                    }
+                                }
+                            }
+                            try {
+                                Thread.sleep(INTERNET_WAIT);
+                            } catch (InterruptedException e) {
+                                Thread.interrupted();
+                            }
+                            i++;
+                        } while (!IOUtils.hasInternet());
+                    } else {
+                        throw exc;
+                    }
                 }
-                return callable.call();
-            } catch (Exception exc) {
-                if (!IOUtils.hasInternet()) {
-                    do {
-                        if (i == 0) {
-                            log.warn("Waiting for internet access to continue");
-                        }
-                        try {
-                            Thread.sleep(INTERNET_WAIT);
-                        } catch (InterruptedException e) {
-                            Thread.interrupted();
-                        }
-                        i++;
-                    } while (!IOUtils.hasInternet());
-                } else {
-                    throw exc;
+            }
+        } finally {
+            if (clearFlag) {
+                synchronized (waitingForInternetMessage) {
+                    if (waitingForInternetMessage.get()) {
+                        log.info("Internet access restored");
+                        waitingForInternetMessage.set(false);
+                    }
                 }
             }
         }

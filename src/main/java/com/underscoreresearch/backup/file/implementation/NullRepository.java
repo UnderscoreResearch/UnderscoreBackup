@@ -172,4 +172,24 @@ public class NullRepository implements MetadataRepository {
             }
         };
     }
+
+    @Override
+    public long getBlockCount() {
+        return 0;
+    }
+
+    @Override
+    public long getFileCount() {
+        return 0;
+    }
+
+    @Override
+    public long getDirectoryCount() {
+        return 0;
+    }
+
+    @Override
+    public long getPartCount() {
+        return 0;
+    }
 }

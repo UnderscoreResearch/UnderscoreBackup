@@ -76,17 +76,15 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                     pendingPaths.keySet())));
         }
 
-        for (BackupSetRoot root : backupSet.getRoots()) {
-            if (!addPendingPath(backupSet, root.getNormalizedPath())) {
-                lock.unlock();
-                return !shutdown;
-            }
+        if (!registerBackupRoots(backupSet)) {
+            lock.unlock();
+            return !shutdown;
         }
 
         pendingPaths.values().forEach(t -> t.setUnprocessed(true));
 
         for (BackupSetRoot root : backupSet.getRoots()) {
-            if (!shutdown)
+            if (!shutdown && pendingPaths.containsKey(root.getNormalizedPath()))
                 processPath(backupSet, root.getNormalizedPath());
         }
 
@@ -116,6 +114,16 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         stateLogger.reset();
 
         return !shutdown;
+    }
+
+    private boolean registerBackupRoots(BackupSet backupSet) {
+        boolean anyFound = false;
+        for (BackupSetRoot root : backupSet.getRoots()) {
+            if (addPendingPath(backupSet, root.getNormalizedPath())) {
+                anyFound = true;
+            }
+        }
+        return anyFound;
     }
 
     private Map<String, BackupActivePath> processedPendingPaths() {

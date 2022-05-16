@@ -216,6 +216,26 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public long getBlockCount() throws IOException {
+        return repository.getBlockCount();
+    }
+
+    @Override
+    public long getFileCount() throws IOException {
+        return repository.getFileCount();
+    }
+
+    @Override
+    public long getDirectoryCount() throws IOException {
+        return repository.getDirectoryCount();
+    }
+
+    @Override
+    public long getPartCount() throws IOException {
+        return repository.getPartCount();
+    }
+
+    @Override
     public boolean deleteFilePart(BackupFilePart filePart) throws IOException {
         writeLogEntry("deletePart", filePart);
         return repository.deleteFilePart(filePart);
