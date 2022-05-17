@@ -47,7 +47,7 @@ public class BlockValidator implements StatusLogger {
         manifestManager.setDisabledFlushing(true);
         try (CloseableLock ignored = repository.acquireLock()) {
             totalSteps.set(repository.getFileCount());
-            repository.allFiles().forEach((file) -> {
+            repository.allFiles(false).forEach((file) -> {
                 if (InstanceFactory.isShutdown())
                     throw new RuntimeException(new InterruptedException());
 

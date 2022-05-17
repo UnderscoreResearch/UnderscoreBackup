@@ -13,7 +13,7 @@ public interface ManifestManager {
 
     void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException;
 
-    void initialize(LogConsumer logConsumer) throws IOException;
+    void initialize(LogConsumer logConsumer, boolean immediate) throws IOException;
 
     void setDisabledFlushing(boolean disabledFlushing);
 

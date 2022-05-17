@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,7 +27,7 @@ public class RepositoryInfoCommand extends SimpleCommand {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            repository.allFiles().forEachOrdered((file) -> {
+            repository.allFiles(false).forEachOrdered((file) -> {
                 if (!file.getPath().equals(lastPath.get())) {
                     lastPath.set(file.getPath());
                     totalFiles.incrementAndGet();
@@ -36,9 +37,9 @@ public class RepositoryInfoCommand extends SimpleCommand {
                 totalOriginalSize.addAndGet(file.getLength());
             });
 
-            System.out.println("Files: " + totalFiles.get());
+            System.out.println("Files: " + readableNumber(totalFiles.get()));
             System.out.println("Last version file size: " + readableSize(totalOriginalCurrentSize.get()));
-            System.out.println("File versions: " + totalVersions.get());
+            System.out.println("File versions: " + readableNumber(totalVersions.get()));
             System.out.println("Total original size: " + readableSize(totalOriginalSize.get()));
 
             repository.allBlocks().forEach(block -> {
@@ -48,7 +49,7 @@ public class RepositoryInfoCommand extends SimpleCommand {
             });
         }
 
-        System.out.println("Total blocks: " + totalBlocks.get());
-        System.out.println("Total block parts: " + totalParts.get());
+        System.out.println("Total blocks: " + readableNumber(totalBlocks.get()));
+        System.out.println("Total block parts: " + readableNumber(totalParts.get()));
     }
 }

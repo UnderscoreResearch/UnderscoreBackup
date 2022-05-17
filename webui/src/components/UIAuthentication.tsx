@@ -15,7 +15,7 @@ interface UIAuthenticationState {
 
 export default function UIAuthentication(props: UIAuthenticationProps) {
     const [state, setState] = React.useState({
-        enabled: props.manifest.configUser && props.manifest.configPassword,
+        enabled: !!(props.manifest.configUser && props.manifest.configPassword),
         manifest: props.manifest
     } as UIAuthenticationState);
 

@@ -9,7 +9,7 @@ import Cron from "../3rdparty/react-js-cron-mui";
 
 export interface SettingsProps {
     config: BackupConfiguration,
-    onChange: (BackupConfiguration) => void
+    onChange: (newConfig : BackupConfiguration) => void
 }
 
 interface SettingsState {
@@ -75,7 +75,7 @@ export default function Settings(props: SettingsProps) {
                                    ...state,
                                    limits: {
                                        ...state.limits,
-                                       maximumUploadThreads: e.target.value as number
+                                       maximumUploadThreads: parseInt(e.target.value)
                                    }
                                })}/>
                 </Grid>
@@ -102,7 +102,7 @@ export default function Settings(props: SettingsProps) {
                                    ...state,
                                    limits: {
                                        ...state.limits,
-                                       maximumDownloadThreads: e.target.value as number
+                                       maximumDownloadThreads: parseInt(e.target.value)
                                    }
                                })}/>
                 </Grid>

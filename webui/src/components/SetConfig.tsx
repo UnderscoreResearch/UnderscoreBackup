@@ -105,7 +105,7 @@ function AdditionalTimespans(props: {
         return <div style={{display: "flex"}}>
             <Timespan
                 timespan={item.validAfter}
-                noFoever={true}
+                requireTime={true}
                 onChange={(newTimespace) => {
                     if (newTimespace) {
                         onItemUpdate({
@@ -285,7 +285,7 @@ export default function SetConfig(props: SetProps) {
                               }
                           }
                       })}
-                      title={"Keep deleted files for "}/>
+                      title={"Remove deleted files after "}/>
             <div style={{display: "flex", alignItems: "center", marginTop: "8px"}}>
             <FormControlLabel control={<Checkbox
                 checked={state.set.retention ? !!state.set.retention.maximumVersions : false }

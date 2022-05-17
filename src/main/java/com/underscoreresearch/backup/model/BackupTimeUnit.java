@@ -7,5 +7,6 @@ public enum BackupTimeUnit {
     DAYS,
     WEEKS,
     MONTHS,
-    YEARS
+    YEARS,
+    FOREVER
 }

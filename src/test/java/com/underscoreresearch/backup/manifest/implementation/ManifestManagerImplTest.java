@@ -100,7 +100,7 @@ class ManifestManagerImplTest {
             stream.write(new byte[]{1, 2, 3});
         }
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
-        manifestManager.initialize(Mockito.mock(LogConsumer.class));
+        manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
         manifestManager.addLogEntry("doh", "doh");
         Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any());
         assertThat(file.isFile(), Is.is(false));

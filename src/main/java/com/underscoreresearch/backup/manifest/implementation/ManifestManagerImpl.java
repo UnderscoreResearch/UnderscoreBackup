@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import com.underscoreresearch.backup.model.BackupActivePath;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +54,7 @@ import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.AccessLock;
@@ -177,9 +177,15 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     }
 
     @Override
-    public void initialize(LogConsumer logConsumer) {
+    public void initialize(LogConsumer logConsumer, boolean immediate) {
         synchronized (lock) {
-            initializeLogConsumer = logConsumer;
+            if (logConsumer != null) {
+                initializeLogConsumer = logConsumer;
+            }
+
+            if (immediate) {
+                internalInitialize();
+            }
         }
     }
 
@@ -424,7 +430,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
     @Override
     public void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException {
-        initialize(logConsumer);
+        initialize(logConsumer, false);
         internalInitialize();
         flushLogging();
 
@@ -463,7 +469,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                     + configuration.getSets().size() + 1);
 
             log.info("Processing files");
-            existingRepository.allFiles().forEach((file) -> {
+            existingRepository.allFiles(false).forEach((file) -> {
                 processedOperations.incrementAndGet();
                 try {
                     copyRepository.addFile(file);
@@ -481,7 +487,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
             });
             log.info("Processing directory contents");
-            existingRepository.allDirectories().forEach((dir) -> {
+            existingRepository.allDirectories(false).forEach((dir) -> {
                 processedOperations.incrementAndGet();
                 try {
                     copyRepository.addDirectory(dir);

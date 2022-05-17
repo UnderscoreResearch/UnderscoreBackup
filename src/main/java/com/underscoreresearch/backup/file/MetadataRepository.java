@@ -6,7 +6,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
-import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -64,19 +63,13 @@ public interface MetadataRepository {
 
     void close() throws IOException;
 
-    /**
-     * All files in repository. Must be sorted by path and timestamp in descending order.
-     */
-    Stream<BackupFile> allFiles() throws IOException;
+    Stream<BackupFile> allFiles(boolean ascending) throws IOException;
 
     Stream<BackupBlock> allBlocks() throws IOException;
 
     Stream<BackupFilePart> allFileParts() throws IOException;
 
-    /**
-     * All directories in repository. Must be sorted by path and timestamp in descending order.
-     */
-    Stream<BackupDirectory> allDirectories() throws IOException;
+    Stream<BackupDirectory> allDirectories(boolean ascending) throws IOException;
 
     void addPendingSets(BackupPendingSet scheduledTime) throws IOException;
 

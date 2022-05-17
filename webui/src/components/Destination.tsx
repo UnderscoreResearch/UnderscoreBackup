@@ -1,4 +1,3 @@
-import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
 import * as React from "react";
 import {Fragment} from "react";
@@ -97,7 +96,7 @@ const s3Regions = [
 interface SharedState {
     encryption: string,
     errorCorrection: string,
-    limits: BackupLimits
+    limits: BackupLimits | undefined
 }
 
 function SharedProperties(props: {
@@ -110,11 +109,23 @@ function SharedProperties(props: {
         encryption: props.state.encryption,
         errorCorrection: props.state.errorCorrection,
         limits: props.state.limits ? props.state.limits : {}
-    } as SharedState);
+    } as {
+        encryption: string,
+        errorCorrection: string,
+        limits: BackupLimits
+    });
 
-    function updateLimitChange(newState) {
-        const sendState = {...newState}
-        if (!sendState.limits.maximumDownloadBytesPerSecond && !sendState.limits.maximumuploadBytesPerSecond) {
+    function updateLimitChange(newState : {
+        encryption: string,
+        errorCorrection: string,
+        limits: BackupLimits
+    }) {
+        const sendState : {
+            encryption: string,
+            errorCorrection: string,
+            limits: BackupLimits | undefined
+        } = {...newState}
+        if (!newState.limits.maximumDownloadBytesPerSecond && !newState.limits.maximumUploadBytesPerSecond) {
             sendState.limits = undefined;
         }
         props.onChange(sendState);
@@ -144,7 +155,7 @@ function SharedProperties(props: {
                 </Select>
             </FormControl>
         </Grid>
-        {!props.manifestDestination ?
+        {!props.manifestDestination &&
             <Grid item xs={6}>
                 <FormControl fullWidth={true} style={{margin: "8px"}}>
                     <InputLabel id="errorcorrection-id-label">Error Correction</InputLabel>
@@ -165,7 +176,7 @@ function SharedProperties(props: {
                     </Select>
                 </FormControl>
             </Grid>
-            : ""}
+        }
         <Grid item xs={12}>
             <DividerWithText>Limits</DividerWithText>
         </Grid>
@@ -204,9 +215,9 @@ function SharedProperties(props: {
 
 function LocalFileDestination(props: DestinationProps) {
     const [state, setState] = React.useState({
-        endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "",
-        encryption: props.destination.encryption ? props.destination.encryption : "AES256",
-        errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
+        endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "" as string,
+        encryption: props.destination.encryption ? props.destination.encryption : "AES256" as string,
+        errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
         limits: props.destination.limits
     });
 
@@ -214,7 +225,7 @@ function LocalFileDestination(props: DestinationProps) {
         endpointUri: string
         encryption: string,
         errorCorrection: string,
-        limits?: BackupLimits
+        limits: BackupLimits | undefined
     }) {
         if (props.destinationUpdated) {
             props.destinationUpdated(!(!newState.endpointUri), {
@@ -281,7 +292,7 @@ function DropboxDestination(props: DestinationProps) {
         refreshToken: string,
         encryption: string,
         errorCorrection: string,
-        limits?: BackupLimits
+        limits: BackupLimits | undefined
     }) {
         if (props.destinationUpdated) {
             lastDestination = {
@@ -391,7 +402,7 @@ function WindowsShareDestination(props: DestinationProps) {
         domain: string,
         encryption: string,
         errorCorrection: string,
-        limits?: BackupLimits
+        limits: BackupLimits | undefined
     }) {
         if (props.destinationUpdated) {
             const valid = !(!(newState.endpointUri && newState.username && newState.password));
@@ -490,7 +501,7 @@ function S3Destination(props: DestinationProps) {
         errorCorrection: string,
         region: string,
         apiEndpoint: string,
-        limits?: BackupLimits
+        limits: BackupLimits | undefined
     }) {
         if (props.destinationUpdated) {
             const valid = !(!(newState.endpointUri && newState.accessKeyId && newState.secretAccessKey && newState.region));

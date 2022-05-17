@@ -40,8 +40,6 @@ public class StateLogger implements StatusLogger {
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
         MemoryUsage memHeapUsage = memoryMXBean.getHeapMemoryUsage();
         MemoryUsage nonHeapUsage = memoryMXBean.getNonHeapMemoryUsage();
-        debug(() -> log.debug("Heap memory {}/{} ({}%}", readableSize(memHeapUsage.getUsed()), readableSize(memHeapUsage.getMax()),
-                memHeapUsage.getUsed() * 100 / memHeapUsage.getMax()));
         debug(() -> log.debug("Non heap memory {}/{} ({}%}", readableSize(nonHeapUsage.getUsed()), readableSize(nonHeapUsage.getCommitted()),
                 nonHeapUsage.getUsed() * 100 / nonHeapUsage.getCommitted()));
 
@@ -79,9 +77,6 @@ public class StateLogger implements StatusLogger {
         if (memoryAfterGCUse > 75) {
             log.warn("Heap memory after GC use {}% (Old gen collections {})", memoryAfterGCUse,
                     oldGcBean.get().getCollectionCount());
-        } else {
-            debug(() -> log.debug("Heap memory after GC use {}% (Old gen collections {})", memoryAfterGCUse,
-                    oldGcBean.get().getCollectionCount()));
         }
 
         printLogStatus(false, (a) -> debug(() -> log.debug(a)));

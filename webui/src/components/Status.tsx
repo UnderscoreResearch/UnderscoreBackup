@@ -4,6 +4,7 @@ import {LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContaine
 import LogTable from "./LogTable";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import './Status.css'
+import Timespan from "./Timespan";
 
 export interface StatusProps {
     status: StatusLine[]
@@ -36,13 +37,12 @@ function StatusRow(row: StatusLine) {
             <TableCell className={className} align="right"><b>{row.valueString}</b></TableCell>
         </TableRow>
         {
-            hasSecondRow ?
-                <TableRow>
-                    <TableCell component="th" scope="row" colSpan={2}>
-                        <LinearProgress variant="determinate" value={progress}/>
-                    </TableCell>
-                </TableRow>
-                : ""
+            hasSecondRow &&
+            <TableRow>
+                <TableCell component="th" scope="row" colSpan={2}>
+                    <LinearProgress variant="determinate" value={progress}/>
+                </TableCell>
+            </TableRow>
         }
     </React.Fragment>;
 }
@@ -76,7 +76,7 @@ export default function Status(props: StatusProps) {
     activeItems.sort((a, b) => a.message.localeCompare(b.message));
 
     return <Stack spacing={2}>
-        {statusItems.length > 0 ?
+        {statusItems.length > 0 &&
             <div>
                 <DividerWithText>Overall stats</DividerWithText>
                 <TableContainer component={Paper}>
@@ -87,9 +87,8 @@ export default function Status(props: StatusProps) {
                     </Table>
                 </TableContainer>
             </div>
-            : ""
         }
-        {activeItems.length > 0 ?
+        {activeItems.length > 0 &&
             <div>
                 <DividerWithText>Active transfers</DividerWithText>
                 <TableContainer component={Paper}>
@@ -100,7 +99,7 @@ export default function Status(props: StatusProps) {
                     </Table>
                 </TableContainer>
             </div>
-            : ""}
+        }
         <div>
             <DividerWithText>Logs</DividerWithText>
             <LogTable logs={state.logs ? state.logs : []}/>

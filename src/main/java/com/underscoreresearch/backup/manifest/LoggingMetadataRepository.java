@@ -98,7 +98,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 .build();
 
         try {
-            manifestManager.initialize(this);
+            manifestManager.initialize(this, false);
         } catch (IOException e) {
             throw new RuntimeException("Failed to initialize manifest manager", e);
         }
@@ -176,8 +176,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public Stream<BackupFile> allFiles() throws IOException {
-        return repository.allFiles();
+    public Stream<BackupFile> allFiles(boolean ascending) throws IOException {
+        return repository.allFiles(ascending);
     }
 
     @Override
@@ -191,8 +191,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public Stream<BackupDirectory> allDirectories() throws IOException {
-        return repository.allDirectories();
+    public Stream<BackupDirectory> allDirectories(boolean ascending) throws IOException {
+        return repository.allDirectories(ascending);
     }
 
     @Override
