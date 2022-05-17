@@ -8,12 +8,12 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.TemporalAmount;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
 import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
 public final class IOUtils {

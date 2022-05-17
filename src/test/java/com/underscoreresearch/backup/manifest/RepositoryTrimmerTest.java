@@ -159,6 +159,12 @@ class RepositoryTrimmerTest {
         addFile("/test2/test4", 0);
 
         repository.addDirectory(BackupDirectory.builder()
+                .path("")
+                .files(Sets.newTreeSet(Lists.newArrayList("/")))
+                .added(0L)
+                .build());
+
+        repository.addDirectory(BackupDirectory.builder()
                 .path("/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test1/", "test2/")))
                 .added(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
@@ -224,16 +230,17 @@ class RepositoryTrimmerTest {
         trimmer.trimRepository();
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            assertThat(repository.allFiles()
+            assertThat(repository.allFiles(true)
                             .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
                     Is.is(ImmutableMap.of("/test1/def/test1", 13,
                             "/test1/def/test2", 13,
                             "/test1/def/test3", 12,
                             "/test2/test4", 26)));
 
-            assertThat(repository.allDirectories()
+            assertThat(repository.allDirectories(true)
                             .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
-                    Is.is(ImmutableMap.of("/", 1,
+                    Is.is(ImmutableMap.of("", 1,
+                            "/", 1,
                             "/test1/", 1,
                             "/test1/def/", 2,
                             "/test2/", 1)));
@@ -254,16 +261,17 @@ class RepositoryTrimmerTest {
         trimmer.trimRepository();
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            assertThat(repository.allFiles()
+            assertThat(repository.allFiles(false)
                             .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
                     Is.is(ImmutableMap.of("/test1/def/test1", 1,
                             "/test1/def/test2", 1,
                             "/test1/def/test3", 1,
                             "/test2/test4", 1)));
 
-            assertThat(repository.allDirectories()
+            assertThat(repository.allDirectories(false)
                             .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
-                    Is.is(ImmutableMap.of("/", 1,
+                    Is.is(ImmutableMap.of("", 1,
+                            "/", 1,
                             "/test1/", 1,
                             "/test1/def/", 2,
                             "/test2/", 1)));
@@ -283,16 +291,19 @@ class RepositoryTrimmerTest {
         trimmer.trimRepository();
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            assertThat(repository.allFiles()
+            assertThat(repository.allFiles(false)
                             .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
                     Is.is(ImmutableMap.of("/test1/def/test1", 13,
+                            "/test1/abc/test1", 1,
+                            "/test1/abc/test2", 1,
                             "/test1/def/test2", 13,
-                            "/test1/def/test3", 12,
+                            "/test1/def/test3", 13,
                             "/test2/test4", 26)));
 
-            assertThat(repository.allDirectories()
+            assertThat(repository.allDirectories(false)
                             .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
-                    Is.is(ImmutableMap.of("/", 1,
+                    Is.is(ImmutableMap.of("", 1,
+                            "/", 1,
                             "/test1/", 1,
                             "/test1/abc/", 2,
                             "/test1/def/", 2,

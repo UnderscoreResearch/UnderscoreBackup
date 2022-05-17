@@ -42,7 +42,7 @@ public class BackupCommand extends SimpleCommand {
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
 
         IOUtils.waitForInternet(() -> {
-            manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class));
+            manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), false);
             return null;
         });
 

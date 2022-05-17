@@ -6,8 +6,8 @@ import {BackupTimespan} from "../api";
 export interface DurationProps {
     timespan?: BackupTimespan,
     onChange: (timespan?: BackupTimespan) => void,
-    noFoever?: boolean
-    title: title
+    requireTime?: boolean,
+    title: string
 }
 
 interface DurationState {
@@ -18,13 +18,15 @@ interface DurationState {
 export default function Timespan(props: DurationProps) {
     const [state, setState] = React.useState({
         duration: props.timespan && props.timespan.duration ? props.timespan.duration : 1,
-        unit: props.timespan && props.timespan.duration ? props.timespan.unit : "FOREVER"
+        unit: props.timespan && props.timespan.unit ? props.timespan.unit : (props.requireTime ? "FOREVER" : "MONTHS" )
     } as DurationState);
 
     function updateState(newState: DurationState) {
         if (props.onChange) {
-            if (newState.unit === "FOREVER") {
-                props.onChange(undefined);
+            if (newState.unit === "IMMEDIATE") {
+                props.onChange({
+                    duration: 0
+                } as BackupTimespan);
             } else {
                 props.onChange({
                     duration: newState.duration,
@@ -39,16 +41,14 @@ export default function Timespan(props: DurationProps) {
 
     return <div style={{display: "flex", alignItems: "center", marginRight: "8px"}}>
         <Typography>{props.title}</Typography>
-        {state.unit === "FOREVER" ?
-            <Typography>{props.frequency ? "1 in " : ""}</Typography>
-            :
+        {state.unit !== "FOREVER" && state.unit !== "IMMEDIATE" &&
             <TextField variant="standard"
                        defaultValue={state.duration}
                        inputProps={{min: 1, style: {textAlign: "right"}}}
                        style={{width: "80px"}}
                        type={"number"}
                        onBlur={(e) => updateState({
-                           duration: e.target.value as number,
+                           duration: parseInt(e.target.value),
                            unit: state.unit
                        })}/>
         }
@@ -56,6 +56,7 @@ export default function Timespan(props: DurationProps) {
             duration: state.duration,
             unit: e.target.value
         })}>
+            {!props.requireTime && <MenuItem value={"IMMEDIATE"}>immediate</MenuItem>}
             <MenuItem value={"SECONDS"}>second{pluralS}</MenuItem>
             <MenuItem value={"MINUTES"}>minute{pluralS}</MenuItem>
             <MenuItem value={"HOURS"}>hour{pluralS}</MenuItem>
@@ -63,10 +64,7 @@ export default function Timespan(props: DurationProps) {
             <MenuItem value={"WEEKS"}>week{pluralS}</MenuItem>
             <MenuItem value={"MONTHS"}>month{pluralS}</MenuItem>
             <MenuItem value={"YEARS"}>year{pluralS}</MenuItem>
-            {props.noFoever ?
-                "" :
-                <MenuItem value={"FOREVER"}>forever</MenuItem>
-            }
+            {!props.requireTime  && <MenuItem value={"FOREVER"}>forever</MenuItem>}
         </Select>
     </div>;
 }

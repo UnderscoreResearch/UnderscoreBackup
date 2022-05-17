@@ -372,46 +372,44 @@ export default function FileTreeView(props: SetTreeViewPropsNG) {
             <div style={{width: (16 * item.level) + "px"}}/>
             <div style={{width: "48px"}}>
                 {
-                    item.hasChildren ?
-                        (
-                            item.loading ?
-                                <div style={{width: "43px", display: "flex", height: "100%", alignItems: "center"}}>
-                                    <CircularProgress size={24}/>
-                                </div>
-                                :
-                                <IconButton color="inherit" aria-label="Expand" component="span" onClick={() => {
+                    item.hasChildren &&
+                    (
+                        item.loading ?
+                            <div style={{width: "43px", display: "flex", height: "100%", alignItems: "center"}}>
+                                <CircularProgress size={24}/>
+                            </div>
+                            :
+                            <IconButton color="inherit" aria-label="Expand" component="span" onClick={() => {
 
-                                    const newItems = [...state.items];
-                                    newItems[props.index] = {
-                                        ...item,
-                                        expanded: !item.expanded,
-                                        loading: !item.expanded
-                                    };
+                                const newItems = [...state.items];
+                                newItems[props.index] = {
+                                    ...item,
+                                    expanded: !item.expanded,
+                                    loading: !item.expanded
+                                };
 
-                                    if (item.expanded) {
-                                        let i;
-                                        for (i = props.index + 1; i < state.items.length && state.items[i].level > item.level; i++) {
-                                            // Nop
-                                        }
-                                        newItems.splice(props.index + 1, i - props.index - 1);
-                                    } else {
-                                        loadPath(item.path);
+                                if (item.expanded) {
+                                    let i;
+                                    for (i = props.index + 1; i < state.items.length && state.items[i].level > item.level; i++) {
+                                        // Nop
                                     }
+                                    newItems.splice(props.index + 1, i - props.index - 1);
+                                } else {
+                                    loadPath(item.path);
+                                }
 
-                                    updateState({
-                                        ...state,
-                                        items: newItems
-                                    });
-                                }}>
-                                    {
-                                        item.expanded ?
-                                            <KeyboardArrowDown/>
-                                            : <ChevronRight/>
-                                    }
-                                </IconButton>
-                        )
-                        :
-                        ""
+                                updateState({
+                                    ...state,
+                                    items: newItems
+                                });
+                            }}>
+                                {
+                                    item.expanded ?
+                                        <KeyboardArrowDown/>
+                                        : <ChevronRight/>
+                                }
+                            </IconButton>
+                    )
                 }
             </div>
             <FormControlLabel style={{width: "100%"}}

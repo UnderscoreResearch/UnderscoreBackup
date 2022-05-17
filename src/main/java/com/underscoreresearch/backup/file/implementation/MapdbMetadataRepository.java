@@ -13,6 +13,7 @@ import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -376,11 +377,18 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public Stream<BackupFile> allFiles() throws IOException {
+    public Stream<BackupFile> allFiles(boolean ascending) throws IOException {
         ensureLocked();
         ensureOpen();
 
-        return fileMap.descendingMap().entrySet().stream().map((entry) -> {
+        final ConcurrentNavigableMap<Object[], byte[]> map;
+        if (ascending) {
+            map = fileMap;
+        } else {
+            map = fileMap.descendingMap();
+        }
+
+        return map.entrySet().stream().map((entry) -> {
             try {
                 return decodeFile(entry);
             } catch (IOException e) {
@@ -421,11 +429,18 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public Stream<BackupDirectory> allDirectories() throws IOException {
+    public Stream<BackupDirectory> allDirectories(boolean ascending) throws IOException {
         ensureLocked();
         ensureOpen();
 
-        return directoryMap.descendingMap().entrySet().stream().map((entry) -> {
+        final ConcurrentNavigableMap<Object[], byte[]> map;
+        if (ascending) {
+            map = directoryMap;
+        } else {
+            map = directoryMap.descendingMap();
+        }
+
+        return map.entrySet().stream().map((entry) -> {
             try {
                 return new BackupDirectory((String) entry.getKey()[0], (Long) entry.getKey()[1],
                         decodeData(BACKUP_DIRECTORY_READER, entry.getValue()));

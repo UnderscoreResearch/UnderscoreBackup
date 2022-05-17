@@ -24,7 +24,9 @@ public class BackupRetention {
         LocalDateTime fileInstant = file.addedToTime();
 
         BackupTimespan deletedTimespan = Optional.ofNullable(retainDeleted).orElse(new BackupTimespan());
-        if (deleted && (deletedTimespan.isImmediate() || fileInstant.isBefore(deletedTimespan.toTime()))) {
+        if (deleted
+                && !deletedTimespan.isForever()
+                && (deletedTimespan.isImmediate() || fileInstant.isBefore(deletedTimespan.toTime()))) {
             return false;
         }
 

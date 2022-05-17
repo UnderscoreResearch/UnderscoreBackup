@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @AllArgsConstructor
 public class BackupTimespan {
     private static final LocalDateTime IMMEDIATE = LocalDateTime.MIN;
+    private static final LocalDateTime FOREVER = LocalDateTime.of(3000, 1, 1, 0, 0);
     private long duration;
     private BackupTimeUnit unit;
 
@@ -38,7 +39,15 @@ public class BackupTimespan {
 
     @JsonIgnore
     public boolean isImmediate() {
-        return duration == 0;
+        if (unit == BackupTimeUnit.FOREVER)
+            return false;
+        else
+            return duration == 0;
+    }
+
+    @JsonIgnore
+    public boolean isForever() {
+        return unit == BackupTimeUnit.FOREVER;
     }
 
     @JsonIgnore
@@ -48,6 +57,9 @@ public class BackupTimespan {
 
     @JsonIgnore
     public LocalDateTime toTime(LocalDateTime now) {
+        if (unit == BackupTimeUnit.FOREVER) {
+            return FOREVER;
+        }
         if (duration == 0) {
             return IMMEDIATE;
         }

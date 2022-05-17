@@ -9,12 +9,15 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,9 @@ import org.mapdb.HTreeMap;
 import org.mapdb.Serializer;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
@@ -160,22 +166,19 @@ public class RepositoryTrimmer implements StatusLogger {
 
     }
 
-    private synchronized NavigableSet<String> fetchPath(BackupFile file) throws IOException {
-        String parent = findParent(file.getPath());
-        if (parent.equals(lastFetchedDirectory)) {
-            if (lastFetchedDirectoryContents != null && lastFetchedDirectoryContents.getFiles() != null) {
-                return lastFetchedDirectoryContents.getFiles();
-            }
-            return new TreeSet<>();
-        }
-
-        lastFetchedDirectory = parent;
-        lastFetchedDirectoryContents = metadataRepository.lastDirectory(parent);
-        if (lastFetchedDirectoryContents == null || lastFetchedDirectoryContents.getFiles() == null) {
-            return new TreeSet<>();
-        }
-        return lastFetchedDirectoryContents.getFiles();
-    }
+    private LoadingCache<String, NavigableSet<String>> directoryCache = CacheBuilder
+            .newBuilder()
+            .maximumSize(10)
+            .build(new CacheLoader<>() {
+                @Override
+                public NavigableSet<String> load(String key) throws Exception {
+                    BackupDirectory ret = metadataRepository.lastDirectory(key);
+                    if (ret == null) {
+                        return new TreeSet<>();
+                    }
+                    return ret.getFiles();
+                }
+            });
 
     public synchronized Statistics trimRepository() throws IOException {
         File tempFile = File.createTempFile("block", ".db");
@@ -193,6 +196,8 @@ public class RepositoryTrimmer implements StatusLogger {
                     .make()) {
                 HTreeMap<String, Boolean> usedBlockMap = usedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
                         Serializer.BOOLEAN).createOrOpen();
+
+                manifestManager.initialize(null, true);
 
                 boolean hasActivePaths = trimActivePaths();
 
@@ -234,6 +239,9 @@ public class RepositoryTrimmer implements StatusLogger {
                     anyFound = true;
                 }
             }
+        }
+        if (anyFound) {
+            log.info("Active backup detected, some repository trimming will be postponed");
         }
         return anyFound;
     }
@@ -320,7 +328,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
         String[] lastParent = new String[1];
 
-        metadataRepository.allFiles().forEachOrdered((file) -> {
+        metadataRepository.allFiles(false).forEachOrdered((file) -> {
             if (InstanceFactory.isShutdown())
                 throw new InterruptedException();
 
@@ -333,7 +341,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
             if (fileVersions.size() > 0 && !file.getPath().equals(fileVersions.get(0).getPath())) {
                 try {
-                    processFiles(fileVersions, usedBlockMap, deletedPaths, statistics);
+                    processFiles(fileVersions, usedBlockMap, deletedPaths, hasActivePath, statistics);
 
                     if (deletedPaths != null) {
                         String parent = findParent(file.getPath());
@@ -351,7 +359,7 @@ public class RepositoryTrimmer implements StatusLogger {
         });
 
         if (fileVersions.size() > 0) {
-            processFiles(fileVersions, usedBlockMap, deletedPaths, statistics);
+            processFiles(fileVersions, usedBlockMap, deletedPaths, hasActivePath, statistics);
         }
 
         if (deletedPaths != null) {
@@ -382,40 +390,65 @@ public class RepositoryTrimmer implements StatusLogger {
                                     NavigableSet<String> deletedPaths,
                                     Statistics statistics) throws IOException {
         List<BackupDirectory> directoryVersions = metadataRepository.directory(path);
-        if (directoryVersions == null) {
+
+        if (directoryVersions == null
+                || directoryVersions.size() == 0
+                || directoryVersions.get(0).getPath().equals("")) {
             return;
         }
 
         Long lastTimestamp = null;
-        boolean any = false;
-        for (BackupDirectory directory : directoryVersions) {
-            if (directory.getPath().equals("")) {
-                return;
-            }
+        Set<String> lastContents = new HashSet<>();
+        BackupDirectory lastDirectory = null;
+        int deleted = 0;
+        for (int i = directoryVersions.size() - 1; i >= 0; i--) {
+            BackupDirectory directory = directoryVersions.get(i);
             BackupContentsAccessPathOnly contents = new BackupContentsAccessPathOnly(metadataRepository,
                     lastTimestamp, false);
             List<BackupFile> directoryFiles = contents.directoryFiles(directory.getPath());
 
-            if (directoryFiles == null
-                    || directoryFiles.stream().filter(t -> t.getAdded() != null).count() == 0) {
-                debug(() -> log.debug("Removing " + directory.getPath() + " from "
-                        + LogUtil.formatTimestamp(directory.getAdded())));
-                metadataRepository.deleteDirectory(directory.getPath(), directory.getAdded());
-                statistics.addDeletedDirectoryVersions(1);
+            if (directoryFiles != null) {
+                Set<String> directoryContents = directoryFiles
+                        .stream()
+                        .filter(t -> t.getAdded() != null)
+                        .map(t -> t.getPath())
+                        .collect(Collectors.toSet());
+                if (lastDirectory != null && directoryContents.equals(lastContents)) {
+                    deleteDirectory(lastDirectory, statistics);
+                    deleted++;
+                }
+                if (i == 0) {
+                    if (directoryContents.size() == 0) {
+                        deleteDirectory(directory, statistics);
+                        deleted++;
+                    }
+                } else {
+                    lastContents = directoryContents;
+                    lastDirectory = directory;
+                }
             } else {
-                any = true;
-                lastTimestamp = directory.getAdded() - 1;
+                deleteDirectory(directory, statistics);
+                deleted++;
             }
+
+            lastTimestamp = directory.getAdded() - 1;
         }
-        if (!any) {
+        if (deleted == directoryVersions.size()) {
             deletedPaths.add(findParent(path));
             statistics.addDeletedDirectories(1);
         }
     }
 
+    private void deleteDirectory(BackupDirectory directory, Statistics statistics) throws IOException {
+        debug(() -> log.debug("Removing " + directory.getPath() + " from "
+                + LogUtil.formatTimestamp(directory.getAdded())));
+        metadataRepository.deleteDirectory(directory.getPath(), directory.getAdded());
+        statistics.addDeletedDirectoryVersions(1);
+    }
+
     private void processFiles(List<BackupFile> files, HTreeMap<String, Boolean> usedBlockMap,
                               Set<String> deletedPaths,
-                              Statistics statistics) throws IOException {
+                              boolean hasActivePath, Statistics statistics) throws IOException {
         BackupSet set = findSet(files.get(0));
         if (set == null) {
             if (!force) {
@@ -442,12 +475,10 @@ public class RepositoryTrimmer implements StatusLogger {
                 addToDeletedPaths(deletedPaths, files.get(0));
             }
         } else {
-            NavigableSet<String> parent = fetchPath(files.get(0));
-            boolean deleted = !parent.contains(stripPath(files.get(0).getPath()));
             BackupFile lastFile = null;
             int keptCopies = 0;
             for (BackupFile file : files) {
-                if (set.getRetention().keepFile(file, lastFile, deleted)
+                if (set.getRetention().keepFile(file, lastFile, hasActivePath ? false : isDeleted(file.getPath()))
                         && (set.getRetention().getMaximumVersions() == null
                         || keptCopies < set.getRetention().getMaximumVersions())) {
                     lastFile = file;
@@ -472,6 +503,24 @@ public class RepositoryTrimmer implements StatusLogger {
                 addToDeletedPaths(deletedPaths, files.get(0));
             }
         }
+    }
+
+    private boolean isDeleted(String path) throws IOException {
+        String parent = findParent(path);
+        try {
+            NavigableSet<String> contents;
+            if (parent != null)
+                contents = directoryCache.get(findParent(path));
+            else
+                contents = new TreeSet<>();
+
+            if (!contents.contains(stripPath(path))) {
+                return !directoryCache.get("").contains(path);
+            }
+        } catch (ExecutionException e) {
+            throw new IOException(e.getCause());
+        }
+        return isDeleted(parent);
     }
 
     private void addToDeletedPaths(Set<String> deletedPaths, BackupFile backupFile) {

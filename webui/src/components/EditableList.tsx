@@ -101,17 +101,17 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
                         <IconButton aria-label="delete" style={{float: "right"}} onClick={() => deleteItem(item.key)}>
                             <DeleteIcon/>
                         </IconButton>
-                        {allowUp ?
+                        {allowUp &&
                             <IconButton aria-label="up" style={{float: "right"}}
                                         onClick={() => swapItem(index - 1)}>
                                 <UpIcon/>
                             </IconButton>
-                            : ""}
-                        {allowDown ?
+                        }
+                        {allowDown &&
                             <IconButton aria-label="down" style={{float: "right"}} onClick={() => swapItem(index)}>
                                 <DownIcon/>
                             </IconButton>
-                            : ""}
+                        }
                     </div>
             }
             return <Collapse key={item.key}>
@@ -133,17 +133,17 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
                         {props.createItem(item.item, itemUpdated)}
                     </div>
                     <div style={{flexGrow: 0}}>
-                        {allowDown ?
+                        {allowDown &&
                             <IconButton aria-label="down" onClick={() => swapItem(index)}>
                                 <DownIcon/>
                             </IconButton>
-                            : ""}
-                        {allowUp ?
+                        }
+                        {allowUp &&
                             <IconButton aria-label="up"
                                         onClick={() => swapItem(index - 1)}>
                                 <UpIcon/>
                             </IconButton>
-                            : ""}
+                        }
                         <IconButton aria-label="delete" onClick={() => deleteItem(item.key)}>
                             <DeleteIcon/>
                         </IconButton>

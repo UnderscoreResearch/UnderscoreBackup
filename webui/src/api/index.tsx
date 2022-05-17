@@ -21,7 +21,7 @@ export interface BackupFilter {
     children?: BackupFilter[]
 }
 
-type BackupTimeUnit = "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS" | "YEARS";
+type BackupTimeUnit = "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS" | "YEARS" | "FOREVER";
 
 export interface BackupTimespan {
     duration: number,

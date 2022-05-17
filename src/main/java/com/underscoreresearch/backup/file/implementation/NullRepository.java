@@ -130,7 +130,7 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public Stream<BackupFile> allFiles() throws IOException {
+    public Stream<BackupFile> allFiles(boolean ascending) throws IOException {
         return null;
     }
 
@@ -145,7 +145,7 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public Stream<BackupDirectory> allDirectories() throws IOException {
+    public Stream<BackupDirectory> allDirectories(boolean ascending) throws IOException {
         return null;
     }
 

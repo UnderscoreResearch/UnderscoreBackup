@@ -642,16 +642,16 @@ export default function MainApp() {
                     <Box sx={{flexGrow: 1, display: {xs: 'none', md: 'flex'}}}>
                     </Box>
 
-                    {cancelButtonTitle ?
+                    {cancelButtonTitle &&
                         <Box sx={{flexGrow: 0, marginRight: "2em"}}>
                             <Button sx={{my: 2, color: 'white', display: 'block'}}
                                     onClick={() => applyCancel()}>
                                 {cancelButtonTitle}
                             </Button>
                         </Box>
-                        : ""}
+                    }
 
-                    {acceptButtonTitle ?
+                    {acceptButtonTitle &&
                         <Box sx={{flexGrow: 0}}>
                             <Button sx={{my: 2, color: 'white', display: 'block'}}
                                     variant="contained"
@@ -661,7 +661,7 @@ export default function MainApp() {
                                 {acceptButtonTitle}
                             </Button>
                         </Box>
-                        : ""}
+                    }
                 </Toolbar>
             </AppBar>
             <Drawer variant="permanent" open={state.open}>
@@ -688,12 +688,11 @@ export default function MainApp() {
                 </Toolbar>
                 <Divider/>
                 {
-                    state.initialLoad ?
-                        "" :
-                        <NavigationMenu config={state.originalConfiguration}
-                                        allowRestore={allowRestore}
-                                        allowBackup={allowBackup}
-                                        hasKey={state.hasKey}/>
+                    !state.initialLoad &&
+                    <NavigationMenu config={state.originalConfiguration}
+                                    allowRestore={allowRestore}
+                                    allowBackup={allowBackup}
+                                    hasKey={state.hasKey}/>
 
                 }
 
@@ -704,9 +703,9 @@ export default function MainApp() {
                         fontSize={14}
                         style={{position: "absolute", bottom: "8px", right: "8px", width: "220px", textAlign: "right"}}
                     >
-                        {state.defaults ?
+                        {state.defaults &&
                             <span>Version <span style={{fontWeight: "bold"}}>{state.defaults.version}</span></span>
-                            : ""}
+                        }
                     </Typography>
                 </Slide>
             </Drawer>
