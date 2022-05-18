@@ -15,8 +15,10 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.core.util.Assert;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -229,6 +231,21 @@ class RepositoryTrimmerTest {
     public void testFiles() throws IOException {
         trimmer.trimRepository();
 
+        try (CloseableLock ignore = repository.acquireLock()) {
+            repository.allFiles(true).forEach(file -> {
+                if (file.getDeleted() != null) {
+                    file.setDeleted(file.getAdded());
+                }
+                try {
+                    repository.addFile(file);
+                } catch (IOException e) {
+                    Assertions.fail(e);
+                }
+            });
+        }
+
+        trimmer.trimRepository();
+
         try (CloseableLock ignored = repository.acquireLock()) {
             assertThat(repository.allFiles(true)
                             .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
@@ -258,6 +275,21 @@ class RepositoryTrimmerTest {
     public void testMaxFiles() throws IOException {
         set1.getRetention().setMaximumVersions(1);
         set2.getRetention().setMaximumVersions(1);
+        trimmer.trimRepository();
+
+        try (CloseableLock ignore = repository.acquireLock()) {
+            repository.allFiles(true).forEach(file -> {
+                if (file.getDeleted() != null) {
+                    file.setDeleted(file.getAdded());
+                }
+                try {
+                    repository.addFile(file);
+                } catch (IOException e) {
+                    Assertions.fail(e);
+                }
+            });
+        }
+
         trimmer.trimRepository();
 
         try (CloseableLock ignored = repository.acquireLock()) {
@@ -310,11 +342,12 @@ class RepositoryTrimmerTest {
                             "/test2/", 1)));
 
             assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
-                    Is.is(ImmutableSet.of("a", "e")));
+                    Is.is(ImmutableSet.of("a", "b", "c", "d", "e")));
         }
 
         IOIndex provider = (IOIndex) IOProviderFactory.getProvider(destination);
-        assertThat(provider.availableKeys("/"), Is.is(Lists.newArrayList("b", "c", "d", "e", "l", "m")));
+        assertThat(provider.availableKeys("/"),
+                Is.is(Lists.newArrayList("b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m")));
     }
 
     @Test

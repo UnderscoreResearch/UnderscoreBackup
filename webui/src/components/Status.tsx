@@ -4,7 +4,6 @@ import {LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContaine
 import LogTable from "./LogTable";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import './Status.css'
-import Timespan from "./Timespan";
 
 export interface StatusProps {
     status: StatusLine[]
@@ -26,9 +25,8 @@ function StatusRow(row: StatusLine) {
     }
     const className = hasSecondRow ? "cell-with-progress" : "cell-without-progress";
 
-    return <React.Fragment>
+    return <React.Fragment key={row.code}>
         <TableRow
-            key={row.code}
             sx={{'&:last-child td, &:last-child th': {border: 0}}}
         >
             <TableCell className={className}>

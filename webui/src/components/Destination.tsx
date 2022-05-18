@@ -115,12 +115,12 @@ function SharedProperties(props: {
         limits: BackupLimits
     });
 
-    function updateLimitChange(newState : {
+    function updateLimitChange(newState: {
         encryption: string,
         errorCorrection: string,
         limits: BackupLimits
     }) {
-        const sendState : {
+        const sendState: {
             encryption: string,
             errorCorrection: string,
             limits: BackupLimits | undefined

@@ -8,6 +8,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -251,70 +252,67 @@ public class RepositoryTrimmer implements StatusLogger {
                             Statistics statistics) throws IOException {
         log.info("Trimming blocks");
 
-        Boolean FALSE = false;
-
-        metadataRepository.allBlocks()
-                .filter(t -> {
-                    boolean ret = hasActivePaths
-                            ? FALSE.equals(usedBlockMap.get(t.getHash()))
-                            : !usedBlockMap.containsKey(t.getHash());
-                    if (!ret) {
-                        statistics.addBlocks(1);
-                        if (t.getStorage() != null)
-                            t.getStorage().stream().forEach(s -> statistics.addBlockParts(s.getParts().size()));
-                    }
-                    return ret;
-                }).forEach(block -> {
-                    if (InstanceFactory.isShutdown())
-                        throw new InterruptedException();
-                    try {
-                        processedSteps.incrementAndGet();
-                        statistics.addDeletedBlocks(1);
-                        for (BackupBlockStorage storage : block.getStorage()) {
-                            IOProvider provider = IOProviderFactory.getProvider(
-                                    configuration.getDestinations().get(storage.getDestination()));
-                            for (String key : storage.getParts()) {
-                                if (key != null) {
-                                    try {
-                                        provider.delete(key);
-                                        debug(() -> log.debug("Removing block part " + key));
-                                        statistics.addDeletedBlockParts(1);
-                                    } catch (IOException exc) {
-                                        log.error("Failed to delete part " + key + " from " + storage.getDestination(), exc);
+        if (!hasActivePaths) {
+            metadataRepository.allBlocks()
+                    .filter(t -> {
+                        boolean ret = !hasActivePaths && !usedBlockMap.containsKey(t.getHash());
+                        if (!ret) {
+                            statistics.addBlocks(1);
+                            if (t.getStorage() != null)
+                                t.getStorage().stream().forEach(s -> statistics.addBlockParts(s.getParts().size()));
+                        }
+                        return ret;
+                    }).forEach(block -> {
+                        if (InstanceFactory.isShutdown())
+                            throw new InterruptedException();
+                        try {
+                            processedSteps.incrementAndGet();
+                            statistics.addDeletedBlocks(1);
+                            for (BackupBlockStorage storage : block.getStorage()) {
+                                IOProvider provider = IOProviderFactory.getProvider(
+                                        configuration.getDestinations().get(storage.getDestination()));
+                                for (String key : storage.getParts()) {
+                                    if (key != null) {
+                                        try {
+                                            provider.delete(key);
+                                            debug(() -> log.debug("Removing block part " + key));
+                                            statistics.addDeletedBlockParts(1);
+                                        } catch (IOException exc) {
+                                            log.error("Failed to delete part " + key + " from " + storage.getDestination(), exc);
+                                        }
                                     }
                                 }
                             }
+                            debug(() -> log.debug("Removing block " + block.getHash()));
+                            metadataRepository.deleteBlock(block);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
                         }
-                        debug(() -> log.debug("Removing block " + block.getHash()));
-                        metadataRepository.deleteBlock(block);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                    });
+
+            log.info("Trimming partial references");
+            metadataRepository.allFileParts().forEach((part) -> {
+                if (InstanceFactory.isShutdown())
+                    throw new InterruptedException();
+                processedSteps.incrementAndGet();
+
+                try {
+                    if (metadataRepository.block(part.getBlockHash()) == null) {
+                        debug(() -> log.debug("Removing file part {} references non existing block {}",
+                                part.getPartHash(), part.getBlockHash()));
+                        statistics.addDeletedBlockPartReferences(1);
+                        metadataRepository.deleteFilePart(part);
                     }
-                });
-
-        log.info("Trimming partial references");
-        metadataRepository.allFileParts().forEach((part) -> {
-            if (InstanceFactory.isShutdown())
-                throw new InterruptedException();
-            processedSteps.incrementAndGet();
-
-            try {
-                if (metadataRepository.block(part.getBlockHash()) == null) {
-                    debug(() -> log.debug("Removing file part {} references non existing block {}",
-                            part.getPartHash(), part.getBlockHash()));
-                    statistics.addDeletedBlockPartReferences(1);
-                    metadataRepository.deleteFilePart(part);
+                } catch (IOException exc) {
+                    log.error("Encountered issue validating part {} for block {}", part.getPartHash(),
+                            part.getBlockHash());
                 }
-            } catch (IOException exc) {
-                log.error("Encountered issue validating part {} for block {}", part.getPartHash(),
-                        part.getBlockHash());
-            }
-        });
+            });
 
-
-        log.info("Deleted {} blocks with a total of {} parts and {} part references",
-                statistics.getDeletedBlocks(), statistics.getDeletedBlockParts(),
-                statistics.getDeletedBlockPartReferences());
+            log.info("Deleted {} blocks with a total of {} parts and {} part references",
+                    statistics.getDeletedBlocks(), statistics.getDeletedBlockParts(),
+                    statistics.getDeletedBlockPartReferences());
+        }
     }
 
     private void trimFilesAndDirectories(HTreeMap<String, Boolean> usedBlockMap,
@@ -478,7 +476,27 @@ public class RepositoryTrimmer implements StatusLogger {
             BackupFile lastFile = null;
             int keptCopies = 0;
             for (BackupFile file : files) {
-                if (set.getRetention().keepFile(file, lastFile, hasActivePath ? false : isDeleted(file.getPath()))
+                boolean deleted;
+                if (!hasActivePath) {
+                    deleted = isDeleted(file.getPath());
+                    if (deleted) {
+                        if (file.getDeleted() == null) {
+                            if (!set.getRetention().deletedImmediate()) {
+                                file.setDeleted(Instant.now().toEpochMilli());
+                                metadataRepository.addFile(file);
+                            }
+                        }
+                    } else {
+                        if (file.getDeleted() != null) {
+                            file.setDeleted(null);
+                            metadataRepository.addFile(file);
+                        }
+                    }
+                } else {
+                    deleted = false;
+                }
+
+                if (set.getRetention().keepFile(file, lastFile, deleted)
                         && (set.getRetention().getMaximumVersions() == null
                         || keptCopies < set.getRetention().getMaximumVersions())) {
                     lastFile = file;

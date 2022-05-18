@@ -1,10 +1,17 @@
 import * as React from 'react';
-import {Checkbox, FormControlLabel, Stack, TextField} from "@mui/material";
+import {Button, Checkbox, FormControlLabel, List, ListItem, Popover, Stack, TextField} from "@mui/material";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import FileTreeView from "./FileTreeView"
-import {BackupDefaults, BackupSetRoot, GetBackupFiles} from '../api';
+import FileTreeView, {formatLastChange, formatSize, pathName} from "./FileTreeView"
+import {
+    BackupDefaults,
+    BackupFile,
+    BackupSetRoot,
+    GetBackupDownloadLink,
+    GetBackupFiles,
+    GetBackupVersions
+} from '../api';
 import DateTimePicker from '@mui/lab/DateTimePicker';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
 import LocalizationProvider from '@mui/lab/LocalizationProvider';
@@ -81,6 +88,52 @@ export default function Restore(props: RestoreProps) {
         });
     }
 
+    async function fetchTooltipContents(path: String) {
+        const files = await GetBackupVersions(path);
+        if (files) {
+            return function (anchor: HTMLElement, open: boolean, handleClose: () => void) {
+                return <Popover
+                    open={open}
+                    anchorEl={open ? anchor : null}
+                    onClose={handleClose}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'right',
+                    }}
+                >
+                    <Paper sx={{
+                        p: 2
+                    }}>
+                        <Typography style={{fontWeight: "bold"}}>
+                            {pathName(files[0].path)} Versions
+                        </Typography>
+                        <List>
+                            {
+                                files.map((file: BackupFile) => {
+                                    return <ListItem key={file.added}>
+                                        <Typography sx={{fontSize: 14}}>
+                                            {formatSize(file.length)} ({formatLastChange(file.lastChanged)})
+                                        </Typography>
+                                        <Button style={{marginLeft: "8px"}}
+                                                variant="contained"
+                                                onClick={(e) => {
+                                                    window.open(GetBackupDownloadLink(file.path,
+                                                            file.added ? file.added : 0,
+                                                            state.passphrase),
+                                                        '_blank');
+                                                }
+                                                }>Download</Button>
+                                    </ListItem>
+                                })
+                            }
+                        </List>
+                    </Paper>
+                </Popover>
+            }
+        }
+        return undefined;
+    }
+
     if (!props.passphrase || !props.validatedPassphrase) {
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
@@ -146,7 +199,8 @@ export default function Restore(props: RestoreProps) {
                 <DividerWithText>Contents selection</DividerWithText>
                 <FileTreeView roots={state.roots}
                               defaults={props.defaults}
-                              stateValue={state.current || !state.timestamp ? "" : state.timestamp.getTime().toString()}
+                              onFileDetailPopup={fetchTooltipContents}
+                              stateValue={state.current + (!state.timestamp ? "" : state.timestamp.getTime().toString()) + state.includeDeleted}
                               fileFetcher={(path) => GetBackupFiles(path, state.current ? undefined : state.timestamp)}
                               onChange={updateSelection}/>
             </Paper>

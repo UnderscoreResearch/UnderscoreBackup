@@ -415,12 +415,15 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         "Total file last version size in repository",
                         statistics.getTotalSizeLastVersion(),
                         readableSize(statistics.getTotalSizeLastVersion())));
-                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCKS",
-                        "Total blocks",
-                        statistics.getBlocks()));
-                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCK_PARTS",
-                        "Total block parts",
-                        statistics.getBlockParts()));
+
+                if (statistics.getBlocks() > 0) {
+                    ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCKS",
+                            "Total blocks",
+                            statistics.getBlocks()));
+                    ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCK_PARTS",
+                            "Total block parts",
+                            statistics.getBlockParts()));
+                }
             }
 
             return ret;

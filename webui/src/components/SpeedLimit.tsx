@@ -4,7 +4,7 @@ import {Checkbox, MenuItem, Select, TextField} from "@mui/material";
 export interface SpeedLimitProps {
     speed?: number,
     onChange: (speed?: number) => void
-    title: title
+    title: string
 }
 
 interface SpeedLimitState {
