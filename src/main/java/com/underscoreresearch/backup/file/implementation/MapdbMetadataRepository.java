@@ -606,6 +606,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         return BackupFile.builder()
                 .length(file.getLength())
                 .locations(file.getLocations())
+                .deleted(file.getDeleted())
                 .lastChanged(file.getLastChanged())
                 .build();
     }

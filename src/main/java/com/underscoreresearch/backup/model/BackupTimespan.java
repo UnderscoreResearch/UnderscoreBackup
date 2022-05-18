@@ -18,8 +18,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BackupTimespan {
-    private static final LocalDateTime IMMEDIATE = LocalDateTime.MIN;
-    private static final LocalDateTime FOREVER = LocalDateTime.of(3000, 1, 1, 0, 0);
+    private static final LocalDateTime IMMEDIATE = LocalDateTime.of(3000, 1, 1, 0, 0);
+    private static final LocalDateTime FOREVER = LocalDateTime.MIN;
     private long duration;
     private BackupTimeUnit unit;
 
@@ -31,7 +31,7 @@ public class BackupTimespan {
     @JsonIgnore
     public Instant toInstant() {
         LocalDateTime time = toTime(LocalDateTime.now());
-        if (IMMEDIATE.equals(time)) {
+        if (FOREVER.equals(time)) {
             return Instant.EPOCH;
         }
         return time.toInstant(OffsetDateTime.now().getOffset());
@@ -63,6 +63,7 @@ public class BackupTimespan {
         if (duration == 0) {
             return IMMEDIATE;
         }
+
         switch (unit) {
             case YEARS:
                 return now.minus(Period.ofYears((int) duration));

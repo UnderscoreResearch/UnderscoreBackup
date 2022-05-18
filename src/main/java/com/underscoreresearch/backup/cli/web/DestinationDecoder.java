@@ -56,6 +56,14 @@ public final class DestinationDecoder {
     }
 
     public static String decodePath(Request req, String base) throws IOException {
+        String path = decodeFile(req, base);
+        if (!path.endsWith(PATH_SEPARATOR)) {
+            path += PATH_SEPARATOR;
+        }
+        return path;
+    }
+
+    public static String decodeFile(Request req, String base) throws IOException {
         Href href = new RqHref.Base(req).href();
         String path = href.path();
         if (!path.startsWith(base + PATH_SEPARATOR) || path.equals(base)) {
@@ -66,9 +74,6 @@ public final class DestinationDecoder {
         }
         path = path.substring(base.length() + 1);
         path = URLDecoder.decode(path, "UTF-8");
-        if (!path.endsWith(PATH_SEPARATOR)) {
-            path += PATH_SEPARATOR;
-        }
         return path;
     }
 

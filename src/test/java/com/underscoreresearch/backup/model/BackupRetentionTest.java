@@ -29,9 +29,9 @@ class BackupRetentionTest {
 
     @Test
     public void testDeletedOnly() {
-        testFile.setAdded(new BackupTimespan(9L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
+        testFile.setDeleted(new BackupTimespan(9L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
         assertTrue(retention.keepFile(testFile, null, true));
-        testFile.setAdded(new BackupTimespan(11L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
+        testFile.setDeleted(new BackupTimespan(11L, BackupTimeUnit.MINUTES).toInstant().toEpochMilli());
         assertFalse(retention.keepFile(testFile, null, true));
     }
 
@@ -45,6 +45,13 @@ class BackupRetentionTest {
     @Test
     public void testImmediately() {
         retention.setDefaultFrequency(new BackupTimespan());
+        retention.setOlder(null);
+        assertTrue(retention.keepFile(testFile, testFile, false));
+    }
+
+    @Test
+    public void testForever() {
+        retention.setDefaultFrequency(BackupTimespan.builder().unit(BackupTimeUnit.FOREVER).build());
         retention.setOlder(null);
         assertFalse(retention.keepFile(testFile, testFile, false));
     }

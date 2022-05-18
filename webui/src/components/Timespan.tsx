@@ -15,10 +15,23 @@ interface DurationState {
     unit: string
 };
 
+function calculateUnit(props: DurationProps) {
+    if (props.timespan) {
+        if (props.timespan.unit) {
+            return props.timespan.unit;
+        }
+        if (props.timespan.duration == 0) {
+            return "IMMEDIATE";
+        }
+    }
+    return props.requireTime ? "MONTH" : "IMMEDIATE";
+}
+
 export default function Timespan(props: DurationProps) {
+
     const [state, setState] = React.useState({
         duration: props.timespan && props.timespan.duration ? props.timespan.duration : 1,
-        unit: props.timespan && props.timespan.unit ? props.timespan.unit : (props.requireTime ? "FOREVER" : "MONTHS" )
+        unit: calculateUnit(props)
     } as DurationState);
 
     function updateState(newState: DurationState) {
@@ -64,7 +77,7 @@ export default function Timespan(props: DurationProps) {
             <MenuItem value={"WEEKS"}>week{pluralS}</MenuItem>
             <MenuItem value={"MONTHS"}>month{pluralS}</MenuItem>
             <MenuItem value={"YEARS"}>year{pluralS}</MenuItem>
-            {!props.requireTime  && <MenuItem value={"FOREVER"}>forever</MenuItem>}
+            {!props.requireTime && <MenuItem value={"FOREVER"}>forever</MenuItem>}
         </Select>
     </div>;
 }

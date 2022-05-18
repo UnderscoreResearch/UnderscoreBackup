@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -20,19 +22,29 @@ public class BackupRetention {
 
     private Integer maximumVersions;
 
-    public boolean keepFile(BackupFile file, BackupFile previousFile, boolean deleted) {
-        LocalDateTime fileInstant = file.addedToTime();
-
+    @JsonIgnore
+    public boolean deletedImmediate() {
         BackupTimespan deletedTimespan = Optional.ofNullable(retainDeleted).orElse(new BackupTimespan());
-        if (deleted
-                && !deletedTimespan.isForever()
-                && (deletedTimespan.isImmediate() || fileInstant.isBefore(deletedTimespan.toTime()))) {
-            return false;
+        return deletedTimespan.isImmediate();
+    }
+
+    public boolean keepFile(BackupFile file, BackupFile previousFile, boolean deleted) {
+        BackupTimespan deletedTimespan = Optional.ofNullable(retainDeleted).orElse(new BackupTimespan());
+        if (deleted) {
+            if (deletedTimespan.isImmediate())
+                return false;
+
+            if (!deletedTimespan.isForever()
+                    && file.deletedToTime().isBefore(deletedTimespan.toTime())) {
+                return false;
+            }
         }
 
         if (previousFile == null) {
             return true;
         }
+
+        LocalDateTime fileInstant = file.addedToTime();
 
         BackupTimespan frequency = defaultFrequency;
         if (older != null) {
@@ -47,7 +59,7 @@ public class BackupRetention {
         if (frequency == null)
             frequency = new BackupTimespan();
 
-        if (frequency.isImmediate() || frequency.toTime(previousFile.addedToTime()).isBefore(fileInstant)) {
+        if (!frequency.isImmediate() && (frequency.isForever() || frequency.toTime(previousFile.addedToTime()).isBefore(fileInstant))) {
             return false;
         }
         return true;

@@ -4,11 +4,11 @@ import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import {Checkbox, CircularProgress, FormControlLabel} from "@mui/material";
 import IconButton from "@mui/material/IconButton";
-import {ChevronRight, KeyboardArrowDown} from "@mui/icons-material";
+import {ChevronRight, KeyboardArrowDown, Menu} from "@mui/icons-material";
 import {BackupDefaults, BackupFile, BackupFilter, BackupSetRoot} from "../api";
 import './FileTreeView.css'
 
-function formatSize(size?: number): string {
+export function formatSize(size?: number): string {
     if (size === undefined) {
         return ""
     }
@@ -21,7 +21,7 @@ function formatSize(size?: number): string {
     return size + " B";
 }
 
-function formatLastChange(lastChange?: number): string {
+export function formatLastChange(lastChange?: number): string {
     if (lastChange === undefined)
         return ""
 
@@ -32,7 +32,7 @@ function formatLastChange(lastChange?: number): string {
         return date.toLocaleDateString();
 }
 
-function pathName(path: string): string {
+export function pathName(path: string): string {
     if (path.endsWith('/')) {
         let ind = path.lastIndexOf('/', path.length - 2);
         return path.substring(ind + 1, path.length - 1);
@@ -59,12 +59,14 @@ interface SetTreeViewState {
     stateValue?: any
 }
 
-export interface SetTreeViewPropsNG {
+export interface SetTreeViewProps {
     roots: BackupSetRoot[],
     fileFetcher: (node: string) => Promise<BackupFile[] | undefined>,
     stateValue: string,
     defaults: BackupDefaults,
-    onChange: (roots: BackupSetRoot[]) => void
+    onChange: (roots: BackupSetRoot[]) => void,
+    onFileDetailPopup?: (path: String) => Promise<(anchor: HTMLElement, open: boolean, handleClose: () => void)
+        => React.ReactFragment | undefined>
 }
 
 interface MatchedFilter {
@@ -213,7 +215,7 @@ function normalizeRoots(roots: BackupSetRoot[], defaults: BackupDefaults): Backu
     })
 }
 
-export default function FileTreeView(props: SetTreeViewPropsNG) {
+export default function FileTreeView(props: SetTreeViewProps) {
     function defaultState() {
         return {
             items: [{
@@ -314,6 +316,81 @@ export default function FileTreeView(props: SetTreeViewPropsNG) {
         });
     }
 
+    function FileDetails(itemProps: { item: TreeItem }) {
+        const selected = isPathSelected(itemProps.item.path);
+
+        const [open, setOpen] = React.useState(false);
+        const [anchor, setAnchor] = React.useState(null as HTMLElement | null);
+        const [tooltipContents, setTooltipContents] = React.useState(undefined as (anchor: HTMLElement, open: boolean, handleClose: () => void)
+            => React.ReactFragment | undefined);
+
+        function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+            if (!open) {
+                setAnchor(e.currentTarget);
+                fetchVersions();
+            } else {
+                setOpen(false);
+            }
+        }
+
+        function handleClosePopup() {
+            setOpen(false);
+        }
+
+        async function fetchVersions() {
+            if (props.onFileDetailPopup) {
+                const newContents = await props.onFileDetailPopup(itemProps.item.path);
+                if (newContents) {
+                    setTooltipContents(() => newContents);
+                    setOpen(true);
+                }
+            }
+        }
+
+        return <FormControlLabel style={{width: "100%"}}
+                                 control={
+                                     <Checkbox
+                                         indeterminate={selected === undefined}
+                                         checked={selected === true}
+                                         onChange={event => pathSelected(itemProps.item.path, event.target.checked)}
+
+                                         onClick={e => e.stopPropagation()}
+                                     />
+                                 }
+                                 label={
+                                     <span style={{width: "100%", display: "flex", alignItems: "center"}}>
+                                    <span style={{width: "100%"}}>{itemProps.item.name}</span>
+
+                                         {!itemProps.item.hasChildren &&
+                                             <span style={{
+                                                 width: "150px",
+                                                 textAlign: "right"
+                                             }}>{itemProps.item.size}</span>
+                                         }
+                                         {!itemProps.item.hasChildren &&
+                                             <span style={{
+                                                 width: "150px",
+                                                 textAlign: "right"
+                                             }}>{itemProps.item.added}</span>
+                                         }
+                                         {props.onFileDetailPopup &&
+                                             (!itemProps.item.hasChildren ?
+                                                     <span style={{width: "40px"}}>
+                                                         <IconButton aria-label="View versions"
+                                                                     onClick={(e) => handleClick(e)}>
+                                                         <Menu/>
+                                                         </IconButton>
+                                                         {tooltipContents && tooltipContents(anchor, open, handleClosePopup)}
+                                                     </span>
+                                                     :
+                                                     <span style={{width: "40px"}}/>
+                                             )
+                                         }
+                                 </span>
+                                 }
+        />
+    }
+
     async function loadPath(path: string) {
         let items = await props.fileFetcher(path);
 
@@ -359,13 +436,14 @@ export default function FileTreeView(props: SetTreeViewPropsNG) {
         })
     }
 
-    function Row(props: { index: number, style: React.CSSProperties }) {
-        const item = state.items[props.index];
-
-        const selected = isPathSelected(item.path);
+    function Row(rowProps: {
+        index: number,
+        style: React.CSSProperties
+    }) {
+        const item = state.items[rowProps.index];
 
         return <div style={{
-            ...props.style,
+            ...rowProps.style,
             width: "100%",
             display: "flex"
         }}>
@@ -382,7 +460,7 @@ export default function FileTreeView(props: SetTreeViewPropsNG) {
                             <IconButton color="inherit" aria-label="Expand" component="span" onClick={() => {
 
                                 const newItems = [...state.items];
-                                newItems[props.index] = {
+                                newItems[rowProps.index] = {
                                     ...item,
                                     expanded: !item.expanded,
                                     loading: !item.expanded
@@ -390,10 +468,10 @@ export default function FileTreeView(props: SetTreeViewPropsNG) {
 
                                 if (item.expanded) {
                                     let i;
-                                    for (i = props.index + 1; i < state.items.length && state.items[i].level > item.level; i++) {
+                                    for (i = rowProps.index + 1; i < state.items.length && state.items[i].level > item.level; i++) {
                                         // Nop
                                     }
-                                    newItems.splice(props.index + 1, i - props.index - 1);
+                                    newItems.splice(rowProps.index + 1, i - rowProps.index - 1);
                                 } else {
                                     loadPath(item.path);
                                 }
@@ -412,30 +490,13 @@ export default function FileTreeView(props: SetTreeViewPropsNG) {
                     )
                 }
             </div>
-            <FormControlLabel style={{width: "100%"}}
-                              control={
-                                  <Checkbox
-                                      indeterminate={selected === undefined}
-                                      checked={selected === true}
-                                      onChange={event => pathSelected(item.path, event.target.checked)}
-
-                                      onClick={e => e.stopPropagation()}
-                                  />
-                              }
-                              label={
-                                  <span style={{width: "100%", display: "flex", alignItems: "center"}}>
-                <span style={{width: "100%"}}>{item.name}</span>
-                <span style={{width: "150px", textAlign: "right"}}>{item.size}</span>
-                <span style={{width: "150px", textAlign: "right"}}>{item.added}</span>
-            </span>
-                              }
-            />
+            <FileDetails item={item}/>
         </div>
     };
 
     useEffect(() => {
         loadPath("/")
-    }, [])
+    }, [state.stateValue])
 
     return (
         <div>
@@ -443,6 +504,7 @@ export default function FileTreeView(props: SetTreeViewPropsNG) {
                 <span style={{marginLeft: "72px", width: "100%", textAlign: "center"}}>Filename</span>
                 <span style={{width: "150px", textAlign: "right", marginRight: "8px"}}>File Size</span>
                 <span style={{width: "150px", textAlign: "right", marginRight: "32px"}}>Last Updated</span>
+                {props.onFileDetailPopup && <span style={{width: "40px"}}/>}
             </span>
             <div style={{height: Math.min((state.items.length * 40 + 1), 500) + "px"}}>
                 <AutoSizer>

@@ -9,7 +9,7 @@ import Cron from "../3rdparty/react-js-cron-mui";
 
 export interface SettingsProps {
     config: BackupConfiguration,
-    onChange: (newConfig : BackupConfiguration) => void
+    onChange: (newConfig: BackupConfiguration) => void
 }
 
 interface SettingsState {

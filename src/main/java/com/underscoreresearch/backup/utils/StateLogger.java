@@ -40,7 +40,7 @@ public class StateLogger implements StatusLogger {
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
         MemoryUsage memHeapUsage = memoryMXBean.getHeapMemoryUsage();
         MemoryUsage nonHeapUsage = memoryMXBean.getNonHeapMemoryUsage();
-        debug(() -> log.debug("Non heap memory {}/{} ({}%}", readableSize(nonHeapUsage.getUsed()), readableSize(nonHeapUsage.getCommitted()),
+        debug(() -> log.debug("Non heap memory {} / {} ({}%}", readableSize(nonHeapUsage.getUsed()), readableSize(nonHeapUsage.getCommitted()),
                 nonHeapUsage.getUsed() * 100 / nonHeapUsage.getCommitted()));
 
         final Optional<MemoryPoolMXBean> oldMemoryBean = ManagementFactory.getMemoryPoolMXBeans()
@@ -134,7 +134,8 @@ public class StateLogger implements StatusLogger {
                     new StatusLine(getClass(), "HEAP_MEMORY", "Heap memory usage",
                             lastHeapUsage.get(),
                             lastHeapUsageMax.get(),
-                            readableSize(lastHeapUsage.get()) + " / " + readableSize(lastHeapUsageMax.get())),
+                            readableSize(lastHeapUsage.get()) + " / " + readableSize(lastHeapUsageMax.get()) + " (" +
+                                    lastHeapUsage.get() * 100 / lastHeapUsageMax.get() + "%)"),
                     new StatusLine(getClass(), "HEAP_AFTER_GC", "Heap memory usage after GC", lastMemoryAfterGCUse.get(),
                             lastMemoryAfterGCUse.get() + "%"),
                     new StatusLine(getClass(), "HEAP_FULL_GC", "Old generation GC count", lastGCCollectionCount.get())

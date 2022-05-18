@@ -287,35 +287,35 @@ export default function SetConfig(props: SetProps) {
                       })}
                       title={"Remove deleted files after "}/>
             <div style={{display: "flex", alignItems: "center", marginTop: "8px"}}>
-            <FormControlLabel control={<Checkbox
-                checked={state.set.retention ? !!state.set.retention.maximumVersions : false }
-                onChange={(e) => updateState({
-                    ...state,
-                    set: {
-                        ...state.set,
-                        retention: {
-                            ...state.set.retention,
-                            maximumVersions: e.target.checked ? 10 : undefined
+                <FormControlLabel control={<Checkbox
+                    checked={state.set.retention ? !!state.set.retention.maximumVersions : false}
+                    onChange={(e) => updateState({
+                        ...state,
+                        set: {
+                            ...state.set,
+                            retention: {
+                                ...state.set.retention,
+                                maximumVersions: e.target.checked ? 10 : undefined
+                            }
                         }
-                    }
-                })}
-            />} label={"Keep at most "}/>
-            <TextField variant="standard"
-                       disabled={!state.set.retention || !state.set.retention.maximumVersions}
-                       defaultValue={state.set.retention && state.set.retention.maximumVersions ? state.set.retention.maximumVersions : 10}
-                       inputProps={{min: 1, style: {textAlign: "right"}}}
-                       style={{width: "80px"}}
-                       type={"number"}
-                       onBlur={(e) => updateState({
-                           ...state,
-                           set: {
-                               ...state.set,
-                               retention: {
-                                   ...state.set.retention,
-                                   maximumVersions: parseInt(e.target.value)
+                    })}
+                />} label={"Keep at most "}/>
+                <TextField variant="standard"
+                           disabled={!state.set.retention || !state.set.retention.maximumVersions}
+                           defaultValue={state.set.retention && state.set.retention.maximumVersions ? state.set.retention.maximumVersions : 10}
+                           inputProps={{min: 1, style: {textAlign: "right"}}}
+                           style={{width: "80px"}}
+                           type={"number"}
+                           onBlur={(e) => updateState({
+                               ...state,
+                               set: {
+                                   ...state.set,
+                                   retention: {
+                                       ...state.set.retention,
+                                       maximumVersions: parseInt(e.target.value)
+                                   }
                                }
-                           }
-                       })}/>
+                           })}/>
                 <Typography>versions of every file</Typography>
             </div>
 

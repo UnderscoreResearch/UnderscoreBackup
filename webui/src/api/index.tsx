@@ -209,6 +209,11 @@ export async function GetBackupFiles(path: string, timestamp?: Date): Promise<Ba
     return await MakeCall(url);
 }
 
+export async function GetBackupVersions(path: string): Promise<BackupFile[] | undefined> {
+    let url = "backup-versions/" + encodeURIComponent(path);
+    return await MakeCall(url);
+}
+
 export async function GetActivity(temporal: boolean): Promise<StatusLine[] | undefined> {
     const ret = await MakeCall("activity?temporal=" + (temporal ? "true" : "false")) as StatusResponse;
     if (ret) {
@@ -227,6 +232,17 @@ export async function GetAuthEndpoint(): Promise<string | undefined> {
         return ret.endpoint;
     }
     return undefined;
+}
+
+export function GetBackupDownloadLink(file: string, added: number, passphrase: string): string {
+    const ind = file.lastIndexOf('/');
+    const firstPathPart = file.substring(0, ind);
+    const secondPath = file.substring(ind + 1);
+
+    return baseApi + "backup-download/"
+        + encodeURIComponent(firstPathPart) + "/" + encodeURIComponent(secondPath) + "?timestamp="
+        + added + "&passphrase="
+        + encodeURIComponent(passphrase);
 }
 
 export async function GetEncryptionKey(passphrase?: string): Promise<boolean> {
