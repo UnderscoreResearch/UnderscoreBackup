@@ -1,19 +1,20 @@
 import React from "react";
 import MainApp from "./MainApp";
-import {Alert, Snackbar, ThemeProvider} from "@mui/material";
+import {Alert, AlertColor, Snackbar, ThemeProvider} from "@mui/material";
 import {SnackbarCloseReason} from "@mui/material/Snackbar/Snackbar";
 import {BrowserRouter} from "react-router-dom";
 import {createTheme} from "@mui/material/styles";
 
-var internalDisplayError: (newMessage: string) => void;
+var internalDisplayError: (newMessage: string, severity?: AlertColor) => void;
 
-export function DisplayError(newMessage: string) {
-    internalDisplayError(newMessage);
+export function DisplayMessage(newMessage: string, severity?: AlertColor) {
+    internalDisplayError(newMessage, severity);
 }
 
 interface AppState {
     open: boolean,
-    message: string
+    message: string,
+    severity: AlertColor
 }
 
 const firstPath = `/${window.location.pathname.split('/')[1]}/`;
@@ -23,13 +24,15 @@ const mdTheme = createTheme();
 export default function App() {
     const [state, setState] = React.useState<AppState>({
         open: false,
-        message: ""
+        message: "",
+        severity: "error"
     });
 
-    internalDisplayError = (newMessage: string) => {
+    internalDisplayError = (newMessage: string, severity?: AlertColor) => {
         setState({
             open: true,
-            message: newMessage
+            message: newMessage,
+            severity: severity ? severity : "error"
         })
     };
 
@@ -40,13 +43,14 @@ export default function App() {
 
         setState({
             open: false,
-            message: ""
+            message: "",
+            severity: state.severity
         });
     };
 
     return <React.Fragment>
         <Snackbar open={state.open} autoHideDuration={6000} onClose={handleClose}>
-            <Alert onClose={handleClose} severity="error" sx={{width: '100%'}}>
+            <Alert onClose={handleClose} severity={state.severity} sx={{width: '100%'}}>
                 {state.message}
             </Alert>
         </Snackbar>

@@ -65,8 +65,8 @@ export interface SetTreeViewProps {
     stateValue: string,
     defaults: BackupDefaults,
     onChange: (roots: BackupSetRoot[]) => void,
-    onFileDetailPopup?: (path: String) => Promise<(anchor: HTMLElement, open: boolean, handleClose: () => void)
-        => React.ReactFragment | undefined>
+    onFileDetailPopup?: (path: string) => Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
+        => React.ReactFragment) | undefined>
 }
 
 interface MatchedFilter {
@@ -321,10 +321,10 @@ export default function FileTreeView(props: SetTreeViewProps) {
 
         const [open, setOpen] = React.useState(false);
         const [anchor, setAnchor] = React.useState(null as HTMLElement | null);
-        const [tooltipContents, setTooltipContents] = React.useState(undefined as (anchor: HTMLElement, open: boolean, handleClose: () => void)
-            => React.ReactFragment | undefined);
+        const [tooltipContents, setTooltipContents] = React.useState(undefined as ((anchor: HTMLElement, open: boolean, handleClose: () => void)
+            => React.ReactFragment) | undefined);
 
-        function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+        function handleClick(e: React.MouseEvent<HTMLAnchorElement> | React.MouseEvent<HTMLButtonElement>) {
             if (!open) {
                 setAnchor(e.currentTarget);
                 fetchVersions();
@@ -347,6 +347,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
             }
         }
 
+        // @ts-ignore
         return <FormControlLabel style={{width: "100%"}}
                                  control={
                                      <Checkbox

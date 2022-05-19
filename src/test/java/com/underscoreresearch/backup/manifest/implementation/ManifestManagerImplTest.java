@@ -112,7 +112,7 @@ class ManifestManagerImplTest {
     public void testDelayedUpload() throws IOException, InterruptedException {
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
-        LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager);
+        LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
 
         Mockito.verify(memoryIOProvider, Mockito.times(2)).upload(anyString(), any());
@@ -126,7 +126,7 @@ class ManifestManagerImplTest {
     public void testLoggingUpdateAndReplay() throws IOException {
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
-        LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager);
+        LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
         repository.popActivePath("s1", "/c");
         repository.addDirectory(new BackupDirectory("d", Instant.now().toEpochMilli(),
@@ -144,7 +144,7 @@ class ManifestManagerImplTest {
 
         manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
-        manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager));
+        manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false));
 
         compareInvocations(firstRepository, secondRepository);
     }

@@ -77,7 +77,7 @@ class FileScannerImplTest {
     @BeforeEach
     public void setup() throws IOException {
         tempDir = Files.createTempDirectory("test").toFile();
-        repository = new LoggingMetadataRepository(new MapdbMetadataRepository(tempDir.getPath()), Mockito.mock(ManifestManager.class));
+        repository = new LoggingMetadataRepository(new MapdbMetadataRepository(tempDir.getPath()), Mockito.mock(ManifestManager.class), false);
         repository.open(false);
 
         access = new FileSystemAccessImpl();

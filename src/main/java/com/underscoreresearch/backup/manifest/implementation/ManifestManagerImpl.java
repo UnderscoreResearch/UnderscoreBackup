@@ -454,7 +454,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         disabledFlushing = true;
 
         try (CloseableLock ignored = existingRepository.acquireLock()) {
-            LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this);
+            LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this, false);
 
             internalInitialize();
 

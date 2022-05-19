@@ -114,8 +114,13 @@ public class BlockValidator implements StatusLogger {
             return false;
         }
         if (block.isSuperBlock()) {
-            for (String hash : block.getHashes()) {
-                validateHash(repository, hash, maximumSize, maxBlockSize);
+            if (block.getHashes() == null) {
+                log.error("Super block {} is missing hashes", block.getHash());
+                return false;
+            } else {
+                for (String hash : block.getHashes()) {
+                    validateHash(repository, hash, maximumSize, maxBlockSize);
+                }
             }
         } else {
             if (maximumSize != null) {
