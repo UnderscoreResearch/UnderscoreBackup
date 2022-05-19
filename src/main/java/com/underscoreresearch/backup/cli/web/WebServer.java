@@ -130,7 +130,8 @@ public class WebServer {
                                     new FkRegex(base + "/api/destination-files(/.*)?", new ListDestinationFilesGet(base)),
                                     new FkRegex(base + "/api/activity", new ActivityGet()),
 
-                                    new FkRegex(base + "/api/backup-download/.*", new BackupDownloadGet(base)),
+                                    new FkRegex(base + "/api/backup-download/.*", new TkFork(
+                                            new FkMethods("POST", new BackupDownloadPost(base)))),
                                     new FkRegex(base + "/api/destination-download/.*", new DestinationDownloadGet(base)),
                                     new FkRegex(base + "/api/auth-endpoint", new AuthEndpointGet(address, getConfigurationUrl())),
 

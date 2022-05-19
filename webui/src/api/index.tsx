@@ -1,4 +1,4 @@
-import {DisplayError} from "../App";
+import {DisplayMessage} from "../App";
 
 function determineBaseApi(): string {
     if (window.location.pathname.startsWith("/fixed/")) {
@@ -143,7 +143,7 @@ export interface BackupRestoreRequest {
 
 function reportError(errors: any) {
     console.log(errors);
-    DisplayError(errors.toString());
+    DisplayMessage(errors.toString());
 }
 
 async function MakeCall(api: string, init?: RequestInit): Promise<any | undefined> {
@@ -234,15 +234,39 @@ export async function GetAuthEndpoint(): Promise<string | undefined> {
     return undefined;
 }
 
-export function GetBackupDownloadLink(file: string, added: number, passphrase: string): string {
+function GetBackupDownloadLink(file: string, added: number): string {
     const ind = file.lastIndexOf('/');
     const firstPathPart = file.substring(0, ind);
     const secondPath = file.substring(ind + 1);
 
     return baseApi + "backup-download/"
         + encodeURIComponent(firstPathPart) + "/" + encodeURIComponent(secondPath) + "?timestamp="
-        + added + "&passphrase="
-        + encodeURIComponent(passphrase);
+        + added;
+}
+
+export function DownloadBackupFile(file: string, added: number, passphrase: string) {
+    const startTime = new Date().getTime();
+
+    const request = new XMLHttpRequest();
+
+    request.responseType = "blob";
+    request.open("post", GetBackupDownloadLink(file, added), true);
+    request.setRequestHeader('content-type', 'application/json;charset=UTF-8');
+    request.send(JSON.stringify({
+        "passphrase": passphrase
+    }));
+
+    request.onreadystatechange = function () {
+        if (this.readyState == 4 && this.status == 200) {
+            const imageURL = window.URL.createObjectURL(this.response);
+
+            const anchor = document.createElement("a");
+            anchor.href = imageURL;
+            anchor.download = file;
+            document.body.appendChild(anchor);
+            anchor.click();
+        }
+    }
 }
 
 export async function GetEncryptionKey(passphrase?: string): Promise<boolean> {
@@ -260,10 +284,6 @@ export async function GetEncryptionKey(passphrase?: string): Promise<boolean> {
         return false;
     }
     return ret.specified;
-}
-
-export function GetFileDownloadUrl(file: BackupFile): string {
-    return baseApi + "download" + file.path;
 }
 
 export async function PutEncryptionKey(passphrase: string): Promise<boolean> {

@@ -60,6 +60,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String TIMESTAMP = "timestamp";
     public static final String BIND_ADDRESS = "bind-address";
     public static final String URL_LOCATION = "URL_LOCATION";
+    public static final String NO_DELETE_REBUILD = "no-delete-rebuild";
 
     private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
     private static final String DEFAULT_LOCAL_PATH = "/var/cache/underscorebackup";
@@ -95,6 +96,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption(null, INCLUDE_DELETED, true, "Include deleted files from repository");
         options.addOption(null, NO_LOG, false, "Don't write to a log file");
         options.addOption(null, BIND_ADDRESS, true, "Specify the address to bind UI webserver to (Default localhost)");
+        options.addOption(null, NO_DELETE_REBUILD, false, "Rebuild repository without performing any deletes");
         options.addOption("h", HUMAN_READABLE, false, "Display human readable sizes");
         options.addOption("R", RECURSIVE, false, "Process restore or list operation recursively");
         options.addOption("o", OVER_WRITE, false, "Overwrite existing files when restoring");

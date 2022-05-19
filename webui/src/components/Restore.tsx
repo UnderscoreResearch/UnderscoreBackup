@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Button, Checkbox, FormControlLabel, List, ListItem, Popover, Stack, TextField} from "@mui/material";
+import {Button, Checkbox, FormControlLabel, List, ListItem, Popover, Snackbar, Stack, TextField} from "@mui/material";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -7,8 +7,7 @@ import FileTreeView, {formatLastChange, formatSize, pathName} from "./FileTreeVi
 import {
     BackupDefaults,
     BackupFile,
-    BackupSetRoot,
-    GetBackupDownloadLink,
+    BackupSetRoot, DownloadBackupFile,
     GetBackupFiles,
     GetBackupVersions
 } from '../api';
@@ -16,6 +15,7 @@ import DateTimePicker from '@mui/lab/DateTimePicker';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
 import LocalizationProvider from '@mui/lab/LocalizationProvider';
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
+import {DisplayMessage} from "../App";
 
 export interface RestorePropsChange {
     passphrase: string,
@@ -88,7 +88,8 @@ export default function Restore(props: RestoreProps) {
         });
     }
 
-    async function fetchTooltipContents(path: String) {
+    async function fetchTooltipContents(path: string) : Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
+        => React.ReactFragment) | undefined> {
         const files = await GetBackupVersions(path);
         if (files) {
             return function (anchor: HTMLElement, open: boolean, handleClose: () => void) {
@@ -116,11 +117,12 @@ export default function Restore(props: RestoreProps) {
                                         </Typography>
                                         <Button style={{marginLeft: "8px"}}
                                                 variant="contained"
+                                                disabled={!file.length || file.length > 1024 * 1024 * 1024}
                                                 onClick={(e) => {
-                                                    window.open(GetBackupDownloadLink(file.path,
+                                                    DownloadBackupFile(file.path,
                                                             file.added ? file.added : 0,
-                                                            state.passphrase),
-                                                        '_blank');
+                                                            state.passphrase);
+                                                    DisplayMessage("Download started", "success");
                                                 }
                                                 }>Download</Button>
                                     </ListItem>

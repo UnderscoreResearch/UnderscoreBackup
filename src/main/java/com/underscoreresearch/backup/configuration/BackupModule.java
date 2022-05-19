@@ -1,10 +1,13 @@
 package com.underscoreresearch.backup.configuration;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE_REBUILD;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+
+import org.apache.commons.cli.CommandLine;
 
 import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
@@ -223,8 +226,9 @@ public class BackupModule extends AbstractModule {
 
     @Singleton
     @Provides
-    public MetadataRepository metadataRepository(MapdbMetadataRepository xodusMetadata, ManifestManager manifest) {
-        return new LoggingMetadataRepository(xodusMetadata, manifest);
+    public MetadataRepository metadataRepository(MapdbMetadataRepository xodusMetadata, ManifestManager manifest,
+                                                 CommandLine commandLine) {
+        return new LoggingMetadataRepository(xodusMetadata, manifest, commandLine.hasOption(NO_DELETE_REBUILD));
     }
 
     @Singleton

@@ -570,8 +570,12 @@ public class RepositoryTrimmer implements StatusLogger {
 
         if (BackupBlock.isSuperBlock(hash)) {
             BackupBlock block = metadataRepository.block(hash);
-            for (String partHash : block.getHashes()) {
-                markFileLocationBlocks(usedBlockMap, hasActivePath, partHash, used);
+            if (block != null && block.getHashes() != null) {
+                for (String partHash : block.getHashes()) {
+                    markFileLocationBlocks(usedBlockMap, hasActivePath, partHash, used);
+                }
+            } else {
+                log.error("Missing referenced super block {}, run validate-blocks to remedy", hash);
             }
         }
     }

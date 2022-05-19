@@ -60,42 +60,55 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     public LoggingMetadataRepository(MetadataRepository repository,
-                                     ManifestManager manifestManager) {
-        this(repository, manifestManager, 60 * 1000);
+                                     ManifestManager manifestManager,
+                                     boolean noDeleteReplay) {
+        this(repository, manifestManager, 60 * 1000, noDeleteReplay);
     }
 
     public LoggingMetadataRepository(MetadataRepository repository,
                                      ManifestManager manifestManager,
-                                     int activePathDelay) {
+                                     int activePathDelay,
+                                     boolean noDeleteReplay) {
         this.repository = repository;
         this.manifestManager = manifestManager;
 
         activePathSubmittors.scheduleAtFixedRate(() -> submitPendingActivePaths(Duration.ofMillis(activePathDelay)),
                 Math.min(activePathDelay, 1000), Math.min(activePathDelay, 1000), TimeUnit.MILLISECONDS);
 
-        decoders = ImmutableMap.<String, LogReader>builder()
+        ImmutableMap.Builder<String, LogReader> decoderBuilder = ImmutableMap.<String, LogReader>builder()
                 .put("file", (json) -> repository.addFile(mapper.readValue(json, BackupFile.class)))
-                .put("deleteFile", (json) -> repository.deleteFile(mapper.readValue(json, BackupFile.class)))
-                .put("deletePart", (json) -> repository.deleteFilePart(mapper.readValue(json, BackupFilePart.class)))
                 .put("block", (json) -> repository.addBlock(mapper.readValue(json, BackupBlock.class)))
-                .put("deleteBlock", (json) -> repository.deleteBlock(mapper.readValue(json, BackupBlock.class)))
                 .put("dir", (json) -> {
                     BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
                     repository.addDirectory(dir);
-                })
-                .put("deleteDir", (json) -> {
-                    BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
-                    repository.deleteDirectory(dir.getPath(), dir.getAdded());
-                })
-                .put("path", (json) -> {
-                    PushActivePath activePath = mapper.readValue(json, PushActivePath.class);
-                    repository.pushActivePath(activePath.getSetId(), activePath.getPath(), activePath.getActivePath());
                 })
                 .put("deletePath", (json) -> {
                     PushActivePath activePath = mapper.readValue(json, PushActivePath.class);
                     repository.popActivePath(activePath.getSetId(), activePath.getPath());
                 })
-                .build();
+                .put("path", (json) -> {
+                    PushActivePath activePath = mapper.readValue(json, PushActivePath.class);
+                    repository.pushActivePath(activePath.getSetId(), activePath.getPath(), activePath.getActivePath());
+                });
+
+        if (noDeleteReplay) {
+            decoderBuilder
+                    .put("deleteFile", (json) -> {})
+                    .put("deletePart", (json) -> {})
+                    .put("deleteBlock", (json) -> {})
+                    .put("deleteDir", (json) -> {});
+        } else {
+            decoderBuilder
+                    .put("deleteFile", (json) -> repository.deleteFile(mapper.readValue(json, BackupFile.class)))
+                    .put("deletePart", (json) -> repository.deleteFilePart(mapper.readValue(json, BackupFilePart.class)))
+                    .put("deleteBlock", (json) -> repository.deleteBlock(mapper.readValue(json, BackupBlock.class)))
+                    .put("deleteDir", (json) -> {
+                        BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
+                        repository.deleteDirectory(dir.getPath(), dir.getAdded());
+                    });
+        }
+
+        decoders = decoderBuilder.build();
 
         try {
             manifestManager.initialize(this, false);
