@@ -44,15 +44,19 @@ public final class LogUtil {
 
     public static String readableSize(long length) {
         if (length >= 1024 * 1024 * 1024) {
-            return String.format("%.1f GB", ((double) length) / 1024 / 1024 / 1024);
+            return String.format("%s GB", formatNumber(((double) length) / 1024 / 1024 / 1024));
         }
         if (length >= 1024 * 1024) {
-            return String.format("%.1f MB", ((double) length) / 1024 / 1024);
+            return String.format("%s MB", formatNumber(((double) length) / 1024 / 1024));
         }
         if (length >= 1024) {
-            return String.format("%.1f KB", ((double) length) / 1024);
+            return String.format("%s KB", formatNumber(((double) length) / 1024));
         }
-        return String.format("%s B", length);
+        return String.format("%s B", formatNumber(length));
+    }
+
+    private static String formatNumber(double num) {
+        return NumberFormat.getNumberInstance().format(Math.round(num * 10) / 10.0);
     }
 
     public static String readableNumber(long num) {

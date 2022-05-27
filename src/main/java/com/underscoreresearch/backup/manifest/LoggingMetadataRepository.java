@@ -93,10 +93,14 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
         if (noDeleteReplay) {
             decoderBuilder
-                    .put("deleteFile", (json) -> {})
-                    .put("deletePart", (json) -> {})
-                    .put("deleteBlock", (json) -> {})
-                    .put("deleteDir", (json) -> {});
+                    .put("deleteFile", (json) -> {
+                    })
+                    .put("deletePart", (json) -> {
+                    })
+                    .put("deleteBlock", (json) -> {
+                    })
+                    .put("deleteDir", (json) -> {
+                    });
         } else {
             decoderBuilder
                     .put("deleteFile", (json) -> repository.deleteFile(mapper.readValue(json, BackupFile.class)))

@@ -71,7 +71,7 @@ public class EncryptionModule extends AbstractModule {
         if (needPrivateKey || !Strings.isNullOrEmpty(privateKeySeed)) {
             String key = privateKeySeed;
             if (Strings.isNullOrEmpty(key))
-                key = PassphraseReader.readPassphrase("Enter seed for private key: ");
+                key = PassphraseReader.readPassphrase("Enter passphrase for private key: ");
             if (key == null) {
                 System.exit(1);
             }

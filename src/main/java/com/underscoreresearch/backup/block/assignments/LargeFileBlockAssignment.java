@@ -21,6 +21,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockCompletion;
 import com.underscoreresearch.backup.model.BackupCompletion;
 import com.underscoreresearch.backup.model.BackupData;
@@ -94,10 +95,11 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 final String hash = Hash.hash(buffer);
                 BackupFilePart part = BackupFilePart.builder()
                         .blockHash(hash)
+                        .offset(start > 0 ? start : null)
                         .build();
 
                 if (length != size) {
-                    log.warn("Only read {} when expected {} for {}", length, size, file.getPath());
+                    log.warn("Only read {} when expected {} for {}", readableSize(length), readableSize(size), file.getPath());
                     locationRef.set(null);
                     completionFuture.completed(null);
                     return true;
@@ -206,14 +208,14 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
     protected abstract String getFormat();
 
     @Override
-    public byte[] extractPart(BackupFilePart file) throws IOException {
-        return extractPart(file, blockDownloader.downloadBlock(file.getBlockHash()));
+    public byte[] extractPart(BackupFilePart file, BackupBlock block) throws IOException {
+        return extractPart(file, blockDownloader.downloadBlock(block.getHash()));
     }
 
     protected abstract byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException;
 
     @Override
-    public boolean shouldCache() {
-        return false;
+    public long blockSize(BackupFilePart file, byte[] blockData) throws IOException {
+        return extractPart(file, blockData).length;
     }
 }

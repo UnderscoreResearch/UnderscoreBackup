@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.block.assignments;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -19,6 +21,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.NotImplementedException;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -69,7 +73,10 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
             try {
                 int length = access.readData(file.getPath(), buffer, 0, (int) (long) file.getLength());
                 if (length != file.getLength()) {
-                    log.warn("Only read {} when expected {} for {}", length, file.getLength(), file.getPath());
+                    log.warn("Only read {} when expected {} for {}",
+                            readableSize(length),
+                            readableSize(file.getLength()),
+                            file.getPath());
                     completionFuture.completed(null);
                     return true;
                 }
@@ -192,9 +199,9 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
             });
 
     @Override
-    public byte[] extractPart(BackupFilePart file) throws IOException {
+    public byte[] extractPart(BackupFilePart file, BackupBlock block) throws IOException {
         try {
-            CachedData data = cache.get(file.getBlockHash());
+            CachedData data = cache.get(block.getHash());
             return data.get(file.getBlockIndex().toString());
         } catch (ExecutionException e) {
             throw new IOException("Failed to process contents of block " + file.getBlockHash(), e);
@@ -202,8 +209,8 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
     }
 
     @Override
-    public boolean shouldCache() {
-        return true;
+    public long blockSize(BackupFilePart file, byte[] blockData) throws IOException {
+        throw new NotImplementedException();
     }
 
     private class PendingFile {
