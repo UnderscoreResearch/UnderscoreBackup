@@ -14,6 +14,7 @@ import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.PassphraseReader;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
 
@@ -24,19 +25,24 @@ public class GenerateKeyCommand extends Command {
         if (commandLine.getArgList().size() != 1) {
             throw new ParseException("Too many arguments for command");
         }
-        String firstTry
-                = PassphraseReader.readPassphrase("Please enter the passphrase for the private key: ");
-        if (firstTry == null) {
-            System.exit(1);
-        }
-        String secondTry
-                = PassphraseReader.readPassphrase("Reenter the passphrase for the private key: ");
-        if (secondTry == null) {
-            System.exit(1);
-        }
-        if (!firstTry.equals(secondTry)) {
-            System.out.println("Passphrases do not match");
-            System.exit(1);
+
+        String firstTry;
+        if (commandLine.hasOption(CommandLineModule.PRIVATE_KEY_SEED)) {
+            firstTry = commandLine.getOptionValue(CommandLineModule.PRIVATE_KEY_SEED);
+        } else {
+            firstTry = PassphraseReader.readPassphrase("Please enter the passphrase for the private key: ");
+            if (firstTry == null) {
+                System.exit(1);
+            }
+            String secondTry
+                    = PassphraseReader.readPassphrase("Reenter the passphrase for the private key: ");
+            if (secondTry == null) {
+                System.exit(1);
+            }
+            if (!firstTry.equals(secondTry)) {
+                System.out.println("Passphrases do not match");
+                System.exit(1);
+            }
         }
         String file = generateAndSaveNewKey(commandLine, firstTry);
 

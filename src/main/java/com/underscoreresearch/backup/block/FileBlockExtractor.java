@@ -2,10 +2,11 @@ package com.underscoreresearch.backup.block;
 
 import java.io.IOException;
 
+import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFilePart;
 
 public interface FileBlockExtractor {
-    byte[] extractPart(BackupFilePart file) throws IOException;
+    byte[] extractPart(BackupFilePart file, BackupBlock block) throws IOException;
 
-    boolean shouldCache();
+    long blockSize(BackupFilePart file, byte[] blockData) throws IOException;
 }

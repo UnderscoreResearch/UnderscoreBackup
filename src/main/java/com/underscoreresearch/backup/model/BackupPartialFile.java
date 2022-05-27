@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.model;
 
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -49,12 +50,14 @@ public class BackupPartialFile {
         }
         parts.add(part);
 
+        // There are places in the code that assumes that the last part will never be a super block.
         if (BackupBlock.isSuperBlock(part.getPart().getBlockHash())) {
             superBlocks = parts.size();
         } else if (parts.size() - superBlocks > SUPER_BLOCK_SIZE + MINIMUM_EXTRA_BLOCKS) {
             List<PartialCompletedPath> newList = Lists.newArrayList(parts.subList(0, superBlocks));
             int i = superBlocks;
             List<String> hashes = new ArrayList<>();
+            List<Long> offsets = new ArrayList<>();
             long lastLocation = 0;
             while (hashes.size() < SUPER_BLOCK_SIZE) {
                 PartialCompletedPath tp = parts.get(i);
@@ -62,24 +65,26 @@ public class BackupPartialFile {
                     throw new RuntimeException("Can't mix multi file blocks into superblocks");
                 }
                 hashes.add(tp.getPart().getBlockHash());
+                offsets.add(tp.getPart().getOffset());
                 lastLocation = tp.getPosition();
                 i++;
             }
             BackupBlock superBlock = BackupBlock.builder().created(Instant.now().toEpochMilli())
                     .hash(BackupBlock.createSuperBlockHash())
                     .hashes(hashes)
+                    .offsets(offsets)
                     .storage(new ArrayList<>()).build();
             repository.addBlock(superBlock);
             newList.add(new PartialCompletedPath(lastLocation,
-                    BackupFilePart.builder().blockHash(superBlock.getHash()).build()));
+                    BackupFilePart.builder().blockHash(superBlock.getHash()).offset(offsets.get(0)).build()));
             superBlocks = newList.size();
             while (i < parts.size()) {
                 newList.add(parts.get(i));
                 i++;
             }
-            debug(() -> log.debug("Created superblock {} and went from {} parts to {}", superBlock.getHash(), parts.size(), newList.size()));
+            debug(() -> log.debug("Created superblock {} and went from {} parts to {}", superBlock.getHash(),
+                    readableNumber(parts.size()), readableNumber(newList.size())));
             parts = newList;
         }
     }
 }
-

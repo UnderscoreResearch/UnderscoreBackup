@@ -55,7 +55,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     public byte[] downloadBlock(String blockHash) throws IOException {
         BackupBlock block = metadataRepository.block(blockHash);
         if (block == null) {
-            throw new IOException(String.format("Trying to get unknown block {}", blockHash));
+            throw new IOException(String.format("Trying to get unknown block %s", blockHash));
         }
 
         for (int storageIndex = 0; storageIndex < block.getStorage().size(); storageIndex++) {
@@ -68,7 +68,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
                 }
             }
         }
-        throw new IOException("No storage available for block");
+        throw new IOException(String.format("No storage available for block %s", blockHash));
     }
 
     public byte[] downloadEncryptedBlockStorage(BackupBlock block, BackupBlockStorage storage) throws IOException {

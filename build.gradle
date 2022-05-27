@@ -1,3 +1,5 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
 plugins {
     id 'java'
     id 'application'
@@ -12,7 +14,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.9.11'
+version '0.9.12'
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -46,7 +48,6 @@ task createProperties(dependsOn: processResources) {
 classes {
     dependsOn createProperties
 }
-
 
 runtime {
     options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
@@ -90,7 +91,6 @@ task consoleexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
 }
 
 task guiexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
-    mainClassName = 'com.underscoreresearch.backup.cli.Main'
     cmdLine = "interactive"
     outfile = "underscorebackup-gui.exe"
     headerType = "gui"
@@ -127,8 +127,15 @@ task webui(dependsOn: [webuiinstall], type:Exec) {
     commandLine 'npm', "run", "build"
 }
 
-task allDist {
-    dependsOn installer, distZip, distTar, test
+task integrationTest(type:Exec) {
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        dependsOn consoleexe
+        workingDir "${rootProject.projectDir}"
+        commandLine "perl", "integrationtests\\testsuite.pl", "$buildDir\\integrationtests", "$buildDir\\launch4j\\underscorebackup.exe"
+    } else {
+        dependsOn distTar
+        commandLine "${rootProject.projectDir}/integrationtests/executetests.sh", "$buildDir/distributions/${project.name}-${project.version}.tar"
+    }
 }
 
 repositories {
@@ -202,6 +209,25 @@ task uninstallerPkg(type:Exec) {
     args "${project.version}"
 }
 
-task allDistOsx {
-    dependsOn installerPkg, uninstallerPkg, distZip, distTar, test
+task allDist() {
+    dependsOn distZip, distTar
+}
+
+task installers(type:Exec) {
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        workingDir "${rootProject.projectDir}"
+        commandLine 'gradlew.bat', "installer"
+    } else if (Os.isFamily(Os.FAMILY_MAC)) {
+        dependsOn uninstallerPkg
+        workingDir "${rootProject.projectDir}"
+        commandLine './gradlew', "installerPkg"
+    } else {
+        commandLine 'true'
+    }
+}
+
+allDist.finalizedBy(installers)
+
+task allDistTest {
+    dependsOn test, integrationTest, allDist
 }

@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import lombok.Data;
@@ -310,8 +312,9 @@ public class RepositoryTrimmer implements StatusLogger {
             });
 
             log.info("Deleted {} blocks with a total of {} parts and {} part references",
-                    statistics.getDeletedBlocks(), statistics.getDeletedBlockParts(),
-                    statistics.getDeletedBlockPartReferences());
+                    readableNumber(statistics.getDeletedBlocks()),
+                    readableSize(statistics.getDeletedBlockParts()),
+                    readableNumber(statistics.getDeletedBlockPartReferences()));
         }
     }
 
@@ -324,7 +327,7 @@ public class RepositoryTrimmer implements StatusLogger {
         List<BackupFile> fileVersions = new ArrayList<>();
         NavigableSet<String> deletedPaths = hasActivePath ? null : new TreeSet<>();
 
-        String[] lastParent = new String[1];
+        AtomicReference<String> lastParent = new AtomicReference<>(null);
 
         metadataRepository.allFiles(false).forEachOrdered((file) -> {
             if (InstanceFactory.isShutdown())
@@ -343,8 +346,8 @@ public class RepositoryTrimmer implements StatusLogger {
 
                     if (deletedPaths != null) {
                         String parent = findParent(file.getPath());
-                        if (!parent.equals(lastParent[0])) {
-                            lastParent[0] = parent;
+                        if (!parent.equals(lastParent.get())) {
+                            lastParent.set(parent);
                             processDeletedPaths(deletedPaths, parent, statistics);
                         }
                     }
@@ -365,9 +368,11 @@ public class RepositoryTrimmer implements StatusLogger {
         }
 
         log.info("Deleted {} file versions and {} entire files from repository",
-                statistics.getDeletedVersions(), statistics.getDeletedFiles());
+                readableNumber(statistics.getDeletedVersions()),
+                readableNumber(statistics.getDeletedFiles()));
         log.info("Deleted {} directory versions and {} entire directories from repository",
-                statistics.getDeletedDirectoryVersions(), statistics.getDeletedDirectories());
+                readableNumber(statistics.getDeletedDirectoryVersions()),
+                readableNumber(statistics.getDeletedDirectories()));
     }
 
     private void processDeletedPaths(final NavigableSet<String> deletedPaths, final String parent,

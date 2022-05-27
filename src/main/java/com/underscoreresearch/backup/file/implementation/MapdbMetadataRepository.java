@@ -105,8 +105,10 @@ public class MapdbMetadataRepository implements MetadataRepository {
         BACKUP_PART_WRITER = mapper.writerFor(BackupFilePart.class);
         BACKUP_ACTIVE_READER = mapper.readerFor(BackupActivePath.class);
         BACKUP_ACTIVE_WRITER = mapper.writerFor(BackupActivePath.class);
-        BACKUP_DIRECTORY_READER = mapper.readerFor(new TypeReference<NavigableSet<String>>() {});
-        BACKUP_DIRECTORY_WRITER = mapper.writerFor(new TypeReference<Set<String>>() {});
+        BACKUP_DIRECTORY_READER = mapper.readerFor(new TypeReference<NavigableSet<String>>() {
+        });
+        BACKUP_DIRECTORY_WRITER = mapper.writerFor(new TypeReference<Set<String>>() {
+        });
         BACKUP_PENDING_SET_READER = mapper.readerFor(BackupPendingSet.class);
         BACKUP_PENDING_SET_WRITER = mapper.writerFor(BackupPendingSet.class);
         BACKUP_PARTIAL_FILE_READER = mapper.readerFor(BackupPartialFile.class);
@@ -619,7 +621,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     private BackupBlock stripCopy(BackupBlock block) {
         return BackupBlock.builder().storage(block.getStorage()).format(block.getFormat()).created(block.getCreated())
-                .hashes(block.getHashes())
+                .hashes(block.getHashes()).offsets(block.getOffsets())
                 .build();
     }
 

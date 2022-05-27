@@ -1,12 +1,10 @@
 package com.underscoreresearch.backup.block.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,7 +13,6 @@ import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockFormatFactory;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileDownloader;
@@ -100,7 +97,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
 
                         try {
                             for (BackupFilePart part : location.getParts()) {
-                                List<BackupBlock> blocks = expandBlocks(part.getBlockHash());
+                                List<BackupBlock> blocks = BackupBlock.expandBlock(part.getBlockHash(), repository);
                                 for (BackupBlock block : blocks) {
                                     if (block == null) {
                                         throw new IOException(String.format("File referenced block {} that doesn't exist",
@@ -108,9 +105,9 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                                     }
                                     FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
                                     try {
-                                        byte[] fileData = extractor.extractPart(part);
+                                        byte[] fileData = extractor.extractPart(part, block);
                                         if (fileData == null) {
-                                            throw new IOException("Failed to extra data for part of block " + part.getBlockHash());
+                                            throw new IOException("Failed to extra data for part of block " + block.getHash());
                                         }
 
                                         if (!isNullFile(destinationFile)) {
@@ -170,19 +167,6 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                 activeFiles.remove(source.getPath());
             }
         }
-    }
-
-    private List<BackupBlock> expandBlocks(String blockHash) throws IOException {
-        BackupBlock block = repository.block(blockHash);
-        if (block.isSuperBlock()) {
-            List<BackupBlock> blocks = new ArrayList<>();
-            for (String hash : block.getHashes()) {
-                blocks.add(repository.block(hash));
-            }
-            debug(() -> log.debug("Expanded suprt block {} to {} blocks", block.getHash(), blocks.size()));
-            return blocks;
-        }
-        return Lists.newArrayList(block);
     }
 
     @Override

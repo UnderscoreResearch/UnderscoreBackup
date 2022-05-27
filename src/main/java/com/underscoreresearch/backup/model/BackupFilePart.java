@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -15,20 +14,49 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BackupFilePart {
+    @JsonProperty("bh")
     private String blockHash;
+    @JsonProperty("ph")
     private String partHash;
+    @JsonProperty("bi")
     private Integer blockIndex;
+    @JsonProperty("o")
+    private Long offset;
 
-    @JsonCreator
-    @Builder
-    public BackupFilePart(@JsonProperty("bh") String blockHash,
-                          @JsonProperty("ph") String partHash,
-                          @JsonProperty("bi") Integer blockIndex,
-                          @JsonProperty("blockHash") String oldBlockHash,
-                          @JsonProperty("partHash") String oldPartHash,
-                          @JsonProperty("blockIndex") Integer oldBlockIndex) {
-        this.blockHash = blockHash != null ? blockHash : oldBlockHash;
-        this.partHash = partHash != null ? partHash : oldPartHash;
-        this.blockIndex = blockIndex != null ? blockIndex : oldBlockIndex;
+    // Everything below here is for backwards compatibility of JSON format
+    @JsonProperty("blockHash")
+    @Deprecated
+    public void setLegacyBlockHash(String blockHash) {
+        this.blockHash = blockHash;
+    }
+
+    @JsonProperty("partHash")
+    @Deprecated
+    public void setLegacyPartHash(String partHash) {
+        this.partHash = partHash;
+    }
+
+    @JsonProperty("blockIndex")
+    @Deprecated
+    public void setLegacyBlockIndex(Integer blockIndex) {
+        this.blockIndex = blockIndex;
+    }
+
+    @JsonProperty("blockHash")
+    @Deprecated
+    public String getLegacyBlockHash() {
+        return null;
+    }
+
+    @JsonProperty("partHash")
+    @Deprecated
+    public String getLegacyPartHash() {
+        return null;
+    }
+
+    @JsonProperty("blockIndex")
+    @Deprecated
+    public Integer getLegacyBlockIndex() {
+        return null;
     }
 }

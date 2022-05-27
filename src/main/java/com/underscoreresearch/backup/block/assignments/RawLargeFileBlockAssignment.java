@@ -28,9 +28,4 @@ public class RawLargeFileBlockAssignment extends LargeFileBlockAssignment {
     public byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException {
         return blockData;
     }
-
-    @Override
-    public boolean shouldCache() {
-        return false;
-    }
 }

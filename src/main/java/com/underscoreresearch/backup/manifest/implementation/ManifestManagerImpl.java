@@ -65,7 +65,7 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 @Slf4j
 public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private final static DateTimeFormatter LOG_FILE_FORMATTER
-            = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.n").withZone(ZoneId.of("UTC"));
+            = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.nnnnnnnnn").withZone(ZoneId.of("UTC"));
     private static final String LOG_ROOT = "logs";
 
     private final BackupConfiguration configuration;

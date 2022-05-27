@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.core.util.Assert;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;

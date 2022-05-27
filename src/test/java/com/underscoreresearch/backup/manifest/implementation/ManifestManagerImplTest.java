@@ -152,12 +152,25 @@ class ManifestManagerImplTest {
     private void compareInvocations(MetadataRepository repository1, MetadataRepository repository2) throws JsonProcessingException {
         List<Invocation> det1 = stripInvications(repository1);
         List<Invocation> det2 = stripInvications(repository2);
-        assertThat(det1.size(), Is.is(det2.size()));
-        for (int i = 0; i < det1.size(); i++) {
-            assertThat(det1.get(i).getMethod(), Is.is(det2.get(i).getMethod()));
-            assertThat(Lists.newArrayList(det1.get(i).getRawArguments()),
-                    Is.is(Lists.newArrayList(det2.get(i).getRawArguments())));
+        assertThat(createInvocationString(det1), Is.is(createInvocationString(det2)));
+    }
+
+    private String createInvocationString(List<Invocation> det) throws JsonProcessingException {
+        StringBuilder builder = new StringBuilder();
+        for (Invocation inv : det) {
+            builder.append(inv.getMethod().getName());
+            builder.append("(");
+            ObjectMapper mapper = new ObjectMapper();
+            for (int i = 0; i < inv.getRawArguments().length; i++) {
+                if (i > 0) {
+                    builder.append(", ");
+                }
+                builder.append(mapper.writeValueAsString(inv.getRawArguments()[i]));
+            }
+            builder.append(")");
+            builder.append("\n");
         }
+        return builder.toString();
     }
 
     private List<Invocation> stripInvications(MetadataRepository repository1) {
