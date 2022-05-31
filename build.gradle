@@ -14,7 +14,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.9.12'
+version '0.9.13'
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -73,10 +73,14 @@ tasks.withType(JavaCompile) {
     options.compilerArgs += ['-Xlint:unchecked']
 }
 
+task copyIniFile(type:Copy) {
+    from layout.projectDirectory.dir("windows/underscorebackup.l4j.ini")
+    into layout.buildDirectory.dir("launch4j")
+}
+
 launch4j {
     priority = "idle"
     jreMinVersion = 11
-    maxHeapSize = 256
     bundledJrePath = "..\\jre"
     bundledJre64Bit = true
     jvmOptions = ["-Dstartup.directory=\"%OLDPWD%\""]
@@ -86,6 +90,7 @@ launch4j {
 }
 
 task consoleexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
+    dependsOn(copyIniFile)
     outfile = "underscorebackup.exe"
     headerType = "console"
 }
@@ -131,10 +136,10 @@ task integrationTest(type:Exec) {
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         dependsOn consoleexe
         workingDir "${rootProject.projectDir}"
-        commandLine "perl", "integrationtests\\testsuite.pl", "$buildDir\\integrationtests", "$buildDir\\launch4j\\underscorebackup.exe"
+        commandLine "perl", "integrationtests\\testsuite.pl", "$buildDir\\integrationtests", "$buildDir\\launch4j\\underscorebackup.exe", "${rootProject.projectDir}\\webui"
     } else {
         dependsOn distTar
-        commandLine "${rootProject.projectDir}/integrationtests/executetests.sh", "$buildDir/distributions/${project.name}-${project.version}.tar"
+        commandLine "${rootProject.projectDir}/integrationtests/executetests.sh", "$buildDir/distributions/${project.name}-${project.version}.tar", "${rootProject.projectDir}/webui"
     }
 }
 

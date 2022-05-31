@@ -31,6 +31,8 @@ Source: "..\\build\\launch4j\\underscorebackup.exe"; DestDir: "{app}\\bin"; Flag
 Source: "..\\build\\launch4j\\underscorebackup-gui.exe"; DestDir: "{app}\\bin"; Flags: ignoreversion
 Source: "..\\build\\launch4j\\lib\\*"; DestDir: "{app}\\bin\\lib"; Flags: ignoreversion
 Source: "..\\build\\jre\\*"; DestDir: "{app}\\jre"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "underscorebackup.l4j.ini"; DestDir: "{app}\\bin"; Flags: onlyifdoesntexist
+Source: "underscorebackup-gui.l4j.ini"; DestDir: "{app}\\bin"; Flags: onlyifdoesntexist
 
 [icons]
 Name: "{commonstartup}\\Underscore Backup"; Filename: "{app}\\bin\\underscorebackup-gui.exe";

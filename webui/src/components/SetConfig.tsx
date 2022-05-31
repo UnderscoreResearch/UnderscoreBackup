@@ -352,7 +352,7 @@ export default function SetConfig(props: SetProps) {
             {
                 EditableList<string>({
                     createItem: createExclusionControl,
-                    items: state.set.exclusions as string[],
+                    items: (state.set.exclusions ? state.set.exclusions : []) as string[],
                     onItemChanged: exclusionsChanged,
                     createNewItem: () => ""
                 })

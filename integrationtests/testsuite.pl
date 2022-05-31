@@ -5,6 +5,7 @@ use Cwd;
 use File::Spec;
 use File::Find qw(finddepth);
 use File::Compare;
+use LWP::Simple;
 
 my $originalRoot = getcwd();
 my $root = shift(@ARGV);
@@ -14,6 +15,8 @@ if (!$root) {
 }
 
 my $underscoreBackup = shift(@ARGV);
+my $webuiDir = shift(@ARGV);
+
 #$underscoreBackup = File::Spec->catdir(getcwd(), "../build/launch4j/underscorebackup");
 
 if (!$underscoreBackup) {
@@ -112,7 +115,7 @@ sub createGeneration {
     # Need one really large file to test super blocks
     if ($curGen == 7) {
         chdir($curRoot);
-        generateFile("large", 0, 20 * 1024 * 1024 * 1024);
+        generateFile("large", 0, 17 * 1024 * 1024 * 1024);
     }
 }
 
@@ -154,6 +157,18 @@ sub prepareTestPath {
     }
 }
 
+sub validateLog() {
+    if (-f $logFile) {
+        open(LOG, "<$logFile");
+        while (<LOG>) {
+            if (/ ERROR /) {
+                die $_;
+            }
+        }
+        close LOG;
+    }
+}
+
 sub executeUnderscoreBackup {
     chdir($root);
     my @args = (
@@ -171,15 +186,7 @@ sub executeUnderscoreBackup {
         die "Failed executing";
     }
 
-    if (-f $logFile) {
-        open(LOG, "<$logFile");
-        while (<LOG>) {
-            if (/ERROR/) {
-                die $_;
-            }
-        }
-        close LOG;
-    }
+    &validateLog();
 }
 
 sub createConfigFile {
@@ -240,14 +247,18 @@ __EOF__
     close CONFIG;
 }
 
-sub prepareRunPath {
+sub cleanRunPath {
     chdir($originalRoot);
 
     finddepth { wanted => \&zapFile, no_chdir => 1 }, $root;
     if (!-d $root) {
         mkdir($root) || die;
     }
+    chdir($root);
+}
 
+sub prepareRunPath {
+    &cleanRunPath();
     &createConfigFile();
     &executeUnderscoreBackup("generate-key");
 }
@@ -301,6 +312,62 @@ sub validateAnswer {
         }
     }
 }
+
+sub executeCypressTest {
+    chdir($webuiDir);
+    my @args = (
+        "npx",
+        "cypress",
+        "run",
+        "--spec", File::Spec->catdir("cypress", File::Spec->catdir("integration", shift(@_)))
+    );
+    push(@args, @_);
+    print "Executing " . join(" ", @args) . "\n";
+
+    $ENV{"CYPRESS_TEST_ROOT"} = $root;
+    $ENV{"CYPRESS_TEST_DATA"} = $testRoot;
+    $ENV{"CYPRESS_TEST_BACKUP"} = $backupRoot;
+
+    if (system(@args) != 0) {
+        die "Failed executing";
+    }
+}
+
+# Test superblocks & interactive
+print "Interactive & superblock test\n";
+&cleanRunPath();
+&prepareTestPath();
+&generateData(7, 1);
+
+if (!fork()) {
+    &executeUnderscoreBackup("interactive", "--developer-mode");
+    exit(0);
+}
+
+&executeCypressTest("setup.js");
+&executeCypressTest("backup.js");
+
+get("http://localhost:12345/fixed/api/shutdown");
+
+print "Rebuild from backup test\n";
+&prepareTestPath();
+&generateData(7, 1, $answerRoot);
+chdir($root);
+finddepth { wanted => \&zapFile, no_chdir => 1 }, "db";
+unlink($configFile);
+unlink($keyFile);
+if (!fork()) {
+    &executeUnderscoreBackup("interactive", "--developer-mode");
+    exit(0);
+}
+
+&executeCypressTest("setuprebuild.js");
+&executeCypressTest("restore.js");
+
+get("http://localhost:12345/fixed/api/shutdown");
+
+&validateAnswer();
+&validateLog();
 
 &prepareRunPath();
 
@@ -459,13 +526,3 @@ print "Generation 6 incremental\n";
 &prepareTestPath();
 &generateData(6, 1);
 &executeUnderscoreBackup("restore", "/", "=");
-
-# test superblocks
-
-print "Superblock test";
-&prepareTestPath();
-&generateData(7, 1);
-&executeUnderscoreBackup("backup");
-&executeUnderscoreBackup("restore", "/", "=");
-
-&prepareTestPath();

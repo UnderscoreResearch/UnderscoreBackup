@@ -115,6 +115,10 @@ function findFilter(path: string, filters: BackupFilter[] | undefined): MatchedF
     };
 }
 
+function pathId(path: string) : string {
+    return path.replace(/[\W_]+/g,"_");
+}
+
 function shouldExpand(roots: BackupSetRoot[], path: string): boolean {
     const matchingRoot = roots.find(item => {
         if ((path + "/").startsWith(item.path))
@@ -353,6 +357,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
                                      <Checkbox
                                          indeterminate={selected === undefined}
                                          checked={selected === true}
+                                         id={"checkbox_" + pathId(itemProps.item.path)}
                                          onChange={event => pathSelected(itemProps.item.path, event.target.checked)}
 
                                          onClick={e => e.stopPropagation()}
@@ -511,7 +516,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
                 <AutoSizer>
                     {({height, width}: { height: number; width: number }) => (
                         <List
-                            className="List"
+                            className="List fileTreeList"
                             height={height}
                             itemCount={state.items.length}
                             itemSize={40}

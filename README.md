@@ -1,6 +1,4 @@
-**IMPORTANT: This application is not ready for production use!**
-
-The application is still under heavy development and even though most functionality is already functional you should not rely on this application for your primary backup of production data.
+The application is very close to production ready. Unless any short stopped bugs are found in this release, the next version will be version 1.0.
 
 A backup solution with the following features.
 
@@ -13,9 +11,9 @@ A backup solution with the following features.
 * Designed from the ground up to manage very large backup sets with multiple TB of data and millions of file in a
 single repository.
 
-* Multi-platform support based on Java 11.
+* Multi-platform support based on Java 11. Linux, Windows and OSX are supported platforms, but should run anywhere Java 11 is supported.
 
-* Low resource requirements, runs efficiently with 256MB of heap memory even if the backup sets have millions of files.
+* Low resource requirements, runs efficiently with 256MB of heap memory even if the backup sets have millions of files and terrabytes of data.
 
 * Efficient storage of both large and small file with built-in deduplication of data.
 
@@ -34,9 +32,9 @@ Getting Started
 
 ## Download the binary or build it from source
 
-Download one of the releases and unpack somewhere where you can run it. On Linux it is recommended to place it in `/opt/underscorebackup`. On Windows the installer will place the files in the `C:|Program Files\UnderscoreBackup\`.
+Download one of the releases and unpack somewhere where you can run it. On Linux it is recommended to place it in `/opt/underscorebackup`. On Windows the installer will place the files in the `C:|Program Files\UnderscoreBackup\`. On either Windows or OSX simply run the installer and you will be prompted with a web page for completing the setup.
 
-If running on Unix you should decide if you wish to run the software as root to perform a full system backup or as a specific user. Once installed simply launch the command.
+If running on Unix or Linux you should decide if you wish to run the software as root to perform a full system backup or as a specific user. Once installed simply launch the command.
 
     > underscorebackup interactive
 
@@ -95,11 +93,13 @@ If you want to go back in time and restore or look at contents of your backup ol
 
 ## Disaster has struck and my entire filesystem is gone. How do I restore it?
 
-Start by installing Understore Backup from scratch. Then go to your repository destination and download the config.json and key file from there to your machine. Then run the following command.
+Start by installing Underscore Backup from scratch. Simply reinstall the application and in the setup point it to the destination that you used for your repository metadata. The installer will detect that an installation exists there and rebuild the local repository and allow you to start an restore of your files.
+
+If you prefer a more manual approach you can go to your repository destination and download the config.json and key file from there to your machine. Then run the following command.
 
     > backup rebuild-repository
 
- Depending on the size of your repository this might take a few minutes. This operation will download and replay all your backup activity from the destination and recreate the local repository. After this has completed you use the `ls` and `restore` commands above as before your filesystem was lost.
+Depending on the size of your repository this might take a few minutes. This operation will download and replay all your backup activity from the destination and recreate the local repository. After this has completed you use the `ls` and `restore` commands above as before your filesystem was lost.
 
 # Configuration file specification
 
@@ -151,6 +151,7 @@ Contains information of how the backup repository is managed.
 * **maximumUnsyncedSize** - Maximum size of the change log to keep locally before uploading to destination.
 * **maximumUnsyncedSeconds** - Maximum time that changes are kept locally before they are forced to be uploaded to backup destination.
 * **interactiveBackup** - If set and true then start running a backup whenever you launch in interactive mode.
+* **optimizeSchedule** - If set this will be a schedule at which a log optimization operation will be run once a scheduled or manual backup completes.
 * **configUsername** - Username required to log into the config web interface.
 * **configPassword** - Password required to log into the config web interface.
 
@@ -172,4 +173,22 @@ There is another root property which is a map of strings to string for additiona
 * **reedSolomon.dataSlices** - Number of Reed Solomon data slizes to use. Defaults to 17.
 * **reedSolomon.paritySlices** - Number of Reed Solomon parity slizes to use. Defaults to 3.
 * **noneErrorCorrection.maximumFileSize** - Maximum part size for none error correction. Defaults to 16384kb.
+Roadmap to stable release
+============
+The following items must be completed before I will consider the first stable release.
 
+* ~~Basic integration tests that automate testing the basic functionality with data integrity checks~~
+* ~~Unit tests testing targeted complicated functionality~~
+* ~~Test for testing basic functionality through web UI including initial setup, backup and restore.~~
+* ~~Add ability to configure memory usage on Windows.~~
+* At least one release candidate with no major bugs found during the period of a week or more.
+
+Future development ideas
+==============
+Future feature ideas after first stable release is our.
+
+* Include POSIX file metadata in backup such as permissions and ownership.
+* Support backing up symbolic links and special files.
+* Allow secure sharing of part of backup between computers and people.
+* Add support for Azure Block Storage destination.
+* Create FUSE based filesystem implementation or Linux.

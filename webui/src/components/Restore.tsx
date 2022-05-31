@@ -154,6 +154,7 @@ export default function Restore(props: RestoreProps) {
                     <TextField label="Passphrase" variant="outlined"
                                fullWidth={true}
                                required={true}
+                               id={"restorePassphrase"}
                                value={state.passphrase}
                                error={!state.passphrase}
                                type="password"
@@ -213,6 +214,7 @@ export default function Restore(props: RestoreProps) {
                 <div style={{display: "flex", alignContent: "center", marginTop: "0.5em"}}>
                     <FormControlLabel control={<Checkbox
                         disabled={state.destination === "-" || state.destination === "="}
+                        id={"originalLocation"}
                         checked={!state.destination} onChange={(e) => {
                         if (e.target.checked) {
                             updateState({
@@ -249,6 +251,7 @@ export default function Restore(props: RestoreProps) {
                 <div style={{display: "flex", alignContent: "center", marginTop: "0.5em"}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.destination === "-" || state.destination === "="}
+                        id={"onlyVerifyLocal"}
                         onChange={(e) => {
                             if (e.target.checked) {
                                 updateState({
@@ -265,6 +268,7 @@ export default function Restore(props: RestoreProps) {
                     <FormControlLabel
                         control={<Checkbox disabled={state.destination !== "-" && state.destination !== "="}
                                            checked={state.destination === "="}
+                                           id={"compareAgainstLocal"}
                                            onChange={(e) => {
                                                if (e.target.checked) {
                                                    updateState({

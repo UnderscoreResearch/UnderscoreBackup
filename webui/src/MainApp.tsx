@@ -36,7 +36,6 @@ import {Route, Routes, useNavigate,} from "react-router-dom";
 import Status from "./components/Status";
 import Destinations, {DestinationProp} from "./components/Destinations";
 import Sets from "./components/Sets";
-import ConfigEditor from "./components/ConfigEditor";
 import {Backdrop, Button, CircularProgress} from "@mui/material";
 import InitialSetup from "./components/InitialSetup";
 import Restore, {RestorePropsChange} from "./components/Restore";
@@ -396,7 +395,7 @@ export default function MainApp() {
 
     function calculateStatus() {
         if (!state.activity || state.activity.length == 0) {
-            currentProgress = "Currently Inactive"
+            currentProgress = "Currently Inactive";
         } else if (state.activity.some(item => item.code.startsWith("UPLOAD_PENDING"))) {
             currentProgress = "Initializing Backup";
         } else if (state.activity.some(item => item.code.startsWith("BACKUP_"))) {
@@ -466,13 +465,6 @@ export default function MainApp() {
                                               destinations={getDestinationList()}
                                               configurationUpdated={updateSets}/>
             }/>
-            <Route path="config" element={<ConfigEditor config={state.currentConfiguration}
-                                                        onChange={(newConfig) => {
-                                                            setState({
-                                                                ...state,
-                                                                currentConfiguration: newConfig
-                                                            })
-                                                        }}/>}/>
         </Routes>;
     } else {
         allowBackup = false;
@@ -624,6 +616,7 @@ export default function MainApp() {
                         <MenuIcon/>
                     </IconButton>
                     <Typography
+                        id={"currentProgress"}
                         component="h1"
                         variant="h6"
                         color="inherit"
@@ -645,6 +638,7 @@ export default function MainApp() {
                     {cancelButtonTitle &&
                         <Box sx={{flexGrow: 0, marginRight: "2em"}}>
                             <Button sx={{my: 2, color: 'white', display: 'block'}}
+                                    id={"cancelButton"}
                                     onClick={() => applyCancel()}>
                                 {cancelButtonTitle}
                             </Button>
@@ -657,6 +651,7 @@ export default function MainApp() {
                                     variant="contained"
                                     color={acceptButtonTitle !== "Cancel Restore" ? "success" : "error"}
                                     disabled={!valid}
+                                    id={"acceptButton"}
                                     onClick={() => applyChanges()}>
                                 {acceptButtonTitle}
                             </Button>

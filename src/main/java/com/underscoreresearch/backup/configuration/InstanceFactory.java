@@ -51,8 +51,7 @@ public abstract class InstanceFactory {
             ConfigurationValidator.validateConfiguration(config,
                     readOnly);
             cachedHasConfig = true;
-        } catch (Exception exc) {
-            System.out.println(exc.getMessage());
+        } catch (ProvisionException exc) {
             cachedHasConfig = false;
         }
         return cachedHasConfig;
