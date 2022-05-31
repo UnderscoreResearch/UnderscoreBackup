@@ -134,6 +134,7 @@ public class WebServer {
                                             new FkMethods("POST", new BackupDownloadPost(base)))),
                                     new FkRegex(base + "/api/destination-download/.*", new DestinationDownloadGet(base)),
                                     new FkRegex(base + "/api/auth-endpoint", new AuthEndpointGet(address, getConfigurationUrl())),
+                                    new FkRegex(base + "/api/shutdown", new ShutdownGet()),
 
                                     new FkRegex(base + "/api/encryption-key", new TkFork(
                                             new FkMethods("POST", new KeyPost()),
@@ -144,7 +145,6 @@ public class WebServer {
                                     createIndexPath(base + "/sets"),
                                     createIndexPath(base + "/destinations"),
                                     createIndexPath(base + "/settings"),
-                                    createIndexPath(base + "/config"),
                                     createIndexPath(base + "/restore"),
 
                                     createFiletypePath("css", "text/css"),

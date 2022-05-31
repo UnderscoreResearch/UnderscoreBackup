@@ -52,7 +52,7 @@ export interface BackupSetRoot {
 export interface BackupSet {
     id: string,
     roots: BackupSetRoot[],
-    exclusions: string[],
+    exclusions?: string[],
     schedule?: string,
     destinations: string[],
     retention?: BackupRetention

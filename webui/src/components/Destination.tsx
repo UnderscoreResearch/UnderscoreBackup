@@ -244,6 +244,7 @@ function LocalFileDestination(props: DestinationProps) {
             <TextField label="Local Directory" variant="outlined"
                        required={true}
                        fullWidth={true}
+                       id={"localFileText"}
                        value={state.endpointUri}
                        error={!state.endpointUri}
                        onChange={(e) => updateState({
@@ -690,10 +691,10 @@ export default function Destination(props: DestinationProps) {
     return <Paper sx={{p: 2}}>
         <DividerWithText><span style={{fontSize: 22}}>Destination Type</span></DividerWithText>
         <Tabs value={state.type} onChange={handleChange}>
-            <Tab label="Local Directory"/>
-            <Tab label="Windows Share"/>
-            <Tab label="S3"/>
-            <Tab label="Dropbox"/>
+            <Tab label="Local Directory" id={"tabLocalDirectory"}/>
+            <Tab label="Windows Share" id={"tabWindowsShare"}/>
+            <Tab label="S3" id={"tabS3"}/>
+            <Tab label="Dropbox" id={"tabDropbox"}/>
         </Tabs>
 
         <TabPanel value={state.type} index={0}>

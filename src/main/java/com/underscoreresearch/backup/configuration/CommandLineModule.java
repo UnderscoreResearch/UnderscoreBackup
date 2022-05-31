@@ -220,7 +220,18 @@ public class CommandLineModule extends AbstractModule {
     @Named(DEFAULT_MANIFEST_LOCATION)
     @Provides
     @Singleton
-    public String defaultManifestLocation() {
+    public String defaultManifestLocation(CommandLine commandLine) {
+        if (commandLine.hasOption(CONFIG)) {
+            try {
+                File file = new File(commandLine.getOptionValue(CONFIG)).getParentFile().getCanonicalFile();
+                file.mkdirs();
+                return file.getAbsolutePath();
+            } catch (IOException exc) {
+                log.warn("Failed to resolve default manifest location from config location {}",
+                        commandLine.getOptionValue(CONFIG));
+            }
+        }
+
         if (!SystemUtils.IS_OS_WINDOWS) {
             File systemFile = new File(DEFAULT_LOCAL_PATH);
             if (!systemFile.exists()) {

@@ -135,6 +135,7 @@ export default function InitialSetup(props: InitialSetupProps) {
                     <TextField label="Passphrase" variant="outlined"
                                fullWidth={true}
                                required={true}
+                               id={"restorePassphrase"}
                                value={state.passphrase}
                                error={!state.passphrase}
                                type="password"
@@ -172,6 +173,7 @@ export default function InitialSetup(props: InitialSetupProps) {
                                required={true}
                                value={state.passphrase}
                                error={!state.passphrase}
+                               id={"passphraseFirst"}
                                type="password"
                                onChange={(e) => updateState({
                                    ...state,
@@ -183,6 +185,7 @@ export default function InitialSetup(props: InitialSetupProps) {
                                helperText={state.passphraseConfirm !== state.passphrase ? "Does not match" : null}
                                value={state.passphraseConfirm}
                                error={state.passphraseConfirm !== state.passphrase || !state.passphrase}
+                               id={"passphraseSecond"}
                                type="password"
                                onChange={(e) => updateState({
                                    ...state,

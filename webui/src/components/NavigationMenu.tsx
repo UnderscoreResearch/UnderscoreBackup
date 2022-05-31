@@ -17,6 +17,7 @@ function MyListItemButton(props: {
     page: string,
     config: BackupConfiguration,
     children: React.ReactNode,
+    id: string,
     disabled?: boolean
 }) {
     var currentPage = location.href;
@@ -26,7 +27,7 @@ function MyListItemButton(props: {
         else
             currentPage += "sets";
     }
-    return <ListItemButton disabled={props.disabled} component={Link} to={props.page}
+    return <ListItemButton id={props.id} disabled={props.disabled} component={Link} to={props.page}
                            selected={currentPage.endsWith(props.page)}>
         {props.children}
     </ListItemButton>
@@ -51,39 +52,33 @@ export default function NavigationMenu(props: {
         </List>
     }
     return <List component="nav">
-        <MyListItemButton page="status" config={props.config}>
+        <MyListItemButton page="status" config={props.config} id="pageStatus">
             <ListItemIcon>
                 <Dashboard/>
             </ListItemIcon>
             <ListItemText primary="Status"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="sets" config={props.config} disabled={!props.allowBackup}>
+        <MyListItemButton page="sets" config={props.config} disabled={!props.allowBackup} id="pageSets">
             <ListItemIcon>
                 <AccountTree/>
             </ListItemIcon>
             <ListItemText primary="Backup Sets"/>
         </MyListItemButton>
-        <MyListItemButton page="destinations" config={props.config} disabled={!props.allowBackup}>
+        <MyListItemButton page="destinations" config={props.config} disabled={!props.allowBackup} id="pageDestinations">
             <ListItemIcon>
                 <CloudUpload/>
             </ListItemIcon>
             <ListItemText primary="Destinations"/>
         </MyListItemButton>
-        <MyListItemButton page="settings" config={props.config} disabled={!props.allowBackup}>
+        <MyListItemButton page="settings" config={props.config} disabled={!props.allowBackup} id="pageSettings">
             <ListItemIcon>
                 <Settings/>
             </ListItemIcon>
             <ListItemText primary="Settings"/>
         </MyListItemButton>
-        <MyListItemButton page="config" config={props.config} disabled={!props.allowBackup}>
-            <ListItemIcon>
-                <TextSnippetIcon/>
-            </ListItemIcon>
-            <ListItemText primary="Configuration"/>
-        </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="restore" config={props.config} disabled={!props.allowRestore}>
+        <MyListItemButton page="restore" config={props.config} disabled={!props.allowRestore} id="pageRestore">
             <ListItemIcon>
                 <CloudDownload/>
             </ListItemIcon>

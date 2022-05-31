@@ -1,6 +1,8 @@
 const gulp = require("gulp");
 const inlinesource = require("gulp-inline-source");
 const replace = require("gulp-replace");
+const del = require('del');
+const exec = require('child_process').exec;
 
 gulp.task("index", () => {
     return gulp
@@ -35,4 +37,28 @@ gulp.task('copy-manifest', () => {
     return gulp.src('./build/manifest.webmanifest').pipe(gulp.dest('../src/main/resources/web'));
 });
 
-gulp.task('default', gulp.parallel('index', 'copy-woff', 'copy-woff2', 'copy-ttf', 'copy-ico', 'copy-manifest'));
+gulp.task('package', gulp.parallel('index', 'copy-woff', 'copy-woff2', 'copy-ttf', 'copy-ico', 'copy-manifest'));
+
+gulp.task('delete-parcel-cache', () => {
+    return del('.parcel-cache/**', {force:true});
+});
+
+gulp.task('delete-resources', () => {
+    return del('../src/main/resources/web/**', {force:true});
+});
+
+gulp.task('delete-build', () => {
+    return del('build/**', {force:true});
+});
+
+gulp.task('clean', gulp.parallel('delete-parcel-cache', 'delete-build', 'delete-resources'));
+
+gulp.task('parcel-build', function (cb) {
+    exec('parcel build ./src/index.html --dist-dir build', function (err, stdout, stderr) {
+        console.log(stdout);
+        console.log(stderr);
+        cb(err);
+    });
+})
+
+gulp.task('default', gulp.series("clean", "parcel-build", "package"));

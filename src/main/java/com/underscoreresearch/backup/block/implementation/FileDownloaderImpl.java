@@ -28,6 +28,8 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
 public class FileDownloaderImpl implements FileDownloader, StatusLogger {
+    private static final long GB = 1024 * 1024 * 1024;
+
     @Data
     private static class Progress {
         private long completed;
@@ -135,6 +137,11 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                                         }
 
                                         offset += fileData.length;
+                                        if ((offset - fileData.length) / GB != offset / GB) {
+                                            log.info("Processed {} / {} for {}", readableSize(offset), readableSize(source.getLength()),
+                                                    source.getPath());
+                                        }
+
                                         progress.setCompleted(offset);
                                     } catch (Exception exc) {
                                         throw new IOException("Failed to download " + source.getPath()

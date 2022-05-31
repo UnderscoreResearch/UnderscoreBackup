@@ -100,7 +100,7 @@ public class RestoreExecutor {
             if (root && files.size() == 1 && !files.get(0).isDirectory() && !destinationFile.isDirectory()) {
                 downloadFile(scheduler, files.get(0), destination, overwrite);
             } else {
-                if (!isNullFile(inputDestination) && !destinationFile.isDirectory()) {
+                if (!isNullFile(inputDestination) && destination.length() > 0 && !destinationFile.isDirectory()) {
                     if (!destinationFile.mkdirs()) {
                         throw new IOException("Failed to create destination directories " + destinationFile.toString());
                     }

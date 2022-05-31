@@ -27,8 +27,10 @@ public class ConfigurationGet extends JsonWrap {
         @Override
         public Response act(Request req) throws Exception {
             try {
-                BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
-                return new RsText(WRITER.writeValueAsString(config));
+                if (InstanceFactory.hasConfiguration(false)) {
+                    BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+                    return new RsText(WRITER.writeValueAsString(config));
+                }
             } catch (Exception exc) {
                 log.warn("Failed to read existing config", exc);
             }

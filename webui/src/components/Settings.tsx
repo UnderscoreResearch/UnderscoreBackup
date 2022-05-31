@@ -1,11 +1,22 @@
 import * as React from "react";
 import {BackupConfiguration, BackupGlobalLimits, BackupManifest, PropertyMap} from "../api";
-import {Checkbox, FormControlLabel, Grid, Paper, Stack, TextField} from "@mui/material";
+import {
+    Button,
+    Checkbox, Dialog,
+    DialogActions, DialogContent,
+    DialogContentText, DialogTitle,
+    FormControlLabel,
+    Grid,
+    Paper,
+    Stack,
+    TextField
+} from "@mui/material";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import SpeedLimit from "./SpeedLimit";
 import PropertyMapEditor from "./PropertyMapEditor";
 import UIAuthentication from "./UIAuthentication";
 import Cron from "../3rdparty/react-js-cron-mui";
+import {DisplayMessage} from "../App";
 
 export interface SettingsProps {
     config: BackupConfiguration,
@@ -14,16 +25,24 @@ export interface SettingsProps {
 
 interface SettingsState {
     manifest: BackupManifest,
+    showConfig: boolean,
+    configData: string,
     limits: BackupGlobalLimits,
     properties?: PropertyMap
 }
 
+function createInitialState(config: BackupConfiguration) : SettingsState {
+    return {
+        manifest: config.manifest,
+        showConfig: false,
+        properties: config.properties,
+        configData: JSON.stringify(config, null, 2),
+        limits: config.limits ? config.limits : {}
+    }
+}
+
 export default function Settings(props: SettingsProps) {
-    const [state, setState] = React.useState({
-        manifest: props.config.manifest,
-        properties: props.config.properties,
-        limits: props.config.limits ? props.config.limits : {}
-    } as SettingsState);
+    const [state, setState] = React.useState(createInitialState(props.config));
 
     function updateState(newState: SettingsState) {
         setState(newState);
@@ -40,6 +59,31 @@ export default function Settings(props: SettingsProps) {
         if (sendState.limits && Object.keys(sendState.limits).length == 0)
             sendState.limits = undefined;
         props.onChange(sendState);
+    }
+
+    function handleShowConfig() {
+        setState({
+            ...state,
+            showConfig: true
+        });
+    }
+
+    function handleConfigClose() {
+        setState({
+            ...state,
+            showConfig: false,
+            configData: JSON.stringify(props.config, null, 2)
+        });
+    }
+
+    function handleConfigSubmit() {
+        try {
+            const newConfig = JSON.parse(state.configData);
+            setState(createInitialState(newConfig));
+            props.onChange(newConfig);
+        } catch (e : any) {
+            DisplayMessage(e.toString());
+        }
     }
 
     return <Stack spacing={2}>
@@ -153,5 +197,37 @@ export default function Settings(props: SettingsProps) {
             }
             }/>
         </Paper>
+        <Button variant="contained" id="showConfiguration" onClick={handleShowConfig}>
+            Edit Configuration
+        </Button>
+        <Dialog open={state.showConfig} onClose={handleConfigClose} fullWidth={true} maxWidth={"xl"}>
+            <DialogTitle>Configuration</DialogTitle>
+            <DialogContent>
+                <DialogContentText>
+                    This is the complete configuration file for Underscore Backup.
+                </DialogContentText>
+                <TextField
+                    id="configurationTextField"
+                    inputProps={{style: {fontFamily: 'monospace'}}}
+                    fullWidth={true}
+                    multiline
+                    defaultValue={state.configData}
+                    onBlur={(e) => {
+                        try {
+                            setState({
+                                ...state,
+                                configData: e.target.value
+                            });
+                        } catch (e : any) {
+                            DisplayMessage(e.toString());
+                        }
+                    }}
+                />
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={handleConfigClose}>Cancel</Button>
+                <Button onClick={handleConfigSubmit} id={"submitConfigChange"}>OK</Button>
+            </DialogActions>
+        </Dialog>
     </Stack>
 }

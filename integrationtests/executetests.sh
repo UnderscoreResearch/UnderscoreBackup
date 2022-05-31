@@ -9,4 +9,4 @@ fi
 mkdir build/unpackeddir
 ( cd build/unpackeddir ; tar xf $1 --strip-components 1 )
 
-integrationtests/testsuite.pl "`pwd`/build/integrationtests" "`pwd`/build/unpackeddir/bin/underscorebackup"
+integrationtests/testsuite.pl "`pwd`/build/integrationtests" "`pwd`/build/unpackeddir/bin/underscorebackup" $2

@@ -134,6 +134,9 @@ public class RepositoryBackfiller {
             for (BackupLocation location : file.getLocations()) {
                 if (location.getParts().size() > 1) {
                     for (int i = 0; i < location.getParts().size() - 1; i++) {
+                        if (pendingBlockUpdates.size() > 100) {
+                            postPending();
+                        }
                         if (location.getParts().get(i + 1).getOffset() == null || incompleteSuperblock(location.getParts().get(i).getBlockHash())) {
                             BackupFilePart part = location.getParts().get(i);
                             try {
@@ -237,7 +240,7 @@ public class RepositoryBackfiller {
                             }
                             block.setOffsets(offsets);
                             repository.addBlock(block);
-                            debug(() -> log.debug("Updated superblock {}", block.getHash()));
+                            debug(() -> log.debug("Updated superblock {} with offsets", block.getHash()));
                         }
                     } catch (IOException e) {
                         log.error("Failed to fetch block {}", blockHash);
@@ -328,7 +331,6 @@ public class RepositoryBackfiller {
                 BackfillDownloader backfillDownloader = new BackfillDownloader(knownSizes);
 
                 try (CloseableLock ignore = repository.acquireLock()) {
-                    log.info("Backfilling encryption to block storage");
                     log.info("Backfilling file block offsets");
                     repository.allFiles(true).forEach(file -> {
                         backfillDownloader.addInferredBlockSizes(file);
@@ -345,6 +347,7 @@ public class RepositoryBackfiller {
                         }
                     });
 
+                    log.info("Backfilling encryption to block storage");
                     backfillDownloader.getProcessed().set(0L);
 
                     repository.allBlocks().forEach(block -> {
