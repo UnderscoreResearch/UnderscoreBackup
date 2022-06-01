@@ -142,6 +142,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                             i++;
                             if (set.getRetention() != null) {
                                 statistics = trimmer.trimRepository();
+                                trimmer.resetStatus();
                             }
                         } else {
                             while (!shutdown && !scheduledRestart && !IOUtils.hasInternet()) {
@@ -203,16 +204,16 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
 
     private void backupCompletedCleanup() throws IOException {
         InstanceFactory.getInstance(ManifestManager.class).flushLog();
-        InstanceFactory.getInstance(StateLogger.class).reset();
+        stateLogger.reset();
         InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
-        InstanceFactory.getInstance(StateLogger.class).reset();
+        stateLogger.reset();
         BackupPendingSet pendingSet = getOptimizeSchedulePendingSet();
         if (pendingSet != null
                 && pendingSet.getScheduledAt() != null
                 && pendingSet.getScheduledAt().before(new Date())) {
             InstanceFactory.getInstance(ManifestManager.class)
                     .optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
-            InstanceFactory.getInstance(StateLogger.class).reset();
+            stateLogger.reset();
         }
     }
 

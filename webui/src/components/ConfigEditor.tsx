@@ -16,7 +16,7 @@ export default function ConfigEditor(props: {
     return <Paper sx={{
         p: 2,
     }}>
-        <DividerWithText>Configuration File</DividerWithText>
+        <DividerWithText>Configuration file</DividerWithText>
         <TextField
             id="outlined-multiline-flexible"
             inputProps={{style: {fontFamily: 'monospace'}}}

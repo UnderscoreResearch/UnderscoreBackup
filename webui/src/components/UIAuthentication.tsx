@@ -38,7 +38,7 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
     return <Paper sx={{p: 2}}>
         <Grid container spacing={2}>
             <Grid item xs={12}>
-                <DividerWithText>Interface Authentication</DividerWithText>
+                <DividerWithText>Interface authentication</DividerWithText>
             </Grid>
             <Grid item xs={12}>
                 <FormControlLabel control={<Checkbox

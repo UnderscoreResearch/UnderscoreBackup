@@ -348,7 +348,7 @@ export default function SetConfig(props: SetProps) {
                         />
                     }/>)}
             </FormGroup>
-            <DividerWithText>Excluded Files</DividerWithText>
+            <DividerWithText>Excluded files</DividerWithText>
             {
                 EditableList<string>({
                     createItem: createExclusionControl,

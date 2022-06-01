@@ -10,7 +10,9 @@ import java.nio.charset.StandardCharsets;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
 
+import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
@@ -24,9 +26,13 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 @CommandPlugin(value = "interactive", description = "Run interactive interface",
         needConfiguration = false, needPrivateKey = false, readonlyRepository = false)
 @Slf4j
-public class InteractiveCommand extends SimpleCommand {
+public class InteractiveCommand extends Command {
 
-    public void executeCommand() throws Exception {
+    public void executeCommand(CommandLine commandLine) throws Exception {
+        if (commandLine.getArgList().size() > 1) {
+            throw new ParseException("Too many arguments for command");
+        }
+
         WebServer server = InstanceFactory.getInstance(WebServer.class);
         server.start(InstanceFactory.getInstance(CommandLine.class).hasOption(DEVELOPER_MODE));
 
@@ -56,7 +62,9 @@ public class InteractiveCommand extends SimpleCommand {
                 throw exc;
             }
         } catch (Exception exc) {
-            server.launchPage();
+            if (!commandLine.hasOption(DEVELOPER_MODE)) {
+                server.launchPage();
+            }
         }
 
         startBackupIfAvailable();

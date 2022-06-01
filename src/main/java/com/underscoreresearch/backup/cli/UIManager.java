@@ -102,16 +102,6 @@ public class UIManager {
         }
 
         displayInfoMessage("Started in the background");
-
-        if (SystemUtils.IS_OS_MAC_OSX) {
-            try {
-                Runtime runtime = Runtime.getRuntime();
-                String[] args = {"osascript", "-e", "tell application \"Finder\" to activate"};
-                Process process = runtime.exec(args);
-            } catch (Exception exc) {
-                log.warn("Failed to move to background", exc);
-            }
-        }
     }
 
     public static synchronized void displayErrorMessage(String message) {

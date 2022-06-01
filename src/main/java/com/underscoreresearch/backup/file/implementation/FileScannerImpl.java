@@ -65,7 +65,6 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         lock.lock();
         shutdown = false;
 
-        stateLogger.reset();
         duration = Stopwatch.createStarted();
         lastPath = Duration.ZERO;
 
@@ -111,7 +110,6 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         lock.unlock();
 
         stateLogger.logInfo();
-        stateLogger.reset();
 
         return !shutdown;
     }
@@ -238,7 +236,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                                 outstandingFiles.decrementAndGet();
                                 if (!success) {
                                     if (!IOUtils.hasInternet()) {
-                                        log.error("Lost internet connection, shutting down set {} backup", set.getId());
+                                        log.warn("Lost internet connection, shutting down set {} backup", set.getId());
                                         shutdown();
                                         return;
                                     }

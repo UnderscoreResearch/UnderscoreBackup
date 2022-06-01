@@ -95,12 +95,16 @@ public class StateLogger implements StatusLogger {
     public List<StatusLine> logData(boolean temporal) {
         initialize();
 
-        return loggers
+        List<StatusLine> ret = loggers
                 .stream()
                 .filter(t -> t.temporal() == temporal)
                 .map(log -> log.status())
                 .flatMap(t -> t.stream())
                 .collect(Collectors.toList());
+
+        loggers.forEach(logger -> logger.filterItems(ret, temporal));
+
+        return ret;
     }
 
     private void printLogStatus(boolean temporal, Consumer<String> printer) {
