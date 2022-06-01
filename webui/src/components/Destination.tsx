@@ -133,7 +133,7 @@ function SharedProperties(props: {
 
     return <Fragment>
         <Grid item xs={12}>
-            <DividerWithText>Storage Options</DividerWithText>
+            <DividerWithText>Storage options</DividerWithText>
         </Grid>
         <Grid item xs={6}>
             <FormControl fullWidth={true} style={{margin: "8px"}}>
@@ -689,7 +689,7 @@ export default function Destination(props: DestinationProps) {
     }
 
     return <Paper sx={{p: 2}}>
-        <DividerWithText><span style={{fontSize: 22}}>Destination Type</span></DividerWithText>
+        <DividerWithText><span style={{fontSize: 22}}>Destination type</span></DividerWithText>
         <Tabs value={state.type} onChange={handleChange}>
             <Tab label="Local Directory" id={"tabLocalDirectory"}/>
             <Tab label="Windows Share" id={"tabWindowsShare"}/>

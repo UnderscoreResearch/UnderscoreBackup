@@ -94,7 +94,7 @@ export default function Settings(props: SettingsProps) {
         <Paper sx={{p: 2}}>
             <Grid container spacing={2}>
                 <Grid item xs={12}>
-                    <DividerWithText>Global Limits</DividerWithText>
+                    <DividerWithText>Global limits</DividerWithText>
                 </Grid>
                 <Grid item xs={6}>
                     <SpeedLimit
@@ -153,7 +153,7 @@ export default function Settings(props: SettingsProps) {
             </Grid>
         </Paper>
         <Paper sx={{p: 2}}>
-            <DividerWithText>Advanced Settings</DividerWithText>
+            <DividerWithText>Advanced settings</DividerWithText>
             <Grid container spacing={2}>
                 <Grid item xs={12}>
                     <FormControlLabel control={<Checkbox
@@ -187,7 +187,7 @@ export default function Settings(props: SettingsProps) {
             </Grid>
         </Paper>
         <Paper sx={{p: 2}}>
-            <DividerWithText>Custom Properties</DividerWithText>
+            <DividerWithText>Custom properties</DividerWithText>
             <PropertyMapEditor properties={state.properties} onChange={(newProperties) => {
                 const newState = {
                     ...state,

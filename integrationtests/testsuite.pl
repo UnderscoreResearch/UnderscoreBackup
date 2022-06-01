@@ -115,7 +115,11 @@ sub createGeneration {
     # Need one really large file to test super blocks
     if ($curGen == 7) {
         chdir($curRoot);
-        generateFile("large", 0, 17 * 1024 * 1024 * 1024);
+        if ($ENV{"GITHUB_ACTION"}) {
+            generateFile("large", 0, 1 * 1024 * 1024 * 1024);
+        } else {
+            generateFile("large", 0, 17 * 1024 * 1024 * 1024);
+        }
     }
 }
 
@@ -329,6 +333,7 @@ sub executeCypressTest {
     $ENV{"CYPRESS_TEST_BACKUP"} = $backupRoot;
 
     if (system(@args) != 0) {
+        get("http://localhost:12345/fixed/api/shutdown");
         die "Failed executing";
     }
 }

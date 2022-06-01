@@ -9,5 +9,7 @@ public interface StatusLogger {
         return false;
     }
 
+    default void filterItems(List<StatusLine> lines, boolean temporal) { }
+
     List<StatusLine> status();
 }

@@ -585,6 +585,20 @@ public class RepositoryTrimmer implements StatusLogger {
         }
     }
 
+    @Override
+    public void filterItems(List<StatusLine> lines, boolean temporal) {
+        if (stopwatch.isRunning() && temporal == temporal()) {
+            for (int i = 0; i < lines.size();) {
+                String code = lines.get(i).getCode();
+                if (code.startsWith("TRIMMING_") || code.startsWith("HEAP_")) {
+                    i++;
+                } else {
+                    lines.remove(i);
+                }
+            }
+        }
+    }
+
     private BackupSet findSet(BackupFile backupFile) {
         return configuration.getSets().stream().filter(t -> t.inRoot(backupFile.getPath())).findAny().orElse(null);
     }

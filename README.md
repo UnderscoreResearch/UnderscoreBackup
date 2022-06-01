@@ -1,4 +1,4 @@
-The application is very close to production ready. Unless any short stopped bugs are found in this release, the next version will be version 1.0.
+The application is very close to production ready. Unless any showstopper bugs are found in this release, the next version will be version 1.0.
 
 A backup solution with the following features.
 
@@ -45,7 +45,7 @@ the software manually. Once the configuration is complete you can also set the i
 
 On Windows the local data files are all located in the user directory `AppData\Local\UnderscoreBackup`.
 
-On Unix or OSX if you run as a non root user the default location of all files will be `~/.underscoreBackup`.
+On Unix or OSX if you run as a non-root user the default location of all files will be `~/.underscoreBackup`.
 
 If running as root the configuration files will be located in `/etc/underscorebackup`, the data files will be in
 `/var/cache/underscorebackup` and finally the log file will be at `/var/log/underscorebackup.log`.
@@ -173,6 +173,7 @@ There is another root property which is a map of strings to string for additiona
 * **reedSolomon.dataSlices** - Number of Reed Solomon data slizes to use. Defaults to 17.
 * **reedSolomon.paritySlices** - Number of Reed Solomon parity slizes to use. Defaults to 3.
 * **noneErrorCorrection.maximumFileSize** - Maximum part size for none error correction. Defaults to 16384kb.
+
 Roadmap to stable release
 ============
 The following items must be completed before I will consider the first stable release.
@@ -188,6 +189,7 @@ Future development ideas
 Future feature ideas after first stable release is our.
 
 * Include POSIX file metadata in backup such as permissions and ownership.
+* Add ability to change passphrase.
 * Support backing up symbolic links and special files.
 * Allow secure sharing of part of backup between computers and people.
 * Add support for Azure Block Storage destination.
