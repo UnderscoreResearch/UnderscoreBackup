@@ -160,6 +160,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                 }
             }
 
+            stateLogger.logInfo();
+
             if (!shutdown) {
                 try {
                     try {

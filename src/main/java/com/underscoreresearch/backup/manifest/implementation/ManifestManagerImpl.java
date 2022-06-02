@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.manifest.implementation;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
@@ -371,7 +372,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         List<String> days = index.availableKeys(LOG_ROOT);
         days.sort(String::compareTo);
 
-        startOperation("Replay");
+        startOperation("Replay log");
         try {
             totalFiles = new AtomicLong(days.size());
             processedFiles = new AtomicLong(0L);
@@ -561,6 +562,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private Stopwatch operationDuration;
 
     private void startOperation(String operation) {
+        log.info(operation);
         this.operation = operation;
         operationDuration = Stopwatch.createStarted();
     }
@@ -591,9 +593,17 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             }
             if (processedOperations != null) {
                 if (totalOperations != null) {
-                    ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
-                            processedOperations.get(), totalOperations.get(),
-                            readableNumber(processedOperations.get()) + " / " + readableNumber(totalOperations.get())));
+                    if (operationDuration != null) {
+                        ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
+                                processedOperations.get(), totalOperations.get(),
+                                readableNumber(processedOperations.get()) + " / " + readableNumber(totalOperations.get())
+                                        + readableEta(processedOperations.get(), totalOperations.get(),
+                                        operationDuration.elapsed())));
+                    } else {
+                        ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
+                                processedOperations.get(), totalOperations.get(),
+                                readableNumber(processedOperations.get()) + " / " + readableNumber(totalOperations.get())));
+                    }
                 } else {
                     ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
                             processedOperations.get()));

@@ -14,7 +14,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.9.14'
+version '0.9.15'
 
 sourceCompatibility = 11
 targetCompatibility = 11

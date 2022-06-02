@@ -82,6 +82,14 @@ public final class LogUtil {
                 seconds % 60);
     }
 
+    public static String readableEta(long completed, long total, Duration elapsedMilliseconds) {
+        if (completed > 0) {
+            return ", ETA " + readableDuration(Duration.ofMillis(elapsedMilliseconds.toMillis() * total / completed
+                    - elapsedMilliseconds.toMillis()));
+        }
+        return "";
+    }
+
     public static String formatTimestamp(Long timestamp) {
         if (timestamp != null) {
 

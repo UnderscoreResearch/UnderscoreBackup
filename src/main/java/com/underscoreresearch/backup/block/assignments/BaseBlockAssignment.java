@@ -1,10 +1,15 @@
 package com.underscoreresearch.backup.block.assignments;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import lombok.Getter;
 
 import com.underscoreresearch.backup.block.FileBlockAssignment;
 import com.underscoreresearch.backup.model.BackupBlockCompletion;
@@ -15,8 +20,22 @@ import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
 public abstract class BaseBlockAssignment implements FileBlockAssignment, StatusLogger {
+    @Getter
+    private static class Progress {
+        private BackupPartialFile partialFile;
+        private Instant started;
+        private long initialCompleted;
 
-    private List<BackupPartialFile> backupPartialFiles = new ArrayList<>();
+        public Progress(BackupPartialFile partialFile) {
+            this.partialFile = partialFile;
+            this.started = Instant.now();
+            if (partialFile.getParts() != null && partialFile.getParts().size() > 0) {
+                initialCompleted = partialFile.getParts().get(partialFile.getParts().size() - 1).getPosition();
+            }
+        }
+    }
+
+    private List<Progress> backupPartialFiles = new ArrayList<>();
 
     @Override
     public void resetStatus() {
@@ -28,18 +47,33 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Status
     @Override
     public List<StatusLine> status() {
         synchronized (backupPartialFiles) {
-            return backupPartialFiles.stream().map(entry -> {
+            return backupPartialFiles.stream().map(progress -> {
                 long completed = 0;
-                if (entry.getParts() != null && entry.getParts().size() > 0) {
-                    completed = entry.getParts().get(entry.getParts().size() - 1).getPosition();
+                BackupPartialFile partial = progress.getPartialFile();
+                if (partial.getParts() != null && partial.getParts().size() > 0) {
+                    completed = partial.getParts().get(partial.getParts().size() - 1).getPosition();
                 }
-                return new StatusLine(getClass(),
-                        "UPLOADED_ACTIVE_" + entry.getFile().getPath(),
-                        "Currently uploading " + entry.getFile().getPath(),
-                        completed,
-                        entry.getFile().getLength(),
-                        readableSize(completed) + " / "
-                                + readableSize(entry.getFile().getLength()));
+
+                Duration duration = Duration.ofMillis(Instant.now().toEpochMilli() - progress.getStarted().toEpochMilli());
+                if (duration.toSeconds() > 5) {
+                    return new StatusLine(getClass(),
+                            "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
+                            "Currently uploading " + partial.getFile().getPath(),
+                            completed,
+                            partial.getFile().getLength(),
+                            readableSize(completed) + " / "
+                                    + readableSize(partial.getFile().getLength())
+                                    + readableEta(completed - progress.initialCompleted,
+                                    partial.getFile().getLength() - progress.initialCompleted, duration));
+                } else {
+                    return new StatusLine(getClass(),
+                            "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
+                            "Currently uploading " + partial.getFile().getPath(),
+                            completed,
+                            partial.getFile().getLength(),
+                            readableSize(completed) + " / "
+                                    + readableSize(partial.getFile().getLength()));
+                }
             }).collect(Collectors.toList());
         }
     }
@@ -47,15 +81,16 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Status
     @Override
     public boolean assignBlocks(BackupSet set, BackupFile file, BackupBlockCompletion completionFuture) {
         BackupPartialFile backupPartialFile = new BackupPartialFile(file);
+        Progress progress = new Progress(backupPartialFile);
         synchronized (backupPartialFiles) {
-            backupPartialFiles.add(backupPartialFile);
+            backupPartialFiles.add(progress);
         }
 
         try {
             return internalAssignBlocks(set, backupPartialFile, completionFuture);
         } finally {
             synchronized (backupPartialFiles) {
-                backupPartialFiles.remove(backupPartialFile);
+                backupPartialFiles.remove(progress);
             }
         }
     }

@@ -37,7 +37,6 @@ import com.underscoreresearch.backup.model.BackupActiveStatus;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
-import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
@@ -50,7 +49,6 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     private final MetadataRepository repository;
     private final FileConsumer consumer;
     private final FileSystemAccess filesystem;
-    private final StateLogger stateLogger;
     private final boolean debug;
     private final AtomicInteger outstandingFiles = new AtomicInteger();
     private final AtomicLong completedFiles = new AtomicLong();
@@ -108,8 +106,6 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
             }
         }
         lock.unlock();
-
-        stateLogger.logInfo();
 
         return !shutdown;
     }

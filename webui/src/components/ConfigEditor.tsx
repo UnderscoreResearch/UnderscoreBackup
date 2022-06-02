@@ -27,7 +27,7 @@ export default function ConfigEditor(props: {
                 try {
                     const newConfig = JSON.parse(e.target.value);
                     props.onChange(newConfig);
-                } catch (e : any) {
+                } catch (e: any) {
                     DisplayMessage(e.toString());
                 }
             }}
