@@ -86,9 +86,8 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public FileScannerImpl fileScanner(MetadataRepository repository, FileConsumer fileConsumer,
-                                       FileSystemAccess access, StateLogger logger,
-                                       @Named(DEBUG) boolean debug) {
-        return new FileScannerImpl(repository, fileConsumer, access, logger, debug);
+                                       FileSystemAccess access, @Named(DEBUG) boolean debug) {
+        return new FileScannerImpl(repository, fileConsumer, access, debug);
     }
 
     @Singleton

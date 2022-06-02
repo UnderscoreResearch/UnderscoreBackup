@@ -2,9 +2,12 @@ import * as React from "react";
 import {BackupConfiguration, BackupGlobalLimits, BackupManifest, PropertyMap} from "../api";
 import {
     Button,
-    Checkbox, Dialog,
-    DialogActions, DialogContent,
-    DialogContentText, DialogTitle,
+    Checkbox,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
     FormControlLabel,
     Grid,
     Paper,
@@ -31,7 +34,7 @@ interface SettingsState {
     properties?: PropertyMap
 }
 
-function createInitialState(config: BackupConfiguration) : SettingsState {
+function createInitialState(config: BackupConfiguration): SettingsState {
     return {
         manifest: config.manifest,
         showConfig: false,
@@ -81,7 +84,7 @@ export default function Settings(props: SettingsProps) {
             const newConfig = JSON.parse(state.configData);
             setState(createInitialState(newConfig));
             props.onChange(newConfig);
-        } catch (e : any) {
+        } catch (e: any) {
             DisplayMessage(e.toString());
         }
     }
@@ -218,7 +221,7 @@ export default function Settings(props: SettingsProps) {
                                 ...state,
                                 configData: e.target.value
                             });
-                        } catch (e : any) {
+                        } catch (e: any) {
                             DisplayMessage(e.toString());
                         }
                     }}

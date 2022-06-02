@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
@@ -154,7 +155,9 @@ public class BlockValidator implements StatusLogger {
                         new StatusLine(getClass(), "VALIDATE_STEPS", "Validating blocks steps completed",
                                 processedSteps.get(), totalSteps.get(),
                                 readableNumber(processedSteps.get()) + " / "
-                                        + readableNumber(totalSteps.get()) + " steps"));
+                                        + readableNumber(totalSteps.get()) + " steps"
+                                        + readableEta(processedSteps.get(), totalSteps.get(),
+                                        Duration.ofMillis(elapsedMilliseconds))));
             }
         }
         return new ArrayList<>();

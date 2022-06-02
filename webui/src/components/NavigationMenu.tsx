@@ -7,7 +7,6 @@ import CloudUpload from "@mui/icons-material/CloudUpload";
 import ListItemText from "@mui/material/ListItemText";
 import AccountTree from "@mui/icons-material/AccountTree";
 import Settings from "@mui/icons-material/Settings";
-import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import CloudDownload from "@mui/icons-material/CloudDownload";
 import Dashboard from "@mui/icons-material/Dashboard";
 import {Link} from "react-router-dom";

@@ -115,8 +115,8 @@ function findFilter(path: string, filters: BackupFilter[] | undefined): MatchedF
     };
 }
 
-function pathId(path: string) : string {
-    return path.replace(/[\W_]+/g,"_");
+function pathId(path: string): string {
+    return path.replace(/[\W_]+/g, "_");
 }
 
 function shouldExpand(roots: BackupSetRoot[], path: string): boolean {

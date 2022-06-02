@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.manifest;
 import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
@@ -158,8 +159,10 @@ public class RepositoryTrimmer implements StatusLogger {
                                 throughput, readableNumber(throughput) + " steps/s"),
                         new StatusLine(getClass(), "TRIMMING_STEPS", "Trimming steps completed",
                                 processedSteps.get(), totalSteps.get(),
-                                readableNumber(processedSteps.get()) + " / " +
-                                        readableNumber(totalSteps.get()) + " steps"));
+                                readableNumber(processedSteps.get()) + " / "
+                                        + readableNumber(totalSteps.get()) + " steps"
+                                        + readableEta(processedSteps.get(), totalSteps.get(),
+                                        Duration.ofMillis(elapsedMilliseconds))));
             }
         }
         return new ArrayList<>();
@@ -171,7 +174,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
     private LoadingCache<String, NavigableSet<String>> directoryCache = CacheBuilder
             .newBuilder()
-            .maximumSize(10)
+            .maximumSize(50)
             .build(new CacheLoader<>() {
                 @Override
                 public NavigableSet<String> load(String key) throws Exception {
@@ -205,9 +208,13 @@ public class RepositoryTrimmer implements StatusLogger {
                 boolean hasActivePaths = trimActivePaths();
 
                 try (CloseableLock ignored = metadataRepository.acquireLock()) {
-                    totalSteps.addAndGet(metadataRepository.getBlockCount()
-                            + metadataRepository.getPartCount()
-                            + metadataRepository.getFileCount());
+                    if (hasActivePaths) {
+                        totalSteps.addAndGet(metadataRepository.getFileCount());
+                    } else {
+                        totalSteps.addAndGet(metadataRepository.getBlockCount()
+                                + metadataRepository.getPartCount()
+                                + metadataRepository.getFileCount());
+                    }
                     stopwatch.start();
                     lastHeartbeat = Duration.ZERO;
 
@@ -588,7 +595,7 @@ public class RepositoryTrimmer implements StatusLogger {
     @Override
     public void filterItems(List<StatusLine> lines, boolean temporal) {
         if (stopwatch.isRunning() && temporal == temporal()) {
-            for (int i = 0; i < lines.size();) {
+            for (int i = 0; i < lines.size(); ) {
                 String code = lines.get(i).getCode();
                 if (code.startsWith("TRIMMING_") || code.startsWith("HEAP_")) {
                     i++;

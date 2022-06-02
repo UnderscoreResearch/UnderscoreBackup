@@ -1,10 +1,13 @@
 package com.underscoreresearch.backup.block.implementation;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,9 +37,11 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
     private static class Progress {
         private long completed;
         private long total;
+        private Instant started;
 
         public Progress(long total) {
             this.total = total;
+            started = Instant.now();
         }
     }
 
@@ -191,13 +196,27 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
     @Override
     public List<StatusLine> status() {
         synchronized (activeFiles) {
-            return activeFiles.entrySet().stream().map(entry -> new StatusLine(getClass(),
-                    "DOWNLOADED_ACTIVE_" + entry.getKey(),
-                    "Currently downloading " + entry.getKey(),
-                    entry.getValue().getCompleted(),
-                    entry.getValue().getTotal(),
-                    readableSize(entry.getValue().getCompleted()) + " / "
-                            + readableSize(entry.getValue().getTotal()))).collect(Collectors.toList());
+            return activeFiles.entrySet().stream().map(entry -> {
+                Duration duration = Duration.ofMillis(Instant.now().toEpochMilli() - entry.getValue().getStarted().toEpochMilli());
+                if (duration.toSeconds() > 5) {
+                    return new StatusLine(getClass(),
+                            "DOWNLOADED_ACTIVE_" + entry.getKey(),
+                            "Currently downloading " + entry.getKey(),
+                            entry.getValue().getCompleted(),
+                            entry.getValue().getTotal(),
+                            readableSize(entry.getValue().getCompleted()) + " / "
+                                    + readableSize(entry.getValue().getTotal())
+                                    + readableEta(entry.getValue().getCompleted(), entry.getValue().getTotal(), duration));
+                } else {
+                    return new StatusLine(getClass(),
+                            "DOWNLOADED_ACTIVE_" + entry.getKey(),
+                            "Currently downloading " + entry.getKey(),
+                            entry.getValue().getCompleted(),
+                            entry.getValue().getTotal(),
+                            readableSize(entry.getValue().getCompleted()) + " / "
+                                    + readableSize(entry.getValue().getTotal()));
+                }
+            }).collect(Collectors.toList());
         }
     }
 }
