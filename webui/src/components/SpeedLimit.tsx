@@ -11,7 +11,7 @@ interface SpeedLimitState {
     enabled: boolean,
     speed: number,
     unit: string
-};
+}
 
 function decodeSpeed(speed?: number): SpeedLimitState {
     if (!speed) {

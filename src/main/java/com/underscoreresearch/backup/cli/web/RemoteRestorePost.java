@@ -51,7 +51,7 @@ public class RemoteRestorePost extends JsonWrap {
                     byte[] keyData = provider.download("/publickey.json");
                     PublicKeyEncrypion publicKeyEncrypion = READER.readValue(keyData);
 
-                    PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithSeed(passphrase, publicKeyEncrypion.getSalt());
+                    PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithPassphrase(passphrase, publicKeyEncrypion);
                     if (!publicKeyEncrypion.getPublicKey().equals(ret.getPublicKey())) {
                         return messageJson(403, "Invalid passphrase provided for restore");
                     }
@@ -68,7 +68,9 @@ public class RemoteRestorePost extends JsonWrap {
 
                         updateConfiguration(config, true);
                     } catch (Exception exc) {
+                        log.error("Failed to update configuraion", exc);
                         privateKeyFile.delete();
+                        return messageJson(500, "Failed to update configuration");
                     }
 
                     // We want the rebild to start before we return.

@@ -151,7 +151,7 @@ function SharedProperties(props: {
                         props.onChange(newState);
                     }}>
                     <MenuItem value={"NONE"}>None</MenuItem>
-                    <MenuItem value={"AES256"}>AES 256</MenuItem>
+                    <MenuItem value={"AES256"}>AES 256 (CBC)</MenuItem>
                 </Select>
             </FormControl>
         </Grid>

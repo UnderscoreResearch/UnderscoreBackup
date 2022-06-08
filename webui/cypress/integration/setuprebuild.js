@@ -1,6 +1,6 @@
 const backupLocation = Cypress.env('TEST_BACKUP')
 
-it('setup', function() {
+it('setuprebuild', function() {
   cy.visit('http://localhost:12345/fixed/');
   cy.get('#tabLocalDirectory').click();
   cy.get('#localFileText').clear();
@@ -10,4 +10,16 @@ it('setup', function() {
   cy.get('#restorePassphrase').type('1234');
   cy.get('#acceptButton').click();
   cy.get('#currentProgress').contains("Currently Inactive", { timeout: 60 * 1000});
+
+  cy.get('#pageSettings > .MuiListItemText-root > .MuiTypography-root').click();
+  cy.get('#showChangePassword').click();
+
+  cy.get('#oldPassphrase').clear();
+  cy.get('#oldPassphrase').type('1234');
+
+  cy.get('#passphraseFirst').clear();
+  cy.get('#passphraseFirst').type('12345');
+  cy.get('#passphraseSecond').clear();
+  cy.get('#passphraseSecond').type('12345');
+  cy.get("#submitPasswordChange").click();
 });

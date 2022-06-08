@@ -13,7 +13,7 @@ export interface DurationProps {
 interface DurationState {
     duration: number,
     unit: string
-};
+}
 
 function calculateUnit(props: DurationProps) {
     if (props.timespan) {

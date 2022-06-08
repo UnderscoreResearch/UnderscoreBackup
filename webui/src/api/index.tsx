@@ -303,6 +303,24 @@ export async function PutEncryptionKey(passphrase: string): Promise<boolean> {
     return true;
 }
 
+export async function PostChangeEncryptionKey(passphrase: string, newPassphrase: string): Promise<boolean> {
+    const ret = await MakeCall("encryption-key/change", {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json;charset=UTF-8',
+        },
+        body: JSON.stringify({
+            "passphrase": passphrase,
+            "newPassphrase": newPassphrase
+        })
+    });
+
+    if (ret === undefined) {
+        return false;
+    }
+    return true;
+}
+
 export async function PostConfiguration(config: BackupConfiguration): Promise<boolean> {
     const ret = await MakeCall("configuration", {
         method: 'POST',

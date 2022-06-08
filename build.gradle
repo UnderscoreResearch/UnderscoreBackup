@@ -14,7 +14,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '0.9.15'
+version '0.9.16'
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -73,7 +73,17 @@ tasks.withType(JavaCompile) {
     options.compilerArgs += ['-Xlint:unchecked']
 }
 
+task installerDef(type: Copy) {
+    from("${rootProject.projectDir}/windows/innosetup.iss")
+    rename("innosetup.iss", "innosetup-expanded.iss")
+    expand([
+            applicationVersion: "${version}"
+    ])
+    into("${rootProject.projectDir}/windows")
+}
+
 task copyIniFile(type:Copy) {
+    dependsOn(installerDef)
     from layout.projectDirectory.dir("windows/underscorebackup.l4j.ini")
     into layout.buildDirectory.dir("launch4j")
 }
@@ -99,15 +109,6 @@ task guiexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
     cmdLine = "interactive"
     outfile = "underscorebackup-gui.exe"
     headerType = "gui"
-}
-
-task installerDef(type: Copy) {
-    from("${rootProject.projectDir}/windows/innosetup.iss")
-    rename("innosetup.iss", "innosetup-expanded.iss")
-    expand([
-            applicationVersion: "${version}"
-    ])
-    into("${rootProject.projectDir}/windows")
 }
 
 task installer(dependsOn: [jre, guiexe, consoleexe, installerDef], type:Exec) {

@@ -50,7 +50,7 @@ public class GenerateKeyCommand extends Command {
     }
 
     public static String generateAndSaveNewKey(CommandLine commandLine, String firstTry) throws IOException {
-        PublicKeyEncrypion publicKeyEncrypion = PublicKeyEncrypion.generateKeyWithSeed(firstTry, null);
+        PublicKeyEncrypion publicKeyEncrypion = PublicKeyEncrypion.generateKeyWithPassphrase(firstTry, null);
 
         File keyFile = getDefaultEncryptionFileName(commandLine);
 

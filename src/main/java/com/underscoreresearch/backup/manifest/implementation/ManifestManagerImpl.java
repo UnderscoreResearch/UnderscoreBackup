@@ -520,10 +520,10 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
             });
 
-            ScannerSchedulerImpl.updateOptimizeSchedule(copyRepository,
-                    configuration.getManifest().getOptimizeSchedule());
-
             copyRepository.close();
+
+            ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
+                    configuration.getManifest().getOptimizeSchedule());
 
             log.info("Deleting old log files");
             totalFiles = new AtomicLong(existingLogs.size());

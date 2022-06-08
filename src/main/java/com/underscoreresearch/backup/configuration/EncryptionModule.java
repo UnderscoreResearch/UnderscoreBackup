@@ -75,7 +75,7 @@ public class EncryptionModule extends AbstractModule {
             if (key == null) {
                 System.exit(1);
             }
-            PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithSeed(key, publicKeyEncrypion.getSalt());
+            PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithPassphrase(key, publicKeyEncrypion);
             if (!publicKeyEncrypion.getPublicKey().equals(ret.getPublicKey())) {
                 throw new IllegalArgumentException("Private key does not match public key");
             }

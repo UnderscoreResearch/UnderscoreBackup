@@ -5,7 +5,10 @@ use Cwd;
 use File::Spec;
 use File::Find qw(finddepth);
 use File::Compare;
-use LWP::Simple;
+use LWP::UserAgent;
+use IPC::Open2;
+
+my $ua = new LWP::UserAgent;
 
 my $originalRoot = getcwd();
 my $root = shift(@ARGV);
@@ -173,11 +176,11 @@ sub validateLog() {
     }
 }
 
-sub executeUnderscoreBackup {
+sub executeUnderscoreBackupStdin {
+    my $input = shift(@_);
     chdir($root);
     my @args = (
         $underscoreBackup,
-        "--passphrase", "1234",
         "-k", $keyFile,
         "-c", $configFile,
         "--log-file", $logFile,
@@ -186,11 +189,30 @@ sub executeUnderscoreBackup {
     push(@args, @_);
     print "Executing " . join(" ", @args) . "\n";
 
-    if (system(@args) != 0) {
-        die "Failed executing";
+    if ($input) {
+        my $pid = open2('>&STDOUT', my $chld_in, @args);
+
+        for my $line (split(/\n/, $input)) {
+            syswrite($chld_in, $line."\n");
+            sleep(5);
+        }
+        waitpid($pid, 0);
+        if ($? != 0) {
+            die "Failed executing: $?";
+        }
+        close $chld_in;
+    } elsif (system(@args) != 0) {
+        die "Failed executing: $?";
     }
 
+
     &validateLog();
+}
+
+sub executeUnderscoreBackup {
+    my @args = ('');
+    push(@args, @_);
+    &executeUnderscoreBackupStdin(@args);
 }
 
 sub createConfigFile {
@@ -264,7 +286,7 @@ sub cleanRunPath {
 sub prepareRunPath {
     &cleanRunPath();
     &createConfigFile();
-    &executeUnderscoreBackup("generate-key");
+    &executeUnderscoreBackup("generate-key", "--passphrase", "1234");
 }
 
 sub validateAnswer {
@@ -317,6 +339,10 @@ sub validateAnswer {
     }
 }
 
+sub killInteractive {
+    $ua->get("http://127.0.0.1:12345/fixed/api/shutdown");
+}
+
 sub executeCypressTest {
     chdir($webuiDir);
     my @args = (
@@ -333,26 +359,36 @@ sub executeCypressTest {
     $ENV{"CYPRESS_TEST_BACKUP"} = $backupRoot;
 
     if (system(@args) != 0) {
-        get("http://localhost:12345/fixed/api/shutdown");
+        &killInteractive();
         die "Failed executing";
     }
 }
 
+my $DELAY = 61;
+
+my @completionTimestamp;
+my $pid;
+
 # Test superblocks & interactive
+
 print "Interactive & superblock test\n";
 &cleanRunPath();
 &prepareTestPath();
 &generateData(7, 1);
 
-if (!fork()) {
+$pid = fork();
+if (!$pid) {
     &executeUnderscoreBackup("interactive", "--developer-mode");
+    print "Interactive process terminated\n";
     exit(0);
 }
 
 &executeCypressTest("setup.js");
 &executeCypressTest("backup.js");
 
-get("http://localhost:12345/fixed/api/shutdown");
+&killInteractive();
+
+waitpid($pid, 0);
 
 print "Rebuild from backup test\n";
 &prepareTestPath();
@@ -361,29 +397,30 @@ chdir($root);
 finddepth { wanted => \&zapFile, no_chdir => 1 }, "db";
 unlink($configFile);
 unlink($keyFile);
-if (!fork()) {
+$pid = fork();
+if (!$pid) {
     &executeUnderscoreBackup("interactive", "--developer-mode");
+    print "Interactive process terminated\n";
     exit(0);
 }
 
 &executeCypressTest("setuprebuild.js");
 &executeCypressTest("restore.js");
 
-get("http://localhost:12345/fixed/api/shutdown");
+&killInteractive();
+waitpid($pid, 0);
 
 &validateAnswer();
 &validateLog();
 
 &prepareRunPath();
 
-my $DELAY = 61;
-
-my @completionTimestamp;
 &prepareTestPath();
 print "Generation 1\n";
 &generateData(1);
 &executeUnderscoreBackup("backup");
 push(@completionTimestamp, time());
+
 sleep($DELAY);
 print "Generation 2\n";
 &prepareTestPath();
@@ -414,37 +451,7 @@ print "Generation 6\n";
 &generateData(6);
 &executeUnderscoreBackup("backup");
 
-&prepareTestPath();
-&generateData(1, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[0] - 1) . " seconds ago", $testRoot, $testRoot);
-&validateAnswer();
-
-&prepareTestPath();
-&generateData(2, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[1] - 1) . " seconds ago", $testRoot, $testRoot);
-&validateAnswer();
-
-&prepareTestPath();
-&generateData(3, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[2] - 1) . " seconds ago", $testRoot, $testRoot);
-&validateAnswer();
-
-&prepareTestPath();
-&generateData(4, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[3] - 1) . " seconds ago", $testRoot, $testRoot);
-&validateAnswer();
-
-&prepareTestPath();
-&generateData(5, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[4] - 1) . " seconds ago", $testRoot, $testRoot);
-&validateAnswer();
-
-&prepareTestPath();
-&generateData(6, 0, $answerRoot);
-&executeUnderscoreBackup("restore", $testRoot, $testRoot);
-&validateAnswer();
-
-# random bits and ends
+# Random bits and ends
 
 &executeUnderscoreBackup("version");
 &executeUnderscoreBackup("list-destination");
@@ -452,38 +459,70 @@ print "Generation 6\n";
 &executeUnderscoreBackup("list-error-correction");
 
 &executeUnderscoreBackup("history", File::Spec->catdir(File::Spec->catdir($testRoot, "a"), "0"));
-&executeUnderscoreBackup("download-config");
+&executeUnderscoreBackup("download-config", "--passphrase", "1234");
 &executeUnderscoreBackup("validate-blocks");
-&executeUnderscoreBackup("backfill-metadata");
+&executeUnderscoreBackup("backfill-metadata", "--passphrase", "1234");
 
 &executeUnderscoreBackup("ls", "/");
 
 &executeUnderscoreBackup("optimize-log");
-&executeUnderscoreBackup("restore", "/", "=");
-&executeUnderscoreBackup("rebuild-repository");
-&executeUnderscoreBackup("restore", "/", "=");
+&executeUnderscoreBackup("restore", "/", "=", "--passphrase", "1234");
+&executeUnderscoreBackup("rebuild-repository", "--passphrase", "1234");
+&executeUnderscoreBackup("restore", "/", "=", "--passphrase", "1234");
 &executeUnderscoreBackup("repository-info");
 
+&prepareTestPath();
+&generateData(1, 0, $answerRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[0] - 1) . " seconds ago", $testRoot, $testRoot);
+&validateAnswer();
+
+&prepareTestPath();
+&generateData(2, 0, $answerRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[1] - 1) . " seconds ago", $testRoot, $testRoot);
+&validateAnswer();
+
+&prepareTestPath();
+&generateData(3, 0, $answerRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[2] - 1) . " seconds ago", $testRoot, $testRoot);
+&validateAnswer();
+
+&prepareTestPath();
+&generateData(4, 0, $answerRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[3] - 1) . " seconds ago", $testRoot, $testRoot);
+&validateAnswer();
+
+&prepareTestPath();
+&generateData(5, 0, $answerRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[4] - 1) . " seconds ago", $testRoot, $testRoot);
+&validateAnswer();
+
+&prepareTestPath();
+&generateData(6, 0, $answerRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", $testRoot, $testRoot);
+&validateAnswer();
+
+# Test repository trimmingg
+
 &createConfigFile(<<"__EOF__");
       "retention": {
       }
 __EOF__
 
 &executeUnderscoreBackup("trim-repository");
-$testRoot = File::Spec->catdir($root, "other");
-&createConfigFile(<<"__EOF__");
-      "retention": {
-      }
-__EOF__
+&prepareTestPath();
+&executeUnderscoreBackup("backup");
 
-&executeUnderscoreBackup("trim-repository");
 &executeUnderscoreBackup("ls", "/");
+
+&executeUnderscoreBackup("restore", "--passphrase", "1234", $testRoot, $testRoot);
+&validateAnswer();
 
 # test updating
 
 undef @completionTimestamp;
 &prepareRunPath();
 &prepareTestPath();
+
 print "Generation 1 incremental\n";
 &generateData(1);
 &executeUnderscoreBackup("backup");
@@ -509,25 +548,28 @@ print "Generation 5 incremental\n";
 &executeUnderscoreBackup("backup");
 push(@completionTimestamp, time());
 sleep($DELAY);
+
 print "Generation 6 incremental\n";
 &generateData(6);
 &executeUnderscoreBackup("backup");
 
 &prepareTestPath();
 &generateData(1, 1);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[0] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[0] - 1) . " seconds ago", "/", "=");
 &prepareTestPath();
 &generateData(2, 1);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[1] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[1] - 1) . " seconds ago", "/", "=");
 &prepareTestPath();
 &generateData(3, 1);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[2] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[2] - 1) . " seconds ago", "/", "=");
 &prepareTestPath();
 &generateData(4, 1);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[3] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[3] - 1) . " seconds ago", "/", "=");
 &prepareTestPath();
 &generateData(5, 1);
-&executeUnderscoreBackup("restore", "-t", (time() - $completionTimestamp[4] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[4] - 1) . " seconds ago", "/", "=");
+
+&executeUnderscoreBackupStdin("12345\n12345", "change-passphrase", "--passphrase", "1234");
 &prepareTestPath();
 &generateData(6, 1);
-&executeUnderscoreBackup("restore", "/", "=");
+&executeUnderscoreBackupStdin("12345", "restore", "/", "=");

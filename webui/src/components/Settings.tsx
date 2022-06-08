@@ -1,6 +1,7 @@
 import * as React from "react";
-import {BackupConfiguration, BackupGlobalLimits, BackupManifest, PropertyMap} from "../api";
+import {BackupConfiguration, BackupGlobalLimits, BackupManifest, PostChangeEncryptionKey, PropertyMap} from "../api";
 import {
+    Alert,
     Button,
     Checkbox,
     Dialog,
@@ -20,6 +21,7 @@ import PropertyMapEditor from "./PropertyMapEditor";
 import UIAuthentication from "./UIAuthentication";
 import Cron from "../3rdparty/react-js-cron-mui";
 import {DisplayMessage} from "../App";
+import Box from "@mui/material/Box";
 
 export interface SettingsProps {
     config: BackupConfiguration,
@@ -29,6 +31,10 @@ export interface SettingsProps {
 interface SettingsState {
     manifest: BackupManifest,
     showConfig: boolean,
+    passphrase: string,
+    passphraseConfirm: string,
+    oldPassphrase: string,
+    showChangePassword: boolean,
     configData: string,
     limits: BackupGlobalLimits,
     properties?: PropertyMap
@@ -38,6 +44,10 @@ function createInitialState(config: BackupConfiguration): SettingsState {
     return {
         manifest: config.manifest,
         showConfig: false,
+        showChangePassword: false,
+        passphrase: "",
+        passphraseConfirm: "",
+        oldPassphrase: "",
         properties: config.properties,
         configData: JSON.stringify(config, null, 2),
         limits: config.limits ? config.limits : {}
@@ -84,6 +94,44 @@ export default function Settings(props: SettingsProps) {
             const newConfig = JSON.parse(state.configData);
             setState(createInitialState(newConfig));
             props.onChange(newConfig);
+        } catch (e: any) {
+            DisplayMessage(e.toString());
+        }
+    }
+
+    function handleShowChangePassword() {
+        setState({
+            ...state,
+            oldPassphrase: "",
+            passphrase: "",
+            passphraseConfirm: "",
+            showChangePassword: true
+        });
+    }
+
+    function handleChangePasswordClose() {
+        setState({
+            ...state,
+            showChangePassword: false
+        });
+    }
+
+    async function handleChangePassword() {
+        try {
+            if (!state.oldPassphrase) {
+                DisplayMessage("Missing old passphrase");
+            } else if (!state.passphrase) {
+                DisplayMessage("Missing new passphrase");
+            } else if (state.passphrase !== state.passphraseConfirm) {
+                DisplayMessage("Passphrase does not match");
+            } else if (await PostChangeEncryptionKey(state.oldPassphrase, state.passphrase)) {
+                setState((oldState) => {
+                    return {
+                        ...oldState,
+                        showChangePassword: false
+                    }
+                });
+            }
         } catch (e: any) {
             DisplayMessage(e.toString());
         }
@@ -200,9 +248,20 @@ export default function Settings(props: SettingsProps) {
             }
             }/>
         </Paper>
-        <Button variant="contained" id="showConfiguration" onClick={handleShowConfig}>
-            Edit Configuration
-        </Button>
+
+        <Grid container spacing={2}>
+            <Grid item xs={3}>
+                <Button variant="contained" id="showConfiguration" onClick={handleShowConfig}>
+                    Edit Configuration
+                </Button>
+            </Grid>
+            <Grid item xs={3}>
+                <Button variant="contained" id="showChangePassword" onClick={handleShowChangePassword}>
+                    Change Password
+                </Button>
+            </Grid>
+        </Grid>
+
         <Dialog open={state.showConfig} onClose={handleConfigClose} fullWidth={true} maxWidth={"xl"}>
             <DialogTitle>Configuration</DialogTitle>
             <DialogContent>
@@ -230,6 +289,64 @@ export default function Settings(props: SettingsProps) {
             <DialogActions>
                 <Button onClick={handleConfigClose}>Cancel</Button>
                 <Button onClick={handleConfigSubmit} id={"submitConfigChange"}>OK</Button>
+            </DialogActions>
+        </Dialog>
+
+        <Dialog open={state.showChangePassword} onClose={handleChangePasswordClose}>
+            <DialogTitle>Change Passphrase</DialogTitle>
+            <DialogContent>
+                <DialogContentText>
+                    Change the passphrase used to protect your backup.
+                </DialogContentText>
+                <Alert severity="warning">Please keep your passphrase safe.
+                    There is no way to recover a lost passphrase!</Alert>
+
+                <Box
+                    component="div"
+                    sx={{
+                        '& .MuiTextField-root': {m: 1},
+                    }}
+                    style={{marginTop: 4}}
+                >
+                    <TextField label="Existing Passphrase" variant="outlined"
+                               fullWidth={true}
+                               required={true}
+                               value={state.oldPassphrase}
+                               error={!state.oldPassphrase}
+                               id={"oldPassphrase"}
+                               type="password"
+                               onChange={(e) => setState({
+                                   ...state,
+                                   oldPassphrase: e.target.value
+                               })}/>
+                    <TextField label="New Passphrase" variant="outlined"
+                               fullWidth={true}
+                               required={true}
+                               value={state.passphrase}
+                               error={!state.passphrase}
+                               id={"passphraseFirst"}
+                               type="password"
+                               onChange={(e) => setState({
+                                   ...state,
+                                   passphrase: e.target.value
+                               })}/>
+                    <TextField label="New Confirm Passphrase" variant="outlined"
+                               fullWidth={true}
+                               required={true}
+                               helperText={state.passphraseConfirm !== state.passphrase ? "Does not match" : null}
+                               value={state.passphraseConfirm}
+                               error={state.passphraseConfirm !== state.passphrase || !state.passphrase}
+                               id={"passphraseSecond"}
+                               type="password"
+                               onChange={(e) => setState({
+                                   ...state,
+                                   passphraseConfirm: e.target.value
+                               })}/>
+                </Box>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={handleChangePasswordClose}>Cancel</Button>
+                <Button onClick={() => handleChangePassword()} id={"submitPasswordChange"}>OK</Button>
             </DialogActions>
         </Dialog>
     </Stack>

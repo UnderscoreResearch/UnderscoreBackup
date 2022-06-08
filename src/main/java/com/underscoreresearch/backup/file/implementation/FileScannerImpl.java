@@ -101,7 +101,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         if (!shutdown) {
             TreeMap<String, BackupActivePath> remainingPaths = repository.getActivePaths(backupSet.getId());
             if (remainingPaths.size() > 0) {
-                log.error("Completed with following active paths: " + String.join("; ",
+                log.warn("Completed with following active paths: " + String.join("; ",
                         remainingPaths.keySet()));
             }
         }
@@ -297,8 +297,6 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         }
 
         lock.lock();
-        if (activePath.getFiles().size() == 0)
-            return false;
 
         pendingPaths.put(path, activePath);
 
@@ -319,8 +317,8 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                 try {
                     repository.popActivePath(set.getId(), currentPath);
                     Set<String> includedPaths = pending.includedPaths();
-                    if (includedPaths.size() > 0) {
-                        if (currentPath.endsWith(PATH_SEPARATOR)) {
+                    if (currentPath.endsWith(PATH_SEPARATOR)) {
+                        if (includedPaths.size() > 0 || repository.lastDirectory(currentPath) != null) {
                             repository.addDirectory(new BackupDirectory(currentPath,
                                     Instant.now().toEpochMilli(),
                                     Sets.newTreeSet(includedPaths)));
