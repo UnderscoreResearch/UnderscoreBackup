@@ -17,10 +17,13 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
@@ -127,14 +130,55 @@ public class BlockValidator implements StatusLogger {
             if (maximumSize != null) {
                 maximumSize.addAndGet(maxBlockSize);
             }
-            if (block.getStorage().stream()
-                    .anyMatch(storage -> storage.getParts().stream()
-                            .anyMatch(blockPart -> blockPart == null))) {
-                log.warn("Block hash {} has missing parts", blockHash);
+            if (!validateBlockStorage(block)) {
                 return false;
             }
         }
         return true;
+    }
+
+    private boolean validateBlockStorage(BackupBlock block) {
+        boolean anyChange = false;
+        for (int i = 0; i < block.getStorage().size(); i++) {
+            BackupBlockStorage storage = block.getStorage().get(i);
+            try {
+                EncryptorFactory.getEncryptor(storage.getEncryption());
+            } catch (IllegalArgumentException exc) {
+                log.warn("Found invalid encryption {} for block {}", storage.getEncryption(), block.getHash());
+                anyChange = true;
+                block.getStorage().remove(i);
+                continue;
+            }
+            try {
+                ErrorCorrectorFactory.getCorrector(storage.getEc());
+            } catch (IllegalArgumentException exc) {
+                log.warn("Found invalid error correction {} for block {}", storage.getEc(), block.getHash());
+                anyChange = true;
+                block.getStorage().remove(i);
+                continue;
+            }
+            if (storage.getParts().stream().anyMatch(part -> part == null)) {
+                log.warn("Block hash {} has missing parts", block.getHash());
+                anyChange = true;
+                block.getStorage().remove(i);
+                continue;
+            }
+            i++;
+        }
+        if (anyChange) {
+            try {
+                if (block.getStorage().size() > 0) {
+                    repository.addBlock(block);
+                    return true;
+                } else {
+                    repository.deleteBlock(block);
+                    return false;
+                }
+            } catch (IOException e) {
+                log.error("Could not save updated block {}", block.getHash(), e);
+            }
+        }
+        return block.getStorage().size() > 0;
     }
 
     @Override

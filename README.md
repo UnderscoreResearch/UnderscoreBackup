@@ -189,10 +189,8 @@ Future development ideas
 Future feature ideas after first stable release is our.
 
 * Include POSIX file metadata in backup such as permissions and ownership.
-* Add ability to change passphrase.
 * Add support for immediate incremental backups.
 * Support backing up symbolic links and special files.
 * Allow secure sharing of part of backup between computers and people.
 * Add support for Azure Block Storage destination.
 * Create FUSE based filesystem implementation or Linux.
-* 

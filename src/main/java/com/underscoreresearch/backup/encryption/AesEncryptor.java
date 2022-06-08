@@ -1,118 +1,83 @@
 package com.underscoreresearch.backup.encryption;
 
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.ShortBufferException;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import javax.inject.Inject;
+import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.PUBLIC_KEY;
 
-import lombok.extern.slf4j.Slf4j;
-
+import com.google.inject.Inject;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
-@Slf4j
+/**
+ * AES 256 encryptor.
+ * <p>
+ * So this format is a bit of a mess in that I started using CBC encoding and padding and then realized that I really
+ * should be using GCM encoding. Unfortunately I left no field for future expansion in the original format but I have
+ * figured out a way to be backwards compatible and add future extensibility in case I want to change this again
+ * in the future. So here is how the payload works.
+ * <p>
+ * First byte is a padding version indicator which can currently be 0 for CBC, 1 for GCM and 2 for GCM with a single
+ * additional byte for padding its payload to an even length. This byte is missing for all legacy data created before
+ * the introduction of the GCM encoding. However, any encrypted block with an even number of bytes in length will
+ * assumed to be of CBC encoding. This is also why the GCM encoding needs format bytes since it can be of uneven size.
+ * <p>
+ * The next 12 bytes for GCM and 16 bytes for CBC contain the IV vector for the crypto.
+ * <p>
+ * The next 32 bytes contain the public key used to combine with the private key to create the key used for the AES256
+ * algorithm.
+ * <p>
+ * The entire rest of the data is the encryption payload.
+ */
 @EncryptorPlugin("AES256")
 public class AesEncryptor implements Encryptor {
-    private static final int BLOCK_SIZE = 16;
-    private static final int PUBLIC_KEY_SIZE = 32;
-    private static final String KEY_ALGORITHM = "AES";
-    private static final String ENCRYPTION_ALGORITHM = "AES/CBC/PKCS5Padding";
-    public static final String PUBLIC_KEY = "p";
-
-    private final PublicKeyEncrypion key;
-    private static SecureRandom random = new SecureRandom();
+    private PublicKeyEncrypion key;
+    private AesEncryptorFormat defaultFormat;
+    private AesEncryptorFormat legacyFormat;
 
     @Inject
     public AesEncryptor(PublicKeyEncrypion key) {
         this.key = key;
+        defaultFormat = new AesEncryptorGcm(key);
+        legacyFormat = new AesEncryptorCbc(key);
+    }
+
+    private AesEncryptorFormat getEncryptorFormat(byte[] data) {
+        if (data.length % 4 == 0) {
+            return legacyFormat;
+        }
+        switch (data[0]) {
+            case AesEncryptorCbc.CBC:
+                return legacyFormat;
+            case AesEncryptorGcm.NON_PADDED_GCM:
+            case AesEncryptorGcm.PADDED_GCM:
+                return defaultFormat;
+        }
+        throw new IllegalArgumentException("Unknown AES encryption padding");
+    }
+
+    private int getEncryptionFormatOffset(byte[] data) {
+        if (data.length % 4 == 0) {
+            return 0;
+        }
+        return 1;
+    }
+
+    private AesEncryptorFormat defaultFormat() {
+        return defaultFormat;
     }
 
     @Override
     public byte[] encryptBlock(BackupBlockStorage storage, byte[] data) {
-        byte[] iv = new byte[BLOCK_SIZE];
-        synchronized (random) {
-            random.nextBytes(iv);
-        }
-        PublicKeyEncrypion privateKey = PublicKeyEncrypion.generateKeys();
-        byte[] combinedKey = PublicKeyEncrypion.combinedSecret(privateKey, key);
-
-        SecretKeySpec secretKeySpec = new SecretKeySpec(combinedKey, KEY_ALGORITHM);
-        try {
-            Cipher cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
-
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, new IvParameterSpec(iv));
-
-            byte[] publicKey = Hash.decodeBytes(privateKey.getPublicKey());
-            if (publicKey.length != PUBLIC_KEY_SIZE) {
-                throw new IllegalStateException("Wrong publicKey length");
-            }
-            if (storage != null) {
-                storage.addProperty(PUBLIC_KEY, privateKey.getPublicKey());
-            }
-            int estimatedSize = (data.length + BLOCK_SIZE) / BLOCK_SIZE * BLOCK_SIZE + BLOCK_SIZE + PUBLIC_KEY_SIZE;
-            byte[] ret = new byte[estimatedSize];
-
-            int length = cipher.doFinal(data, 0, data.length, ret, BLOCK_SIZE + PUBLIC_KEY_SIZE);
-            if (length != estimatedSize - iv.length - publicKey.length) {
-                log.warn("Guessed wrong size {} of block {}", estimatedSize - BLOCK_SIZE - PUBLIC_KEY_SIZE, length);
-                byte[] newRet = new byte[length + BLOCK_SIZE + PUBLIC_KEY_SIZE];
-                System.arraycopy(ret, 0, newRet, 0, length);
-                ret = newRet;
-            }
-
-            System.arraycopy(iv, 0, ret, 0, BLOCK_SIZE);
-            System.arraycopy(publicKey, 0, ret, BLOCK_SIZE, PUBLIC_KEY_SIZE);
-
-            return ret;
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
-                 InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
-            throw new RuntimeException("Failed to load AES", e);
-        }
+        return defaultFormat.encryptBlock(storage, data);
     }
 
     @Override
     public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData) {
-        byte[] iv = new byte[BLOCK_SIZE];
-        byte[] publicKeyBytes = new byte[PUBLIC_KEY_SIZE];
-
-        System.arraycopy(encryptedData, 0, iv, 0, BLOCK_SIZE);
-        System.arraycopy(encryptedData, BLOCK_SIZE, publicKeyBytes, 0, PUBLIC_KEY_SIZE);
-
-        PublicKeyEncrypion publicKey = new PublicKeyEncrypion();
-        publicKey.setPublicKey(Hash.encodeBytes(publicKeyBytes));
-
-        if (key.getPrivateKey() == null) {
-            throw new IllegalStateException("Missing private key for decryption");
-        }
-
-        SecretKeySpec secretKeySpec = new SecretKeySpec(PublicKeyEncrypion.combinedSecret(key, publicKey),
-                KEY_ALGORITHM);
-
-        try {
-            Cipher cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(iv));
-            return cipher.doFinal(encryptedData, BLOCK_SIZE + PUBLIC_KEY_SIZE,
-                    encryptedData.length - BLOCK_SIZE - PUBLIC_KEY_SIZE);
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
-                 InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
-            throw new RuntimeException("Failed to load AES", e);
-        }
+        return getEncryptorFormat(encryptedData).decodeBlock(storage, encryptedData,
+                getEncryptionFormatOffset(encryptedData));
     }
 
     @Override
-    public void backfillEncryption(BackupBlockStorage storage, byte[] encryptedData) {
-        byte[] publicKeyBytes = new byte[PUBLIC_KEY_SIZE];
-
-        System.arraycopy(encryptedData, BLOCK_SIZE, publicKeyBytes, 0, PUBLIC_KEY_SIZE);
-
-        storage.addProperty(PUBLIC_KEY, Hash.encodeBytes(publicKeyBytes));
+    public void backfillEncryption(BackupBlockStorage storage, byte[] encryptedBlob) {
+        getEncryptorFormat(encryptedBlob).backfillEncryption(storage, encryptedBlob,
+                getEncryptionFormatOffset(encryptedBlob));
     }
 
     @Override

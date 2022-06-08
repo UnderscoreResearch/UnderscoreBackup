@@ -498,7 +498,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
             </div>
             <FileDetails item={item}/>
         </div>
-    };
+    }
 
     useEffect(() => {
         loadPath("/")

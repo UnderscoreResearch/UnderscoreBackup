@@ -22,6 +22,7 @@ public class PublicKeyEncrypion {
     private byte[] publicKey;
     private byte[] salt;
     private byte[] privateKey;
+    private byte[] passphraseKey;
 
     @JsonProperty
     public String getPublicKey() {
@@ -45,11 +46,26 @@ public class PublicKeyEncrypion {
     }
 
     @JsonProperty
+    public String getPassphraseKey() {
+        if (passphraseKey != null)
+            return Hash.encodeBytes(passphraseKey);
+        return null;
+    }
+
+    @JsonProperty
     public void setPublicKey(String publicKey) {
         if (publicKey != null)
             this.publicKey = Hash.decodeBytes(publicKey);
         else
             this.publicKey = null;
+    }
+
+    @JsonProperty
+    public void setPassphraseKey(String passphraseKey) {
+        if (passphraseKey != null)
+            this.passphraseKey = Hash.decodeBytes(passphraseKey);
+        else
+            this.passphraseKey = null;
     }
 
     @JsonProperty
@@ -87,24 +103,50 @@ public class PublicKeyEncrypion {
         return ret;
     }
 
-    public static PublicKeyEncrypion generateKeyWithSeed(String seed, String salt) {
+    public static PublicKeyEncrypion changeEncryptionPassphrase(String passphrase, PublicKeyEncrypion key) {
+        if (key.privateKey == null) {
+            throw new IllegalArgumentException("Key missing private key for changing passphrase");
+        }
+
+        PublicKeyEncrypion ret = generateKeyWithPassphrase(passphrase, null);
+        AesEncryptor aesEncryptor = new AesEncryptor(ret);
+        byte[] privateKey = aesEncryptor.encryptBlock(null, key.privateKey);
+        ret.passphraseKey = privateKey;
+        ret.publicKey = key.publicKey;
+        ret.privateKey = key.privateKey;
+        return ret;
+    }
+
+    public static PublicKeyEncrypion generateKeyWithPassphrase(String passphrase, PublicKeyEncrypion key) {
         try {
             byte[] saltData;
-            if (salt == null) {
+            if (key == null || key.getSalt() == null) {
                 SecureRandom random = new SecureRandom();
                 saltData = new byte[32];
                 random.nextBytes(saltData);
             } else {
-                saltData = Hash.decodeBytes(salt);
+                saltData = Hash.decodeBytes(key.getSalt());
             }
-            PBEKeySpec spec = new PBEKeySpec(seed.toCharArray(), saltData, FIXED_ITERATIONS, 32 * 8);
+            PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), saltData, FIXED_ITERATIONS, 32 * 8);
             SecretKeyFactory skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
             byte[] bytes = skf.generateSecret(spec).getEncoded();
 
             bytes[0] = (byte) (bytes[0] | 7);
             bytes[31] = (byte) (bytes[31] & 63);
             bytes[31] = (byte) (bytes[31] | 128);
+
             PublicKeyEncrypion ret = new PublicKeyEncrypion();
+
+            if (key != null) {
+                if (key.passphraseKey != null) {
+                    PublicKeyEncrypion unpackKey = new PublicKeyEncrypion();
+                    unpackKey.privateKey = bytes;
+                    AesEncryptor aesEncryptor = new AesEncryptor(unpackKey);
+                    bytes = aesEncryptor.decodeBlock(null, key.passphraseKey);
+                }
+                ret.passphraseKey = key.passphraseKey;
+            }
+
             ret.privateKey = bytes;
             ret.publicKey = X25519.publicFromPrivate(ret.privateKey);
             ret.salt = saltData;
@@ -118,6 +160,7 @@ public class PublicKeyEncrypion {
         PublicKeyEncrypion ret = new PublicKeyEncrypion();
         ret.publicKey = publicKey;
         ret.salt = salt;
+        ret.passphraseKey = passphraseKey;
         return ret;
     }
 }

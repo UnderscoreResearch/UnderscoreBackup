@@ -6,6 +6,7 @@ import java.net.HttpURLConnection;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
 import org.takes.Request;
@@ -20,6 +21,7 @@ import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Slf4j
 public class PrivateKeyRequest {
     private String passphrase;
 
@@ -41,10 +43,15 @@ public class PrivateKeyRequest {
     public static boolean validatePassphrase(String passphrase) {
         PublicKeyEncrypion publicKeyEncrypion = InstanceFactory.getInstance(PublicKeyEncrypion.class);
 
-        PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithSeed(passphrase, publicKeyEncrypion.getSalt());
-        if (publicKeyEncrypion.getPublicKey().equals(ret.getPublicKey())) {
-            return true;
-        } else {
+        try {
+            PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithPassphrase(passphrase, publicKeyEncrypion);
+            if (publicKeyEncrypion.getPublicKey().equals(ret.getPublicKey())) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (Exception exc) {
+            log.warn("Failed to validate key", exc);
             return false;
         }
     }

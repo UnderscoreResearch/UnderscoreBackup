@@ -13,7 +13,7 @@ class PublicKeyEncrypionTest {
     @Test
     public void test() {
         PublicKeyEncrypion random = PublicKeyEncrypion.generateKeys();
-        PublicKeyEncrypion seeded = PublicKeyEncrypion.generateKeyWithSeed("seed", null);
+        PublicKeyEncrypion seeded = PublicKeyEncrypion.generateKeyWithPassphrase("seed", null);
 
         PublicKeyEncrypion randomPublic = random.publicOnly();
         PublicKeyEncrypion seededPublic = seeded.publicOnly();
@@ -25,8 +25,18 @@ class PublicKeyEncrypionTest {
 
     @Test
     public void testSeeded() {
-        PublicKeyEncrypion seeded1 = PublicKeyEncrypion.generateKeyWithSeed("seed", null);
-        PublicKeyEncrypion seeded2 = PublicKeyEncrypion.generateKeyWithSeed("seed", seeded1.getSalt());
+        PublicKeyEncrypion seeded1 = PublicKeyEncrypion.generateKeyWithPassphrase("seed", null);
+        PublicKeyEncrypion seeded2 = PublicKeyEncrypion.generateKeyWithPassphrase("seed", seeded1);
+
+        assertThat(seeded1.getPrivateKey(), Is.is(seeded2.getPrivateKey()));
+        assertThat(seeded1.getPublicKey(), Is.is(seeded2.getPublicKey()));
+    }
+
+    @Test
+    public void testChangedPassphrase() {
+        PublicKeyEncrypion seeded1 = PublicKeyEncrypion.changeEncryptionPassphrase("another",
+                PublicKeyEncrypion.generateKeyWithPassphrase("seed", null));
+        PublicKeyEncrypion seeded2 = PublicKeyEncrypion.generateKeyWithPassphrase("another", seeded1);
 
         assertThat(seeded1.getPrivateKey(), Is.is(seeded2.getPrivateKey()));
         assertThat(seeded1.getPublicKey(), Is.is(seeded2.getPublicKey()));

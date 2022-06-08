@@ -140,6 +140,9 @@ public class WebServer {
                                             new FkMethods("POST", new KeyPost()),
                                             new FkMethods("PUT", new GenerateKeyPut()))),
 
+                                    new FkRegex(base + "/api/encryption-key/change", new TkFork(
+                                            new FkMethods("POST", new KeyChangePost()))),
+
                                     createIndexPath(base),
                                     createIndexPath(base + "/status"),
                                     createIndexPath(base + "/sets"),

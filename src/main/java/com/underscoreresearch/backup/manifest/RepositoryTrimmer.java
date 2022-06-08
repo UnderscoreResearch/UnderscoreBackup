@@ -5,7 +5,6 @@ import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.File;
 import java.io.IOException;
@@ -264,7 +263,8 @@ public class RepositoryTrimmer implements StatusLogger {
         if (!hasActivePaths) {
             metadataRepository.allBlocks()
                     .filter(t -> {
-                        boolean ret = !hasActivePaths && !usedBlockMap.containsKey(t.getHash());
+                        processedSteps.incrementAndGet();
+                        boolean ret = !usedBlockMap.containsKey(t.getHash());
                         if (!ret) {
                             statistics.addBlocks(1);
                             if (t.getStorage() != null)
@@ -275,7 +275,6 @@ public class RepositoryTrimmer implements StatusLogger {
                         if (InstanceFactory.isShutdown())
                             throw new InterruptedException();
                         try {
-                            processedSteps.incrementAndGet();
                             statistics.addDeletedBlocks(1);
                             for (BackupBlockStorage storage : block.getStorage()) {
                                 IOProvider provider = IOProviderFactory.getProvider(
@@ -320,7 +319,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
             log.info("Deleted {} blocks with a total of {} parts and {} part references",
                     readableNumber(statistics.getDeletedBlocks()),
-                    readableSize(statistics.getDeletedBlockParts()),
+                    readableNumber(statistics.getDeletedBlockParts()),
                     readableNumber(statistics.getDeletedBlockPartReferences()));
         }
     }
