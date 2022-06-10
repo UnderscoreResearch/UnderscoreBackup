@@ -27,6 +27,8 @@ public class BackupBlockStorage {
     @JsonProperty("props")
     private Map<String, String> properties;
     private List<String> parts;
+    @JsonProperty("c")
+    private Long created;
 
     @JsonIgnore
     public void addProperty(String key, String value) {

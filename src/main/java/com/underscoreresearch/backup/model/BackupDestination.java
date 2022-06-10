@@ -22,7 +22,7 @@ public class BackupDestination {
     private String endpointUri;
     private String principal;
     private String credential;
-    private Long retention;
+    private BackupTimespan maxRetention;
     private Map<String, String> properties;
     private BackupLimits limits;
 

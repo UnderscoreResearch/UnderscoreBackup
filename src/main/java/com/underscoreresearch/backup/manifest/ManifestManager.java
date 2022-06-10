@@ -19,5 +19,7 @@ public interface ManifestManager {
 
     BackupContentsAccess backupContents(Long timestamp, boolean includeDeleted) throws IOException;
 
+    BackupSearchAccess backupSearch(Long timestamp, boolean includeDeleted) throws IOException;
+
     void shutdown() throws IOException;
 }

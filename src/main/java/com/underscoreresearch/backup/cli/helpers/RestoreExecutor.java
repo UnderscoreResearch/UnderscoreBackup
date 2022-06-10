@@ -1,4 +1,4 @@
-package com.underscoreresearch.backup.cli.commands;
+package com.underscoreresearch.backup.cli.helpers;
 
 import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;

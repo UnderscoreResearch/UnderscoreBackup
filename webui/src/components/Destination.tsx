@@ -15,9 +15,10 @@ import {
     TextField
 } from "@mui/material";
 import Box from "@mui/material/Box";
-import {BackupDestination, BackupLimits, GetAuthEndpoint, PropertyMap} from "../api";
+import {BackupDestination, BackupLimits, BackupTimespan, GetAuthEndpoint, PropertyMap} from "../api";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import SpeedLimit from "./SpeedLimit";
+import Timespan from "./Timespan";
 
 const DROPBOX_CLIENT_ID = 'tlt1aw0jc8wlcox';
 const temporaryStorage = window.sessionStorage;
@@ -96,6 +97,7 @@ const s3Regions = [
 interface SharedState {
     encryption: string,
     errorCorrection: string,
+    maxRetention: BackupTimespan | undefined,
     limits: BackupLimits | undefined
 }
 
@@ -108,10 +110,12 @@ function SharedProperties(props: {
     const [state, setState] = React.useState({
         encryption: props.state.encryption,
         errorCorrection: props.state.errorCorrection,
+        maxRetention: props.state.maxRetention,
         limits: props.state.limits ? props.state.limits : {}
     } as {
         encryption: string,
         errorCorrection: string,
+        maxRetention: BackupTimespan | undefined,
         limits: BackupLimits
     });
 
@@ -151,7 +155,7 @@ function SharedProperties(props: {
                         props.onChange(newState);
                     }}>
                     <MenuItem value={"NONE"}>None</MenuItem>
-                    <MenuItem value={"AES256"}>AES 256 (CBC)</MenuItem>
+                    <MenuItem value={"AES256"}>AES 256</MenuItem>
                 </Select>
             </FormControl>
         </Grid>
@@ -210,6 +214,20 @@ function SharedProperties(props: {
                     updateLimitChange(newState);
                 }} title={"Maximum download speed"}/>
         </Grid>
+        <Grid item xs={12}>
+            <DividerWithText>Maximum Retention</DividerWithText>
+        </Grid>
+        <Grid item xs={12}>
+            <Timespan timespan={state.maxRetention ? state.maxRetention : { unit: "FOREVER"}}
+                      onChange={(newTimespan) => {
+                          const sendState = {
+                              ...state,
+                              maxRetention: newTimespan
+                          };
+                          props.onChange(sendState);
+                      }}
+                      title={"Re-upload data to destination after "}/>
+        </Grid>
     </Fragment>
 }
 
@@ -218,12 +236,14 @@ function LocalFileDestination(props: DestinationProps) {
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "" as string,
         encryption: props.destination.encryption ? props.destination.encryption : "AES256" as string,
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
+        maxRetention: props.destination.maxRetention,
         limits: props.destination.limits
     });
 
     function updateState(newState: {
         endpointUri: string
         encryption: string,
+        maxRetention: BackupTimespan | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined
     }) {
@@ -232,6 +252,7 @@ function LocalFileDestination(props: DestinationProps) {
                 type: "FILE",
                 endpointUri: newState.endpointUri,
                 encryption: newState.encryption,
+                maxRetention: newState.maxRetention,
                 errorCorrection: newState.errorCorrection,
                 limits: newState.limits
             });
@@ -279,6 +300,7 @@ function DropboxDestination(props: DestinationProps) {
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "",
         accessToken: props.destination.principal ? props.destination.principal : "",
         refreshToken: props.destination.credential ? props.destination.credential : "",
+        maxRetention: props.destination.maxRetention,
         encryption: props.destination.encryption ? props.destination.encryption : "AES256",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         limits: props.destination.limits
@@ -292,6 +314,7 @@ function DropboxDestination(props: DestinationProps) {
         accessToken: string,
         refreshToken: string,
         encryption: string,
+        maxRetention: BackupTimespan | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined
     }) {
@@ -302,6 +325,7 @@ function DropboxDestination(props: DestinationProps) {
                 principal: newState.accessToken,
                 credential: newState.refreshToken,
                 encryption: newState.encryption,
+                maxRetention: newState.maxRetention,
                 errorCorrection: newState.errorCorrection,
                 limits: newState.limits
             };
@@ -391,6 +415,7 @@ function WindowsShareDestination(props: DestinationProps) {
         username: props.destination.principal ? props.destination.principal : "",
         password: props.destination.credential ? props.destination.credential : "",
         domain: props.destination.properties && props.destination.properties["domain"] ? props.destination.properties["domain"] : "WORKSPACE",
+        maxRetention: props.destination.maxRetention,
         encryption: props.destination.encryption ? props.destination.encryption : "AES256",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         limits: props.destination.limits
@@ -401,6 +426,7 @@ function WindowsShareDestination(props: DestinationProps) {
         username: string,
         password: string,
         domain: string,
+        maxRetention: BackupTimespan | undefined,
         encryption: string,
         errorCorrection: string,
         limits: BackupLimits | undefined
@@ -418,6 +444,7 @@ function WindowsShareDestination(props: DestinationProps) {
                 credential: newState.password,
                 encryption: newState.encryption,
                 errorCorrection: newState.errorCorrection,
+                maxRetention: newState.maxRetention,
                 properties: properties,
                 limits: newState.limits
             });
@@ -487,6 +514,7 @@ function S3Destination(props: DestinationProps) {
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "s3://",
         accessKeyId: props.destination.principal ? props.destination.principal : "",
         secretAccessKey: props.destination.credential ? props.destination.credential : "",
+        maxRetention: props.destination.maxRetention,
         encryption: props.destination.encryption ? props.destination.encryption : "AES256" as string,
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
         region: props.destination.properties && props.destination.properties["region"] ? props.destination.properties["region"] : "us-east-1",
@@ -499,6 +527,7 @@ function S3Destination(props: DestinationProps) {
         accessKeyId: string,
         secretAccessKey: string,
         encryption: string,
+        maxRetention: BackupTimespan | undefined,
         errorCorrection: string,
         region: string,
         apiEndpoint: string,
@@ -519,6 +548,7 @@ function S3Destination(props: DestinationProps) {
                 principal: newState.accessKeyId,
                 credential: newState.secretAccessKey,
                 encryption: newState.encryption,
+                maxRetention: newState.maxRetention,
                 errorCorrection: newState.errorCorrection,
                 properties: properties,
                 limits: newState.limits

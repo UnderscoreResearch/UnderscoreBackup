@@ -1,4 +1,4 @@
-package com.underscoreresearch.backup.manifest;
+package com.underscoreresearch.backup.cli.helpers;
 
 import static com.underscoreresearch.backup.model.BackupTimeUnit.DAYS;
 import static com.underscoreresearch.backup.model.BackupTimeUnit.HOURS;
@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;

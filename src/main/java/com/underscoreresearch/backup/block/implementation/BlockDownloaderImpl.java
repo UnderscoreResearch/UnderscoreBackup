@@ -156,7 +156,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
             try {
                 consumer.accept(provider.download(storage.getParts().get(partIndex)));
             } catch (Throwable exc) {
-                log.error("Failed to download " + storage.getParts().get(partIndex) + " from " + storage.getDestination(), exc);
+                log.warn("Failed to download " + storage.getParts().get(partIndex) + " from " + storage.getDestination(), exc);
                 consumer.accept(null);
             }
         });
@@ -165,6 +165,9 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     @Override
     public void resetStatus() {
         super.resetDuration();
+        blockCount.set(0);
+        totalCount.set(0);
+        totalSize.set(0);
     }
 
     @Override

@@ -52,6 +52,7 @@ import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
+import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -544,6 +545,14 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     public BackupContentsAccess backupContents(Long timestamp, boolean includeDeleted) throws IOException {
         return new BackupContentsAccessImpl(InstanceFactory.getInstance(MetadataRepository.class),
                 timestamp, includeDeleted);
+    }
+
+    @Override
+    public BackupSearchAccess backupSearch(Long timestamp, boolean includeDeleted) throws IOException {
+        return new BackupSearchAccessImpl(InstanceFactory.getInstance(MetadataRepository.class),
+                backupContents(timestamp, includeDeleted),
+                timestamp,
+                includeDeleted);
     }
 
     @Override

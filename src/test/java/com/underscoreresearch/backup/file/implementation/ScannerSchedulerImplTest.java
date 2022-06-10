@@ -16,7 +16,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.manifest.RepositoryTrimmer;
+import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupSet;

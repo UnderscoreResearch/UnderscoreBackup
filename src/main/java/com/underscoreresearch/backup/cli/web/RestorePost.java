@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
-import com.underscoreresearch.backup.cli.commands.RestoreExecutor;
+import com.underscoreresearch.backup.cli.helpers.RestoreExecutor;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.DownloadScheduler;

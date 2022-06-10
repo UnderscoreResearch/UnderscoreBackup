@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.utils;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FULL_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
@@ -19,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupFile;
 
 @Slf4j
@@ -122,7 +124,7 @@ public final class LogUtil {
         return ret;
     }
 
-    public static String printFile(CommandLine commandLine, BackupFile file) {
+    public static String printFile(CommandLine commandLine, boolean alwaysFull, BackupFile file) {
         String size;
         if (file.getLength() != null) {
             if (commandLine.hasOption(HUMAN_READABLE)) {
@@ -136,9 +138,13 @@ public final class LogUtil {
 
         String age = formatTimestamp(file.getLastChanged());
 
-        String strippedPath = stripPath(file.getPath());
+        String strippedPath;
+        if (commandLine.hasOption(FULL_PATH) || alwaysFull)
+            strippedPath = file.getPath();
+        else
+            strippedPath = stripPath(file.getPath());
 
-        return String.format("%-10s %-20s %s", size, age, strippedPath);
+        return String.format("%-10s %-20s %s", size, age, PathNormalizer.physicalPath(strippedPath));
     }
 
 }

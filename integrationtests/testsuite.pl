@@ -33,6 +33,7 @@ if (!-d $root) {
 my $testRoot = File::Spec->catdir($root, "data");
 my $answerRoot = File::Spec->catdir($root, "answer");
 my $backupRoot = File::Spec->catdir($root, "backup");
+my $backupRoot2 = File::Spec->catdir($root, "backup2");
 my $configFile = File::Spec->catdir($root, "config.json");
 my $keyFile = File::Spec->catdir($root, "key");
 my $logFile = File::Spec->catdir($root, "output.log");
@@ -216,14 +217,14 @@ sub executeUnderscoreBackup {
 }
 
 sub createConfigFile {
-    my ($retention) = @_;
+    my ($retention, $extraDestination) = @_;
 
     if (!$retention) {
         $retention = <<"__EOF__";
       "retention": {
         "defaultFrequency": {
-          "duration": 1,
-          "unit": "MINUTES"
+          "duration": 10,
+          "unit": "SECONDS"
         },
         "retainDeleted": {
           "unit": "FOREVER"
@@ -237,6 +238,8 @@ __EOF__
     $escapedRoot =~ s/\\/\\\\/g;
     my $escapedBackupRoot = $backupRoot;
     $escapedBackupRoot =~ s/\\/\\\\/g;
+    my $escapedBackupRoot2 = $backupRoot2;
+    $escapedBackupRoot2 =~ s/\\/\\\\/g;
 
     open(CONFIG, ">$configFile") || die;
     print CONFIG <<"__EOF__";
@@ -250,7 +253,8 @@ __EOF__
         }
       ],
       "destinations": [
-        "d0"
+        "d0",
+        "d1"
       ],
 $retention
     }
@@ -259,8 +263,13 @@ $retention
     "d0": {
       "type": "FILE",
       "encryption": "AES256",
-      "errorCorrection": "NONE",
       "endpointUri": "$escapedBackupRoot"
+    },
+    "d1": {
+      "type": "FILE",
+      "encryption": "AES256",
+      "endpointUri": "$escapedBackupRoot2"
+$extraDestination
     }
   },
   "manifest": {
@@ -285,7 +294,7 @@ sub cleanRunPath {
 
 sub prepareRunPath {
     &cleanRunPath();
-    &createConfigFile();
+    &createConfigFile(@_);
     &executeUnderscoreBackup("generate-key", "--passphrase", "1234");
 }
 
@@ -364,7 +373,7 @@ sub executeCypressTest {
     }
 }
 
-my $DELAY = 61;
+my $DELAY = 11;
 
 my @completionTimestamp;
 my $pid;
@@ -464,6 +473,8 @@ print "Generation 6\n";
 &executeUnderscoreBackup("backfill-metadata", "--passphrase", "1234");
 
 &executeUnderscoreBackup("ls", "/");
+&executeUnderscoreBackup("ls", "/", "--full-path");
+&executeUnderscoreBackup("search", "a");
 
 &executeUnderscoreBackup("optimize-log");
 &executeUnderscoreBackup("restore", "/", "=", "--passphrase", "1234");
@@ -520,7 +531,7 @@ __EOF__
 # test updating
 
 undef @completionTimestamp;
-&prepareRunPath();
+&prepareRunPath('', ",\"maxRetention\": {\"unit\": \"SECONDS\", \"duration\": 30}, \"errorCorrection\": \"RS\"");
 &prepareTestPath();
 
 print "Generation 1 incremental\n";
@@ -570,6 +581,9 @@ print "Generation 6 incremental\n";
 &executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[4] - 1) . " seconds ago", "/", "=");
 
 &executeUnderscoreBackupStdin("12345\n12345", "change-passphrase", "--passphrase", "1234");
+
+finddepth { wanted => \&zapFile, no_chdir => 1 }, $backupRoot;
+
 &prepareTestPath();
 &generateData(6, 1);
 &executeUnderscoreBackupStdin("12345", "restore", "/", "=");
