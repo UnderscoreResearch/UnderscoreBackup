@@ -117,17 +117,17 @@ Backup set definitions have the following fields.
   * **children** - Another set of paths under any path matched by this expression. Child paths do not have to have the same type as their parent filter.
 * **retention** - Define how to keep track of old versions in your backup. By default if not specified any files not in the source will be deleted once the backup completes.
   * **retainDeleted** - A timespan for how long to keep files in backup repository after they have been deleted on the source. If not specified files will be removed immediately.
-    * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+    * **unit** - Unit of timestamp (FOREVER, IMMEDIATE, SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
     * **duration** - How many of units for the timespan.
   * **defaultFrequency** - How often by default a new version for a specific file in the set should be retained after it has been changed. For instance if you have a retention of 1 day for a file that updates every 15 minutes only one copy of the file will be retained per day at most and the rest will be pruned. If not specified only the most recent version of the file will be retained.
-    * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+    * **unit** - Unit of timestamp (FOREVER, IMMEDIATE, SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
     * **duration** - How many of units for the timespan.
   * **older** - Different timespans for files as they get older. Contains a list of increasingly older retention policies.
     * **validAfter** - The timespan after which this retention policy should override the default retention frequency.
       * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
       * **duration** - How many of units for the timespan.
     * **frequency** - Frequency for how often new copies should be retained once they have reached this age. This frequence must be longer than any preceeding retention frequencies with shorter validAfter values. If not specified then no files older than this will be kept unless they are current.
-      * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+      * **unit** - Unit of timestamp (FOREVER, IMMEDIATE, SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
       * **duration** - How many of units for the timespan.
 
 ## Backup destination definitions
@@ -138,6 +138,9 @@ The destinations item is a map where the key is the unique identifier for the de
 * **endpointUri** - Endpoint URI. Where the root of this destination is located.
 * **principal** - Username or access key for destination.
 * **credential** - Credential for principal.
+* **maxRetention** - Refresh any data stored at destination that is older than this retention. Only applies to block data, not other backup metadata.
+  * **unit** - Unit of timestamp (FOREVER, IMMEDIATE, SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+  * **duration** - How many of units for the timespan.
 * **properties** - Specific properties for destination type. Notably the `region` for S3 buckets must be specified here if not us-east-1.
 * **limits** - Upload and download limits rate limits for destination.
     * **maximumUploadBytesPerSecond** - Maximum bytes per second for uploading data to this destination.
@@ -190,6 +193,7 @@ Future feature ideas after first stable release is our.
 
 * Include POSIX file metadata in backup such as permissions and ownership.
 * Add support for immediate incremental backups.
+* Add a search functionality to the UI.
 * Support backing up symbolic links and special files.
 * Allow secure sharing of part of backup between computers and people.
 * Add support for Azure Block Storage destination.

@@ -1,4 +1,4 @@
-package com.underscoreresearch.backup.manifest;
+package com.underscoreresearch.backup.cli.helpers;
 
 import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

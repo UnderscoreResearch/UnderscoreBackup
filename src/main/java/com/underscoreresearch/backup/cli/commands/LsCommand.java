@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FULL_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
@@ -56,7 +57,12 @@ public class LsCommand extends Command {
                 for (BackupFile file : files) {
                     if (file.getPath().endsWith(PATH_SEPARATOR)) {
                         if (listPath(commandLine, contents, file, false)) {
-                            System.out.println();
+                            if (!commandLine.hasOption(FULL_PATH)) {
+                                System.out.println();
+                            }
+                        }
+                        if (commandLine.hasOption(FULL_PATH)) {
+                            System.out.println(printFile(commandLine, false, file));
                         }
                     }
                 }
@@ -65,20 +71,25 @@ public class LsCommand extends Command {
             long totalSize = files.stream()
                     .map(t -> t.getLength() != null ? t.getLength() : 0).reduce((a, b) -> a + b).orElseGet(() -> 0L);
 
-            if (files.size() > 1 || !root) {
-                System.out.println(originalPath.getPath() + ":");
-            }
+            if (!commandLine.hasOption(FULL_PATH)) {
 
-            if (files.size() > 1) {
-                if (commandLine.hasOption(HUMAN_READABLE))
-                    System.out.println("total " + readableSize(totalSize));
-                else
-                    System.out.println("total " + totalSize);
+                if (files.size() > 1 || !root) {
+                    System.out.println(originalPath.getPath() + ":");
+                }
+
+                if (files.size() > 1) {
+                    if (commandLine.hasOption(HUMAN_READABLE))
+                        System.out.println("total " + readableSize(totalSize));
+                    else
+                        System.out.println("total " + totalSize);
+                }
             }
 
             long newestChanged = 0;
             for (BackupFile file : files) {
-                System.out.println(printFile(commandLine, file));
+                if (!commandLine.hasOption(FULL_PATH) || !file.getPath().endsWith(PATH_SEPARATOR)) {
+                    System.out.println(printFile(commandLine, false, file));
+                }
                 if (file.getLastChanged() != null && file.getLastChanged() > newestChanged) {
                     newestChanged = file.getLastChanged();
                 }

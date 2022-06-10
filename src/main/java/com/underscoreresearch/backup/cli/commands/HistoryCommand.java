@@ -52,7 +52,7 @@ public class HistoryCommand extends Command {
                 System.out.println("total " + totalSize);
 
             for (BackupFile file : versions) {
-                System.out.println(printFile(commandLine, file));
+                System.out.println(printFile(commandLine, false, file));
             }
         }
     }

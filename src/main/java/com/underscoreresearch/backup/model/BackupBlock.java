@@ -59,6 +59,5 @@ public class BackupBlock {
             return blocks;
         }
         return Lists.newArrayList(block);
-
     }
 }

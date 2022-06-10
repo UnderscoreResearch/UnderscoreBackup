@@ -1,4 +1,4 @@
-package com.underscoreresearch.backup.manifest;
+package com.underscoreresearch.backup.cli.helpers;
 
 import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -132,9 +133,6 @@ public class RepositoryTrimmer implements StatusLogger {
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
     private final boolean force;
-
-    private String lastFetchedDirectory;
-    private BackupDirectory lastFetchedDirectoryContents;
 
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private AtomicLong processedSteps = new AtomicLong();

@@ -330,7 +330,7 @@ export default function Settings(props: SettingsProps) {
                                    ...state,
                                    passphrase: e.target.value
                                })}/>
-                    <TextField label="New Confirm Passphrase" variant="outlined"
+                    <TextField label="Confirm New Passphrase" variant="outlined"
                                fullWidth={true}
                                required={true}
                                helperText={state.passphraseConfirm !== state.passphrase ? "Does not match" : null}

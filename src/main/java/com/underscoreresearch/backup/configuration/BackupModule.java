@@ -2,11 +2,15 @@ package com.underscoreresearch.backup.configuration;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE_REBUILD;
+import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 
+import com.underscoreresearch.backup.block.FileDownloader;
+import com.underscoreresearch.backup.cli.helpers.BlockRefresher;
+import com.underscoreresearch.backup.io.implementation.DownloadSchedulerImpl;
 import org.apache.commons.cli.CommandLine;
 
 import com.google.common.collect.Lists;
@@ -21,7 +25,7 @@ import com.underscoreresearch.backup.block.assignments.LargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.RawLargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.SmallFileBlockAssignment;
 import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
-import com.underscoreresearch.backup.cli.commands.BlockValidator;
+import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.FileScanner;
@@ -40,7 +44,7 @@ import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.manifest.RepositoryTrimmer;
+import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
@@ -170,9 +174,10 @@ public class BackupModule extends AbstractModule {
     @Singleton
     public BlockValidator blockValidator(MetadataRepository repository,
                                          BackupConfiguration configuration,
+                                         BlockRefresher blockRefresher,
                                          ManifestManager manifestManager) {
         int maxBlockSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
-        return new BlockValidator(repository, configuration, manifestManager, maxBlockSize);
+        return new BlockValidator(repository, configuration, manifestManager, blockRefresher, maxBlockSize);
     }
 
     @Provides
@@ -240,6 +245,16 @@ public class BackupModule extends AbstractModule {
     @Singleton
     public RateLimitController rateLimitController(BackupConfiguration configuration) {
         return new RateLimitController(configuration.getLimits());
+    }
+
+    @Singleton
+    @Provides
+    public BlockRefresher blockRefresher(@Named(DOWNLOAD_THREADS) int threads,
+                                         BlockDownloader fileDownloader,
+                                         UploadScheduler uploadScheduler,
+                                         BackupConfiguration configuration,
+                                         MetadataRepository repository) {
+        return new BlockRefresher(threads, fileDownloader, uploadScheduler, configuration, repository);
     }
 
     @Provides

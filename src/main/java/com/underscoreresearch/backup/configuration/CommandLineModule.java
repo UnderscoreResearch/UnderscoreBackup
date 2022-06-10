@@ -53,6 +53,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String CONFIG = "config";
     public static final String DEVELOPER_MODE = "developer-mode";
     public static final String HUMAN_READABLE = "human-readable";
+    public static final String FULL_PATH = "full-path";
     public static final String INCLUDE_DELETED = "include-deleted";
     public static final String RECURSIVE = "recursive";
     public static final String OVER_WRITE = "over-write";
@@ -98,6 +99,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption(null, NO_DELETE_REBUILD, false, "Rebuild repository without performing any deletes");
         options.addOption("h", HUMAN_READABLE, false, "Display human readable sizes");
         options.addOption("R", RECURSIVE, false, "Process restore or list operation recursively");
+        options.addOption(null, FULL_PATH, false, "Display full path");
         options.addOption("o", OVER_WRITE, false, "Overwrite existing files when restoring");
         options.addOption("t", TIMESTAMP, true, "Timestamp to use for restore operations");
 

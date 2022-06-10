@@ -81,7 +81,7 @@ export interface BackupDestination {
     endpointUri: string,
     principal?: string,
     credential?: string,
-    retention?: number,
+    maxRetention?: BackupTimespan,
     properties?: PropertyMap,
     limits?: BackupLimits
 }
@@ -245,8 +245,6 @@ function GetBackupDownloadLink(file: string, added: number): string {
 }
 
 export function DownloadBackupFile(file: string, added: number, passphrase: string) {
-    const startTime = new Date().getTime();
-
     const request = new XMLHttpRequest();
 
     request.responseType = "blob";

@@ -1,4 +1,4 @@
-package com.underscoreresearch.backup.cli.commands;
+package com.underscoreresearch.backup.cli.helpers;
 
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,11 +23,6 @@ import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
@@ -36,6 +32,7 @@ public class BlockValidator implements StatusLogger {
     private final MetadataRepository repository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
+    private final BlockRefresher blockRefresher;
     private final int maxBlockSize;
 
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
@@ -99,10 +96,18 @@ public class BlockValidator implements StatusLogger {
                 }
             });
 
-            log.info("Completed block validation");
+            blockRefresher.waitForCompletion();
+
+            if (blockRefresher.getRefreshedBlocks() > 0) {
+                log.info("Completed block validation and refreshed {} blocks",
+                        readableNumber(blockRefresher.getRefreshedBlocks()));
+            } else {
+                log.info("Completed block validation");
+            }
         } catch (RuntimeException exc) {
             manifestManager.setDisabledFlushing(false);
             if (exc.getCause() instanceof InterruptedException) {
+                blockRefresher.waitForCompletion();
                 log.info("Cancelled processing");
             } else {
                 throw exc;
@@ -139,7 +144,8 @@ public class BlockValidator implements StatusLogger {
 
     private boolean validateBlockStorage(BackupBlock block) {
         boolean anyChange = false;
-        for (int i = 0; i < block.getStorage().size(); i++) {
+        List<BackupBlockStorage> needsRefresh = null;
+        for (int i = 0; i < block.getStorage().size(); ) {
             BackupBlockStorage storage = block.getStorage().get(i);
             try {
                 EncryptorFactory.getEncryptor(storage.getEncryption());
@@ -163,19 +169,46 @@ public class BlockValidator implements StatusLogger {
                 block.getStorage().remove(i);
                 continue;
             }
+
+            BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
+            if (destination == null) {
+                log.error("Block {} referencing missing destination {}", block.getHash(), storage.getDestination());
+            } else if (destination.getMaxRetention() != null) {
+                long created;
+                if (storage.getCreated() != null)
+                    created = storage.getCreated();
+                else
+                    created = block.getCreated();
+
+                if (destination.getMaxRetention().toEpochMilli() > created) {
+                    if (needsRefresh == null) {
+                        needsRefresh = new ArrayList<>();
+                    }
+                    needsRefresh.add(storage);
+                    anyChange = true;
+                }
+            }
             i++;
         }
         if (anyChange) {
-            try {
-                if (block.getStorage().size() > 0) {
-                    repository.addBlock(block);
-                    return true;
-                } else {
-                    repository.deleteBlock(block);
-                    return false;
+            if (needsRefresh != null && needsRefresh.size() > 0) {
+                try {
+                    blockRefresher.refreshStorage(block, needsRefresh);
+                } catch (IOException e) {
+                    log.error("Failed to refresh block {}", block.getHash(), e);
                 }
-            } catch (IOException e) {
-                log.error("Could not save updated block {}", block.getHash(), e);
+            } else {
+                try {
+                    if (block.getStorage().size() > 0) {
+                        repository.addBlock(block);
+                        return true;
+                    } else {
+                        repository.deleteBlock(block);
+                        return false;
+                    }
+                } catch (IOException e) {
+                    log.error("Could not save updated block {}", block.getHash(), e);
+                }
             }
         }
         return block.getStorage().size() > 0;
@@ -193,7 +226,7 @@ public class BlockValidator implements StatusLogger {
             long elapsedMilliseconds = stopwatch.elapsed().toMillis();
             if (elapsedMilliseconds > 0) {
                 long throughput = 1000 * processedSteps.get() / elapsedMilliseconds;
-                return Lists.newArrayList(
+                List<StatusLine> ret = Lists.newArrayList(
                         new StatusLine(getClass(), "VALIDATE_THROUGHPUT", "Validating blocks throughput",
                                 throughput, readableNumber(throughput) + " steps/s"),
                         new StatusLine(getClass(), "VALIDATE_STEPS", "Validating blocks steps completed",
@@ -202,6 +235,11 @@ public class BlockValidator implements StatusLogger {
                                         + readableNumber(totalSteps.get()) + " steps"
                                         + readableEta(processedSteps.get(), totalSteps.get(),
                                         Duration.ofMillis(elapsedMilliseconds))));
+                if (blockRefresher.getRefreshedBlocks() > 0) {
+                    ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH", "Block storage refreshed",
+                            blockRefresher.getRefreshedBlocks(), readableNumber(blockRefresher.getRefreshedBlocks())));
+                }
+                return ret;
             }
         }
         return new ArrayList<>();

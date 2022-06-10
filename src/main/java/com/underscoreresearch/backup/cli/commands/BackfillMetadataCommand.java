@@ -6,7 +6,7 @@ import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.manifest.RepositoryBackfiller;
+import com.underscoreresearch.backup.cli.helpers.RepositoryBackfiller;
 
 @CommandPlugin(value = "backfill-metadata", description = "Go through and backfill metadata that might be missing",
         needPrivateKey = true, needConfiguration = true, readonlyRepository = false)

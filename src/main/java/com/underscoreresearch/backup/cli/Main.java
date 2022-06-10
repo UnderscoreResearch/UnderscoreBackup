@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.google.inject.ProvisionException;
+import com.google.inject.spi.Message;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -72,7 +75,18 @@ public final class Main {
 
                 if (commandDef.needConfiguration()) {
                     if (!InstanceFactory.hasConfiguration(commandDef.readonlyRepository())) {
-                        System.exit(1);
+                        try {
+                            ConfigurationValidator.validateConfiguration(InstanceFactory.getInstance(BackupConfiguration.class),
+                                    commandDef.readonlyRepository());
+                        } catch (ProvisionException exc) {
+                            for (Message message : exc.getErrorMessages()) {
+                                log.error(message.getMessage());
+                            }
+                            System.exit(1);
+                        } catch (IllegalArgumentException exc) {
+                            log.error(exc.getMessage());
+                            System.exit(1);
+                        }
                     }
 
                     InstanceFactory.getInstance(MetadataRepository.class).open(commandDef.readonlyRepository());
