@@ -5,9 +5,6 @@ import java.io.IOException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.google.inject.ProvisionException;
-import com.google.inject.spi.Message;
-import com.underscoreresearch.backup.model.BackupConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -17,8 +14,11 @@ import org.apache.commons.cli.ParseException;
 
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.inject.ProvisionException;
+import com.google.inject.spi.Message;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.StateLogger;
 
 @Slf4j

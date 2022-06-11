@@ -2,7 +2,7 @@ import * as React from 'react';
 import {useEffect} from 'react';
 import {FixedSizeList as List} from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import {Checkbox, CircularProgress, FormControlLabel} from "@mui/material";
+import {Checkbox, CircularProgress, FormControlLabel, Tooltip} from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import {ChevronRight, KeyboardArrowDown, Menu} from "@mui/icons-material";
 import {BackupDefaults, BackupFile, BackupFilter, BackupSetRoot} from "../api";
@@ -64,6 +64,8 @@ export interface SetTreeViewProps {
     fileFetcher: (node: string) => Promise<BackupFile[] | undefined>,
     stateValue: string,
     defaults: BackupDefaults,
+    hideRoot?: boolean,
+    rootName?: string,
     onChange: (roots: BackupSetRoot[]) => void,
     onFileDetailPopup?: (path: string) => Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
         => React.ReactFragment) | undefined>
@@ -225,7 +227,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
             items: [{
                 path: "/",
                 level: 0,
-                name: "Filesystem Root",
+                name: props.rootName ? props.rootName : "Filesystem Root",
                 hasChildren: true,
                 expanded: false,
                 loading: true,
@@ -351,6 +353,10 @@ export default function FileTreeView(props: SetTreeViewProps) {
             }
         }
 
+        function formatPath(path: string) {
+            return path.replaceAll("/", props.defaults.pathSeparator);
+        }
+
         // @ts-ignore
         return <FormControlLabel style={{width: "100%"}}
                                  control={
@@ -365,7 +371,9 @@ export default function FileTreeView(props: SetTreeViewProps) {
                                  }
                                  label={
                                      <span style={{width: "100%", display: "flex", alignItems: "center"}}>
-                                    <span style={{width: "100%"}}>{itemProps.item.name}</span>
+                                         <Tooltip title={formatPath(itemProps.item.path)} placement={"bottom"}>
+                                             <span style={{width: "100%"}}>{itemProps.item.name}</span>
+                                         </Tooltip>
 
                                          {!itemProps.item.hasChildren &&
                                              <span style={{
@@ -446,56 +454,58 @@ export default function FileTreeView(props: SetTreeViewProps) {
         index: number,
         style: React.CSSProperties
     }) {
-        const item = state.items[rowProps.index];
+        const item = state.items[rowProps.index + (props.hideRoot && state.items.length > 1 ? 1 : 0)];
 
         return <div style={{
             ...rowProps.style,
             width: "100%",
             display: "flex"
         }}>
-            <div style={{width: (16 * item.level) + "px"}}/>
-            <div style={{width: "48px"}}>
-                {
-                    item.hasChildren &&
-                    (
-                        item.loading ?
-                            <div style={{width: "43px", display: "flex", height: "100%", alignItems: "center"}}>
-                                <CircularProgress size={24}/>
-                            </div>
-                            :
-                            <IconButton color="inherit" aria-label="Expand" component="span" onClick={() => {
+            <div style={{width: (16 * Math.max(0, item.level - (props.hideRoot ? 1 : 0))) + "px"}}/>
+            {(!props.hideRoot || state.items.length == 1) &&
+                <div style={{width: "48px"}}>
+                    {
+                        item.hasChildren &&
+                        (
+                            item.loading ?
+                                <div style={{width: "43px", display: "flex", height: "100%", alignItems: "center"}}>
+                                    <CircularProgress size={24}/>
+                                </div>
+                                :
+                                <IconButton color="inherit" aria-label="Expand" component="span" onClick={() => {
 
-                                const newItems = [...state.items];
-                                newItems[rowProps.index] = {
-                                    ...item,
-                                    expanded: !item.expanded,
-                                    loading: !item.expanded
-                                };
+                                    const newItems = [...state.items];
+                                    newItems[rowProps.index] = {
+                                        ...item,
+                                        expanded: !item.expanded,
+                                        loading: !item.expanded
+                                    };
 
-                                if (item.expanded) {
-                                    let i;
-                                    for (i = rowProps.index + 1; i < state.items.length && state.items[i].level > item.level; i++) {
-                                        // Nop
+                                    if (item.expanded) {
+                                        let i;
+                                        for (i = rowProps.index + 1; i < state.items.length && state.items[i].level > item.level; i++) {
+                                            // Nop
+                                        }
+                                        newItems.splice(rowProps.index + 1, i - rowProps.index - 1);
+                                    } else {
+                                        loadPath(item.path);
                                     }
-                                    newItems.splice(rowProps.index + 1, i - rowProps.index - 1);
-                                } else {
-                                    loadPath(item.path);
-                                }
 
-                                updateState({
-                                    ...state,
-                                    items: newItems
-                                });
-                            }}>
-                                {
-                                    item.expanded ?
-                                        <KeyboardArrowDown/>
-                                        : <ChevronRight/>
-                                }
-                            </IconButton>
-                    )
-                }
-            </div>
+                                    updateState({
+                                        ...state,
+                                        items: newItems
+                                    });
+                                }}>
+                                    {
+                                        item.expanded ?
+                                            <KeyboardArrowDown/>
+                                            : <ChevronRight/>
+                                    }
+                                </IconButton>
+                        )
+                    }
+                </div>
+            }
             <FileDetails item={item}/>
         </div>
     }
@@ -518,7 +528,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
                         <List
                             className="List fileTreeList"
                             height={height}
-                            itemCount={state.items.length}
+                            itemCount={state.items.length - (props.hideRoot && state.items.length > 1 ? 1 : 0)}
                             itemSize={40}
                             width={width}
                         >

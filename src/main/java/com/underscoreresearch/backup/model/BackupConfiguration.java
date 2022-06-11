@@ -46,6 +46,17 @@ public class BackupConfiguration {
     }
 
     @JsonIgnore
+    public long getProperty(String name, long defaultValue) {
+        if (properties != null) {
+            String val = properties.get(name);
+            if (val != null) {
+                return Long.parseLong(val);
+            }
+        }
+        return defaultValue;
+    }
+
+    @JsonIgnore
     public String getProperty(String name, String defaultValue) {
         if (properties != null) {
             String val = properties.get(name);

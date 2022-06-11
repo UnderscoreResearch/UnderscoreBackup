@@ -8,9 +8,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 
-import com.underscoreresearch.backup.block.FileDownloader;
-import com.underscoreresearch.backup.cli.helpers.BlockRefresher;
-import com.underscoreresearch.backup.io.implementation.DownloadSchedulerImpl;
 import org.apache.commons.cli.CommandLine;
 
 import com.google.common.collect.Lists;
@@ -25,7 +22,9 @@ import com.underscoreresearch.backup.block.assignments.LargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.RawLargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.SmallFileBlockAssignment;
 import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
+import com.underscoreresearch.backup.cli.helpers.BlockRefresher;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
+import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.FileScanner;
@@ -44,7 +43,6 @@ import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;

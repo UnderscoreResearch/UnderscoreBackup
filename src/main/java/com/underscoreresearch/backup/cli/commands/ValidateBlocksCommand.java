@@ -1,9 +1,9 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.cli.CommandPlugin;
+import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;

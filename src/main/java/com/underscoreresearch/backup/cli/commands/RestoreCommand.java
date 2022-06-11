@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.underscoreresearch.backup.cli.helpers.RestoreExecutor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -22,6 +21,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
+import com.underscoreresearch.backup.cli.helpers.RestoreExecutor;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;

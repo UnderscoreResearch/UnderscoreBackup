@@ -201,10 +201,18 @@ export async function GetLocalFiles(path: string): Promise<BackupFile[] | undefi
     return await MakeCall("local-files/" + encodeURIComponent(path));
 }
 
-export async function GetBackupFiles(path: string, timestamp?: Date): Promise<BackupFile[] | undefined> {
-    let url = "backup-files/" + encodeURIComponent(path);
+export async function GetBackupFiles(path: string, includeDeleted: boolean, timestamp?: Date): Promise<BackupFile[] | undefined> {
+    let url = "backup-files/" + encodeURIComponent(path) + "?include-deleted=" + (includeDeleted ? "true" : "false");
     if (timestamp) {
-        url += "?timestamp=" + timestamp.getTime();
+        url += "&timestamp=" + timestamp.getTime();
+    }
+    return await MakeCall(url);
+}
+
+export async function GetSearchBackup(query: string, includeDeleted: boolean, timestamp?: Date): Promise<BackupFile[] | undefined> {
+    let url = "search-backup?q=" + encodeURIComponent(query) + "&include-deleted=" + (includeDeleted ? "true" : "false");
+    if (timestamp) {
+        url += "&timestamp=" + timestamp.getTime();
     }
     return await MakeCall(url);
 }

@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
-import com.underscoreresearch.backup.manifest.ManifestManager;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -32,6 +31,7 @@ import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;

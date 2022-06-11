@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import com.underscoreresearch.backup.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,6 +22,12 @@ import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
@@ -185,15 +190,18 @@ public class BlockValidator implements StatusLogger {
                         needsRefresh = new ArrayList<>();
                     }
                     needsRefresh.add(storage);
-                    anyChange = true;
                 }
             }
             i++;
         }
-        if (anyChange) {
+        if (anyChange || needsRefresh != null) {
             if (needsRefresh != null && needsRefresh.size() > 0) {
                 try {
-                    blockRefresher.refreshStorage(block, needsRefresh);
+                    if (!blockRefresher.refreshStorage(block, needsRefresh)) {
+                        if (anyChange) {
+                            repository.addBlock(block);
+                        }
+                    }
                 } catch (IOException e) {
                     log.error("Failed to refresh block {}", block.getHash(), e);
                 }
@@ -236,8 +244,10 @@ public class BlockValidator implements StatusLogger {
                                         + readableEta(processedSteps.get(), totalSteps.get(),
                                         Duration.ofMillis(elapsedMilliseconds))));
                 if (blockRefresher.getRefreshedBlocks() > 0) {
-                    ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH", "Block storage refreshed",
+                    ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH", "Refreshed storage blocks",
                             blockRefresher.getRefreshedBlocks(), readableNumber(blockRefresher.getRefreshedBlocks())));
+                    ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH_SIZE", "Refreshed storage uploaded",
+                            blockRefresher.getRefreshedUploadSize(), readableSize(blockRefresher.getRefreshedUploadSize())));
                 }
                 return ret;
             }

@@ -6,10 +6,10 @@ import org.apache.commons.cli.CommandLine;
 
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
+import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @CommandPlugin(value = "trim-repository", description = "Apply retention policies. Use --force flag to delete files not in any defined set.",
