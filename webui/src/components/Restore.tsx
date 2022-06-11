@@ -1,15 +1,36 @@
 import * as React from 'react';
-import {Button, Checkbox, FormControlLabel, List, ListItem, Popover, Stack, TextField} from "@mui/material";
+import {
+    Button,
+    Checkbox,
+    FormControlLabel,
+    InputAdornment,
+    List,
+    ListItem,
+    Popover,
+    Stack,
+    TextField
+} from "@mui/material";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import FileTreeView, {formatLastChange, formatSize, pathName} from "./FileTreeView"
-import {BackupDefaults, BackupFile, BackupSetRoot, DownloadBackupFile, GetBackupFiles, GetBackupVersions} from '../api';
+import {
+    BackupDefaults,
+    BackupFile,
+    BackupSetRoot,
+    DownloadBackupFile,
+    GetBackupFiles,
+    GetBackupVersions,
+    GetSearchBackup
+} from '../api';
 import DateTimePicker from '@mui/lab/DateTimePicker';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
 import LocalizationProvider from '@mui/lab/LocalizationProvider';
+import Search from '@mui/icons-material/Search';
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import {DisplayMessage} from "../App";
+import IconButton from "@mui/material/IconButton";
+import {Clear} from "@mui/icons-material";
 
 export interface RestorePropsChange {
     passphrase: string,
@@ -37,6 +58,8 @@ export interface RestoreState {
     passphrase: string,
     timestamp?: Date,
     current: boolean,
+    search: string,
+    showingSearch: string,
     roots: BackupSetRoot[],
     overwrite: boolean,
     destination?: string,
@@ -48,6 +71,8 @@ export default function Restore(props: RestoreProps) {
         passphrase: props.passphrase ? props.passphrase : "",
         roots: props.roots,
         timestamp: props.timestamp,
+        search: "",
+        showingSearch: "",
         current: !props.timestamp,
         overwrite: props.overwrite,
         destination: props.destination ? props.destination : props.defaultDestination,
@@ -130,6 +155,17 @@ export default function Restore(props: RestoreProps) {
         return undefined;
     }
 
+    function fetchContents(path: string) {
+        if (state.showingSearch) {
+            return GetSearchBackup(state.showingSearch, state.includeDeleted ? true : false,
+                state.current ? undefined : state.timestamp);
+        } else {
+            return GetBackupFiles(path,
+                state.includeDeleted ? true : false,
+                state.current ? undefined : state.timestamp);
+        }
+    }
+
     if (!props.passphrase || !props.validatedPassphrase) {
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
@@ -194,11 +230,40 @@ export default function Restore(props: RestoreProps) {
                 p: 2
             }}>
                 <DividerWithText>Contents selection</DividerWithText>
+                <TextField
+                    fullWidth={true}
+                    label="Search repository using Regular Expressions"
+                    variant={"standard"}
+                    value={state.search}
+                    onChange={(event) => setState({
+                        ...state,
+                        search: event.target.value
+                    })}
+                    style={{marginBottom: "8px"}}
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position={"end"}>
+                                {
+                                    state.showingSearch &&
+                                    <IconButton>
+                                        <Clear onClick={(e) => setState({...state, showingSearch: ""})}/>
+                                    </IconButton>
+                                }
+                                <IconButton>
+                                    <Search onClick={(e) => setState({...state, showingSearch: state.search})}/>
+                                </IconButton>
+                            </InputAdornment>
+                        )
+                    }}
+                />
                 <FileTreeView roots={state.roots}
                               defaults={props.defaults}
+                              hideRoot={!!state.showingSearch}
+                              rootName={state.showingSearch ? "Searching" : ""}
                               onFileDetailPopup={fetchTooltipContents}
-                              stateValue={state.current + (!state.timestamp ? "" : state.timestamp.getTime().toString()) + state.includeDeleted}
-                              fileFetcher={(path) => GetBackupFiles(path, state.current ? undefined : state.timestamp)}
+                              stateValue={state.current + (!state.timestamp ? "" : state.timestamp.getTime().toString())
+                                  + state.includeDeleted + state.showingSearch}
+                              fileFetcher={(path) => fetchContents(path)}
                               onChange={updateSelection}/>
             </Paper>
             <Paper sx={{

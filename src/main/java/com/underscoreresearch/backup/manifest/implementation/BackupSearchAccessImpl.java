@@ -71,15 +71,15 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
             .build(new CacheLoader<>() {
                 @Override
                 public Set<String> load(String key) throws Exception {
-                    Set<String> ret = contentsAccess.directoryFiles(key).stream()
-                            .map(t -> t.getPath()).collect(Collectors.toSet());
-                    if (ret == null) {
+                    List<BackupFile> directory = contentsAccess.directoryFiles(key);
+                    if (directory == null) {
                         return new HashSet<>();
                     }
+                    Set<String> ret = directory.stream()
+                            .map(t -> t.getPath()).collect(Collectors.toSet());
                     return ret;
                 }
             });
-
 
     private BackupFile findSearchFile(List<BackupFile> files) {
         BackupFile file = null;

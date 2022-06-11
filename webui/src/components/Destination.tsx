@@ -218,7 +218,7 @@ function SharedProperties(props: {
             <DividerWithText>Maximum Retention</DividerWithText>
         </Grid>
         <Grid item xs={12}>
-            <Timespan timespan={state.maxRetention ? state.maxRetention : { unit: "FOREVER"}}
+            <Timespan timespan={state.maxRetention ? state.maxRetention : {unit: "FOREVER"}}
                       onChange={(newTimespan) => {
                           const sendState = {
                               ...state,

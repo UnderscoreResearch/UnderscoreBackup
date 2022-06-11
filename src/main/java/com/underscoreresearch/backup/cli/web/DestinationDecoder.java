@@ -19,11 +19,10 @@ import org.takes.rq.RqHref;
 
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
-import com.underscoreresearch.backup.manifest.implementation.BackupContentsAccessImpl;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
@@ -85,8 +84,15 @@ public final class DestinationDecoder {
             timestamp = Long.parseLong(ts);
         }
 
-        BackupContentsAccess access = new BackupContentsAccessImpl(
-                InstanceFactory.getInstance(MetadataRepository.class), timestamp, false);
+        boolean deleted = false;
+        for (String val : href.param("include-deleted")) {
+            if ("true".equals(val)) {
+                deleted = true;
+            }
+        }
+
+        BackupContentsAccess access = InstanceFactory.getInstance(ManifestManager.class)
+                .backupContents(timestamp, deleted);
 
         List<BackupFile> ret = access.directoryFiles(path);
         return ret != null ? ret : new ArrayList<>();

@@ -126,6 +126,7 @@ public class WebServer {
 
                                     new FkRegex(base + "/api/local-files(/.*)?", new ListLocalFilesGet(base)),
                                     new FkRegex(base + "/api/backup-files(/.*)?", new ListBackupFilesGet(base)),
+                                    new FkRegex(base + "/api/search-backup", new SearchBackupFilesGet(base)),
                                     new FkRegex(base + "/api/backup-versions(/.*)?", new ListBackupVersionsGet(base)),
                                     new FkRegex(base + "/api/destination-files(/.*)?", new ListDestinationFilesGet(base)),
                                     new FkRegex(base + "/api/activity", new ActivityGet()),

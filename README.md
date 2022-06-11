@@ -193,7 +193,6 @@ Future feature ideas after first stable release is our.
 
 * Include POSIX file metadata in backup such as permissions and ownership.
 * Add support for immediate incremental backups.
-* Add a search functionality to the UI.
 * Support backing up symbolic links and special files.
 * Allow secure sharing of part of backup between computers and people.
 * Add support for Azure Block Storage destination.

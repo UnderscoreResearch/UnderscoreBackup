@@ -84,8 +84,14 @@ public class RestoreExecutor {
             destination = destination.substring(0, destination.length() - 1);
 
         List<BackupFile> files = contents.directoryFiles(sourceFile.getPath());
-        if (files == null && sourceFile.getPath().endsWith(PATH_SEPARATOR) && sourceFile.getPath().length() > 1) {
-            String strippedFilename = sourceFile.getPath().substring(0, sourceFile.getPath().length() - 1);
+        if (files == null && sourceFile.getPath().length() > 1) {
+            final String strippedFilename;
+
+            if (sourceFile.getPath().endsWith(PATH_SEPARATOR))
+                strippedFilename = sourceFile.getPath().substring(0, sourceFile.getPath().length() - 1);
+            else
+                strippedFilename = sourceFile.getPath();
+
             files = contents.directoryFiles(strippedFilename.substring(0, strippedFilename.lastIndexOf(PATH_SEPARATOR)));
             if (files != null) {
                 files = files.stream().filter(file -> file.getPath().equals(strippedFilename))

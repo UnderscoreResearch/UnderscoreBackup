@@ -1,15 +1,6 @@
 package com.underscoreresearch.backup.cli.helpers;
 
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.block.BlockDownloader;
-import com.underscoreresearch.backup.block.assignments.SmallFileBlockAssignment;
-import com.underscoreresearch.backup.block.implementation.BlockDownloaderImpl;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.UploadScheduler;
-import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
-import com.underscoreresearch.backup.model.*;
-import lombok.extern.slf4j.Slf4j;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,12 +10,23 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.underscoreresearch.backup.utils.LogUtil.*;
+import lombok.extern.slf4j.Slf4j;
 
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.HTreeMap;
 import org.mapdb.Serializer;
+
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.block.BlockDownloader;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
 public class BlockRefresher extends SchedulerImpl {
@@ -34,6 +36,9 @@ public class BlockRefresher extends SchedulerImpl {
     private final MetadataRepository repository;
     private final ConcurrentLinkedQueue<BackupBlock> pendingBlockUpdates = new ConcurrentLinkedQueue<>();
     private final AtomicLong refreshedBlocks = new AtomicLong();
+    private final AtomicLong uploadedSize = new AtomicLong();
+    private final long maximumRefreshed;
+
     private DB processedBlockDb;
     private HTreeMap<String, Boolean> processedBlockMap;
 
@@ -47,9 +52,11 @@ public class BlockRefresher extends SchedulerImpl {
         this.uploadScheduler = uploadScheduler;
         this.configuration = configuration;
         this.repository = repository;
+
+        maximumRefreshed = configuration.getProperty("maximumRefreshedBytes", Long.MAX_VALUE);
     }
 
-    public synchronized void refreshStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
+    public synchronized boolean refreshStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
         if (processedBlockMap == null) {
             File tempFile = File.createTempFile("block", ".db");
 
@@ -63,6 +70,12 @@ public class BlockRefresher extends SchedulerImpl {
             processedBlockMap = processedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
                     Serializer.BOOLEAN).createOrOpen();
             refreshedBlocks.set(0);
+            uploadedSize.set(0);
+        }
+
+        if (uploadedSize.get() > maximumRefreshed) {
+            debug(() -> log.debug("Skipped updating {} with refreshed locations", block.getHash()));
+            return false;
         }
 
         if (!processedBlockMap.containsKey(block.getHash())) {
@@ -75,6 +88,7 @@ public class BlockRefresher extends SchedulerImpl {
                         BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
                         List<byte[]> partData = ErrorCorrectorFactory.encodeBlocks(destination.getErrorCorrection(), storage,
                                 blockDownloader.downloadEncryptedBlockStorage(block, storage));
+                        partData.forEach(part -> uploadedSize.addAndGet(part.length));
 
                         String[] parts = new String[partData.size()];
                         AtomicInteger completed = new AtomicInteger();
@@ -113,10 +127,16 @@ public class BlockRefresher extends SchedulerImpl {
 
             postPending();
         }
+
+        return true;
     }
 
     public long getRefreshedBlocks() {
         return refreshedBlocks.get();
+    }
+
+    public long getRefreshedUploadSize() {
+        return uploadedSize.get();
     }
 
     private void postPending() {
