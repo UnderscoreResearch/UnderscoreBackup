@@ -63,7 +63,9 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         lock.lock();
         shutdown = false;
 
-        duration = Stopwatch.createStarted();
+        if (duration == null) {
+            duration = Stopwatch.createStarted();
+        }
         lastPath = Duration.ZERO;
 
         pendingPaths = stripExcludedPendingPaths(backupSet, repository.getActivePaths(backupSet.getId()));

@@ -456,6 +456,7 @@ export default function MainApp() {
                                                     overwrite={state.restoreOverwrite}
                                                     timestamp={state.restoreTimestamp}
                                                     validatedPassphrase={state.validatedPassphrase}
+                                                    onSubmit={applyChanges}
                                                     onChange={updateRestore}/>}/>
             <Route path="destinations" element={<Destinations destinations={getDestinationList()}
                                                               dontDelete={[state.currentConfiguration.manifest.destination]}

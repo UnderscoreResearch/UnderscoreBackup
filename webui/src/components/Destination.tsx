@@ -36,6 +36,28 @@ export interface DestinationProps {
     manifestDestination?: boolean
 }
 
+export interface S3DestinationProps extends DestinationProps {
+    accessKeyLabel: string,
+    secretKeyLabel: string,
+    console: string,
+    regionList?: string[],
+    createState: (props: DestinationProps) => S3DestinationState,
+    createDestination: (state: S3DestinationState) => BackupDestination
+}
+
+interface S3DestinationState {
+    bucket: string,
+    prefix: string,
+    accessKeyId: string,
+    secretAccessKey: string,
+    maxRetention: BackupTimespan | undefined,
+    encryption: string,
+    errorCorrection: string,
+    region: string,
+    apiEndpoint?: string,
+    limits: BackupLimits | undefined
+}
+
 export interface TabState {
     destination: BackupDestination
     valid: boolean
@@ -92,6 +114,22 @@ const s3Regions = [
     "us-gov-west-1",
     "us-west-1",
     "us-west-2"
+];
+
+const wasabiRegions = [
+    "ap-northeast-1",
+    "ap-northeast-2",
+    "ap-southeast-1",
+    "ap-southeast-2",
+    "ca-central-1",
+    "eu-central-1",
+    "eu-central-2",
+    "eu-west-1",
+    "eu-west-2",
+    "us-central-1",
+    "us-east-1",
+    "us-east-2",
+    "us-west-1"
 ];
 
 interface SharedState {
@@ -508,51 +546,14 @@ function WindowsShareDestination(props: DestinationProps) {
     </Grid>
 }
 
+function BaseS3Destination(props: S3DestinationProps) {
+    const [state, setState] = React.useState(props.createState(props));
 
-function S3Destination(props: DestinationProps) {
-    const [state, setState] = React.useState({
-        endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "s3://",
-        accessKeyId: props.destination.principal ? props.destination.principal : "",
-        secretAccessKey: props.destination.credential ? props.destination.credential : "",
-        maxRetention: props.destination.maxRetention,
-        encryption: props.destination.encryption ? props.destination.encryption : "AES256" as string,
-        errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
-        region: props.destination.properties && props.destination.properties["region"] ? props.destination.properties["region"] : "us-east-1",
-        apiEndpoint: props.destination.properties && props.destination.properties["apiEndpoint"] ? props.destination.properties["apiEndpoint"] : "",
-        limits: props.destination.limits
-    });
-
-    function updateState(newState: {
-        endpointUri: string,
-        accessKeyId: string,
-        secretAccessKey: string,
-        encryption: string,
-        maxRetention: BackupTimespan | undefined,
-        errorCorrection: string,
-        region: string,
-        apiEndpoint: string,
-        limits: BackupLimits | undefined
-    }) {
+    function updateState(newState: S3DestinationState) {
         if (props.destinationUpdated) {
-            const valid = !(!(newState.endpointUri && newState.accessKeyId && newState.secretAccessKey && newState.region));
-            const properties = {} as PropertyMap;
-            if (newState.region) {
-                properties["region"] = newState.region;
-            }
-            if (newState.apiEndpoint) {
-                properties["apiEndpoint"] = newState.apiEndpoint;
-            }
-            props.destinationUpdated(valid, {
-                type: "S3",
-                endpointUri: newState.endpointUri,
-                principal: newState.accessKeyId,
-                credential: newState.secretAccessKey,
-                encryption: newState.encryption,
-                maxRetention: newState.maxRetention,
-                errorCorrection: newState.errorCorrection,
-                properties: properties,
-                limits: newState.limits
-            });
+            const destination = props.createDestination(newState);
+            const valid = !(!(destination.endpointUri && destination.principal && destination.credential && destination.properties && (destination.properties["region"] || destination.properties["apiEndpoint"])));
+            props.destinationUpdated(valid, destination);
         }
 
         setState(newState);
@@ -568,22 +569,38 @@ function S3Destination(props: DestinationProps) {
     }
 
     return <Grid container spacing={2}>
-        <Grid item xs={12}>
-            <TextField label="S3 URL" variant="outlined"
+        <Grid item xs={5}>
+            <TextField label="Bucket" variant="outlined"
                        required={true}
                        fullWidth={true}
-                       value={state.endpointUri}
-                       error={!state.endpointUri}
+                       value={state.bucket}
+                       error={!state.bucket}
                        onChange={(e) => updateState({
                            ...state,
-                           endpointUri: e.target.value
+                           bucket: e.target.value
                        })}/>
+        </Grid>
+        <Grid item xs={5}>
+            <TextField label="Prefix" variant="outlined"
+                       required={true}
+                       fullWidth={true}
+                       value={state.prefix}
+                       error={!state.prefix}
+                       onChange={(e) => updateState({
+                           ...state,
+                           prefix: e.target.value
+                       })}/>
+        </Grid>
+        <Grid item xs={2}>
+            <div style={{height: "100%", width: "100%", display: "flex", alignItems: "center"}}>
+            <Button fullWidth={true} onClick={e => window.open(props.console)}>Console</Button>
+            </div>
         </Grid>
         <Grid item xs={12}>
             <DividerWithText>Authentication</DividerWithText>
         </Grid>
         <Grid item xs={12}>
-            <TextField label="AWS Access Key Id" variant="outlined"
+            <TextField label={props.accessKeyLabel} variant="outlined"
                        required={true}
                        fullWidth={true}
                        value={state.accessKeyId}
@@ -594,7 +611,7 @@ function S3Destination(props: DestinationProps) {
                        })}/>
         </Grid>
         <Grid item xs={12}>
-            <TextField label="AWS Secret Access Key" variant="outlined"
+            <TextField label={props.secretKeyLabel} variant="outlined"
                        required={true}
                        fullWidth={true}
                        value={state.secretAccessKey}
@@ -608,37 +625,189 @@ function S3Destination(props: DestinationProps) {
         <Grid item xs={12}>
             <DividerWithText>Endpoint</DividerWithText>
         </Grid>
-        <Grid item xs={12}>
-            <Autocomplete
-                disablePortal
-                options={s3Regions}
-                value={state.region}
-                onInputChange={(event, newInputVale) => {
-                    updateRegion(newInputVale)
-                }
-                }
-                renderInput={(params) =>
-                    <TextField {...params} label="region" variant="outlined"
-                               required={true}
-                               fullWidth={true}
-                               error={!state.region}/>}
-            />
-        </Grid>
-        <Grid item xs={12}>
-            <TextField label="Alternate API Endpoint" variant="outlined"
-                       fullWidth={true}
-                       value={state.apiEndpoint}
-                       onChange={(e) => updateState({
-                           ...state,
-                           apiEndpoint: e.target.value
-                       })}/>
-        </Grid>
+        {
+            props.regionList &&
+            <Grid item xs={12}>
+                <Autocomplete
+                    disablePortal
+                    options={s3Regions}
+                    value={state.region}
+                    onInputChange={(event, newInputVale) => {
+                        updateRegion(newInputVale)
+                    }
+                    }
+                    renderInput={(params) =>
+                        <TextField {...params} label="region" variant="outlined"
+                                   required={true}
+                                   fullWidth={true}
+                                   error={!state.region}/>}
+                />
+            </Grid>
+        }
+        {
+            state.apiEndpoint !== undefined &&
+            <Grid item xs={12}>
+                <TextField label={props.regionList ? "Alternate API Endpoint" : "API Endpoint"} variant="outlined"
+                           required={!props.regionList}
+                           fullWidth={true}
+                           value={state.apiEndpoint}
+                           error={!state.apiEndpoint && !props.regionList}
+                           onChange={(e) => updateState({
+                               ...state,
+                               apiEndpoint: e.target.value
+                           })}/>
+            </Grid>
+        }
         <SharedProperties manifestDestination={props.manifestDestination}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
         }))}/>
     </Grid>
+}
+
+function expandProtocolIfMissing(endpoint: string) : string {
+    if (endpoint.indexOf("://") < 0) {
+        return "https://" + endpoint;
+    }
+    return endpoint;
+}
+
+function decodeS3Bucket(endpointUri?: string) : string {
+    if (endpointUri) {
+        const match = endpointUri.match(/^s3\:\/\/([^\/]+)/);
+        if (match && match && match[1]) {
+            return match[1];
+        }
+    }
+    return ""
+}
+
+function decodeS3Prefix(endpointUri?: string) : string {
+    if (endpointUri) {
+        const match = endpointUri.match(/^s3\:\/\/[^\/]+\/(.*)$/);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    return ""
+}
+
+function createS3EndpointUri(bucket: string, prefix: string) : string {
+    if (prefix.startsWith("/"))
+        prefix = prefix.substring(1);
+    return `s3://${bucket}/${prefix}`;
+}
+
+function createS3Destination(newState: S3DestinationState, properties?: PropertyMap) : BackupDestination {
+    return {
+        type: "S3",
+        endpointUri: createS3EndpointUri(newState.bucket, newState.prefix),
+        principal: newState.accessKeyId,
+        credential: newState.secretAccessKey,
+        encryption: newState.encryption,
+        maxRetention: newState.maxRetention,
+        errorCorrection: newState.errorCorrection,
+        properties: properties,
+        limits: newState.limits
+    }
+}
+
+function createS3State(props: DestinationProps, region: string, apiEndpoint?: string) {
+    return {
+        bucket: decodeS3Bucket(props.destination.endpointUri),
+        prefix: decodeS3Prefix(props.destination.endpointUri),
+        accessKeyId: props.destination.principal ? props.destination.principal : "",
+        secretAccessKey: props.destination.credential ? props.destination.credential : "",
+        maxRetention: props.destination.maxRetention,
+        encryption: props.destination.encryption ? props.destination.encryption : "AES256" as string,
+        errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
+        region: region,
+        apiEndpoint: apiEndpoint,
+        limits: props.destination.limits
+    }
+}
+
+export function S3Destination(props: DestinationProps) {
+    return BaseS3Destination({
+        ...props,
+        accessKeyLabel: "AWS Access Key Id",
+        secretKeyLabel: "AWS Secret Access Key",
+        regionList: s3Regions,
+        console: "https://console.aws.amazon.com/console/home",
+        createState: (props: DestinationProps) => createS3State(props,
+            props.destination.properties && props.destination.properties["region"] ? props.destination.properties["region"] : "us-east-1",
+            props.destination.properties && props.destination.properties["apiEndpoint"] ? props.destination.properties["apiEndpoint"] : ""),
+        createDestination: (newState: S3DestinationState) => {
+            const properties = {} as PropertyMap;
+            if (newState.region) {
+                properties["region"] = newState.region;
+            }
+            if (newState.apiEndpoint) {
+                properties["apiEndpoint"] = expandProtocolIfMissing(newState.apiEndpoint);
+            }
+            return createS3Destination(newState, properties);
+        }
+    });
+}
+
+export function WasabiDestination(props: DestinationProps) {
+    return BaseS3Destination({
+        ...props,
+        accessKeyLabel: "Access Key",
+        secretKeyLabel: "Secret Key",
+        console: "https://console.wasabisys.com/",
+        regionList: wasabiRegions,
+        createState: (props: DestinationProps) => createS3State(props,
+            props.destination.properties && props.destination.properties["region"] ? props.destination.properties["region"] : "us-east-1",
+            undefined),
+        createDestination: (newState: S3DestinationState) => {
+            const properties = {} as PropertyMap;
+            if (newState.region) {
+                properties["region"] = newState.region;
+                properties["apiEndpoint"] = `https://s3.${newState.region}.wasabisys.com`;
+            }
+            return createS3Destination(newState, properties);
+        }
+    });
+}
+
+export function BackblazeDestination(props: DestinationProps) {
+    return BaseS3Destination({
+        ...props,
+        accessKeyLabel: "Key ID",
+        secretKeyLabel: "Application Key",
+        console: "https://secure.backblaze.com/b2_buckets.htm",
+        createState: (props: DestinationProps) => createS3State(props,
+            "",
+            props.destination.properties && props.destination.properties["apiEndpoint"] ? props.destination.properties["apiEndpoint"] : ""),
+        createDestination: (newState: S3DestinationState) => {
+            const properties = {} as PropertyMap;
+            if (newState.apiEndpoint) {
+                properties["apiEndpoint"] = expandProtocolIfMissing(newState.apiEndpoint);
+            }
+            return createS3Destination(newState, properties);
+        }
+    });
+}
+
+export function IDriveDestination(props: DestinationProps) {
+    return BaseS3Destination({
+        ...props,
+        accessKeyLabel: "Access key",
+        secretKeyLabel: "Secret Key",
+        console: "https://app.idrivee2.com/dashboard",
+        createState: (props: DestinationProps) => createS3State(props,
+            "",
+            props.destination.properties && props.destination.properties["apiEndpoint"] ? props.destination.properties["apiEndpoint"] : ""),
+        createDestination: (newState: S3DestinationState) => {
+            const properties = {} as PropertyMap;
+            if (newState.apiEndpoint) {
+                properties["apiEndpoint"] = expandProtocolIfMissing(newState.apiEndpoint);
+            }
+            return createS3Destination(newState, properties);
+        }
+    });
 }
 
 export default function Destination(props: DestinationProps) {
@@ -655,10 +824,19 @@ export default function Destination(props: DestinationProps) {
                     defaultType = 1;
                     break;
                 case "S3":
-                    defaultType = 2;
+                    const apiEndpoint = destination.properties && destination.properties["apiEndpoint"] ? destination.properties["apiEndpoint"] : "";
+                    if (apiEndpoint.endsWith(".backblazeb2.com")) {
+                        defaultType = 3;
+                    } else if (apiEndpoint.endsWith(".wasabisys.com")){
+                        defaultType = 4;
+                    } else if (apiEndpoint.match(/\.idrivee2-\d\.com$/)){
+                        defaultType = 5;
+                    } else {
+                        defaultType = 2;
+                    }
                     break;
                 case "DROPBOX":
-                    defaultType = 3;
+                    defaultType = 6;
                     break;
             }
 
@@ -673,7 +851,7 @@ export default function Destination(props: DestinationProps) {
         }
     });
 
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    const handleChange = (event: any, newValue: number) => {
         if (props.destinationUpdated) {
             const currentType = state.destinationsByTab.get(newValue);
             if (currentType) {
@@ -719,13 +897,21 @@ export default function Destination(props: DestinationProps) {
     }
 
     return <Paper sx={{p: 2}}>
-        <DividerWithText><span style={{fontSize: 22}}>Destination type</span></DividerWithText>
-        <Tabs value={state.type} onChange={handleChange}>
-            <Tab label="Local Directory" id={"tabLocalDirectory"}/>
-            <Tab label="Windows Share" id={"tabWindowsShare"}/>
-            <Tab label="S3" id={"tabS3"}/>
-            <Tab label="Dropbox" id={"tabDropbox"}/>
-        </Tabs>
+        <DividerWithText>Type</DividerWithText>
+
+        <Select id="selectType" fullWidth={true} value={state.type}
+                style={{ marginLeft: "8px", marginRight: "-8px", marginTop: "4px" }}
+                onChange={e => handleChange(undefined, parseInt(e.target.value.toString()))}>
+            <MenuItem value="0" id={"typeLocalDirectory"}>Local Directory</MenuItem>
+            <MenuItem value="1" id={"typeWindowsShare"}>Windows Share</MenuItem>
+            <MenuItem value="2" id={"typeS3"}>Amazon S3</MenuItem>
+            <MenuItem value="3" id={"typeBackblaze"}>Backblaze B2 Cloud Storage</MenuItem>
+            <MenuItem value="4" id={"typeWasabi"}>Wasabi Cloud Storage</MenuItem>
+            <MenuItem value="5" id={"typeIDrive"}>iDrive E2</MenuItem>
+            <MenuItem value="6" id={"typeDropbox"}>Dropbox</MenuItem>
+        </Select>
+
+        <DividerWithText>Location</DividerWithText>
 
         <TabPanel value={state.type} index={0}>
             <LocalFileDestination
@@ -751,11 +937,32 @@ export default function Destination(props: DestinationProps) {
                 destinationUpdated={(valid, dest) => destinationUpdated(2, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={3}>
-            <DropboxDestination
+            <BackblazeDestination
                 manifestDestination={props.manifestDestination}
                 destination={getTabState(3).destination}
                 id={props.id}
                 destinationUpdated={(valid, dest) => destinationUpdated(3, valid, dest)}/>
+        </TabPanel>
+        <TabPanel value={state.type} index={4}>
+            <WasabiDestination
+                manifestDestination={props.manifestDestination}
+                destination={getTabState(4).destination}
+                id={props.id}
+                destinationUpdated={(valid, dest) => destinationUpdated(4, valid, dest)}/>
+        </TabPanel>
+        <TabPanel value={state.type} index={5}>
+            <IDriveDestination
+                manifestDestination={props.manifestDestination}
+                destination={getTabState(5).destination}
+                id={props.id}
+                destinationUpdated={(valid, dest) => destinationUpdated(5, valid, dest)}/>
+        </TabPanel>
+        <TabPanel value={state.type} index={6}>
+            <DropboxDestination
+                manifestDestination={props.manifestDestination}
+                destination={getTabState(6).destination}
+                id={props.id}
+                destinationUpdated={(valid, dest) => destinationUpdated(6, valid, dest)}/>
         </TabPanel>
     </Paper>
 }

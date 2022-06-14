@@ -52,16 +52,19 @@ S3IOProvider implements IOIndex, IOProvider, Closeable {
 
         AwsBasicCredentials credentials = AwsBasicCredentials.create(destination.getPrincipal(),
                 destination.getCredential());
-        String region = destination.getProperty("region", "us-east-1");
 
         S3ClientBuilder builder = S3Client.builder()
-                .region(Region.of(region))
                 .overrideConfiguration(ClientOverrideConfiguration.builder().retryPolicy(RetryPolicy.none()).build())
                 .credentialsProvider(StaticCredentialsProvider.create(credentials));
 
         String endpoint = destination.getProperty("apiEndpoint", null);
         if (endpoint != null) {
             builder.endpointOverride(URI.create(endpoint));
+        }
+
+        String region = destination.getProperty("region", null);
+        if (region != null) {
+            builder.region(Region.of(region));
         }
 
         client = builder.build();
