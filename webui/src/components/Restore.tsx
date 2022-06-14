@@ -50,6 +50,7 @@ export interface RestoreProps {
     defaults: BackupDefaults,
     roots: BackupSetRoot[],
     onChange: (state: RestorePropsChange) => void,
+    onSubmit: () => void,
     validatedPassphrase: boolean,
     includeDeleted?: boolean
 }
@@ -188,6 +189,11 @@ export default function Restore(props: RestoreProps) {
                                value={state.passphrase}
                                error={!state.passphrase}
                                type="password"
+                               onKeyDown={(e) => {
+                                   if (e.key === "Enter") {
+                                       props.onSubmit();
+                                   }
+                               }}
                                onChange={(e) => updateState({
                                    ...state,
                                    passphrase: e.target.value
@@ -239,6 +245,11 @@ export default function Restore(props: RestoreProps) {
                         ...state,
                         search: event.target.value
                     })}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            setState({...state, showingSearch: state.search});
+                        }
+                    }}
                     style={{marginBottom: "8px"}}
                     InputProps={{
                         endAdornment: (
@@ -259,7 +270,8 @@ export default function Restore(props: RestoreProps) {
                 <FileTreeView roots={state.roots}
                               defaults={props.defaults}
                               hideRoot={!!state.showingSearch}
-                              rootName={state.showingSearch ? "Searching" : ""}
+                              rootName={state.showingSearch ? "Not found" : ""}
+                              rootNameProcessing={state.showingSearch ? "Searching..." : ""}
                               onFileDetailPopup={fetchTooltipContents}
                               stateValue={state.current + (!state.timestamp ? "" : state.timestamp.getTime().toString())
                                   + state.includeDeleted + state.showingSearch}

@@ -66,6 +66,7 @@ export interface SetTreeViewProps {
     defaults: BackupDefaults,
     hideRoot?: boolean,
     rootName?: string,
+    rootNameProcessing?: string,
     onChange: (roots: BackupSetRoot[]) => void,
     onFileDetailPopup?: (path: string) => Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
         => React.ReactFragment) | undefined>
@@ -227,7 +228,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
             items: [{
                 path: "/",
                 level: 0,
-                name: props.rootName ? props.rootName : "Filesystem Root",
+                name: "Filesystem Root",
                 hasChildren: true,
                 expanded: false,
                 loading: true,
@@ -289,15 +290,8 @@ export default function FileTreeView(props: SetTreeViewProps) {
 
     function pathSelected(path: string, checked: boolean) {
         let roots: BackupSetRoot[];
-        if (path == "/") {
-            path = "";
-        }
 
-        if (checked) {
-            roots = state.roots.filter(root => !root.path.startsWith(path + "/") && root.path !== path + "/");
-        } else {
-            roots = state.roots.filter(root => !root.path.startsWith(path + "/") && root.path !== path + "/");
-        }
+        roots = state.roots.filter(root => path !== "/" && !root.path.startsWith(path + "/") && root.path !== path + "/");
 
         let notFound = true;
         roots = roots.map(root => {
@@ -357,22 +351,35 @@ export default function FileTreeView(props: SetTreeViewProps) {
             return path.replaceAll("/", props.defaults.pathSeparator);
         }
 
+        function name() {
+            if (itemProps.item.path === "/") {
+                if (itemProps.item.loading) {
+                    if (props.rootNameProcessing) {
+                        return props.rootNameProcessing;
+                    }
+                } else if (props.rootName) {
+                    return props.rootName;
+                }
+            }
+            return itemProps.item.name;
+        }
+
         // @ts-ignore
         return <FormControlLabel style={{width: "100%"}}
                                  control={
                                      <Checkbox
                                          indeterminate={selected === undefined}
                                          checked={selected === true}
+                                         disabled={itemProps.item.path === "/" && selected === false}
                                          id={"checkbox_" + pathId(itemProps.item.path)}
                                          onChange={event => pathSelected(itemProps.item.path, event.target.checked)}
-
                                          onClick={e => e.stopPropagation()}
                                      />
                                  }
                                  label={
                                      <span style={{width: "100%", display: "flex", alignItems: "center"}}>
                                          <Tooltip title={formatPath(itemProps.item.path)} placement={"bottom"}>
-                                             <span style={{width: "100%"}}>{itemProps.item.name}</span>
+                                             <span style={{width: "100%"}}>{name()}</span>
                                          </Tooltip>
 
                                          {!itemProps.item.hasChildren &&

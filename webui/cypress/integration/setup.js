@@ -2,7 +2,8 @@ const backupLocation = Cypress.env('TEST_BACKUP');
 
 it('setup', function () {
     cy.visit('http://localhost:12345/fixed/');
-    cy.get('#tabLocalDirectory').click();
+    cy.get('#selectType').click();
+    cy.get('#typeLocalDirectory').click();
     cy.get('#localFileText').clear();
     cy.get('#localFileText').type(backupLocation);
     cy.get('#acceptButton').click();
