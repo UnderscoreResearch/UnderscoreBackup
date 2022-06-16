@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -65,6 +66,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
     private final Map<String, Date> scheduledTimes = new HashMap<>();
+    private final Random random = new Random();
     private boolean shutdown;
     private boolean scheduledRestart;
     private boolean running;
@@ -340,11 +342,17 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     }
 
     private void scheduleNextAt(BackupSet set, int index, Date date) {
-        log.info("Schedule set {} to run again at {}", set.getId(), formatTimestamp(date.getTime()));
-        synchronized (scheduledTimes) {
-            scheduledTimes.put(set.getId(), date);
+        long dateTime = date.getTime();
+        int randomizeSchedule = configuration.getProperty("randomizeScheduleSeconds", 0);
+        if (randomizeSchedule > 0) {
+            dateTime += random.nextInt(randomizeSchedule) * 1000L;
         }
-        long delta = date.getTime() - new Date().getTime();
+
+        log.info("Schedule set {} to run again at {}", set.getId(), formatTimestamp(dateTime));
+        synchronized (scheduledTimes) {
+            scheduledTimes.put(set.getId(), new Date(dateTime));
+        }
+        long delta = dateTime - new Date().getTime();
         if (delta < 1) {
             delta = 1;
         }

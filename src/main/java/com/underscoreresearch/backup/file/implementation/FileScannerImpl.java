@@ -105,6 +105,9 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
             if (remainingPaths.size() > 0) {
                 log.warn("Completed with following active paths: " + String.join("; ",
                         remainingPaths.keySet()));
+                for (Map.Entry<String, BackupActivePath> entry : remainingPaths.entrySet()) {
+                    repository.popActivePath(backupSet.getId(), entry.getKey());
+                }
             }
         }
         lock.unlock();

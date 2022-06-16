@@ -96,6 +96,7 @@ interface MainAppState {
     rebuildAvailable: boolean,
     hasKey: boolean,
     loading: boolean,
+    unresponsive: boolean,
     initialLoad: boolean,
     originalConfiguration: BackupConfiguration,
     currentConfiguration: BackupConfiguration,
@@ -134,6 +135,7 @@ function defaultState(): MainAppState {
         rebuildAvailable: false,
         hasKey: false,
         loading: true,
+        unresponsive: false,
         initialLoad: true,
         originalConfiguration: defaultConfig(),
         currentConfiguration: defaultConfig(),
@@ -226,18 +228,22 @@ export default function MainApp() {
     }
 
     async function fetchActivity() {
-        if (state.originalConfiguration !== null) {
-            const activity = await GetActivity(false);
-            if (activity && JSON.stringify(activity) !== JSON.stringify(lastActivity)) {
-                lastActivity = activity;
-
-                setState((oldState) => ({
+        const activity = await GetActivity(false);
+        if (activity === undefined) {
+            setState((oldState) => {
+                return {
                     ...oldState,
-                    ...{
-                        activity: activity
-                    }
-                } as MainAppState));
-            }
+                    unresponsive: true
+                }
+            });
+        } else if (state.unresponsive || JSON.stringify(activity) !== JSON.stringify(lastActivity)) {
+            lastActivity = activity;
+
+            setState((oldState) => ({
+                ...oldState,
+                activity: activity,
+                unresponsive: false
+            } as MainAppState));
         }
     }
 
@@ -376,9 +382,9 @@ export default function MainApp() {
     }
 
     React.useEffect(() => {
+        fetchActivity();
         fetchConfig();
         const timer = setInterval(fetchActivity, 2000);
-        fetchActivity();
         return () => clearInterval(timer);
     }, []);
 
@@ -425,7 +431,11 @@ export default function MainApp() {
         return Object.keys(state.originalConfiguration.destinations).length > 0 && state.hasKey;
     }
 
-    if (state.initialLoad) {
+    if (state.unresponsive) {
+        currentProgress = "Application Unresponsive";
+        contents = <div/>
+    } else if (state.initialLoad) {
+        currentProgress = "Loading";
         contents = <div/>
     } else if (completedSetup() && state.defaults) {
         calculateStatus();
@@ -688,6 +698,7 @@ export default function MainApp() {
                     <NavigationMenu config={state.originalConfiguration}
                                     allowRestore={allowRestore}
                                     allowBackup={allowBackup}
+                                    unresponsive={state.unresponsive}
                                     hasKey={state.hasKey}/>
 
                 }
@@ -739,7 +750,7 @@ export default function MainApp() {
             </Box>
             <Backdrop
                 sx={{color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1}}
-                open={state.loading}
+                open={state.loading || state.unresponsive}
             >
                 <CircularProgress color="inherit" size={"10em"}/>
             </Backdrop>

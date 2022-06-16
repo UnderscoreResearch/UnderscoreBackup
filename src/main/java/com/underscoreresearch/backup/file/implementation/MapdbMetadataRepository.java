@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -150,6 +151,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private ReentrantLock explicitLock = new ReentrantLock();
     private ReentrantLock openLock = new ReentrantLock();
 
+    private static Map<String, MapdbMetadataRepository> openRepositories = new HashMap<>();
+
     public MapdbMetadataRepository(String dataPath) throws IOException {
         this.dataPath = dataPath;
     }
@@ -177,6 +180,12 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 close();
             }
             if (!open) {
+                synchronized (openRepositories) {
+                    while (openRepositories.containsKey(dataPath)) {
+                            openRepositories.get(dataPath).close();
+                    }
+                    openRepositories.put(dataPath, this);
+                }
                 open = true;
                 this.readOnly = readOnly;
 
@@ -320,6 +329,11 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
                 fileLock.close();
                 open = false;
+
+                synchronized (openRepositories) {
+                    openRepositories.remove(dataPath);
+                    openRepositories.notify();;
+                }
             }
         }
     }

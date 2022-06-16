@@ -80,7 +80,7 @@ function expandRoots(set: BackupSet, defaults: BackupDefaults): BackupSet {
         const root = set.roots[i];
         if (root.filters)
             root.filters = expandFilters(root.filters);
-        if (!root.path.endsWith(defaults.pathSeparator))
+        if (root.path !== "/" && !root.path.endsWith(defaults.pathSeparator))
             root.path += defaults.pathSeparator;
     }
     return set;
