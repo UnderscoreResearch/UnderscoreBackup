@@ -4,8 +4,8 @@ it('restore', function () {
     cy.get('#restorePassphrase').clear();
     cy.get('#restorePassphrase').type('12345');
     cy.get('#acceptButton').click();
-    cy.wait(1000);
-    cy.get('.fileTreeList input:not(:disabled)').check();
+    cy.wait(2000);
+    cy.get('#checkbox__').check();
     cy.get('#originalLocation').check();
     cy.get('#acceptButton').click();
     cy.get('#currentProgress').contains("Restore In Progress", {timeout: 10 * 1000});

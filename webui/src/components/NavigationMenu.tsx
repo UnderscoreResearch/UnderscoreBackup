@@ -36,11 +36,12 @@ export default function NavigationMenu(props: {
     config: BackupConfiguration,
     hasKey: boolean,
     allowRestore: boolean,
-    allowBackup: boolean
+    allowBackup: boolean,
+    unresponsive: boolean
 }) {
     var firstTime = Object.keys(props.config.destinations).length == 0 || !props.hasKey;
 
-    if (firstTime) {
+    if (firstTime && !props.unresponsive) {
         return <List component="nav">
             <ListItemButton selected={true}>
                 <ListItemIcon>

@@ -124,7 +124,7 @@ function pathId(path: string): string {
 
 function shouldExpand(roots: BackupSetRoot[], path: string): boolean {
     const matchingRoot = roots.find(item => {
-        if ((path + "/").startsWith(item.path))
+        if ((path + "/").startsWith(item.path) || item.path === "/")
             return true;
         if (item.path === path || item.path.startsWith(path + "/"))
             return true;
@@ -141,7 +141,8 @@ function shouldExpand(roots: BackupSetRoot[], path: string): boolean {
         if (matchingRoot.path.startsWith(path + "/")) {
             return true;
         }
-        let filter = findFilter(path.substring(matchingRoot.path.length), matchingRoot.filters);
+        const start = path.startsWith(matchingRoot.path) ? matchingRoot.path.length : 0;
+        let filter = findFilter(path.substring(start), matchingRoot.filters);
         if (filter.matchingChild || (filter.exactMatch && filter.filter &&
             filter.filter.children && filter.filter.children.length > 0)) {
             return true;
@@ -253,7 +254,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
 
     function isPathSelected(path: string): boolean | undefined {
         const matchingRoot = state.roots.find(item => {
-            if ((path + "/").startsWith(item.path))
+            if ((path + "/").startsWith(item.path) || item.path === "/")
                 return true;
             if (item.path === path || item.path.startsWith(path + "/"))
                 return true;
@@ -267,7 +268,10 @@ export default function FileTreeView(props: SetTreeViewProps) {
             if (matchingRoot.path.startsWith(path)) {
                 return undefined;
             }
-            let filter = findFilter(path.substring(matchingRoot.path.length), matchingRoot.filters);
+
+            const start = path.startsWith(matchingRoot.path) ? matchingRoot.path.length : 0;
+
+            let filter = findFilter(path.substring(start), matchingRoot.filters);
             if (filter.filter) {
                 if (filter.filter.type === "INCLUDE") {
                     return true;
@@ -291,15 +295,28 @@ export default function FileTreeView(props: SetTreeViewProps) {
     function pathSelected(path: string, checked: boolean) {
         let roots: BackupSetRoot[];
 
-        roots = state.roots.filter(root => path !== "/" && !root.path.startsWith(path + "/") && root.path !== path + "/");
+        if (path === "/") {
+            path = "";
+        }
+
+        roots = state.roots.filter(root => path.length > 0 && !root.path.startsWith(path + "/") && root.path !== path + "/");
 
         let notFound = true;
         roots = roots.map(root => {
             if (path.startsWith(root.path)) {
                 notFound = false;
+
                 return {
                     path: root.path,
                     filters: createFilters(path.substring(root.path.length), checked, root.filters)
+                }
+            }
+            if (root.path === "/") {
+                notFound = false;
+
+                return {
+                    path: root.path,
+                    filters: createFilters(path, checked, root.filters)
                 }
             }
             return root;
@@ -370,7 +387,6 @@ export default function FileTreeView(props: SetTreeViewProps) {
                                      <Checkbox
                                          indeterminate={selected === undefined}
                                          checked={selected === true}
-                                         disabled={itemProps.item.path === "/" && selected === false}
                                          id={"checkbox_" + pathId(itemProps.item.path)}
                                          onChange={event => pathSelected(itemProps.item.path, event.target.checked)}
                                          onClick={e => e.stopPropagation()}
