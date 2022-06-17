@@ -48,7 +48,7 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
                         }
                     } else {
                         List<BackupFile> ret = filesPerPath.get();
-                        if (pathPattern.matcher(file.getPath()).find()) {
+                        if (pathPattern.matcher(PathNormalizer.physicalPath(file.getPath())).find()) {
                             filesPerPath.set(Lists.newArrayList(file));
                         } else {
                             filesPerPath.set(null);

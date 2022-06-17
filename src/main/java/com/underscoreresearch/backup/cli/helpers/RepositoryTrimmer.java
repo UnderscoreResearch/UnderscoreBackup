@@ -315,7 +315,7 @@ public class RepositoryTrimmer implements StatusLogger {
                 }
             });
 
-            log.info("Deleted {} blocks with a total of {} parts and {} part references",
+            log.info("Removed {} blocks with a total of {} parts and {} part references",
                     readableNumber(statistics.getDeletedBlocks()),
                     readableNumber(statistics.getDeletedBlockParts()),
                     readableNumber(statistics.getDeletedBlockPartReferences()));
@@ -371,10 +371,10 @@ public class RepositoryTrimmer implements StatusLogger {
             processDeletedPaths(deletedPaths, null, statistics);
         }
 
-        log.info("Deleted {} file versions and {} entire files from repository",
+        log.info("Removed {} file versions and {} entire files from repository",
                 readableNumber(statistics.getDeletedVersions()),
                 readableNumber(statistics.getDeletedFiles()));
-        log.info("Deleted {} directory versions and {} entire directories from repository",
+        log.info("Removed {} directory versions and {} entire directories from repository",
                 readableNumber(statistics.getDeletedDirectoryVersions()),
                 readableNumber(statistics.getDeletedDirectories()));
     }

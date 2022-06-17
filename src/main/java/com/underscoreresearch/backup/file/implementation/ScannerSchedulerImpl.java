@@ -331,7 +331,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         Date date = getNextScheduleDate(set.getSchedule());
         if (date != null) {
             if (date.getTime() - new Date().getTime() > 0) {
-                scheduleNextAt(set, index, date);
+                long dateTime = date.getTime();
+                int randomizeSchedule = configuration.getProperty("randomizeScheduleSeconds", 0);
+                if (randomizeSchedule > 0) {
+                    dateTime += random.nextInt(randomizeSchedule) * 1000L;
+                }
+                scheduleNextAt(set, index, new Date(dateTime));
             }
         } else {
             synchronized (scheduledTimes) {
@@ -342,17 +347,11 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     }
 
     private void scheduleNextAt(BackupSet set, int index, Date date) {
-        long dateTime = date.getTime();
-        int randomizeSchedule = configuration.getProperty("randomizeScheduleSeconds", 0);
-        if (randomizeSchedule > 0) {
-            dateTime += random.nextInt(randomizeSchedule) * 1000L;
-        }
-
-        log.info("Schedule set {} to run again at {}", set.getId(), formatTimestamp(dateTime));
+        log.info("Schedule set {} to run again at {}", set.getId(), formatTimestamp(date.getTime()));
         synchronized (scheduledTimes) {
-            scheduledTimes.put(set.getId(), new Date(dateTime));
+            scheduledTimes.put(set.getId(), new Date(date.getTime()));
         }
-        long delta = dateTime - new Date().getTime();
+        long delta = date.getTime() - new Date().getTime();
         if (delta < 1) {
             delta = 1;
         }

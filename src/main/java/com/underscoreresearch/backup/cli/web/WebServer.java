@@ -198,6 +198,7 @@ public class WebServer {
                 urlFile.deleteOnExit();
                 try (FileWriter writer = new FileWriter(urlFile)) {
                     writer.write(configUrl.toString());
+                    writer.write("\n");
                 }
                 ConfigurationPost.setReadOnlyFilePermissions(urlFile);
             } catch (Exception exc) {
