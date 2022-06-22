@@ -1,0 +1,58 @@
+diff --git a/src/main/java/com/underscoreresearch/backup/file/MetadataRepository.java b/src/main/java/com/underscoreresearch/backup/file/MetadataRepository.java
+index d4d59b4..af1059b 100644
+--- a/src/main/java/com/underscoreresearch/backup/file/MetadataRepository.java
++++ b/src/main/java/com/underscoreresearch/backup/file/MetadataRepository.java
+@@ -43,6 +43,8 @@ public interface MetadataRepository {
+ 
+     void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException;
+ 
++    boolean hasActivePath(String setId, String path) throws IOException;
++
+     void popActivePath(String setId, String path) throws IOException;
+ 
+     boolean deletePartialFile(BackupPartialFile file) throws IOException;
+diff --git a/src/main/java/com/underscoreresearch/backup/file/implementation/MapdbMetadataRepository.java b/src/main/java/com/underscoreresearch/backup/file/implementation/MapdbMetadataRepository.java
+index e9f4b86..e7f2fa9 100644
+--- a/src/main/java/com/underscoreresearch/backup/file/implementation/MapdbMetadataRepository.java
++++ b/src/main/java/com/underscoreresearch/backup/file/implementation/MapdbMetadataRepository.java
+@@ -711,6 +711,15 @@ public class MapdbMetadataRepository implements MetadataRepository {
+         }
+     }
+ 
++    @Override
++    public boolean hasActivePath(String setId, String path) throws IOException {
++        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
++            ensureOpen();
++
++            return activePathMap.containsKey(new Object[]{setId, path});
++        }
++    }
++
+     @Override
+     public void popActivePath(String setId, String path) throws IOException {
+         try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+diff --git a/src/main/java/com/underscoreresearch/backup/manifest/LoggingMetadataRepository.java b/src/main/java/com/underscoreresearch/backup/manifest/LoggingMetadataRepository.java
+index 79d27e9..f528fc3 100644
+--- a/src/main/java/com/underscoreresearch/backup/manifest/LoggingMetadataRepository.java
++++ b/src/main/java/com/underscoreresearch/backup/manifest/LoggingMetadataRepository.java
+@@ -322,7 +322,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
+         synchronized (pendingActivePaths) {
+             String fullPath = setId + PATH_SEPARATOR + path;
+ 
+-            if (!pendingActivePaths.containsKey(fullPath))
++            if (!pendingActivePaths.containsKey(fullPath) && !repository.hasActivePath(setId, path))
+                 missingActivePaths.add(fullPath);
+             pendingActivePaths.put(fullPath, new PendingActivePath(new BackupActivePath(path,
+                     pendingFiles
+@@ -333,6 +333,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
+         }
+     }
+ 
++    @Override
++    public boolean hasActivePath(String setId, String path) throws IOException {
++        return repository.hasActivePath(setId, path);
++    }
++
+     @Override
+     public void popActivePath(String setId, String path) throws IOException {
+         String fullPath = setId + PATH_SEPARATOR + path;

@@ -101,9 +101,15 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         }
 
         if (!shutdown) {
+            while (pendingPaths.size() > 0) {
+                String path = pendingPaths.lastKey();
+                log.info("Closing remaining active path: " + path);
+                updateActivePath(backupSet, path, true);
+            }
+
             TreeMap<String, BackupActivePath> remainingPaths = repository.getActivePaths(backupSet.getId());
             if (remainingPaths.size() > 0) {
-                log.warn("Completed with following active paths: " + String.join("; ",
+                log.error("Completed with following active paths: " + String.join("; ",
                         remainingPaths.keySet()));
                 for (Map.Entry<String, BackupActivePath> entry : remainingPaths.entrySet()) {
                     repository.popActivePath(backupSet.getId(), entry.getKey());
@@ -218,7 +224,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                     } else {
                         pendingFiles.getFile(file).setStatus(BackupActiveStatus.EXCLUDED);
                     }
-                    updateActivePath(set, currentPath);
+                    updateActivePath(set, currentPath, false);
                 } else {
                     if (set.includeFile(file.getPath())) {
                         BackupFile existingFile = repository.lastFile(file.getPath());
@@ -248,7 +254,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                                 pendingFiles.getFile(file).setStatus(success ?
                                         BackupActiveStatus.INCLUDED :
                                         BackupActiveStatus.EXCLUDED);
-                                updateActivePath(set, currentPath);
+                                updateActivePath(set, currentPath, false);
                                 lock.unlock();
                             });
                             lock.lock();
@@ -269,7 +275,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
             }
         }
 
-        updateActivePath(set, currentPath);
+        updateActivePath(set, currentPath, false);
 
         if (anyIncluded) {
             return pendingFiles.completed() ? BackupActiveStatus.INCLUDED : BackupActiveStatus.INCOMPLETE;
@@ -315,10 +321,10 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         return true;
     }
 
-    private void updateActivePath(BackupSet set, String currentPath) {
+    private void updateActivePath(BackupSet set, String currentPath, boolean forceClose) {
         BackupActivePath pending = pendingPaths.get(currentPath);
         if (pending != null) {
-            if (pending.completed()) {
+            if (pending.completed() || forceClose) {
                 try {
                     repository.popActivePath(set.getId(), currentPath);
                     Set<String> includedPaths = pending.includedPaths();
@@ -341,7 +347,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                         if (parentActive.unprocessedFile(currentPath)) {
                             parentActive.getFile(currentPath).setStatus(pending.includedPaths().size() > 0
                                     ? BackupActiveStatus.INCLUDED : BackupActiveStatus.EXCLUDED);
-                            updateActivePath(set, parent);
+                            updateActivePath(set, parent, false);
                         }
                     }
                 }
