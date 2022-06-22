@@ -353,11 +353,16 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             String filename = currentLogLock.getFilename();
             try (InputStream stream = Channels.newInputStream(currentLogLock.getLockedChannel())) {
                 uploadConfigData(transformLogFilename(filename), stream, true);
+                new File(filename).delete();
+            } finally {
+                try {
+                    currentLogLock.close();
+                } catch (IOException exc) {
+                    log.error("Failed to close log file lock {}", filename, exc);
+                }
+                currentLogLength = 0;
+                currentLogLock = null;
             }
-            currentLogLock.close();
-            currentLogLength = 0;
-            currentLogLock = null;
-            new File(filename).delete();
         }
     }
 
