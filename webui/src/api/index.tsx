@@ -69,6 +69,7 @@ export interface BackupManifest {
     maximumUnsyncedSize?: number,
     maximumUnsyncedSeconds?: number
     optimizeSchedule?: string,
+    trimSchedule?: string,
     configUser?: string
     configPassword?: string
     interactiveBackup?: boolean

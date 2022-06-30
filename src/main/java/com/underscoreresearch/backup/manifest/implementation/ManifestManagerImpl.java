@@ -17,6 +17,7 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -237,7 +238,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 if (currentLogLock == null) {
                     createNewLogFile();
                 }
-                byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(Charset.forName("UTF-8"));
+                byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(StandardCharsets.UTF_8);
                 currentLogLock.getLockedChannel().write(ByteBuffer.wrap(data));
                 if (!disabledFlushing) {
                     currentLogLock.getLockedChannel().force(false);
@@ -351,14 +352,20 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         if (currentLogLock != null) {
             currentLogLock.getLockedChannel().position(0);
             String filename = currentLogLock.getFilename();
+            boolean uploaded = false;
             try (InputStream stream = Channels.newInputStream(currentLogLock.getLockedChannel())) {
                 uploadConfigData(transformLogFilename(filename), stream, true);
-                new File(filename).delete();
+                uploaded = true;
             } finally {
                 try {
                     currentLogLock.close();
                 } catch (IOException exc) {
                     log.error("Failed to close log file lock {}", filename, exc);
+                }
+                if (uploaded) {
+                    if (!(new File(filename).delete())) {
+                        log.error("Failed to delete log file {}", filename);
+                    }
                 }
                 currentLogLength = 0;
                 currentLogLock = null;
@@ -420,7 +427,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
     private void processLogInputStream(LogConsumer consumer, InputStream inputStream) throws IOException {
         try (InputStreamReader inputStreamReader
-                     = new InputStreamReader(inputStream)) {
+                     = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
             try (BufferedReader reader = new BufferedReader(inputStreamReader)) {
                 for (String line = reader.readLine(); line != null; line = reader.readLine()) {
                     int ind = line.indexOf(':');

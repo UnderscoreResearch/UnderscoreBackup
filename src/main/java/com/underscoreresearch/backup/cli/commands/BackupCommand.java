@@ -23,7 +23,7 @@ public class BackupCommand extends SimpleCommand {
     public void executeCommand() throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         repository.getPendingSets().stream()
-                .filter(pendingSet -> pendingSet.getScheduledAt() == null && !pendingSet.getSetId().equals(""))
+                .filter(pendingSet -> pendingSet.getScheduledAt() == null && !pendingSet.getSetId().equals("") && !pendingSet.getSetId().equals("="))
                 .forEach(pendingSet -> {
                     try {
                         repository.deletePendingSets(pendingSet.getSetId());

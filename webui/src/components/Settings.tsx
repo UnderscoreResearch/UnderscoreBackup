@@ -236,6 +236,37 @@ export default function Settings(props: SettingsProps) {
                           clearButton={false}/>
                 </Grid>
             </Grid>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <FormControlLabel control={<Checkbox
+                        checked={state.manifest.trimSchedule !== undefined}
+                        onChange={(e) => updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                trimSchedule: e.target.checked ? "0 0 * * *" : undefined
+                            }
+                        })}
+                    />} label="At most scan for unused blocks while trimming"/>
+                </Grid>
+                <Grid item xs={12}>
+                    <Cron disabled={state.manifest.trimSchedule === undefined}
+                          value={state.manifest.trimSchedule ? state.manifest.trimSchedule : "0 0 * * *"}
+                          setValue={(newSchedule: string) => {
+                              if (state.manifest.trimSchedule !== undefined &&
+                                  state.manifest.trimSchedule !== newSchedule) {
+                                  updateState({
+                                      ...state,
+                                      manifest: {
+                                          ...state.manifest,
+                                          trimSchedule: newSchedule
+                                      }
+                                  })
+                              }
+                          }} clockFormat='12-hour-clock'
+                          clearButton={false}/>
+                </Grid>
+            </Grid>
         </Paper>
         <Paper sx={{p: 2}}>
             <DividerWithText>Custom properties</DividerWithText>

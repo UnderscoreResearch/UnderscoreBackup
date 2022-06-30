@@ -155,6 +155,7 @@ Contains information of how the backup repository is managed.
 * **maximumUnsyncedSeconds** - Maximum time that changes are kept locally before they are forced to be uploaded to backup destination.
 * **interactiveBackup** - If set and true then start running a backup whenever you launch in interactive mode.
 * **optimizeSchedule** - If set this will be a schedule at which a log optimization operation will be run once a scheduled or manual backup completes.
+* **trimSchedule** - If set this will be a schedule at how often the trim operation will look for and delete unused storage.
 * **configUsername** - Username required to log into the config web interface.
 * **configPassword** - Password required to log into the config web interface.
 

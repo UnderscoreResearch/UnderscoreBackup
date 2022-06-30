@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.model.BackupManifest;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -84,6 +85,7 @@ class RepositoryTrimmerTest {
         destination.setType("MEMORY");
         backupConfiguration.setDestinations(ImmutableMap.of("mem", destination));
         backupConfiguration.setSets(Lists.newArrayList(set1, set2));
+        backupConfiguration.setManifest(new BackupManifest());
 
         IOProvider provider = IOProviderFactory.getProvider(destination);
         provider.upload("/b", new byte[1]);
@@ -229,7 +231,7 @@ class RepositoryTrimmerTest {
 
     @Test
     public void testFiles() throws IOException {
-        trimmer.trimRepository();
+        trimmer.trimRepository(false);
 
         try (CloseableLock ignore = repository.acquireLock()) {
             repository.allFiles(true).forEach(file -> {
@@ -244,7 +246,7 @@ class RepositoryTrimmerTest {
             });
         }
 
-        trimmer.trimRepository();
+        trimmer.trimRepository(false);
 
         try (CloseableLock ignored = repository.acquireLock()) {
             assertThat(repository.allFiles(true)
@@ -275,7 +277,7 @@ class RepositoryTrimmerTest {
     public void testMaxFiles() throws IOException {
         set1.getRetention().setMaximumVersions(1);
         set2.getRetention().setMaximumVersions(1);
-        trimmer.trimRepository();
+        trimmer.trimRepository(false);
 
         try (CloseableLock ignore = repository.acquireLock()) {
             repository.allFiles(true).forEach(file -> {
@@ -290,7 +292,7 @@ class RepositoryTrimmerTest {
             });
         }
 
-        trimmer.trimRepository();
+        trimmer.trimRepository(false);
 
         try (CloseableLock ignored = repository.acquireLock()) {
             assertThat(repository.allFiles(false)
@@ -320,7 +322,39 @@ class RepositoryTrimmerTest {
     @Test
     public void testActivePath() throws IOException {
         repository.pushActivePath("set1", "/test1/", new BackupActivePath());
-        trimmer.trimRepository();
+        trimmer.trimRepository(false);
+
+        try (CloseableLock ignored = repository.acquireLock()) {
+            assertThat(repository.allFiles(false)
+                            .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
+                    Is.is(ImmutableMap.of("/test1/def/test1", 13,
+                            "/test1/abc/test1", 1,
+                            "/test1/abc/test2", 1,
+                            "/test1/def/test2", 13,
+                            "/test1/def/test3", 13,
+                            "/test2/test4", 26)));
+
+            assertThat(repository.allDirectories(false)
+                            .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
+                    Is.is(ImmutableMap.of("", 1,
+                            "/", 1,
+                            "/test1/", 1,
+                            "/test1/abc/", 2,
+                            "/test1/def/", 2,
+                            "/test2/", 1)));
+
+            assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
+                    Is.is(ImmutableSet.of("a", "b", "c", "d", "e")));
+        }
+
+        IOIndex provider = (IOIndex) IOProviderFactory.getProvider(destination);
+        assertThat(provider.availableKeys("/"),
+                Is.is(Lists.newArrayList("b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m")));
+    }
+
+    @Test
+    public void testFilesOnly() throws IOException {
+        trimmer.trimRepository(true);
 
         try (CloseableLock ignored = repository.acquireLock()) {
             assertThat(repository.allFiles(false)
@@ -353,7 +387,7 @@ class RepositoryTrimmerTest {
     @Test
     public void testOutsideNonForce() throws IOException {
         trimmer = new RepositoryTrimmer(repository, backupConfiguration, manifestManager, false);
-        trimmer.trimRepository();
+        trimmer.trimRepository(false);
 
         Mockito.verify(repository, Mockito.never()).deleteFile(outsideFile);
 

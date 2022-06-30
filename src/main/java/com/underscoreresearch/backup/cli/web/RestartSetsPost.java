@@ -43,7 +43,7 @@ public class RestartSetsPost extends JsonWrap {
                 Set<String> sets;
                 if (request.sets == null) {
                     sets = repository.getPendingSets().stream().map(set -> set.getSetId())
-                            .filter(id -> !id.equals("")).collect(Collectors.toSet());
+                            .filter(id -> !id.equals("") && !id.equals("=")).collect(Collectors.toSet());
                 } else {
                     sets = request.getSets();
                 }
