@@ -23,7 +23,7 @@ public class TrimRepositoryCommand extends Command {
         BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
 
         RepositoryTrimmer trimmer = new RepositoryTrimmer(repository, configuration, manager, commandLine.hasOption(FORCE));
-        trimmer.trimRepository();
+        trimmer.trimRepository(false);
         repository.flushLogging();
         manager.shutdown();
         repository.close();

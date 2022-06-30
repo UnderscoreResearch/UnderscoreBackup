@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -183,7 +184,7 @@ public class RepositoryTrimmer implements StatusLogger {
                 }
             });
 
-    public synchronized Statistics trimRepository() throws IOException {
+    public synchronized Statistics trimRepository(boolean filesOnly) throws IOException {
         File tempFile = File.createTempFile("block", ".db");
 
         manifestManager.setDisabledFlushing(true);
@@ -203,9 +204,10 @@ public class RepositoryTrimmer implements StatusLogger {
                 manifestManager.initialize(null, true);
 
                 boolean hasActivePaths = trimActivePaths();
+                filesOnly |= hasActivePaths;
 
                 try (CloseableLock ignored = metadataRepository.acquireLock()) {
-                    if (hasActivePaths) {
+                    if (filesOnly) {
                         totalSteps.addAndGet(metadataRepository.getFileCount());
                     } else {
                         totalSteps.addAndGet(metadataRepository.getBlockCount()
@@ -215,10 +217,10 @@ public class RepositoryTrimmer implements StatusLogger {
                     stopwatch.start();
                     lastHeartbeat = Duration.ZERO;
 
-                    trimFilesAndDirectories(usedBlockMap, hasActivePaths, statistics);
-                    trimBlocks(usedBlockMap, hasActivePaths, statistics);
+                    trimFilesAndDirectories(usedBlockMap, filesOnly, hasActivePaths, statistics);
+                    trimBlocks(usedBlockMap, filesOnly, statistics);
 
-                    if (!hasActivePaths)
+                    if (!filesOnly)
                         metadataRepository.clearPartialFiles();
                 } catch (InterruptedException exc) {
                 } finally {
@@ -226,6 +228,10 @@ public class RepositoryTrimmer implements StatusLogger {
                 }
             }
 
+            if (!filesOnly) {
+                ScannerSchedulerImpl.updateTrimSchedule(metadataRepository,
+                        configuration.getManifest().getTrimSchedule());
+            }
             return statistics;
         } finally {
             tempFile.delete();
@@ -254,11 +260,11 @@ public class RepositoryTrimmer implements StatusLogger {
     }
 
     private void trimBlocks(HTreeMap<String, Boolean> usedBlockMap,
-                            boolean hasActivePaths,
+                            boolean filesOnly,
                             Statistics statistics) throws IOException {
-        log.info("Trimming blocks");
+        if (!filesOnly) {
+            log.info("Trimming blocks");
 
-        if (!hasActivePaths) {
             metadataRepository.allBlocks()
                     .filter(t -> {
                         processedSteps.incrementAndGet();
@@ -323,13 +329,13 @@ public class RepositoryTrimmer implements StatusLogger {
     }
 
     private void trimFilesAndDirectories(HTreeMap<String, Boolean> usedBlockMap,
-                                         boolean hasActivePath,
+                                         boolean filesOnly, boolean hasActivePaths,
                                          Statistics statistics)
             throws IOException {
         log.info("Trimming files and directories");
 
         List<BackupFile> fileVersions = new ArrayList<>();
-        NavigableSet<String> deletedPaths = hasActivePath ? null : new TreeSet<>();
+        NavigableSet<String> deletedPaths = hasActivePaths ? null : new TreeSet<>();
 
         AtomicReference<String> lastParent = new AtomicReference<>(null);
 
@@ -346,7 +352,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
             if (fileVersions.size() > 0 && !file.getPath().equals(fileVersions.get(0).getPath())) {
                 try {
-                    processFiles(fileVersions, usedBlockMap, deletedPaths, hasActivePath, statistics);
+                    processFiles(fileVersions, usedBlockMap, deletedPaths, filesOnly, statistics);
 
                     if (deletedPaths != null) {
                         String parent = findParent(file.getPath());
@@ -364,7 +370,7 @@ public class RepositoryTrimmer implements StatusLogger {
         });
 
         if (fileVersions.size() > 0) {
-            processFiles(fileVersions, usedBlockMap, deletedPaths, hasActivePath, statistics);
+            processFiles(fileVersions, usedBlockMap, deletedPaths, filesOnly, statistics);
         }
 
         if (deletedPaths != null) {
@@ -455,14 +461,14 @@ public class RepositoryTrimmer implements StatusLogger {
 
     private void processFiles(List<BackupFile> files, HTreeMap<String, Boolean> usedBlockMap,
                               Set<String> deletedPaths,
-                              boolean hasActivePath, Statistics statistics) throws IOException {
+                              boolean filesOnly, Statistics statistics) throws IOException {
         BackupSet set = findSet(files.get(0));
         if (set == null) {
             if (!force) {
                 log.warn("File not in set {},} use force flag to delete", files.get(0).getPath());
                 boolean anyFound = false;
                 for (BackupFile file : files) {
-                    markFileBlocks(usedBlockMap, deletedPaths == null, file, true);
+                    markFileBlocks(usedBlockMap, filesOnly, file, true);
                     statistics.addTotalSize(file.getLength());
                     if (!anyFound) {
                         statistics.addTotalSizeLastVersion(file.getLength());
@@ -475,7 +481,7 @@ public class RepositoryTrimmer implements StatusLogger {
                 log.warn("File not in set, deleting {}", files.get(0).getPath());
                 for (BackupFile file : files) {
                     metadataRepository.deleteFile(file);
-                    markFileBlocks(usedBlockMap, deletedPaths == null, file, false);
+                    markFileBlocks(usedBlockMap, filesOnly, file, false);
                     statistics.addDeletedVersions(1);
                 }
                 statistics.addDeletedFiles(1);
@@ -486,7 +492,7 @@ public class RepositoryTrimmer implements StatusLogger {
             int keptCopies = 0;
             for (BackupFile file : files) {
                 boolean deleted;
-                if (!hasActivePath) {
+                if (!filesOnly) {
                     deleted = isDeleted(file.getPath());
                     if (deleted) {
                         if (file.getDeleted() == null) {
@@ -509,7 +515,7 @@ public class RepositoryTrimmer implements StatusLogger {
                         && (set.getRetention().getMaximumVersions() == null
                         || keptCopies < set.getRetention().getMaximumVersions())) {
                     lastFile = file;
-                    markFileBlocks(usedBlockMap, deletedPaths == null, file, true);
+                    markFileBlocks(usedBlockMap, filesOnly, file, true);
                     if (keptCopies == 0) {
                         statistics.addTotalSizeLastVersion(file.getLength());
                         statistics.addFiles(1);
@@ -521,7 +527,7 @@ public class RepositoryTrimmer implements StatusLogger {
                     debug(() -> log.debug("Removing " + file.getPath() + " from "
                             + LogUtil.formatTimestamp(file.getAdded())));
                     metadataRepository.deleteFile(file);
-                    markFileBlocks(usedBlockMap, deletedPaths == null, file, false);
+                    markFileBlocks(usedBlockMap, filesOnly, file, false);
                     statistics.addDeletedVersions(1);
                 }
             }
@@ -556,32 +562,30 @@ public class RepositoryTrimmer implements StatusLogger {
         }
     }
 
-    private void markFileBlocks(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePath, BackupFile file,
+    private void markFileBlocks(HTreeMap<String, Boolean> usedBlockMap, boolean filesOnly, BackupFile file,
                                 boolean used) throws IOException {
-        if (file.getLocations() != null)
-            for (BackupLocation location : file.getLocations()) {
-                if (location.getParts() != null)
-                    for (BackupFilePart part : location.getParts()) {
-                        markFileLocationBlocks(usedBlockMap, hasActivePath, part.getBlockHash(), used);
-                    }
-            }
+        if (!filesOnly) {
+            if (file.getLocations() != null)
+                for (BackupLocation location : file.getLocations()) {
+                    if (location.getParts() != null)
+                        for (BackupFilePart part : location.getParts()) {
+                            markFileLocationBlocks(usedBlockMap, part.getBlockHash(), used);
+                        }
+                }
+        }
     }
 
-    private void markFileLocationBlocks(HTreeMap<String, Boolean> usedBlockMap, boolean hasActivePath,
+    private void markFileLocationBlocks(HTreeMap<String, Boolean> usedBlockMap,
                                         String hash, boolean used) throws IOException {
         if (used) {
             usedBlockMap.put(hash, true);
-        } else if (hasActivePath) {
-            if (!usedBlockMap.containsKey(hash)) {
-                usedBlockMap.put(hash, false);
-            }
         }
 
         if (BackupBlock.isSuperBlock(hash)) {
             BackupBlock block = metadataRepository.block(hash);
             if (block != null && block.getHashes() != null) {
                 for (String partHash : block.getHashes()) {
-                    markFileLocationBlocks(usedBlockMap, hasActivePath, partHash, used);
+                    markFileLocationBlocks(usedBlockMap, partHash, used);
                 }
             } else {
                 log.error("Missing referenced super block {}, run validate-blocks to remedy", hash);

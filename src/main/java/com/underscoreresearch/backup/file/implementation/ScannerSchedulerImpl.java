@@ -143,7 +143,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                             pendingSets[i] = false;
                             i++;
                             if (set.getRetention() != null) {
-                                statistics = trimmer.trimRepository();
+                                statistics = trimmer.trimRepository(shouldOnlyDoFileTrim());
                                 trimmer.resetStatus();
                             }
                         } else {
@@ -194,6 +194,34 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         stateLogger.reset();
     }
 
+    private boolean shouldOnlyDoFileTrim() {
+        for (int i = 0; i < pendingSets.length; i++) {
+            if (pendingSets[i]) {
+                return true;
+            }
+        }
+
+        if (!Strings.isNullOrEmpty(configuration.getManifest().getTrimSchedule())) {
+            try {
+                BackupPendingSet pendingSet = getTrimSchedulePendingSet();
+                if (pendingSet != null) {
+                    if (pendingSet.getScheduledAt() != null && pendingSet.getScheduledAt().before(new Date())) {
+                        return false;
+                    } else if (!Objects.equals(pendingSet.getSchedule(),
+                            configuration.getManifest().getTrimSchedule())) {
+                        return false;
+                    } else {
+                        return true;
+                    }
+                }
+            } catch (IOException exc) {
+                log.error("Failed to get pending set for trim", exc);
+            }
+        }
+
+        return false;
+    }
+
     private void updateOptimizeSchedule() {
         try {
             BackupPendingSet backupPendingSet = getOptimizeSchedulePendingSet();
@@ -223,6 +251,14 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
 
     private BackupPendingSet getOptimizeSchedulePendingSet() throws IOException {
         Optional<BackupPendingSet> ret = repository.getPendingSets().stream().filter(t -> t.getSetId().equals(""))
+                .findAny();
+        if (ret.isPresent())
+            return ret.get();
+        return null;
+    }
+
+    private BackupPendingSet getTrimSchedulePendingSet() throws IOException {
+        Optional<BackupPendingSet> ret = repository.getPendingSets().stream().filter(t -> t.getSetId().equals("="))
                 .findAny();
         if (ret.isPresent())
             return ret.get();
@@ -298,6 +334,23 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         .build();
                 copyRepository.addPendingSets(pendingSet);
             }
+        }
+    }
+
+    public static void updateTrimSchedule(MetadataRepository repository,
+                                          String schedule) throws IOException {
+        if (schedule != null) {
+            Date date = getNextScheduleDate(schedule);
+            if (date != null) {
+                BackupPendingSet pendingSet = BackupPendingSet.builder()
+                        .setId("=")
+                        .scheduledAt(date)
+                        .schedule(schedule)
+                        .build();
+                repository.addPendingSets(pendingSet);
+            }
+        } else {
+            repository.deletePendingSets("=");
         }
     }
 

@@ -10,6 +10,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Set;
@@ -49,44 +50,52 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                     Arrays.sort(fileNames);
                     for (String fileName : fileNames) {
                         File file = new File(parent, fileName);
-                        Path filePath = file.toPath();
-                        if (!Files.isSymbolicLink(filePath)) {
-                            if (file.isDirectory()) {
-                                if (Files.isReadable(filePath)) {
-                                    files.add(BackupFile.builder()
-                                            .path(path + PATH_SEPARATOR + fileName + PATH_SEPARATOR)
-                                            .build());
-                                } else {
-                                    debug(() -> log.debug("Skipping unreadable directory " + filePath.toAbsolutePath()));
-                                }
-                            } else if (file.isFile()) {
-                                if (Files.isReadable(filePath)) {
-                                    files.add(BackupFile.builder()
-                                            .path(path + PATH_SEPARATOR + fileName)
-                                            .length(file.length())
-                                            .lastChanged(file.lastModified())
-                                            .build());
-                                } else {
-                                    debug(() -> log.debug("Skipping unreadable file " + filePath.toAbsolutePath()));
+                        try {
+                            Path filePath = file.toPath();
+                            if (!Files.isSymbolicLink(filePath)) {
+                                if (file.isDirectory()) {
+                                    if (Files.isReadable(filePath)) {
+                                        files.add(BackupFile.builder()
+                                                .path(path + PATH_SEPARATOR + fileName + PATH_SEPARATOR)
+                                                .build());
+                                    } else {
+                                        debug(() -> log.debug("Skipping unreadable directory " + filePath.toAbsolutePath()));
+                                    }
+                                } else if (file.isFile()) {
+                                    if (Files.isReadable(filePath)) {
+                                        files.add(BackupFile.builder()
+                                                .path(path + PATH_SEPARATOR + fileName)
+                                                .length(file.length())
+                                                .lastChanged(file.lastModified())
+                                                .build());
+                                    } else {
+                                        debug(() -> log.debug("Skipping unreadable file " + filePath.toAbsolutePath()));
+                                    }
                                 }
                             }
+                        } catch (InvalidPathException exc) {
+                            log.warn("Skipping invalid path {}", file.getAbsolutePath(), exc);
                         }
                     }
                 } else {
                     log.warn("Failed to get list of files for " + parent);
                 }
             } else if (parent.exists()) {
-                Path parentPath = parent.toPath();
-                if (!Files.isSymbolicLink(parentPath) && parent.isFile()) {
-                    if (Files.isReadable(parentPath)) {
-                        files.add(BackupFile.builder()
-                                .path(path)
-                                .length(parent.length())
-                                .lastChanged(parent.lastModified())
-                                .build());
-                    } else {
-                        debug(() -> log.debug("Skipping unreadable file " + parentPath.toAbsolutePath()));
+                try {
+                    Path parentPath = parent.toPath();
+                    if (!Files.isSymbolicLink(parentPath) && parent.isFile()) {
+                        if (Files.isReadable(parentPath)) {
+                            files.add(BackupFile.builder()
+                                    .path(path)
+                                    .length(parent.length())
+                                    .lastChanged(parent.lastModified())
+                                    .build());
+                        } else {
+                            debug(() -> log.debug("Skipping unreadable file " + parentPath.toAbsolutePath()));
+                        }
                     }
+                } catch (InvalidPathException exc) {
+                    log.warn("Skipping invalid path {}", parent.getAbsolutePath(), exc);
                 }
             }
         }
