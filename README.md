@@ -1,6 +1,4 @@
-The application is very close to production ready. Unless any showstopper bugs are found in this release, the next version will be version 1.0.
-
-A backup solution with the following features.
+Serverless backup solution with client side encryption with the following features.
 
 * Public key based encryption allows continuously running backups that can only be read with a key not available on the server running the backup.
 

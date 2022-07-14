@@ -216,7 +216,7 @@ export default function Settings(props: SettingsProps) {
                                 optimizeSchedule: e.target.checked ? "0 0 1 * *" : undefined
                             }
                         })}
-                    />} label="Automatically optimize log"/>
+                    />} label="Automatically optimize log and validate file blocks"/>
                 </Grid>
                 <Grid item xs={12}>
                     <Cron disabled={state.manifest.optimizeSchedule === undefined}
