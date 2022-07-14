@@ -237,12 +237,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private void backupCompletedCleanup() throws IOException {
         InstanceFactory.getInstance(ManifestManager.class).flushLog();
         stateLogger.reset();
-        InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
-        stateLogger.reset();
         BackupPendingSet pendingSet = getOptimizeSchedulePendingSet();
         if (pendingSet != null
                 && pendingSet.getScheduledAt() != null
                 && pendingSet.getScheduledAt().before(new Date())) {
+            InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
+            stateLogger.reset();
             InstanceFactory.getInstance(ManifestManager.class)
                     .optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
             stateLogger.reset();

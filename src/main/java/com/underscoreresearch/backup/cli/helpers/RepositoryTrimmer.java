@@ -208,9 +208,9 @@ public class RepositoryTrimmer implements StatusLogger {
 
                 try (CloseableLock ignored = metadataRepository.acquireLock()) {
                     if (filesOnly) {
-                        totalSteps.addAndGet(metadataRepository.getFileCount());
+                        totalSteps.set(metadataRepository.getFileCount());
                     } else {
-                        totalSteps.addAndGet(metadataRepository.getBlockCount()
+                        totalSteps.set(metadataRepository.getBlockCount()
                                 + metadataRepository.getPartCount()
                                 + metadataRepository.getFileCount());
                     }
