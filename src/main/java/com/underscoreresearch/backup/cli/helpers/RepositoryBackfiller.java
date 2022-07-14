@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.underscoreresearch.backup.file.PathNormalizer;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -77,6 +78,7 @@ public class RepositoryBackfiller {
         }
 
         public void backfillStorage(BackupBlock block) {
+            processed.incrementAndGet();
             if (block.getStorage().stream().anyMatch(storage -> !EncryptorFactory.getEncryptor(storage.getEncryption()).validStorage(storage))) {
                 schedule(() -> {
                     for (BackupBlockStorage storage : block.getStorage()) {
@@ -94,10 +96,10 @@ public class RepositoryBackfiller {
                 });
                 postPending();
             }
-            processed.incrementAndGet();
         }
 
         public void backfillFilePartOffsets(BackupFile file) {
+            processed.incrementAndGet();
             if (file.getLocations() != null) {
                 for (BackupLocation location : file.getLocations()) {
                     if (location.getParts().size() > 1) {
@@ -113,7 +115,6 @@ public class RepositoryBackfiller {
                     }
                 }
             }
-            processed.incrementAndGet();
         }
 
         private boolean incompleteSuperblock(String blockHash) {
@@ -340,10 +341,11 @@ public class RepositoryBackfiller {
                         backfillDownloader.backfillFilePartOffsets(file);
                         long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
                         if (currentMinute != lastDuration.get()) {
-                            log.info("Processed {} / {} files, updated {} files so far",
+                            log.info("Processed {} / {} files, updated {} files so far (Last file {})",
                                     readableNumber(backfillDownloader.getProcessed().get()),
                                     readableNumber(fileCount),
-                                    readableNumber(backfillDownloader.getCompletedFiles().get()));
+                                    readableNumber(backfillDownloader.getCompletedFiles().get()),
+                                    PathNormalizer.physicalPath(file.getPath()));
                             lastDuration.set(currentMinute);
                         }
                     });
