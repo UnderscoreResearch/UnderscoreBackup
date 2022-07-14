@@ -21,7 +21,7 @@ single repository.
 
 * Encryption, error correction and destination IO are plugin based and easily extendable.
 
-* Supports Dropbox, local file, Windows Shares and S3 for backup destinations.
+* Supports Dropbox, local file, Windows Shares, S3, Wasabi, Backblaze B2 and iDrive E2 for backup destinations.
 
 * Fully fledged web based UI for both initial setup, monitoring and restore operations.
 
@@ -176,20 +176,11 @@ There is another root property which is a map of strings to string for additiona
 * **reedSolomon.paritySlices** - Number of Reed Solomon parity slizes to use. Defaults to 3.
 * **noneErrorCorrection.maximumFileSize** - Maximum part size for none error correction. Defaults to 16384kb.
 
-Roadmap to stable release
-============
-The following items must be completed before I will consider the first stable release.
-
-* ~~Basic integration tests that automate testing the basic functionality with data integrity checks~~
-* ~~Unit tests testing targeted complicated functionality~~
-* ~~Test for testing basic functionality through web UI including initial setup, backup and restore.~~
-* ~~Add ability to configure memory usage on Windows.~~
-* At least one release candidate with no major bugs found during the period of a week or more.
-
 Future development ideas
 ==============
 Future feature ideas after first stable release is our.
 
+* Option to not run backup when on battery power.
 * Include POSIX file metadata in backup such as permissions and ownership.
 * Add support for immediate incremental backups.
 * Support backing up symbolic links and special files.
