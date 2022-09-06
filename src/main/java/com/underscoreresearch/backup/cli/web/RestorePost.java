@@ -137,13 +137,7 @@ public class RestorePost extends JsonWrap {
                 InstanceFactory.waitForShutdown();
 
                 if (restart.get()) {
-                    try {
-                        InstanceFactory.reloadConfiguration(null);
-
-                        InteractiveCommand.startBackupIfAvailable();
-                    } catch (Exception e) {
-                        log.error("Failed to restart backup", e);
-                    }
+                    InstanceFactory.reloadConfiguration(null, true);
                 }
             }, "RestorePost").start();
 

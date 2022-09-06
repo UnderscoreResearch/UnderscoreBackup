@@ -4,12 +4,14 @@ import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAU
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.util.UUID;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -19,7 +21,6 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.SystemUtils;
-import org.apache.logging.log4j.core.util.IOUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -32,9 +33,14 @@ import com.joestelmach.natty.DateGroup;
 import com.joestelmach.natty.Parser;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.web.WebServer;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.ActivityAppender;
 import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.state.LinuxState;
+import com.underscoreresearch.backup.utils.state.MachineState;
+import com.underscoreresearch.backup.utils.state.OsxState;
+import com.underscoreresearch.backup.utils.state.WindowsState;
 
 @Slf4j
 public class CommandLineModule extends AbstractModule {
@@ -60,6 +66,8 @@ public class CommandLineModule extends AbstractModule {
     public static final String TIMESTAMP = "timestamp";
     public static final String BIND_ADDRESS = "bind-address";
     public static final String URL_LOCATION = "URL_LOCATION";
+    public static final String IDENTITY_LOCATION = "IDENTITY_LOCATION";
+    public static final String INSTALLATION_IDENTITY = "INSTALLATION_IDENTITY";
     public static final String NO_DELETE_REBUILD = "no-delete-rebuild";
 
     private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
@@ -70,6 +78,7 @@ public class CommandLineModule extends AbstractModule {
             = new ObjectMapper().readerFor(BackupConfiguration.class);
     public static final String DEFAULT_USER_MANIFEST_LOCATION = "DEFAULT_USER_MANIFEST_LOCATION";
     public static final String DEFAULT_MANIFEST_LOCATION = "DEFAULT_MANIFEST_LOCATION";
+    public static final String MANIFEST_LOCATION = "MANIFEST_LOCATION";
 
     private final String[] argv;
     private final String passphrase;
@@ -141,8 +150,40 @@ public class CommandLineModule extends AbstractModule {
 
     @Provides
     @Singleton
+    public MachineState machineState(BackupConfiguration configuration) {
+        boolean pauseOnBattery = true;
+        if (configuration.getManifest() != null && configuration.getManifest().getPauseOnBattery() != null) {
+            pauseOnBattery = configuration.getManifest().getPauseOnBattery();
+        }
+
+        if (SystemUtils.IS_OS_LINUX) {
+            return new LinuxState(pauseOnBattery);
+        }
+        if (SystemUtils.IS_OS_WINDOWS) {
+            return new WindowsState(pauseOnBattery);
+        }
+        if (SystemUtils.IS_OS_MAC_OSX) {
+            return new OsxState(pauseOnBattery);
+        }
+        return new MachineState(pauseOnBattery);
+    }
+
+    @Provides
+    @Singleton
+    @Named(MANIFEST_LOCATION)
+    public String getManifestLocation(BackupConfiguration configuration,
+                                      @Named(DEFAULT_MANIFEST_LOCATION) String defaultLocation) {
+        if (configuration.getManifest() != null
+                && !Strings.isNullOrEmpty(configuration.getManifest().getLocalLocation())) {
+            return configuration.getManifest().getLocalLocation();
+        }
+        return defaultLocation;
+    }
+
+    @Provides
+    @Singleton
     @Named(URL_LOCATION)
-    public String getUrlLocation(@Named(DEFAULT_MANIFEST_LOCATION) String manifestLocation) {
+    public String getUrlLocation(@Named(MANIFEST_LOCATION) String manifestLocation) {
         try {
             if (SystemUtils.IS_OS_MAC_OSX) {
                 return new File(System.getProperty("user.home"),
@@ -153,6 +194,38 @@ public class CommandLineModule extends AbstractModule {
             return new File(manifestLocation, "configuration.url").getCanonicalPath();
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Provides
+    @Singleton
+    @Named(IDENTITY_LOCATION)
+    public String getIdentityLocation(@Named(MANIFEST_LOCATION) String manifestLocation) {
+        try {
+            return new File(manifestLocation, "identity").getCanonicalPath();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Provides
+    @Singleton
+    @Named(INSTALLATION_IDENTITY)
+    public String getInstallationIdentity(@Named(IDENTITY_LOCATION) String identityLocation) {
+        File file = new File(identityLocation);
+        if (!file.exists()) {
+            String identity = UUID.randomUUID().toString();
+            try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+                writer.write(identity);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to create identity file", e);
+            }
+            return identity;
+        }
+        try (FileInputStream reader = new FileInputStream(file)) {
+            return new String(IOUtils.readAllBytes(reader), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read identity file", e);
         }
     }
 
@@ -266,8 +339,13 @@ public class CommandLineModule extends AbstractModule {
                 return commandLine.getOptionValue(CONFIG_DATA);
             }
         }
-        try (Reader reader = new FileReader(new File(configFile))) {
-            return IOUtils.toString(reader);
+        File file = new File(configFile);
+        if (file.exists()) {
+            try (FileInputStream reader = new FileInputStream(file)) {
+                return new String(IOUtils.readAllBytes(reader), StandardCharsets.UTF_8);
+            }
+        } else {
+            return "{}";
         }
     }
 

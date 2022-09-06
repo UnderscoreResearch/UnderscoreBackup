@@ -68,17 +68,7 @@ public class KeyChangePost extends JsonWrap {
             ChangePassphraseCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
                     request.getNewPassphrase());
 
-            InstanceFactory.reloadConfiguration(null);
-
-            new Thread(() -> {
-                try {
-                    InstanceFactory.reloadConfiguration(null);
-
-                    InteractiveCommand.startBackupIfAvailable();
-                } catch (Exception e) {
-                    log.error("Failed to restart backup", e);
-                }
-            }, "KeyChangePost").start();
+            InstanceFactory.reloadConfiguration(null, true);
 
             return messageJson(200, "Ok");
         }

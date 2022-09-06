@@ -16,6 +16,7 @@ public class ValidateBlocksCommand extends SimpleCommand {
     public void executeCommand() throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
+        manifestManager.validateIdentity();
 
         BlockValidator blockValidator = InstanceFactory.getInstance(BlockValidator.class);
         blockValidator.validateBlocks();

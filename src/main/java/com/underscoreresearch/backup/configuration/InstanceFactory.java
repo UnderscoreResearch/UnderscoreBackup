@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.underscoreresearch.backup.cli.commands.BackupCommand;
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,10 +49,14 @@ public abstract class InstanceFactory {
             if (cachedConfig == config) {
                 return cachedHasConfig;
             }
-            cachedConfig = config;
-            ConfigurationValidator.validateConfiguration(config,
-                    readOnly);
-            cachedHasConfig = true;
+            if (config.getManifest() == null && config.getDestinations() == null) {
+                cachedHasConfig = false;
+            } else {
+                cachedConfig = config;
+                ConfigurationValidator.validateConfiguration(config,
+                        readOnly);
+                cachedHasConfig = true;
+            }
         } catch (ProvisionException exc) {
             cachedHasConfig = false;
         }
@@ -87,6 +93,10 @@ public abstract class InstanceFactory {
     }
 
     public static void reloadConfiguration(String passphrase) {
+        reloadConfiguration(passphrase, false);
+    }
+
+    public static void reloadConfiguration(String passphrase, boolean startBackup) {
         synchronized (shutdownHooks) {
             executeOrderedCleanupHook();
             MetadataRepository repository = null;
@@ -103,8 +113,13 @@ public abstract class InstanceFactory {
             }
             shutdown = false;
             initialize(initialArguments, passphrase);
-            ConfigurationValidator.validateConfiguration(getInstance(BackupConfiguration.class), true);
+            if (hasConfiguration(true)) {
+                ConfigurationValidator.validateConfiguration(getInstance(BackupConfiguration.class), true);
+            }
             removeOldProviders();
+
+            if (startBackup)
+                InteractiveCommand.startBackupIfAvailable();
         }
     }
 

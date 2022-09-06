@@ -8,12 +8,14 @@ import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @BlockFormatPlugin("RAW")
 public class RawLargeFileBlockAssignment extends LargeFileBlockAssignment {
     public RawLargeFileBlockAssignment(FileBlockUploader uploader, BlockDownloader downloader, FileSystemAccess access,
-                                       MetadataRepository metadataRepository, int maximumBlockSize) {
-        super(uploader, downloader, access, metadataRepository, maximumBlockSize);
+                                       MetadataRepository metadataRepository, MachineState machineState,
+                                       int maximumBlockSize) {
+        super(uploader, downloader, access, metadataRepository, machineState, maximumBlockSize);
     }
 
     protected byte[] processBuffer(byte[] buffer) throws IOException {

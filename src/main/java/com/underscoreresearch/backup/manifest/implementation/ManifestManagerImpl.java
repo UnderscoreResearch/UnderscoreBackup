@@ -38,6 +38,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.cli.ParseException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -70,6 +72,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.nnnnnnnnn").withZone(ZoneId.of("UTC"));
     private static final String LOG_ROOT = "logs";
+    private static final String IDENTITY_MANIFEST_LOCATION = "identity";
 
     private final BackupConfiguration configuration;
     private final RateLimitController rateLimitController;
@@ -77,6 +80,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private final BackupDestination manifestDestination;
     private final IOProvider provider;
     private final Encryptor encryptor;
+    private final String installationIdentity;
 
     @Getter
     @Setter
@@ -94,11 +98,13 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     public ManifestManagerImpl(BackupConfiguration configuration,
                                IOProvider provider,
                                Encryptor encryptor,
-                               RateLimitController rateLimitController)
+                               RateLimitController rateLimitController,
+                               String installationIdentity)
             throws IOException {
         this.configuration = configuration;
         this.rateLimitController = rateLimitController;
         this.localRoot = configuration.getManifest().getLocalLocation();
+        this.installationIdentity = installationIdentity;
 
         manifestDestination = configuration.getDestinations().get(configuration.getManifest().getDestination());
         if (manifestDestination == null) {
@@ -192,9 +198,41 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         }
     }
 
+    public void validateIdentity() {
+        byte[] data;
+        try {
+            debug(() -> log.debug("Validating manifest installation identity"));
+            data = provider.download(IDENTITY_MANIFEST_LOCATION);
+            rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
+        } catch (Exception exc) {
+            storeIdentity();
+            return;
+        }
+        String destinationIdentity = new String(data, StandardCharsets.UTF_8);
+        if (!destinationIdentity.equals(installationIdentity)) {
+            throw new RuntimeException(
+                    new ParseException("Another installation of UnderscoreBackup is already writing to this manifest "
+                            + "destination. To take over backing up from this installation execute a "
+                            + "rebuild-repository operation or reset the local configuration under settings in the UI"));
+        }
+    }
+
+    private void storeIdentity() {
+        log.info("Updating manifest installation identity");
+        try {
+            byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
+            provider.upload(IDENTITY_MANIFEST_LOCATION, data);
+            rateLimitController.acquireUploadPermits(manifestDestination, data.length);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save identity to target");
+        }
+    }
+
     private void internalInitialize() {
         synchronized (lock) {
             if (initializeLogConsumer != null) {
+                validateIdentity();
+
                 try {
                     uploadPending(initializeLogConsumer);
                 } catch (IOException e) {
@@ -209,6 +247,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private void uploadConfigData(String filename, InputStream inputStream, boolean encrypt) throws IOException {
         byte[] data;
         if (encrypt) {
+            validateIdentity();
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
                 IOUtils.copyStream(inputStream, gzipStream);
@@ -385,6 +424,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         List<String> days = index.availableKeys(LOG_ROOT);
         days.sort(String::compareTo);
 
+        storeIdentity();
         startOperation("Replay log");
         try {
             totalFiles = new AtomicLong(days.size());
@@ -432,6 +472,9 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 for (String line = reader.readLine(); line != null; line = reader.readLine()) {
                     int ind = line.indexOf(':');
                     try {
+                        if (processedOperations != null) {
+                            processedOperations.incrementAndGet();
+                        }
                         consumer.replayLogEntry(line.substring(0, ind),
                                 line.substring(ind + 1));
                     } catch (Exception exc) {

@@ -274,6 +274,9 @@ export default function MainApp() {
                 }
                 if (success) {
                     await fetchConfig();
+                    if (!state.rebuildAvailable) {
+                        navigate("sets");
+                    }
                 } else {
                     setState((oldState) => ({
                         ...oldState,
@@ -562,9 +565,6 @@ export default function MainApp() {
                     applyPassphrase();
                 } else {
                     applyConfig();
-                }
-                if (!completedSetup()) {
-                    navigate("sets");
                 }
             } else if (page === "restore") {
                 if (!state.validatedPassphrase && state.passphrase) {

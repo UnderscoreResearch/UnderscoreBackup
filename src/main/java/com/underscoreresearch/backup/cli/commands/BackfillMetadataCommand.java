@@ -16,6 +16,7 @@ public class BackfillMetadataCommand extends SimpleCommand {
     public void executeCommand() throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
+        manifestManager.validateIdentity();
 
         RepositoryBackfiller backfiller = InstanceFactory.getInstance(RepositoryBackfiller.class);
         backfiller.executeBackfill();

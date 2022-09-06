@@ -23,6 +23,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.cronutils.model.Cron;
@@ -69,6 +70,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private final Random random = new Random();
     private boolean shutdown;
     private boolean scheduledRestart;
+    @Getter
     private boolean running;
     private static RepositoryTrimmer.Statistics statistics;
 

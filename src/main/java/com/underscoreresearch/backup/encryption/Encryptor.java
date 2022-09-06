@@ -13,4 +13,8 @@ public interface Encryptor {
     default boolean validStorage(BackupBlockStorage storage) {
         return true;
     }
+
+    BackupBlockStorage reKeyStorage(BackupBlockStorage storage,
+                                    PublicKeyEncrypion oldPrivateKey,
+                                    PublicKeyEncrypion newPublicKey);
 }

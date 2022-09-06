@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.configuration;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.INSTALLATION_IDENTITY;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE_REBUILD;
 import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
 
@@ -47,6 +48,7 @@ import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 public class BackupModule extends AbstractModule {
     public static final int DEFAULT_LARGE_MAXIMUM_SIZE = 8 * 1024 * 1024 - 10 * 1024;
@@ -88,8 +90,8 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public FileScannerImpl fileScanner(MetadataRepository repository, FileConsumer fileConsumer,
-                                       FileSystemAccess access, @Named(DEBUG) boolean debug) {
-        return new FileScannerImpl(repository, fileConsumer, access, debug);
+                                       FileSystemAccess access, MachineState machineState, @Named(DEBUG) boolean debug) {
+        return new FileScannerImpl(repository, fileConsumer, access, machineState, debug);
     }
 
     @Singleton
@@ -162,10 +164,11 @@ public class BackupModule extends AbstractModule {
                                                                      MetadataRepository metadataRepository,
                                                                      FileBlockUploader fileBlockUploader,
                                                                      BlockDownloader blockDownloader,
-                                                                     FileSystemAccess fileSystemAccess) {
+                                                                     FileSystemAccess fileSystemAccess,
+                                                                     MachineState machineState) {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
         return new GzipLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
-                metadataRepository, maxSize);
+                metadataRepository, machineState, maxSize);
     }
 
     @Provides
@@ -184,23 +187,27 @@ public class BackupModule extends AbstractModule {
                                                                    MetadataRepository metadataRepository,
                                                                    FileBlockUploader fileBlockUploader,
                                                                    BlockDownloader blockDownloader,
-                                                                   FileSystemAccess fileSystemAccess) {
+                                                                   FileSystemAccess fileSystemAccess,
+                                                                   MachineState machineState) {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
         return new RawLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
-                metadataRepository, maxSize);
+                metadataRepository, machineState, maxSize);
     }
 
     @Singleton
     @Provides
     public ManifestManagerImpl manifestManagerImplementation(BackupConfiguration configuration,
-                                                             RateLimitController rateLimitController) throws IOException {
+                                                             RateLimitController rateLimitController,
+                                                             @Named(INSTALLATION_IDENTITY) String installationIdentity)
+            throws IOException {
         BackupDestination destination = configuration.getDestinations().get(configuration.getManifest()
                 .getDestination());
 
         return new ManifestManagerImpl(configuration,
                 IOProviderFactory.getProvider(destination),
                 EncryptorFactory.getEncryptor(destination.getEncryption()),
-                rateLimitController);
+                rateLimitController,
+                installationIdentity);
     }
 
     @Provides

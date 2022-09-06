@@ -87,9 +87,7 @@ public class BackupDownloadPost extends TkWrap {
                         tempfile.deleteOnExit();
                         new Thread(() -> {
                             try {
-                                InstanceFactory.reloadConfiguration(null);
-
-                                InteractiveCommand.startBackupIfAvailable();
+                                InstanceFactory.reloadConfiguration(null, true);
                             } catch (Exception e) {
                                 log.error("Failed to restart backup", e);
                             }

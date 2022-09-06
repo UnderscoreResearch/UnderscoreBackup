@@ -1,9 +1,14 @@
 package com.underscoreresearch.backup.encryption;
 
+import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.KEY_DATA;
 import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.PUBLIC_KEY;
 
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * AES 256 encryptor.
@@ -24,18 +29,37 @@ import com.underscoreresearch.backup.model.BackupBlockStorage;
  * algorithm.
  * <p>
  * The entire rest of the data is the encryption payload.
+ *
+ * There is also another format used when storage is specified by default. In this format only the first byte is used
+ * to specify the format and the entire rest of the payload is the encryption. The IV in this case is a 0 array, the
+ * encryption key is the SHA3-256 of the payload (Which is different from the SHA-256 used to create the block ID. In
+ * this format a block with the same contents will always be encrypted to exactly the same encryption payload allowing
+ * for good deduplication of the data without jeopardizing the contents.
  */
 @EncryptorPlugin("AES256")
+@Slf4j
 public class AesEncryptor implements Encryptor {
-    private PublicKeyEncrypion key;
-    private AesEncryptorFormat defaultFormat;
-    private AesEncryptorFormat legacyFormat;
-
+    private boolean stableDedupe;
+    private final PublicKeyEncrypion key;
+    private final AesEncryptorFormat defaultFormat;
+    private final AesEncryptorFormat legacyFormat;
+    private final AesEncryptorFormat stableFormat;
+    
     @Inject
     public AesEncryptor(PublicKeyEncrypion key) {
         this.key = key;
         defaultFormat = new AesEncryptorGcm(key);
+        stableFormat = new AesEncryptorGcmStable(key);
         legacyFormat = new AesEncryptorCbc(key);
+
+        stableDedupe = true;
+        try {
+            BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+            stableDedupe = !("false".equals(config.getProperty("crossHostDedupe", "true")));
+        } catch (Exception exc) {
+            log.warn("Failed to read config for encryption setup");
+            stableDedupe = true;
+        }
     }
 
     private AesEncryptorFormat getEncryptorFormat(byte[] data) {
@@ -48,6 +72,9 @@ public class AesEncryptor implements Encryptor {
             case AesEncryptorGcm.NON_PADDED_GCM:
             case AesEncryptorGcm.PADDED_GCM:
                 return defaultFormat;
+            case AesEncryptorGcmStable.NON_PADDED_GCM_STABLE:
+            case AesEncryptorGcmStable.PADDED_GCM_STABLE:
+                return stableFormat;
         }
         throw new IllegalArgumentException("Unknown AES encryption padding");
     }
@@ -59,12 +86,11 @@ public class AesEncryptor implements Encryptor {
         return 1;
     }
 
-    private AesEncryptorFormat defaultFormat() {
-        return defaultFormat;
-    }
-
     @Override
     public byte[] encryptBlock(BackupBlockStorage storage, byte[] data) {
+        if (storage != null && stableDedupe) {
+            return stableFormat.encryptBlock(storage, data);
+        }
         return defaultFormat.encryptBlock(storage, data);
     }
 
@@ -83,5 +109,45 @@ public class AesEncryptor implements Encryptor {
     @Override
     public boolean validStorage(BackupBlockStorage storage) {
         return storage.getProperties() != null && storage.getProperties().containsKey(PUBLIC_KEY);
+    }
+
+    @Override
+    public BackupBlockStorage reKeyStorage(BackupBlockStorage storage, PublicKeyEncrypion oldPrivateKey, PublicKeyEncrypion newPublicKey) {
+        if (storage.getProperties() == null || !storage.getProperties().containsKey(PUBLIC_KEY)) {
+            return null;
+        }
+        PublicKeyEncrypion blockPublicKey = new PublicKeyEncrypion();
+        blockPublicKey.setPublicKey(storage.getProperties().get(PUBLIC_KEY));
+        byte[] privateKey = PublicKeyEncrypion.combinedSecret(oldPrivateKey, blockPublicKey);
+        privateKey = applyKeyData(storage, privateKey);
+
+        PublicKeyEncrypion newBlockKey = PublicKeyEncrypion.generateKeys();
+        byte[] newPrivateKey = PublicKeyEncrypion.combinedSecret(newBlockKey, newPublicKey);
+        byte[] keyData = applyKeyData(newPrivateKey, privateKey);
+
+        BackupBlockStorage newStorage = new BackupBlockStorage(storage.getDestination(), storage.getEc(),
+                storage.getEncryption(), Maps.newHashMap(storage.getProperties()),
+                storage.getParts(), storage.getCreated());
+        newStorage.addProperty(PUBLIC_KEY, newBlockKey.getPublicKey());
+        newStorage.addProperty(KEY_DATA, Hash.encodeBytes(keyData));
+
+        return newStorage;
+    }
+
+    public static byte[] applyKeyData(BackupBlockStorage storage, byte[] encryptionKey) {
+        if (storage != null && storage.getProperties() != null && storage.getProperties().containsKey(KEY_DATA)) {
+            byte[] keyData = Hash.decodeBytes(storage.getProperties().get(KEY_DATA));
+
+            return applyKeyData(keyData, encryptionKey);
+        }
+        return encryptionKey;
+    }
+
+    public static byte[] applyKeyData(byte[] keyData, byte[] encryptionKey) {
+        byte[] ret = new byte[encryptionKey.length];
+        for (int i = 0; i < keyData.length; i++) {
+            ret[i] = (byte) (encryptionKey[i] ^ keyData[i]);
+        }
+        return ret;
     }
 }

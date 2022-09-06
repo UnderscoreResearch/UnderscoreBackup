@@ -54,14 +54,7 @@ public class RestartSetsPost extends JsonWrap {
                         log.error("Failed to reset pending schedule for set {}", set);
                     }
                 });
-                InstanceFactory.reloadConfiguration(null);
-                new Thread(() -> {
-                    try {
-                        InteractiveCommand.startBackupIfAvailable();
-                    } catch (Exception e) {
-                        log.error("Failed to start backup", e);
-                    }
-                }, "RestartSetsStartBackup").start();
+                InstanceFactory.reloadConfiguration(null, true);
                 return messageJson(200, "Updated configuration");
             } catch (Exception exc) {
                 log.error("Failed to reset sets", exc);

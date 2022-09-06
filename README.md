@@ -180,7 +180,6 @@ Future development ideas
 ==============
 Future feature ideas after first stable release is our.
 
-* Option to not run backup when on battery power.
 * Include POSIX file metadata in backup such as permissions and ownership.
 * Add support for immediate incremental backups.
 * Support backing up symbolic links and special files.

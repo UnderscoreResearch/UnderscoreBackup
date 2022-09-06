@@ -30,6 +30,7 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -39,6 +40,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
     private final BlockDownloader blockDownloader;
     private final FileSystemAccess access;
     private final MetadataRepository metadataRepository;
+    private final MachineState machineState;
     private final int maximumBlockSize;
 
     @Override
@@ -153,6 +155,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                     if (start / GB != end / GB) {
                         log.info("Processed {} / {} for {}", readableSize(end), readableSize(file.getLength()),
                                 file.getPath());
+                        machineState.waitForPower();
                     }
                 }
             } catch (Exception e) {

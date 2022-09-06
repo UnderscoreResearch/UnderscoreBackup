@@ -22,6 +22,7 @@ public class OptimizeLogCommand extends Command {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
 
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
+        manifestManager.validateIdentity();
         manifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
         repository.flushLogging();
         manifestManager.shutdown();

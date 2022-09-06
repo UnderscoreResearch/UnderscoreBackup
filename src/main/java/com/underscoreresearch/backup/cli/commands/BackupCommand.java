@@ -6,6 +6,8 @@ import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.cli.ParseException;
+
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -32,14 +34,24 @@ public class BackupCommand extends SimpleCommand {
                     }
                 });
 
-        executeBackup();
+        executeBackup(false);
     }
 
-    public static void executeBackup() throws Exception {
+    public static void executeBackup(boolean asynchronous) throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         ScannerScheduler scheduler = InstanceFactory.getInstance(ScannerScheduler.class);
         UploadScheduler uploadScheduler = InstanceFactory.getInstance(UploadScheduler.class);
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
+        try {
+            manifestManager.validateIdentity();
+        } catch (Exception exc) {
+            if (exc.getCause() instanceof ParseException)
+                log.error(exc.getCause().getMessage());
+            else {
+                log.error("Failed to start backup", exc);
+            }
+            return;
+        }
 
         IOUtils.waitForInternet(() -> {
             manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), false);
@@ -67,6 +79,18 @@ public class BackupCommand extends SimpleCommand {
             log.info("Backup shutdown completed");
         });
 
+        if (asynchronous) {
+            Thread thread = new Thread(() -> executeScheduler(scheduler));
+            thread.start();
+            do {
+                Thread.sleep(1);
+            } while(!scheduler.isRunning() && thread.isAlive());
+        } else {
+            executeScheduler(scheduler);
+        }
+    }
+
+    private static void executeScheduler(ScannerScheduler scheduler) {
         synchronized (scheduler) {
             scheduler.start();
             debug(() -> log.debug("Backup scheduler shutdown"));

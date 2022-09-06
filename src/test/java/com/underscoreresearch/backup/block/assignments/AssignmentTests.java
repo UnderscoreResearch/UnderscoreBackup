@@ -36,6 +36,7 @@ import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 class AssignmentTests {
     private BackupSet set;
@@ -116,7 +117,7 @@ class AssignmentTests {
     public void rawUpload() throws InterruptedException {
         RawLargeFileBlockAssignment largeFileBlockAssignment = new RawLargeFileBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class), access,
-                Mockito.mock(MetadataRepository.class), 50);
+                Mockito.mock(MetadataRepository.class), new MachineState(true), 50);
         expectedFormat = "RAW";
 
         AtomicBoolean failed = new AtomicBoolean();
@@ -154,7 +155,7 @@ class AssignmentTests {
     public void gzipUpload() throws InterruptedException {
         GzipLargeFileBlockAssignment largeFileBlockAssignment = new GzipLargeFileBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class), access,
-                Mockito.mock(MetadataRepository.class), 50);
+                Mockito.mock(MetadataRepository.class), new MachineState(true), 50);
         expectedFormat = "GZIP";
 
         AtomicBoolean failed = new AtomicBoolean();

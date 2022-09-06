@@ -10,8 +10,6 @@ import {
     MenuItem,
     Select,
     SelectChangeEvent,
-    Tab,
-    Tabs,
     TextField
 } from "@mui/material";
 import Box from "@mui/material/Box";
@@ -593,7 +591,7 @@ function BaseS3Destination(props: S3DestinationProps) {
         </Grid>
         <Grid item xs={2}>
             <div style={{height: "100%", width: "100%", display: "flex", alignItems: "center"}}>
-            <Button fullWidth={true} onClick={e => window.open(props.console)}>Console</Button>
+                <Button fullWidth={true} onClick={e => window.open(props.console)}>Console</Button>
             </div>
         </Grid>
         <Grid item xs={12}>
@@ -666,14 +664,14 @@ function BaseS3Destination(props: S3DestinationProps) {
     </Grid>
 }
 
-function expandProtocolIfMissing(endpoint: string) : string {
+function expandProtocolIfMissing(endpoint: string): string {
     if (endpoint.indexOf("://") < 0) {
         return "https://" + endpoint;
     }
     return endpoint;
 }
 
-function decodeS3Bucket(endpointUri?: string) : string {
+function decodeS3Bucket(endpointUri?: string): string {
     if (endpointUri) {
         const match = endpointUri.match(/^s3\:\/\/([^\/]+)/);
         if (match && match && match[1]) {
@@ -683,7 +681,7 @@ function decodeS3Bucket(endpointUri?: string) : string {
     return ""
 }
 
-function decodeS3Prefix(endpointUri?: string) : string {
+function decodeS3Prefix(endpointUri?: string): string {
     if (endpointUri) {
         const match = endpointUri.match(/^s3\:\/\/[^\/]+\/(.*)$/);
         if (match && match[1]) {
@@ -693,13 +691,13 @@ function decodeS3Prefix(endpointUri?: string) : string {
     return ""
 }
 
-function createS3EndpointUri(bucket: string, prefix: string) : string {
+function createS3EndpointUri(bucket: string, prefix: string): string {
     if (prefix.startsWith("/"))
         prefix = prefix.substring(1);
     return `s3://${bucket}/${prefix}`;
 }
 
-function createS3Destination(newState: S3DestinationState, properties?: PropertyMap) : BackupDestination {
+function createS3Destination(newState: S3DestinationState, properties?: PropertyMap): BackupDestination {
     return {
         type: "S3",
         endpointUri: createS3EndpointUri(newState.bucket, newState.prefix),
@@ -827,9 +825,9 @@ export default function Destination(props: DestinationProps) {
                     const apiEndpoint = destination.properties && destination.properties["apiEndpoint"] ? destination.properties["apiEndpoint"] : "";
                     if (apiEndpoint.endsWith(".backblazeb2.com")) {
                         defaultType = 3;
-                    } else if (apiEndpoint.endsWith(".wasabisys.com")){
+                    } else if (apiEndpoint.endsWith(".wasabisys.com")) {
                         defaultType = 4;
-                    } else if (apiEndpoint.match(/\.idrivee2-\d\.com$/)){
+                    } else if (apiEndpoint.match(/\.idrivee2-\d\.com$/)) {
                         defaultType = 5;
                     } else {
                         defaultType = 2;
@@ -900,7 +898,7 @@ export default function Destination(props: DestinationProps) {
         <DividerWithText>Type</DividerWithText>
 
         <Select id="selectType" fullWidth={true} value={state.type}
-                style={{ marginLeft: "8px", marginRight: "-8px", marginTop: "4px" }}
+                style={{marginLeft: "8px", marginRight: "-8px", marginTop: "4px"}}
                 onChange={e => handleChange(undefined, parseInt(e.target.value.toString()))}>
             <MenuItem value="0" id={"typeLocalDirectory"}>Local Directory</MenuItem>
             <MenuItem value="1" id={"typeWindowsShare"}>Windows Share</MenuItem>

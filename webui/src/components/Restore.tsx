@@ -23,9 +23,9 @@ import {
     GetBackupVersions,
     GetSearchBackup
 } from '../api';
-import DateTimePicker from '@mui/lab/DateTimePicker';
-import AdapterDateFns from '@mui/lab/AdapterDateFns';
-import LocalizationProvider from '@mui/lab/LocalizationProvider';
+import {DateTimePicker} from '@mui/x-date-pickers/DateTimePicker';
+import {AdapterDateFns} from '@mui/x-date-pickers/AdapterDateFns';
+import {LocalizationProvider} from '@mui/x-date-pickers/LocalizationProvider';
 import Search from '@mui/icons-material/Search';
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import {DisplayMessage} from "../App";
@@ -256,12 +256,12 @@ export default function Restore(props: RestoreProps) {
                             <InputAdornment position={"end"}>
                                 {
                                     state.showingSearch &&
-                                    <IconButton>
-                                        <Clear onClick={(e) => setState({...state, showingSearch: ""})}/>
+                                    <IconButton onClick={(e) => setState({...state, showingSearch: "", search: ""})}>
+                                        <Clear/>
                                     </IconButton>
                                 }
-                                <IconButton>
-                                    <Search onClick={(e) => setState({...state, showingSearch: state.search})}/>
+                                <IconButton onClick={(e) => setState({...state, showingSearch: state.search})}>
+                                    <Search/>
                                 </IconButton>
                             </InputAdornment>
                         )

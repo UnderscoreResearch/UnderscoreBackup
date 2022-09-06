@@ -20,6 +20,7 @@ public class TrimRepositoryCommand extends Command {
     public void executeCommand(CommandLine commandLine) throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         ManifestManager manager = InstanceFactory.getInstance(ManifestManager.class);
+        manager.validateIdentity();
         BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
 
         RepositoryTrimmer trimmer = new RepositoryTrimmer(repository, configuration, manager, commandLine.hasOption(FORCE));
