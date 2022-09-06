@@ -30,7 +30,6 @@ it('backup', function () {
     cy.get("#submitConfigChange").click();
     cy.get('#acceptButton').contains("Save").click();
     cy.get('#acceptButton').should('not.be.disabled').contains("Start Backup").click();
-    cy.get('#acceptButton').should('not.be.disabled').contains("Start Backup").click();
     cy.get('#currentProgress').contains("Backup In Progress", {timeout: 10 * 1000});
     cy.get('#currentProgress').contains("Currently Inactive", {timeout: 10 * 60 * 1000});
 });

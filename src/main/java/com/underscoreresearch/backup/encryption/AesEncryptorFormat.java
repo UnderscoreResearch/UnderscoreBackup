@@ -12,16 +12,22 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
+import static com.underscoreresearch.backup.encryption.AesEncryptor.applyKeyData;
+
 @Slf4j
 public abstract class AesEncryptorFormat {
-    private static final int PUBLIC_KEY_SIZE = 32;
-    private static final String KEY_ALGORITHM = "AES";
+    protected static final int PUBLIC_KEY_SIZE = 32;
+    protected static final String KEY_ALGORITHM = "AES";
     public static final String PUBLIC_KEY = "p";
+    public static final String KEY_DATA = "k";
 
+    @Getter(AccessLevel.PROTECTED)
     private final PublicKeyEncrypion key;
     private static SecureRandom random = new SecureRandom();
 
@@ -81,27 +87,34 @@ public abstract class AesEncryptorFormat {
 
             return ret;
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
-                 InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
+                InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
     }
 
     public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset) {
         byte[] iv = new byte[getIvSize()];
-        byte[] publicKeyBytes = new byte[PUBLIC_KEY_SIZE];
 
         System.arraycopy(encryptedData, offset, iv, 0, getIvSize());
-        System.arraycopy(encryptedData, getIvSize() + offset, publicKeyBytes, 0, PUBLIC_KEY_SIZE);
 
         PublicKeyEncrypion publicKey = new PublicKeyEncrypion();
-        publicKey.setPublicKey(Hash.encodeBytes(publicKeyBytes));
+
+        if (storage != null && storage.getProperties() != null && storage.getProperties().containsKey(PUBLIC_KEY)) {
+            publicKey.setPublicKey(storage.getProperties().get(PUBLIC_KEY));
+        } else {
+            byte[] publicKeyBytes = new byte[PUBLIC_KEY_SIZE];
+            System.arraycopy(encryptedData, getIvSize() + offset, publicKeyBytes, 0, PUBLIC_KEY_SIZE);
+            publicKey.setPublicKey(Hash.encodeBytes(publicKeyBytes));
+        }
 
         if (key.getPrivateKey() == null) {
             throw new IllegalStateException("Missing private key for decryption");
         }
 
-        SecretKeySpec secretKeySpec = new SecretKeySpec(PublicKeyEncrypion.combinedSecret(key, publicKey),
-                KEY_ALGORITHM);
+        byte[] encryptionKey = PublicKeyEncrypion.combinedSecret(key, publicKey);
+        encryptionKey = applyKeyData(storage, encryptionKey);
+
+        SecretKeySpec secretKeySpec = new SecretKeySpec(encryptionKey, KEY_ALGORITHM);
 
         try {
             Cipher cipher = Cipher.getInstance(getKeyAlgorithm());
@@ -109,7 +122,7 @@ public abstract class AesEncryptorFormat {
             return cipher.doFinal(encryptedData, getIvSize() + PUBLIC_KEY_SIZE + offset,
                     adjustDecodeLength(encryptedData[0], encryptedData.length - getIvSize() - PUBLIC_KEY_SIZE - offset));
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
-                 InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
     }

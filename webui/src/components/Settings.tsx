@@ -1,5 +1,12 @@
 import * as React from "react";
-import {BackupConfiguration, BackupGlobalLimits, BackupManifest, PostChangeEncryptionKey, PropertyMap} from "../api";
+import {
+    BackupConfiguration,
+    BackupGlobalLimits,
+    BackupManifest,
+    DeleteReset,
+    PostChangeEncryptionKey,
+    PropertyMap
+} from "../api";
 import {
     Alert,
     Button,
@@ -35,6 +42,7 @@ interface SettingsState {
     passphraseConfirm: string,
     oldPassphrase: string,
     showChangePassword: boolean,
+    showResetWarning: boolean,
     configData: string,
     limits: BackupGlobalLimits,
     properties?: PropertyMap
@@ -45,6 +53,7 @@ function createInitialState(config: BackupConfiguration): SettingsState {
         manifest: config.manifest,
         showConfig: false,
         showChangePassword: false,
+        showResetWarning: false,
         passphrase: "",
         passphraseConfirm: "",
         oldPassphrase: "",
@@ -109,10 +118,25 @@ export default function Settings(props: SettingsProps) {
         });
     }
 
+
+    function handlesResetWarning() {
+        setState({
+            ...state,
+            showResetWarning: true
+        });
+    }
+
     function handleChangePasswordClose() {
         setState({
             ...state,
             showChangePassword: false
+        });
+    }
+
+    function handleResetWarningClose() {
+        setState({
+            ...state,
+            showResetWarning: false
         });
     }
 
@@ -135,6 +159,12 @@ export default function Settings(props: SettingsProps) {
         } catch (e: any) {
             DisplayMessage(e.toString());
         }
+    }
+
+    async function performResetWarningClose() {
+        await DeleteReset();
+
+        location.href = location.href.substring(0, location.href.lastIndexOf("/")) + "/";
     }
 
     return <Stack spacing={2}>
@@ -205,6 +235,20 @@ export default function Settings(props: SettingsProps) {
         </Paper>
         <Paper sx={{p: 2}}>
             <DividerWithText>Advanced settings</DividerWithText>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <FormControlLabel control={<Checkbox
+                        checked={state.manifest.pauseOnBattery || state.manifest.pauseOnBattery === undefined}
+                        onChange={(e) => updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                pauseOnBattery: e.target.checked
+                            }
+                        })}
+                    />} label="Pause backup when running on battery power"/>
+                </Grid>
+            </Grid>
             <Grid container spacing={2}>
                 <Grid item xs={12}>
                     <FormControlLabel control={<Checkbox
@@ -289,6 +333,13 @@ export default function Settings(props: SettingsProps) {
             <Grid item xs={3}>
                 <Button variant="contained" id="showChangePassword" onClick={handleShowChangePassword}>
                     Change Password
+                </Button>
+            </Grid>
+            <Grid item xs={3}>
+            </Grid>
+            <Grid item xs={3}>
+                <Button variant="contained" onClick={handlesResetWarning} color="error">
+                    Delete Configuration
                 </Button>
             </Grid>
         </Grid>
@@ -380,5 +431,29 @@ export default function Settings(props: SettingsProps) {
                 <Button onClick={() => handleChangePassword()} id={"submitPasswordChange"}>OK</Button>
             </DialogActions>
         </Dialog>
-    </Stack>
+
+        <Dialog
+            open={state.showResetWarning}
+            onClose={handleResetWarningClose}
+            aria-labelledby="alert-dialog-title"
+            aria-describedby="alert-dialog-description"
+        >
+            <DialogTitle id="alert-dialog-title">
+                {"Delete local configuration"}
+            </DialogTitle>
+            <DialogContent>
+                <DialogContentText id="alert-dialog-description">
+                    This action will remove all local configuration for this backup and move you back to the
+                    initial setup. This operation can not be reversed.
+                    <hr/>
+                    This will not remove any data from the backup destinations.
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={handleResetWarningClose} autoFocus>Cancel</Button>
+                <Button onClick={performResetWarningClose} color="error">
+                    Agree
+                </Button>
+            </DialogActions>
+        </Dialog> </Stack>
 }

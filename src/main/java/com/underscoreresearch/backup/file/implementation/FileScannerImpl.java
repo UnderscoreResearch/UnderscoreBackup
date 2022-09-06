@@ -39,6 +39,7 @@ import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -49,6 +50,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     private final MetadataRepository repository;
     private final FileConsumer consumer;
     private final FileSystemAccess filesystem;
+    private final MachineState machineState;
     private final boolean debug;
     private final AtomicInteger outstandingFiles = new AtomicInteger();
     private final AtomicLong completedFiles = new AtomicLong();
@@ -207,6 +209,8 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
             if (shutdown) {
                 return BackupActiveStatus.INCOMPLETE;
             }
+
+            machineState.waitForPower();
 
             if (pendingFiles.unprocessedFile(file.getPath())) {
                 if (file.isDirectory()) {

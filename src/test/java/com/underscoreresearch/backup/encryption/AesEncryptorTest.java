@@ -88,7 +88,6 @@ class AesEncryptorTest {
             byte[] data = new byte[i];
             random.nextBytes(data);
 
-
             BackupBlockStorage storage = new BackupBlockStorage();
             assertFalse(encryptor.validStorage(storage));
             byte[] encryptedData = encryptor.encryptBlock(storage, data);
@@ -96,13 +95,13 @@ class AesEncryptorTest {
             byte[] decryptedData = decryptor.decodeBlock(storage, encryptedData);
             assertNotNull(storage.getProperties().get("p"));
 
-            BackupBlockStorage otherStorage = new BackupBlockStorage();
-            decryptor.backfillEncryption(otherStorage, encryptedData);
-            assertEquals(otherStorage, storage);
-
             assertTrue(encryptor.validStorage(storage));
 
             assertThat(decryptedData, Is.is(data));
+
+            PublicKeyEncrypion otherKey = PublicKeyEncrypion.generateKeys();
+            byte[] otherData = new AesEncryptor(otherKey.publicOnly()).encryptBlock(new BackupBlockStorage(), data);
+            assertThat(encryptedData, Is.is(otherData));
         }
     }
 }

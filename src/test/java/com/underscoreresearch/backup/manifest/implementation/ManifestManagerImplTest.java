@@ -87,7 +87,7 @@ class ManifestManagerImplTest {
     @Test
     public void testUploadConfig() throws IOException {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any());
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
+        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
         manifestManager.addLogEntry("doh", "doh");
         assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
     }
@@ -99,7 +99,7 @@ class ManifestManagerImplTest {
         try (FileOutputStream stream = new FileOutputStream(file)) {
             stream.write(new byte[]{1, 2, 3});
         }
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
+        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
         manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
         manifestManager.addLogEntry("doh", "doh");
         Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any());
@@ -110,21 +110,21 @@ class ManifestManagerImplTest {
 
     @Test
     public void testDelayedUpload() throws IOException, InterruptedException {
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
+        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
 
-        Mockito.verify(memoryIOProvider, Mockito.times(2)).upload(anyString(), any());
+        Mockito.verify(memoryIOProvider, Mockito.times(3)).upload(anyString(), any());
 
         Thread.sleep(1500);
 
-        Mockito.verify(memoryIOProvider, Mockito.times(3)).upload(anyString(), any());
+        Mockito.verify(memoryIOProvider, Mockito.times(4)).upload(anyString(), any());
     }
 
     @Test
     public void testLoggingUpdateAndReplay() throws IOException {
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
+        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -142,7 +142,7 @@ class ManifestManagerImplTest {
 
         Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any());
 
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController);
+        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
         manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false));
 

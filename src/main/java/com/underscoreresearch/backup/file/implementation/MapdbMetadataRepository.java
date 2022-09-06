@@ -182,7 +182,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             if (!open) {
                 synchronized (openRepositories) {
                     while (openRepositories.containsKey(dataPath)) {
-                            openRepositories.get(dataPath).close();
+                        openRepositories.get(dataPath).close();
                     }
                     openRepositories.put(dataPath, this);
                 }
@@ -332,7 +332,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
                 synchronized (openRepositories) {
                     openRepositories.remove(dataPath);
-                    openRepositories.notify();;
+                    openRepositories.notify();
+                    ;
                 }
             }
         }

@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
@@ -43,14 +44,7 @@ public class ConfigurationPost extends JsonWrap {
             String config = new RqPrint(req).printBody();
             try {
                 updateConfiguration(config, false);
-                InstanceFactory.reloadConfiguration(null);
-                new Thread(() -> {
-                    try {
-                        InteractiveCommand.startBackupIfAvailable();
-                    } catch (Exception e) {
-                        log.error("Failed to start backup", e);
-                    }
-                }, "ConfigurationPointStartBackup").start();
+                InstanceFactory.reloadConfiguration(null, true);
                 return messageJson(200, "Updated configuration");
             } catch (Exception exc) {
                 return messageJson(400, exc.getMessage());
@@ -67,7 +61,7 @@ public class ConfigurationPost extends JsonWrap {
         ConfigurationValidator.validateConfiguration(configuration, false);
         File file = new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION));
         boolean exists = file.exists();
-        try (OutputStreamWriter writer = new FileWriter(file)) {
+        try (OutputStreamWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
             writer.write(config);
         }
 

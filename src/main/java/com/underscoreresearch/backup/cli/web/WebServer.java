@@ -11,6 +11,7 @@ import java.net.ServerSocket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 
 import lombok.extern.slf4j.Slf4j;
@@ -141,6 +142,9 @@ public class WebServer {
                                             new FkMethods("POST", new KeyPost()),
                                             new FkMethods("PUT", new GenerateKeyPut()))),
 
+                                    new FkRegex(base + "/api", new TkFork(
+                                            new FkMethods("DELETE", new ResetDelete()))),
+
                                     new FkRegex(base + "/api/encryption-key/change", new TkFork(
                                             new FkMethods("POST", new KeyChangePost()))),
 
@@ -196,7 +200,7 @@ public class WebServer {
                 File urlFile = new File(InstanceFactory.getInstance(CommandLineModule.URL_LOCATION));
                 urlFile.getParentFile().mkdirs();
                 urlFile.deleteOnExit();
-                try (FileWriter writer = new FileWriter(urlFile)) {
+                try (FileWriter writer = new FileWriter(urlFile, StandardCharsets.UTF_8)) {
                     writer.write(configUrl.toString());
                     writer.write("\n");
                 }

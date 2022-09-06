@@ -31,6 +31,7 @@ import com.underscoreresearch.backup.model.BackupFilter;
 import com.underscoreresearch.backup.model.BackupFilterType;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 class FileScannerImplTest {
     private FileSystemAccessImpl access;
@@ -100,7 +101,7 @@ class FileScannerImplTest {
         consumer = new Consumer();
         delayedBackup = false;
 
-        scanner = new FileScannerImpl(repository, consumer, access, true);
+        scanner = new FileScannerImpl(repository, consumer, access, new MachineState(true), true);
     }
 
     private void backupFileSubmit(BackupFile file, BackupCompletion completionPromise) {

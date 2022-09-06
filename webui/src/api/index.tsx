@@ -69,6 +69,7 @@ export interface BackupManifest {
     maximumUnsyncedSize?: number,
     maximumUnsyncedSeconds?: number
     optimizeSchedule?: string,
+    pauseOnBattery?: boolean,
     trimSchedule?: string,
     configUser?: string
     configPassword?: string
@@ -302,6 +303,17 @@ export async function PutEncryptionKey(passphrase: string): Promise<boolean> {
         body: JSON.stringify({
             "passphrase": passphrase
         })
+    });
+
+    if (ret === undefined) {
+        return false;
+    }
+    return true;
+}
+
+export async function DeleteReset(): Promise<boolean> {
+    const ret = await MakeCall("", {
+        method: 'DELETE'
     });
 
     if (ret === undefined) {

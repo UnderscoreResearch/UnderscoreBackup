@@ -4,6 +4,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import javax.imageio.ImageIO;
@@ -117,7 +118,7 @@ public class UIManager {
 
     private static void writeOsxNotification(String location, String message) {
         File file = new File(new File(InstanceFactory.getInstance(CommandLineModule.URL_LOCATION)).getParentFile(), location);
-        try (FileWriter writer = new FileWriter(file)) {
+        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
             writer.write(message);
             ConfigurationPost.setReadOnlyFilePermissions(file);
         } catch (IOException e) {

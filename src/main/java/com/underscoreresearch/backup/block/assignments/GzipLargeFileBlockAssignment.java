@@ -15,13 +15,15 @@ import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 @BlockFormatPlugin("GZIP")
 public class GzipLargeFileBlockAssignment extends LargeFileBlockAssignment {
     public GzipLargeFileBlockAssignment(FileBlockUploader uploader, BlockDownloader blockDownloader,
-                                        FileSystemAccess access, MetadataRepository metadataRepository, int maximumBlockSize) {
-        super(uploader, blockDownloader, access, metadataRepository, maximumBlockSize);
+                                        FileSystemAccess access, MetadataRepository metadataRepository,
+                                        MachineState machineState, int maximumBlockSize) {
+        super(uploader, blockDownloader, access, metadataRepository, machineState, maximumBlockSize);
     }
 
     @Override

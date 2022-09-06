@@ -47,10 +47,12 @@ public final class IOProviderFactory {
         BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
 
         Map<BackupDestination, IOProvider> newProviders = new HashMap<>();
-        for (Map.Entry<String, BackupDestination> entry : configuration.getDestinations().entrySet()) {
-            IOProvider provider = providers.remove(entry.getValue());
-            if (provider != null) {
-                newProviders.put(entry.getValue(), provider);
+        if (configuration.getDestinations() != null) {
+            for (Map.Entry<String, BackupDestination> entry : configuration.getDestinations().entrySet()) {
+                IOProvider provider = providers.remove(entry.getValue());
+                if (provider != null) {
+                    newProviders.put(entry.getValue(), provider);
+                }
             }
         }
 

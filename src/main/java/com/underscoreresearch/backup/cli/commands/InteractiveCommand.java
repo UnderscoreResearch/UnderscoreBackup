@@ -27,7 +27,6 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
         needConfiguration = false, needPrivateKey = false, readonlyRepository = false)
 @Slf4j
 public class InteractiveCommand extends Command {
-
     public void executeCommand(CommandLine commandLine) throws Exception {
         if (commandLine.getArgList().size() > 1) {
             throw new ParseException("Too many arguments for command");
@@ -72,14 +71,18 @@ public class InteractiveCommand extends Command {
         Thread.sleep(Long.MAX_VALUE);
     }
 
-    public static void startBackupIfAvailable() throws Exception {
+    public static void startBackupIfAvailable() {
         if (InstanceFactory.hasConfiguration(false)) {
             BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
             if (configuration.getSets().size() > 0
                     && configuration.getManifest().getInteractiveBackup() != null
                     && configuration.getManifest().getInteractiveBackup()) {
-                InstanceFactory.getInstance(MetadataRepository.class).open(false);
-                BackupCommand.executeBackup();
+                try {
+                    InstanceFactory.getInstance(MetadataRepository.class).open(false);
+                    BackupCommand.executeBackup(true);
+                } catch (Exception exc) {
+                    log.error("Failed to start backup", exc);
+                }
             }
         }
     }

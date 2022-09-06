@@ -13,4 +13,11 @@ public class NoneEncryptor implements Encryptor {
     public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData) {
         return encryptedData;
     }
+
+    @Override
+    public BackupBlockStorage reKeyStorage(BackupBlockStorage storage,
+                                           PublicKeyEncrypion oldPrivateKey,
+                                           PublicKeyEncrypion newPublicKey) {
+        return storage;
+    }
 }
