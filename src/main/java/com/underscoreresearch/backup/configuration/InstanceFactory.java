@@ -6,13 +6,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.underscoreresearch.backup.cli.commands.BackupCommand;
-import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.reflections.Reflections;
 
+import com.google.common.base.Strings;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -63,6 +62,14 @@ public abstract class InstanceFactory {
         return cachedHasConfig;
     }
 
+    public static String getAdditionalSource() {
+        String ret = getInstance(CommandLineModule.ADDITIONAL_SOURCE);
+        if (Strings.isNullOrEmpty(ret)) {
+            return null;
+        }
+        return ret;
+    }
+
     protected abstract <T> T instance(Class<T> tClass);
 
     protected abstract <T> T instance(String name, Class<T> tClass);
@@ -82,21 +89,21 @@ public abstract class InstanceFactory {
         }
     }
 
-    public static void initialize(String[] argv, String passphrase) {
+    public static void initialize(String[] argv, String passphrase, String source) {
         initialArguments = argv;
         initialize(Guice.createInjector(
-                new CommandLineModule(argv, passphrase),
+                new CommandLineModule(argv, passphrase, source),
                 new EncryptionModule(),
                 new ErrorCorrectionModule(),
                 new BackupModule(),
                 new RestoreModule()));
     }
 
-    public static void reloadConfiguration(String passphrase) {
-        reloadConfiguration(passphrase, false);
+    public static void reloadConfiguration(String passphrase, String source) {
+        reloadConfiguration(passphrase, source, null);
     }
 
-    public static void reloadConfiguration(String passphrase, boolean startBackup) {
+    public static void reloadConfiguration(String passphrase, String source, Runnable startup) {
         synchronized (shutdownHooks) {
             executeOrderedCleanupHook();
             MetadataRepository repository = null;
@@ -112,14 +119,15 @@ public abstract class InstanceFactory {
                 log.error("Failed to close metadata repository");
             }
             shutdown = false;
-            initialize(initialArguments, passphrase);
+            initialize(initialArguments, passphrase, source);
             if (hasConfiguration(true)) {
                 ConfigurationValidator.validateConfiguration(getInstance(BackupConfiguration.class), true);
             }
             removeOldProviders();
 
-            if (startBackup)
-                InteractiveCommand.startBackupIfAvailable();
+            if (startup != null) {
+                startup.run();
+            }
         }
     }
 

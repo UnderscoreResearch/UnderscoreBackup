@@ -52,6 +52,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.model.BackupRetention;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.utils.LogUtil;
 import com.underscoreresearch.backup.utils.StatusLine;
@@ -463,9 +464,17 @@ public class RepositoryTrimmer implements StatusLogger {
                               Set<String> deletedPaths,
                               boolean filesOnly, Statistics statistics) throws IOException {
         BackupSet set = findSet(files.get(0));
-        if (set == null) {
+        BackupRetention retention;
+
+        if (set != null) {
+            retention = set.getRetention();
+        } else {
+            retention = configuration.getMissingRetention();
+        }
+
+        if (retention == null) {
             if (!force) {
-                log.warn("File not in set {},} use force flag to delete", files.get(0).getPath());
+                log.warn("File not in set {}, use force flag to delete", files.get(0).getPath());
                 boolean anyFound = false;
                 for (BackupFile file : files) {
                     markFileBlocks(usedBlockMap, filesOnly, file, true);
@@ -496,7 +505,7 @@ public class RepositoryTrimmer implements StatusLogger {
                     deleted = isDeleted(file.getPath());
                     if (deleted) {
                         if (file.getDeleted() == null) {
-                            if (!set.getRetention().deletedImmediate()) {
+                            if (!retention.deletedImmediate()) {
                                 file.setDeleted(Instant.now().toEpochMilli());
                                 metadataRepository.addFile(file);
                             }
@@ -511,9 +520,9 @@ public class RepositoryTrimmer implements StatusLogger {
                     deleted = false;
                 }
 
-                if (set.getRetention().keepFile(file, lastFile, deleted)
-                        && (set.getRetention().getMaximumVersions() == null
-                        || keptCopies < set.getRetention().getMaximumVersions())) {
+                if (retention.keepFile(file, lastFile, deleted)
+                        && (retention.getMaximumVersions() == null
+                        || keptCopies < retention.getMaximumVersions())) {
                     lastFile = file;
                     markFileBlocks(usedBlockMap, filesOnly, file, true);
                     if (keptCopies == 0) {

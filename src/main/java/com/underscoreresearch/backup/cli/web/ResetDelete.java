@@ -40,23 +40,22 @@ public class ResetDelete extends JsonWrap {
             executeShielded(() -> new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION)).delete());
             executeShielded(() -> new File(InstanceFactory.getInstance(KEY_FILE_NAME)).delete());
 
-            executeShielded(() -> InstanceFactory.reloadConfiguration(null));
+            executeShielded(() -> InstanceFactory.reloadConfiguration(null, null));
             executeShielded(() -> deleteContents(new File(InstanceFactory.getInstance(MANIFEST_LOCATION))));
 
             return messageJson(200, "Ok");
         }
-
-        private void executeShielded(Runnable task) {
-            try {
-                task.run();
-            } catch (Exception e) {
-                debug(() -> log.debug("Error resetting", e));
-            }
-        }
-
     }
 
-    private static void deleteContents(File file) {
+    public static void executeShielded(Runnable task) {
+        try {
+            task.run();
+        } catch (Exception e) {
+            debug(() -> log.debug("Error resetting", e));
+        }
+    }
+
+    public static void deleteContents(File file) {
         if (file.isDirectory()) {
             for (File child : file.listFiles()) {
                 if (!child.getName().startsWith(".")) {

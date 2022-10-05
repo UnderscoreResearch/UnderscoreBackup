@@ -45,8 +45,20 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     private final Map<String, LogReader> decoders;
     private final Map<String, PendingActivePath> pendingActivePaths = new HashMap<>();
     private final Set<String> missingActivePaths = new HashSet<>();
-    private final ScheduledThreadPoolExecutor activePathSubmittors = new ScheduledThreadPoolExecutor(1,
+    private final ScheduledThreadPoolExecutor activePathSubmitters = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat("LoggingMetadataRepository-%d").build());
+    private boolean firstLogEntry = true;
+
+    public static class Readonly extends LoggingMetadataRepository {
+        public Readonly(MetadataRepository repository, ManifestManager manifestManager, boolean noDeleteReplay) {
+            super(repository, manifestManager, noDeleteReplay);
+        }
+
+        @Override
+        protected synchronized void writeLogEntry(String type, Object obj) {
+            throw new RuntimeException("Tried to write to a read only repository");
+        }
+    }
 
     @Data
     private static class PendingActivePath {
@@ -72,43 +84,52 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
         this.repository = repository;
         this.manifestManager = manifestManager;
 
-        activePathSubmittors.scheduleAtFixedRate(() -> submitPendingActivePaths(Duration.ofMillis(activePathDelay)),
+        activePathSubmitters.scheduleAtFixedRate(() -> submitPendingActivePaths(Duration.ofMillis(activePathDelay)),
                 Math.min(activePathDelay, 1000), Math.min(activePathDelay, 1000), TimeUnit.MILLISECONDS);
 
         ImmutableMap.Builder<String, LogReader> decoderBuilder = ImmutableMap.<String, LogReader>builder()
-                .put("file", (json) -> repository.addFile(mapper.readValue(json, BackupFile.class)))
-                .put("block", (json) -> repository.addBlock(mapper.readValue(json, BackupBlock.class)))
-                .put("dir", (json) -> {
+                .put("file", (firstLogEntry, json) -> repository.addFile(mapper.readValue(json, BackupFile.class)))
+                .put("block", (firstLogEntry, json) -> repository.addBlock(mapper.readValue(json, BackupBlock.class)))
+                .put("dir", (firstLogEntry, json) -> {
                     BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
                     repository.addDirectory(dir);
                 })
-                .put("deletePath", (json) -> {
+                .put("deletePath", (firstLogEntry, json) -> {
                     PushActivePath activePath = mapper.readValue(json, PushActivePath.class);
                     repository.popActivePath(activePath.getSetId(), activePath.getPath());
                 })
-                .put("path", (json) -> {
+                .put("path", (firstLogEntry, json) -> {
                     PushActivePath activePath = mapper.readValue(json, PushActivePath.class);
                     repository.pushActivePath(activePath.getSetId(), activePath.getPath(), activePath.getActivePath());
                 });
 
         if (noDeleteReplay) {
             decoderBuilder
-                    .put("deleteFile", (json) -> {
+                    .put("deleteFile", (firstLogEntry, json) -> {
                     })
-                    .put("deletePart", (json) -> {
+                    .put("deletePart", (firstLogEntry, json) -> {
                     })
-                    .put("deleteBlock", (json) -> {
+                    .put("deleteBlock", (firstLogEntry, json) -> {
                     })
-                    .put("deleteDir", (json) -> {
+                    .put("deleteDir", (firstLogEntry, json) -> {
+                    })
+                    .put("clear", (firstLogEntry, json) -> {
                     });
         } else {
             decoderBuilder
-                    .put("deleteFile", (json) -> repository.deleteFile(mapper.readValue(json, BackupFile.class)))
-                    .put("deletePart", (json) -> repository.deleteFilePart(mapper.readValue(json, BackupFilePart.class)))
-                    .put("deleteBlock", (json) -> repository.deleteBlock(mapper.readValue(json, BackupBlock.class)))
-                    .put("deleteDir", (json) -> {
+                    .put("deleteFile", (firstLogEntry, json) -> repository.deleteFile(mapper.readValue(json, BackupFile.class)))
+                    .put("deletePart", (firstLogEntry, json) -> repository.deleteFilePart(mapper.readValue(json, BackupFilePart.class)))
+                    .put("deleteBlock", (firstLogEntry, json) -> repository.deleteBlock(mapper.readValue(json, BackupBlock.class)))
+                    .put("deleteDir", (firstLogEntry, json) -> {
                         BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
                         repository.deleteDirectory(dir.getPath(), dir.getAdded());
+                    })
+                    .put("clear", (firstLogEntry, json) -> {
+                        // Should only be processed if it is the very first log entry processed or the
+                        // is a potential for catastrophic data loss.
+                        if (firstLogEntry) {
+                            repository.clear();
+                        }
                     });
         }
 
@@ -150,16 +171,21 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public void replayLogEntry(String type, String jsonDefinition) throws IOException {
-        decoders.get(type).applyJson(jsonDefinition);
+        decoders.get(type).applyJson(firstLogEntry, jsonDefinition);
+        firstLogEntry = false;
     }
 
     private interface LogReader {
-        void applyJson(String json) throws IOException;
+        void applyJson(boolean firstEntry, String json) throws IOException;
     }
 
-    private synchronized void writeLogEntry(String type, Object obj) {
+    protected synchronized void writeLogEntry(String type, Object obj) {
         try {
-            manifestManager.addLogEntry(type, mapper.writeValueAsString(obj));
+            if (obj != null) {
+                manifestManager.addLogEntry(type, mapper.writeValueAsString(obj));
+            } else {
+                manifestManager.addLogEntry(type, "");
+            }
         } catch (JsonProcessingException e) {
             log.error("Failed to process " + type, e);
         }
@@ -169,6 +195,16 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     public void addFile(BackupFile file) throws IOException {
         writeLogEntry("file", file);
         repository.addFile(file);
+    }
+
+    @Override
+    public String lastSyncedLogFile() throws IOException {
+        return repository.lastSyncedLogFile();
+    }
+
+    @Override
+    public void setLastSyncedLogFile(String entry) throws IOException {
+        repository.setLastSyncedLogFile(entry);
     }
 
     @Override
@@ -250,6 +286,12 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public long getPartCount() throws IOException {
         return repository.getPartCount();
+    }
+
+    @Override
+    public void clear() throws IOException {
+        writeLogEntry("clear", null);
+        repository.clear();
     }
 
     @Override
@@ -396,6 +438,6 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     public void close() throws IOException {
         flushLogging();
         repository.close();
-        activePathSubmittors.shutdownNow();
+        activePathSubmitters.shutdownNow();
     }
 }

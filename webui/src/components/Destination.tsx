@@ -29,9 +29,12 @@ interface TabPanelProps {
 
 export interface DestinationProps {
     id: string,
-    destination: BackupDestination;
-    destinationUpdated: (valid: boolean, val: BackupDestination) => void;
-    manifestDestination?: boolean
+    destination: BackupDestination,
+    typeLabel?: string,
+    destinationUpdated: (valid: boolean, val: BackupDestination) => void,
+    manifestDestination?: boolean,
+    sourceDestination?: boolean,
+    children?: JSX.Element[],
 }
 
 export interface S3DestinationProps extends DestinationProps {
@@ -139,6 +142,7 @@ interface SharedState {
 
 function SharedProperties(props: {
     manifestDestination?: boolean,
+    sourceDestination?: boolean,
     state: SharedState,
     onChange: (newState: SharedState) => void
 }) {
@@ -163,8 +167,12 @@ function SharedProperties(props: {
         const sendState: {
             encryption: string,
             errorCorrection: string,
+            maxRetention: BackupTimespan | undefined,
             limits: BackupLimits | undefined
-        } = {...newState}
+        } = {
+            ...newState,
+            maxRetention: state.maxRetention
+        }
         if (!newState.limits.maximumDownloadBytesPerSecond && !newState.limits.maximumUploadBytesPerSecond) {
             sendState.limits = undefined;
         }
@@ -220,21 +228,23 @@ function SharedProperties(props: {
         <Grid item xs={12}>
             <DividerWithText>Limits</DividerWithText>
         </Grid>
-        <Grid item xs={6}>
-            <SpeedLimit
-                speed={state.limits.maximumUploadBytesPerSecond}
-                onChange={(newSpeed) => {
-                    const newState = {
-                        ...state,
-                        limits: {
-                            ...state.limits,
-                            maximumUploadBytesPerSecond: newSpeed
+        {!props.sourceDestination &&
+            <Grid item xs={6}>
+                <SpeedLimit
+                    speed={state.limits.maximumUploadBytesPerSecond}
+                    onChange={(newSpeed) => {
+                        const newState = {
+                            ...state,
+                            limits: {
+                                ...state.limits,
+                                maximumUploadBytesPerSecond: newSpeed
+                            }
                         }
-                    }
-                    setState(newState);
-                    updateLimitChange(newState);
-                }} title={"Maximum upload speed"}/>
-        </Grid>
+                        setState(newState);
+                        updateLimitChange(newState);
+                    }} title={"Maximum upload speed"}/>
+            </Grid>
+        }
         <Grid item xs={6}>
             <SpeedLimit
                 speed={state.limits.maximumDownloadBytesPerSecond}
@@ -250,20 +260,24 @@ function SharedProperties(props: {
                     updateLimitChange(newState);
                 }} title={"Maximum download speed"}/>
         </Grid>
-        <Grid item xs={12}>
-            <DividerWithText>Maximum Retention</DividerWithText>
-        </Grid>
-        <Grid item xs={12}>
-            <Timespan timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
-                      onChange={(newTimespan) => {
-                          const sendState = {
-                              ...state,
-                              maxRetention: newTimespan
-                          };
-                          props.onChange(sendState);
-                      }}
-                      title={"Re-upload data to destination after "}/>
-        </Grid>
+        {!props.sourceDestination &&
+            <Grid item xs={12}>
+                <DividerWithText>Maximum Retention</DividerWithText>
+            </Grid>
+        }
+        {!props.sourceDestination &&
+            <Grid item xs={12}>
+                <Timespan timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
+                          onChange={(newTimespan) => {
+                              const sendState = {
+                                  ...state,
+                                  maxRetention: newTimespan
+                              };
+                              props.onChange(sendState);
+                          }}
+                          title={"Re-upload data to destination after "}/>
+            </Grid>
+        }
     </Fragment>
 }
 
@@ -310,6 +324,7 @@ function LocalFileDestination(props: DestinationProps) {
                        })}/>
         </Grid>
         <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -438,6 +453,7 @@ function DropboxDestination(props: DestinationProps) {
                        })}/>
         </Grid>
         <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -537,6 +553,7 @@ function WindowsShareDestination(props: DestinationProps) {
                        })}/>
         </Grid>
         <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -657,6 +674,7 @@ function BaseS3Destination(props: S3DestinationProps) {
             </Grid>
         }
         <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -895,7 +913,8 @@ export default function Destination(props: DestinationProps) {
     }
 
     return <Paper sx={{p: 2}}>
-        <DividerWithText>Type</DividerWithText>
+        {props.children}
+        <DividerWithText>{props.typeLabel ? props.typeLabel : "Type"}</DividerWithText>
 
         <Select id="selectType" fullWidth={true} value={state.type}
                 style={{marginLeft: "8px", marginRight: "-8px", marginTop: "4px"}}
@@ -914,52 +933,66 @@ export default function Destination(props: DestinationProps) {
         <TabPanel value={state.type} index={0}>
             <LocalFileDestination
                 manifestDestination={props.manifestDestination}
+                sourceDestination={props.sourceDestination}
                 destination={getTabState(0).destination}
                 id={props.id}
+                children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(0, valid, dest)}/>
         </TabPanel>
 
         <TabPanel value={state.type} index={1}>
             <WindowsShareDestination
                 manifestDestination={props.manifestDestination}
+                sourceDestination={props.sourceDestination}
                 destination={getTabState(1).destination}
                 id={props.id}
+                children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(1, valid, dest)}/>
         </TabPanel>
 
         <TabPanel value={state.type} index={2}>
             <S3Destination
                 manifestDestination={props.manifestDestination}
+                sourceDestination={props.sourceDestination}
                 destination={getTabState(2).destination}
                 id={props.id}
+                children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(2, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={3}>
             <BackblazeDestination
                 manifestDestination={props.manifestDestination}
+                sourceDestination={props.sourceDestination}
                 destination={getTabState(3).destination}
                 id={props.id}
+                children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(3, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={4}>
             <WasabiDestination
                 manifestDestination={props.manifestDestination}
+                sourceDestination={props.sourceDestination}
                 destination={getTabState(4).destination}
                 id={props.id}
+                children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(4, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={5}>
             <IDriveDestination
                 manifestDestination={props.manifestDestination}
+                sourceDestination={props.sourceDestination}
                 destination={getTabState(5).destination}
                 id={props.id}
+                children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(5, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={6}>
             <DropboxDestination
                 manifestDestination={props.manifestDestination}
+                sourceDestination={props.sourceDestination}
                 destination={getTabState(6).destination}
                 id={props.id}
+                children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(6, valid, dest)}/>
         </TabPanel>
     </Paper>

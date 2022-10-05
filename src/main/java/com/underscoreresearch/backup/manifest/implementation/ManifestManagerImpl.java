@@ -42,6 +42,7 @@ import org.apache.commons.cli.ParseException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Encryptor;
@@ -81,6 +82,8 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private final IOProvider provider;
     private final Encryptor encryptor;
     private final String installationIdentity;
+    private final String source;
+    private final boolean forceIdentity;
 
     @Getter
     @Setter
@@ -92,19 +95,26 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     private Object lock = new Object();
     private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
-    private LogConsumer initializeLogConsumer;
+    private LogConsumer logConsumer;
     private AtomicBoolean currentlyClosingLog = new AtomicBoolean();
+    private boolean initialized;
+    private boolean shutdown;
 
     public ManifestManagerImpl(BackupConfiguration configuration,
+                               String localRoot,
                                IOProvider provider,
                                Encryptor encryptor,
                                RateLimitController rateLimitController,
-                               String installationIdentity)
+                               String installationIdentity,
+                               String source,
+                               boolean forceIdentity)
             throws IOException {
         this.configuration = configuration;
         this.rateLimitController = rateLimitController;
-        this.localRoot = configuration.getManifest().getLocalLocation();
+        this.localRoot = localRoot;
         this.installationIdentity = installationIdentity;
+        this.source = source;
+        this.forceIdentity = forceIdentity;
 
         manifestDestination = configuration.getDestinations().get(configuration.getManifest().getDestination());
         if (manifestDestination == null) {
@@ -162,7 +172,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
                             lock.getLockedChannel().position(0);
 
-                            uploadConfigData(transformLogFilename(file.getAbsolutePath()), stream, true);
+                            uploadLogFile(file.getAbsolutePath(), stream);
                         } else {
                             log.warn("Log file {} locked by other process", file.getAbsolutePath());
                         }
@@ -177,8 +187,19 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         }
     }
 
+    private void uploadLogFile(String file, InputStream stream) throws IOException {
+        String uploadFilename = transformLogFilename(file);
+        uploadConfigData(uploadFilename, stream, true);
+        if (logConsumer.lastSyncedLogFile() != null && logConsumer.lastSyncedLogFile().compareTo(uploadFilename) > 0) {
+            log.warn("Uploaded log file {} out of order, already uploaded {}", uploadFilename,
+                    logConsumer.lastSyncedLogFile());
+        } else {
+            logConsumer.setLastSyncedLogFile(uploadFilename);
+        }
+    }
+
     private List<File> existingLogFiles() throws IOException {
-        File parent = Paths.get(configuration.getManifest().getLocalLocation(), "logs").toFile();
+        File parent = Paths.get(localRoot, "logs").toFile();
         if (parent.isDirectory()) {
             return Arrays.stream(parent.list()).map(file -> new File(parent, file)).collect(Collectors.toList());
         }
@@ -189,7 +210,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     public void initialize(LogConsumer logConsumer, boolean immediate) {
         synchronized (lock) {
             if (logConsumer != null) {
-                initializeLogConsumer = logConsumer;
+                this.logConsumer = logConsumer;
             }
 
             if (immediate) {
@@ -199,46 +220,57 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     }
 
     public void validateIdentity() {
-        byte[] data;
-        try {
-            debug(() -> log.debug("Validating manifest installation identity"));
-            data = provider.download(IDENTITY_MANIFEST_LOCATION);
-            rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
-        } catch (Exception exc) {
-            storeIdentity();
-            return;
-        }
-        String destinationIdentity = new String(data, StandardCharsets.UTF_8);
-        if (!destinationIdentity.equals(installationIdentity)) {
-            throw new RuntimeException(
-                    new ParseException("Another installation of UnderscoreBackup is already writing to this manifest "
-                            + "destination. To take over backing up from this installation execute a "
-                            + "rebuild-repository operation or reset the local configuration under settings in the UI"));
+        if (Strings.isNullOrEmpty(source)) {
+            byte[] data;
+            try {
+                debug(() -> log.debug("Validating manifest installation identity"));
+                data = provider.download(IDENTITY_MANIFEST_LOCATION);
+                rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
+            } catch (Exception exc) {
+                storeIdentity();
+                return;
+            }
+            String destinationIdentity = new String(data, StandardCharsets.UTF_8);
+            if (!destinationIdentity.equals(installationIdentity)) {
+                if (forceIdentity) {
+                    log.error("Another installation of UnderscoreBackup is already writing to this manifest "
+                            + "destination. Proceeding anyway because of --force flag on command line. Consider doing "
+                            + "a log optimize operation to avoid data corruption");
+                    storeIdentity();
+                } else {
+                    throw new RuntimeException(
+                            new ParseException("Another installation of UnderscoreBackup is already writing to this manifest "
+                                    + "destination. To take over backing up from this installation execute a "
+                                    + "rebuild-repository operation or reset the local configuration under settings in the UI"));
+                }
+            }
         }
     }
 
-    private void storeIdentity() {
-        log.info("Updating manifest installation identity");
-        try {
-            byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
-            provider.upload(IDENTITY_MANIFEST_LOCATION, data);
-            rateLimitController.acquireUploadPermits(manifestDestination, data.length);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to save identity to target");
+    public void storeIdentity() {
+        if (Strings.isNullOrEmpty(source)) {
+            log.info("Updating manifest installation identity");
+            try {
+                byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
+                provider.upload(IDENTITY_MANIFEST_LOCATION, data);
+                rateLimitController.acquireUploadPermits(manifestDestination, data.length);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to save identity to target");
+            }
         }
     }
 
     private void internalInitialize() {
         synchronized (lock) {
-            if (initializeLogConsumer != null) {
+            if (!initialized) {
                 validateIdentity();
 
                 try {
-                    uploadPending(initializeLogConsumer);
+                    uploadPending(logConsumer);
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to initialize metadata system for writing", e);
                 } finally {
-                    initializeLogConsumer = null;
+                    initialized = true;
                 }
             }
         }
@@ -393,7 +425,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             String filename = currentLogLock.getFilename();
             boolean uploaded = false;
             try (InputStream stream = Channels.newInputStream(currentLogLock.getLockedChannel())) {
-                uploadConfigData(transformLogFilename(filename), stream, true);
+                uploadLogFile(filename, stream);
                 uploaded = true;
             } finally {
                 try {
@@ -420,40 +452,44 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
     @Override
     public void replayLog(LogConsumer consumer) throws IOException {
-        IOIndex index = (IOIndex) provider;
-        List<String> days = index.availableKeys(LOG_ROOT);
-        days.sort(String::compareTo);
-
         storeIdentity();
+
         startOperation("Replay log");
+
+        if (consumer.lastSyncedLogFile() != null) {
+            log.info("Continuing rebuild from after file {}", logConsumer.lastSyncedLogFile());
+        }
+
+        IOIndex index = (IOIndex) provider;
+        List<String> days = getListOfLogFiles(consumer, index, LOG_ROOT, true);
+
         try {
             totalFiles = new AtomicLong(days.size());
             processedFiles = new AtomicLong(0L);
             processedOperations = new AtomicLong();
 
             for (String day : days) {
-                List<String> files = index.availableKeys(LOG_ROOT + PATH_SEPARATOR + day);
+                List<String> files = getListOfLogFiles(consumer, index, day, false);
+
                 totalFiles.addAndGet(files.size());
 
-                files.sort(String::compareTo);
                 for (String file : files) {
-                    String path = LOG_ROOT + PATH_SEPARATOR + day;
-                    if (!path.endsWith(PATH_SEPARATOR)) {
-                        path += PATH_SEPARATOR;
-                    }
-                    path += file;
-                    byte[] data = provider.download(path);
+                    byte[] data = provider.download(file);
 
                     try {
-                        log.info("Processing log file {}", path);
+                        log.info("Processing log file {}", file);
                         byte[] unencryptedData = encryptor.decodeBlock(null, data);
                         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(unencryptedData)) {
                             try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
                                 processLogInputStream(consumer, gzipInputStream);
                             }
                         }
+                        consumer.setLastSyncedLogFile(file);
                     } catch (Exception exc) {
                         log.error("Failed to read log file " + file, exc);
+                    }
+                    if (!Strings.isNullOrEmpty(source) && (shutdown || InstanceFactory.isShutdown())) {
+                        return;
                     }
                     processedFiles.incrementAndGet();
                 }
@@ -463,6 +499,29 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             log.info("Completed reprocessing logs");
             resetStatus();
         }
+    }
+
+    private static List<String> getListOfLogFiles(LogConsumer consumer, IOIndex index, String parent, boolean partial)
+            throws IOException {
+        final String parentPrefix;
+        if (!parent.endsWith(PATH_SEPARATOR)) {
+            parentPrefix = parent + PATH_SEPARATOR;
+        } else {
+            parentPrefix = parent;
+        }
+        List<String> files = index.availableKeys(parent).stream().map(file -> parentPrefix + file)
+                .sorted().collect(Collectors.toList());
+
+        String lastSyncedFile = consumer.lastSyncedLogFile();
+
+        if (lastSyncedFile != null) {
+            files = files.stream()
+                    .filter(file -> file.compareTo(lastSyncedFile.length() > file.length() ?
+                            lastSyncedFile.substring(0, file.length()) :
+                            lastSyncedFile) >= (partial ? 0 : 1))
+                    .collect(Collectors.toList());
+        }
+        return files;
     }
 
     private void processLogInputStream(LogConsumer consumer, InputStream inputStream) throws IOException {
@@ -512,6 +571,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
 
         try (CloseableLock ignored = existingRepository.acquireLock()) {
             LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this, false);
+            copyRepository.clear();
 
             internalInitialize();
 
@@ -526,7 +586,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                     + configuration.getSets().size() + 1);
 
             log.info("Processing files");
-            existingRepository.allFiles(false).forEach((file) -> {
+            existingRepository.allFiles(true).forEach((file) -> {
                 processedOperations.incrementAndGet();
                 try {
                     copyRepository.addFile(file);
@@ -544,7 +604,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
             });
             log.info("Processing directory contents");
-            existingRepository.allDirectories(false).forEach((dir) -> {
+            existingRepository.allDirectories(true).forEach((dir) -> {
                 processedOperations.incrementAndGet();
                 try {
                     copyRepository.addDirectory(dir);
@@ -577,6 +637,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             });
 
             copyRepository.close();
+            flushLog();
 
             ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                     configuration.getManifest().getOptimizeSchedule());
@@ -615,6 +676,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         synchronized (lock) {
             executor.shutdownNow();
             closeLogFile();
+            shutdown = true;
         }
     }
 
@@ -629,6 +691,10 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         log.info(operation);
         this.operation = operation;
         operationDuration = Stopwatch.createStarted();
+    }
+
+    public boolean isBusy() {
+        return operation != null;
     }
 
     @Override
@@ -648,6 +714,9 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     @Override
     public List<StatusLine> status() {
         List<StatusLine> ret = new ArrayList<>();
+        if (!Strings.isNullOrEmpty(source)) {
+            ret.add(new StatusLine(getClass(), "SOURCE", "Browsing source", null, source));
+        }
         if (operation != null) {
             String code = operation.toUpperCase().replace(" ", "_");
             if (processedFiles != null && totalFiles != null) {

@@ -90,7 +90,7 @@ public class RestorePost extends JsonWrap {
                 return messageJson(400, "Missing files to restore");
             }
 
-            InstanceFactory.reloadConfiguration(request.getPassphrase());
+            InstanceFactory.reloadConfiguration(request.getPassphrase(), InstanceFactory.getAdditionalSource());
             new Thread(() -> {
                 AtomicBoolean restart = new AtomicBoolean(true);
                 try {
@@ -137,7 +137,8 @@ public class RestorePost extends JsonWrap {
                 InstanceFactory.waitForShutdown();
 
                 if (restart.get()) {
-                    InstanceFactory.reloadConfiguration(null, true);
+                    InstanceFactory.reloadConfiguration(null, InstanceFactory.getAdditionalSource(),
+                            () -> InteractiveCommand.startBackupIfAvailable());
                 }
             }, "RestorePost").start();
 

@@ -20,7 +20,8 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupFile;
 
-@CommandPlugin(value = "history", args = "[FILES]...", description = "List file history", needPrivateKey = false)
+@CommandPlugin(value = "history", args = "[FILES]...", description = "List file history",
+        needPrivateKey = false, supportSource = true)
 @Slf4j
 public class HistoryCommand extends Command {
 

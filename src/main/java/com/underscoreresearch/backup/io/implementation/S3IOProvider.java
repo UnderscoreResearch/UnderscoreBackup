@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.RetryUtils;
@@ -23,6 +22,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
@@ -41,7 +41,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 @IOPlugin(("S3"))
 @Slf4j
 public class
-S3IOProvider implements IOIndex, IOProvider, Closeable {
+S3IOProvider implements IOIndex, Closeable {
     private final BackupDestination destination;
     private final S3Client client;
     private final String root;
@@ -198,6 +198,25 @@ S3IOProvider implements IOIndex, IOProvider, Closeable {
             }, null);
         } catch (Exception e) {
             throw new IOException("Failed to download object " + rootedKey, e);
+        }
+    }
+
+    @Override
+    public void checkCredentials(boolean readonly) throws IOException {
+        ListObjectsV2Request initialRequest = ListObjectsV2Request.builder()
+                .bucket(bucket)
+                .delimiter(PATH_SEPARATOR)
+                .maxKeys(1)
+                .prefix(root).build();
+        try {
+            ListObjectsV2Response response = client.listObjectsV2(initialRequest);
+            if (readonly) {
+                if (response.contents().size() == 0) {
+                    throw new IOException("No contents in read only S3 location");
+                }
+            }
+        } catch (SdkException exc) {
+            throw new IOException("Failed to access S3", exc);
         }
     }
 

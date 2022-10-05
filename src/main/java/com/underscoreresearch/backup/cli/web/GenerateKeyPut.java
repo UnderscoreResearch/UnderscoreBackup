@@ -23,7 +23,7 @@ public class GenerateKeyPut extends JsonWrap {
             try {
                 GenerateKeyCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
                         passphrase);
-                InstanceFactory.reloadConfiguration(null);
+                InstanceFactory.reloadConfiguration(null, null);
                 return messageJson(200, "Created new key configuration");
             } catch (Exception exc) {
                 return messageJson(400, exc.getMessage());

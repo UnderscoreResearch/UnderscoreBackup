@@ -10,6 +10,7 @@ import org.takes.rs.RsText;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
@@ -28,7 +29,8 @@ public class ConfigurationGet extends JsonWrap {
         public Response act(Request req) throws Exception {
             try {
                 if (InstanceFactory.hasConfiguration(false)) {
-                    BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+                    BackupConfiguration config = InstanceFactory.getInstance(CommandLineModule.SOURCE_CONFIG,
+                            BackupConfiguration.class);
                     return new RsText(WRITER.writeValueAsString(config));
                 }
             } catch (Exception exc) {

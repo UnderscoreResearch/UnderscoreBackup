@@ -8,4 +8,6 @@ public interface IOProvider {
     byte[] download(String key) throws IOException;
 
     void delete(String key) throws IOException;
+
+    void checkCredentials(boolean readonly) throws IOException;
 }

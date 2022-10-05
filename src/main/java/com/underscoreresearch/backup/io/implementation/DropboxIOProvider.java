@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 import com.dropbox.core.DbxDownloader;
+import com.dropbox.core.DbxException;
 import com.dropbox.core.DbxRequestConfig;
 import com.dropbox.core.oauth.DbxCredential;
 import com.dropbox.core.v2.DbxClientV2;
@@ -21,14 +22,13 @@ import com.dropbox.core.v2.files.WriteMode;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.RetryUtils;
 
 @IOPlugin(("DROPBOX"))
 @Slf4j
-public class DropboxIOProvider implements IOIndex, IOProvider {
+public class DropboxIOProvider implements IOIndex {
     private final DbxClientV2 clientV2;
     private final String root;
 
@@ -104,6 +104,24 @@ public class DropboxIOProvider implements IOIndex, IOProvider {
             RetryUtils.retry(() -> clientV2.files().deleteV2(getFullPath(key)), null);
         } catch (Exception e) {
             throw new IOException(String.format("Failed to delete %s", root + key), e);
+        }
+    }
+
+    @Override
+    public void checkCredentials(boolean readOnly) throws IOException {
+        try {
+            String strippedRoot = root.substring(0, root.length() - 1);
+            try {
+                clientV2.files().listFolder(strippedRoot);
+            } catch (ListFolderErrorException exc) {
+                if (!readOnly) {
+                    clientV2.files().createFolderV2(strippedRoot);
+                } else {
+                    throw exc;
+                }
+            }
+        } catch (DbxException e) {
+            throw new IOException("Failed to access Dropbox", e);
         }
     }
 }

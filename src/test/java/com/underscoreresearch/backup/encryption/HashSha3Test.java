@@ -1,12 +1,12 @@
 package com.underscoreresearch.backup.encryption;
 
-import org.hamcrest.Matchers;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.security.SecureRandom;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import org.hamcrest.Matchers;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.Test;
 
 class HashSha3Test {
     @Test

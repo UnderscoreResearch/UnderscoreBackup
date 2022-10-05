@@ -32,7 +32,8 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 
 @CommandPlugin(value = "restore", args = "[FILES]... [DESTINATION]",
-        description = "Restore data. Use the destination \"-\" to not write data, but simply validate that data is available from destinations.\nUse \"=\" as destination to validate that backup data matches data locally")
+        description = "Restore data. Use the destination \"-\" to not write data, but simply validate that data is available from destinations.\nUse \"=\" as destination to validate that backup data matches data locally",
+        supportSource = true)
 @Slf4j
 public class RestoreCommand extends Command {
 

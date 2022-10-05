@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,7 +73,7 @@ public final class DestinationDecoder {
             );
         }
         path = path.substring(base.length() + 1);
-        path = URLDecoder.decode(path, "UTF-8");
+        path = URLDecoder.decode(path, StandardCharsets.UTF_8);
         return path;
     }
 

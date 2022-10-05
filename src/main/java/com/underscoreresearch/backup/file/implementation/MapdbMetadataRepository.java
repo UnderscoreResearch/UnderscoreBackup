@@ -14,7 +14,6 @@ import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -23,6 +22,10 @@ import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.mapdb.BTreeMap;
@@ -67,18 +70,44 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static final ObjectWriter BACKUP_PENDING_SET_WRITER;
     private static final ObjectReader BACKUP_PARTIAL_FILE_READER;
     private static final ObjectWriter BACKUP_PARTIAL_FILE_WRITER;
+    private static final ObjectReader REPOSITORY_INFO_READER;
+    private static final ObjectWriter REPOSITORY_INFO_WRITER;
 
     private static final String REQUEST_LOCK_FILE = "request.lock";
     private static final String LOCK_FILE = "access.lock";
 
+    private static final int INITIAL_VERSION = 0;
+    private static final int CURRENT_VERSION = 1;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class RepositoryInfo {
+        private int version;
+        private String lastSyncedLogEntry;
+    }
+
     private class MapDbRepositoryLock extends CloseableLock {
         public MapDbRepositoryLock() {
-            MapdbMetadataRepository.this.explicitLock.lock();
+            synchronized (MapdbMetadataRepository.this.explicitRequestLock) {
+                MapdbMetadataRepository.this.explicitRequested = true;
+                try {
+                    MapdbMetadataRepository.this.explicitLock.lock();
+                } finally {
+                    MapdbMetadataRepository.this.explicitRequested = false;
+                }
+            }
         }
 
         @Override
         public void close() {
             MapdbMetadataRepository.this.explicitLock.unlock();
+        }
+
+        @Override
+        public boolean requested() {
+            return MapdbMetadataRepository.this.explicitRequested;
         }
     }
 
@@ -114,6 +143,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
         BACKUP_PENDING_SET_WRITER = mapper.writerFor(BackupPendingSet.class);
         BACKUP_PARTIAL_FILE_READER = mapper.readerFor(BackupPartialFile.class);
         BACKUP_PARTIAL_FILE_WRITER = mapper.writerFor(BackupPartialFile.class);
+        REPOSITORY_INFO_READER = mapper.readerFor(RepositoryInfo.class);
+        REPOSITORY_INFO_WRITER = mapper.writerFor(RepositoryInfo.class);
     }
 
     private static final String FILE_STORE = "files.db";
@@ -123,10 +154,14 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static final String ACTIVE_PATH_STORE = "paths.db";
     private static final String PENDING_SET_STORE = "pendingset.db";
     private static final String PARTIAL_FILE_STORE = "partialfiles.db";
+    private static final String INFO_STORE = "info.json";
 
     private final String dataPath;
+    private final boolean replayOnly;
     private boolean open;
     private boolean readOnly;
+
+    private RepositoryInfo repositoryInfo;
 
     private DB blockDb;
     private DB fileDb;
@@ -139,22 +174,124 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private AccessLock fileLock;
 
     private HTreeMap<String, byte[]> blockMap;
-    private BTreeMap<Object[], byte[]> fileMap;
-    private BTreeMap<Object[], byte[]> directoryMap;
-    private BTreeMap<Object[], byte[]> partsMap;
-    private BTreeMap<Object[], byte[]> activePathMap;
+    private TreeOrSink fileMap;
+    private TreeOrSink directoryMap;
+    private TreeOrSink partsMap;
+    private TreeOrSink activePathMap;
     private HTreeMap<String, byte[]> pendingSetMap;
     private HTreeMap<String, byte[]> partialFileMap;
 
+    public static class TreeOrSink {
+        private BTreeMap<Object[], byte[]> tree;
+        private DB.TreeMapSink<Object[], byte[]> sink;
+        private Object[] lastKey;
+
+        public TreeOrSink(BTreeMap<Object[], byte[]> tree) {
+            this.tree = tree;
+        }
+
+        public TreeOrSink(DB.TreeMapSink<Object[], byte[]> sink) {
+            this.sink = sink;
+        }
+
+        private void closeSink() {
+            if (sink != null) {
+                tree = sink.create();
+                sink = null;
+                lastKey = null;
+            }
+        }
+
+        public void put(Object[] key, byte[] val) {
+            if (tree != null) {
+                tree.put(key, val);
+            } else {
+                if (lastKey != null) {
+                    if (compareKeys(key, lastKey) <= 0) {
+                        closeSink();
+                        put(key, val);
+                        return;
+                    }
+                }
+                sink.put(key, val);
+                lastKey = key;
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        private static int compareKeys(Object[] key1, Object[] key2) {
+            for (int i = 0; i < key1.length; i++) {
+                int compare = ((Comparable) key1[i]).compareTo(key2[i]);
+                if (compare != 0) {
+                    return compare;
+                }
+            }
+            return 0;
+        }
+
+        public void close() {
+            if (tree == null) {
+                closeSink();
+                tree.getStore().commit();
+            }
+            tree.close();
+        }
+
+        public NavigableMap<Object[], byte[]> prefixSubMap(Object[] objects) {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.prefixSubMap(objects);
+        }
+
+        public NavigableMap<Object[], byte[]> descendingMap() {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.descendingMap();
+        }
+
+        public NavigableMap<Object[], byte[]> ascendingMap() {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree;
+        }
+
+        public byte[] remove(Object[] objects) {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.remove(objects);
+        }
+
+        public boolean containsKey(Object[] objects) {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.containsKey(objects);
+        }
+
+        public long size() {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.size();
+        }
+    }
+
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
 
+    private Object explicitRequestLock = new Object();
+    private boolean explicitRequested = false;
     private ReentrantLock explicitLock = new ReentrantLock();
     private ReentrantLock openLock = new ReentrantLock();
 
     private static Map<String, MapdbMetadataRepository> openRepositories = new HashMap<>();
 
-    public MapdbMetadataRepository(String dataPath) throws IOException {
+    public MapdbMetadataRepository(String dataPath, boolean replayOnly) throws IOException {
         this.dataPath = dataPath;
+        this.replayOnly = replayOnly;
     }
 
     private void commit() {
@@ -214,41 +351,92 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     }
                 }
 
-                blockDb = createDb(readOnly, BLOCK_STORE);
-                fileDb = createDb(readOnly, FILE_STORE);
-                directoryDb = createDb(readOnly, DIRECTORY_STORE);
-                partsDb = createDb(readOnly, PARTS_STORE);
-                activePathDb = createDb(readOnly, ACTIVE_PATH_STORE);
-                pendingSetDb = createDb(readOnly, PENDING_SET_STORE);
-                partialFileDb = createDb(readOnly, PARTIAL_FILE_STORE);
-
-                blockMap = blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY)
-                        .counterEnable()
-                        .createOrOpen();
-                fileMap = fileDb.treeMap(FILE_STORE)
-                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
-                        .counterEnable()
-                        .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-                directoryMap = directoryDb.treeMap(FILE_STORE)
-                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
-                        .counterEnable()
-                        .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-                activePathMap = activePathDb.treeMap(ACTIVE_PATH_STORE)
-                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
-                        .counterEnable()
-                        .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-                partsMap = partsDb.treeMap(FILE_STORE)
-                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
-                        .counterEnable()
-                        .valueSerializer(Serializer.BYTE_ARRAY).createOrOpen();
-                pendingSetMap = pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY)
-                        .counterEnable()
-                        .createOrOpen();
-                partialFileMap = partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY)
-                        .counterEnable()
-                        .createOrOpen();
+                openAllDataFiles(readOnly);
             }
         }
+    }
+
+    private void openAllDataFiles(boolean readOnly) throws IOException {
+        readRepositoryInfo(readOnly);
+
+        blockDb = createDb(readOnly, BLOCK_STORE);
+        fileDb = createDb(readOnly, FILE_STORE);
+        directoryDb = createDb(readOnly, DIRECTORY_STORE);
+        partsDb = createDb(readOnly, PARTS_STORE);
+        activePathDb = createDb(readOnly, ACTIVE_PATH_STORE);
+        pendingSetDb = createDb(readOnly, PENDING_SET_STORE);
+        partialFileDb = createDb(readOnly, PARTIAL_FILE_STORE);
+
+        blockMap = openHashMap(blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
+        fileMap = openTreeMap(fileDb, fileDb.treeMap(FILE_STORE)
+                .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
+                .valueSerializer(Serializer.BYTE_ARRAY));
+        directoryMap = openTreeMap(directoryDb, directoryDb.treeMap(FILE_STORE)
+                .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
+                .valueSerializer(Serializer.BYTE_ARRAY));
+        activePathMap = openTreeMap(activePathDb, activePathDb.treeMap(ACTIVE_PATH_STORE)
+                .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
+                .valueSerializer(Serializer.BYTE_ARRAY));
+        partsMap = openTreeMap(partsDb, partsDb.treeMap(FILE_STORE)
+                .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
+                .valueSerializer(Serializer.BYTE_ARRAY));
+        pendingSetMap = openHashMap(pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
+        partialFileMap = openHashMap(partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
+    }
+
+    private TreeOrSink openTreeMap(DB db, DB.TreeMapMaker<Object[], byte[]> maker) throws IOException {
+        switch (repositoryInfo.getVersion()) {
+            case INITIAL_VERSION:
+            case CURRENT_VERSION:
+                // No storage parameters originally specified.
+                break;
+            default:
+                throw new IOException(String.format("Unknown repository version {}",
+                        repositoryInfo.getVersion()));
+        }
+        maker.counterEnable();
+        if (db.nameCatalogLoad().size() == 0) {
+            return new TreeOrSink(maker.createFromSink());
+        }
+        return new TreeOrSink(maker.createOrOpen());
+    }
+
+    private HTreeMap<String, byte[]> openHashMap(DB.HashMapMaker<String, byte[]> maker) throws IOException {
+        switch (repositoryInfo.getVersion()) {
+            case INITIAL_VERSION:
+                // No storage parameters originally specified.
+                break;
+            case CURRENT_VERSION:
+                maker.layout(16, 64, 4);
+                // 268,435,456 entries before hash collisions
+                break;
+            default:
+                throw new IOException(String.format("Unknown repository version {}",
+                        repositoryInfo.getVersion()));
+        }
+        maker.counterEnable();
+        return maker.createOrOpen();
+    }
+
+    private void readRepositoryInfo(boolean readonly) throws IOException {
+        File file = Paths.get(dataPath, INFO_STORE).toFile();
+        if (file.exists()) {
+            repositoryInfo = REPOSITORY_INFO_READER.readValue(file);
+        } else {
+            if (Paths.get(dataPath, FILE_STORE).toFile().exists()) {
+                repositoryInfo = RepositoryInfo.builder().version(INITIAL_VERSION).build();
+            } else {
+                repositoryInfo = RepositoryInfo.builder().version(CURRENT_VERSION).build();
+            }
+            if (!readonly) {
+                saveRepositoryInfo();
+            }
+        }
+    }
+
+    private void saveRepositoryInfo() throws IOException {
+        File file = Paths.get(dataPath, INFO_STORE).toFile();
+        REPOSITORY_INFO_WRITER.writeValue(file, repositoryInfo);
     }
 
     private DB createDb(boolean readOnly, String blockStore) {
@@ -295,37 +483,10 @@ public class MapdbMetadataRepository implements MetadataRepository {
         }
     }
 
-    private DBMaker.Maker setupReadOnly(boolean readOnly, DBMaker.Maker dbMaker) {
-        if (readOnly)
-            return dbMaker.readOnly();
-        return dbMaker;
-    }
-
     public void close() throws IOException {
         try (MapDbRepositoryLock ignored = new MapDbOpenLock()) {
             if (open) {
-                commit();
-
-                if (scheduledThreadPoolExecutor != null) {
-                    scheduledThreadPoolExecutor.shutdownNow();
-                    scheduledThreadPoolExecutor = null;
-                }
-
-                blockMap.close();
-                fileMap.close();
-                directoryMap.close();
-                activePathMap.close();
-                partsMap.close();
-                pendingSetMap.close();
-                partialFileMap.close();
-
-                blockDb.close();
-                fileDb.close();
-                directoryDb.close();
-                partsDb.close();
-                activePathDb.close();
-                pendingSetDb.close();
-                partialFileDb.close();
+                closeAllDataFiles();
 
                 fileLock.close();
                 open = false;
@@ -333,10 +494,34 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 synchronized (openRepositories) {
                     openRepositories.remove(dataPath);
                     openRepositories.notify();
-                    ;
                 }
             }
         }
+    }
+
+    private void closeAllDataFiles() {
+        if (scheduledThreadPoolExecutor != null) {
+            scheduledThreadPoolExecutor.shutdownNow();
+            scheduledThreadPoolExecutor = null;
+        }
+
+        commit();
+
+        blockMap.close();
+        fileMap.close();
+        directoryMap.close();
+        activePathMap.close();
+        partsMap.close();
+        pendingSetMap.close();
+        partialFileMap.close();
+
+        blockDb.close();
+        fileDb.close();
+        directoryDb.close();
+        partsDb.close();
+        activePathDb.close();
+        pendingSetDb.close();
+        partialFileDb.close();
     }
 
     @Override
@@ -395,9 +580,9 @@ public class MapdbMetadataRepository implements MetadataRepository {
         ensureLocked();
         ensureOpen();
 
-        final ConcurrentNavigableMap<Object[], byte[]> map;
+        final Map<Object[], byte[]> map;
         if (ascending) {
-            map = fileMap;
+            map = fileMap.ascendingMap();
         } else {
             map = fileMap.descendingMap();
         }
@@ -432,7 +617,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         ensureLocked();
         ensureOpen();
 
-        return partsMap.entrySet().stream().map((entry) -> {
+        return partsMap.ascendingMap().entrySet().stream().map((entry) -> {
             try {
                 return decodePath(entry);
             } catch (IOException e) {
@@ -447,9 +632,9 @@ public class MapdbMetadataRepository implements MetadataRepository {
         ensureLocked();
         ensureOpen();
 
-        final ConcurrentNavigableMap<Object[], byte[]> map;
+        final Map<Object[], byte[]> map;
         if (ascending) {
-            map = directoryMap;
+            map = directoryMap.ascendingMap();
         } else {
             map = directoryMap.descendingMap();
         }
@@ -467,19 +652,23 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     @Override
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
-        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
-            ensureOpen();
+        if (!replayOnly) {
+            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+                ensureOpen();
 
-            pendingSetMap.put(scheduledTime.getSetId(), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
+                pendingSetMap.put(scheduledTime.getSetId(), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
+            }
         }
     }
 
     @Override
     public void deletePendingSets(String setId) throws IOException {
-        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
-            ensureOpen();
+        if (!replayOnly) {
+            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+                ensureOpen();
 
-            pendingSetMap.remove(setId);
+                pendingSetMap.remove(setId);
+            }
         }
     }
 
@@ -599,17 +788,30 @@ public class MapdbMetadataRepository implements MetadataRepository {
             fileMap.put(new Object[]{file.getPath(), added},
                     encodeData(BACKUP_FILE_WRITER, strippedCopy(file)));
 
-            if (file.getLocations() != null) {
-                for (BackupLocation location : file.getLocations()) {
-                    for (BackupFilePart part : location.getParts()) {
-                        if (part.getPartHash() != null) {
-                            partsMap.put(new Object[]{part.getPartHash(), part.getBlockHash()},
-                                    encodeData(BACKUP_PART_WRITER, strippedCopy(part)));
+            if (!replayOnly) {
+                if (file.getLocations() != null) {
+                    for (BackupLocation location : file.getLocations()) {
+                        for (BackupFilePart part : location.getParts()) {
+                            if (part.getPartHash() != null) {
+                                partsMap.put(new Object[]{part.getPartHash(), part.getBlockHash()},
+                                        encodeData(BACKUP_PART_WRITER, strippedCopy(part)));
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    @Override
+    public String lastSyncedLogFile() throws IOException {
+        return repositoryInfo.getLastSyncedLogEntry();
+    }
+
+    @Override
+    public void setLastSyncedLogFile(String entry) throws IOException {
+        repositoryInfo.setLastSyncedLogEntry(entry);
+        saveRepositoryInfo();
     }
 
     private BackupFilePart strippedCopy(BackupFilePart part) {
@@ -670,10 +872,14 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     @Override
     public boolean deleteFilePart(BackupFilePart part) throws IOException {
-        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
-            ensureOpen();
+        if (!replayOnly) {
+            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+                ensureOpen();
 
-            return partsMap.remove(new Object[]{part.getPartHash(), part.getBlockHash()}) != null;
+                return partsMap.remove(new Object[]{part.getPartHash(), part.getBlockHash()}) != null;
+            }
+        } else {
+            return false;
         }
     }
 
@@ -688,10 +894,12 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     @Override
     public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
-        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
-            ensureOpen();
+        if (!replayOnly) {
+            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+                ensureOpen();
 
-            activePathMap.put(new Object[]{setId, path}, encodeData(BACKUP_ACTIVE_WRITER, pendingFiles));
+                activePathMap.put(new Object[]{setId, path}, encodeData(BACKUP_ACTIVE_WRITER, pendingFiles));
+            }
         }
     }
 
@@ -723,28 +931,36 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     @Override
     public void popActivePath(String setId, String path) throws IOException {
-        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
-            ensureOpen();
+        if (!replayOnly) {
+            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+                ensureOpen();
 
-            activePathMap.remove(new Object[]{setId, path});
+                activePathMap.remove(new Object[]{setId, path});
+            }
         }
     }
 
     @Override
     public boolean deletePartialFile(BackupPartialFile file) throws IOException {
-        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
-            ensureOpen();
+        if (!replayOnly) {
+            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+                ensureOpen();
 
-            return partialFileMap.remove(file.getFile().getPath()) != null;
+                return partialFileMap.remove(file.getFile().getPath()) != null;
+            }
+        } else {
+            return false;
         }
     }
 
     @Override
     public void savePartialFile(BackupPartialFile file) throws IOException {
-        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
-            ensureOpen();
+        if (!replayOnly) {
+            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+                ensureOpen();
 
-            partialFileMap.put(file.getFile().getPath(), encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
+                partialFileMap.put(file.getFile().getPath(), encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
+            }
         }
     }
 
@@ -779,7 +995,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
             ensureOpen();
 
-            Map<Object[], byte[]> readMap = activePathMap;
+            Map<Object[], byte[]> readMap = activePathMap.ascendingMap();
             if (setId != null)
                 readMap = activePathMap.prefixSubMap(new Object[]{setId});
 
@@ -841,6 +1057,29 @@ public class MapdbMetadataRepository implements MetadataRepository {
         try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
             ensureOpen();
             return partsMap.size();
+        }
+    }
+
+    public void clear() throws IOException {
+        if (readOnly) {
+            throw new IOException("Tried to clear read only repository");
+        }
+        try (MapDbOpenLock ignoed2 = new MapDbOpenLock()) {
+            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+                closeAllDataFiles();
+
+                for (File file : new File(dataPath).listFiles()) {
+                    if (file.isFile() &&
+                            !file.getName().equals(LOCK_FILE) &&
+                            !file.getName().equals(REQUEST_LOCK_FILE)) {
+                        if (!file.delete()) {
+                            log.error("Failed to delete file {} clearing repository", file.getAbsolutePath());
+                        }
+                    }
+                }
+
+                openAllDataFiles(false);
+            }
         }
     }
 }

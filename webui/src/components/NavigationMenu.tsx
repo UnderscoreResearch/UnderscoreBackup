@@ -8,9 +8,11 @@ import ListItemText from "@mui/material/ListItemText";
 import AccountTree from "@mui/icons-material/AccountTree";
 import Settings from "@mui/icons-material/Settings";
 import CloudDownload from "@mui/icons-material/CloudDownload";
+import AutoAwesomeMotion from "@mui/icons-material/AutoAwesomeMotion";
 import Dashboard from "@mui/icons-material/Dashboard";
 import {Link} from "react-router-dom";
 import {BackupConfiguration} from "../api";
+import {Share} from "@mui/icons-material";
 
 function MyListItemButton(props: {
     page: string,
@@ -37,7 +39,8 @@ export default function NavigationMenu(props: {
     hasKey: boolean,
     allowRestore: boolean,
     allowBackup: boolean,
-    unresponsive: boolean
+    unresponsive: boolean,
+    hasSource: boolean
 }) {
     var firstTime = Object.keys(props.config.destinations).length == 0 || !props.hasKey;
 
@@ -59,23 +62,31 @@ export default function NavigationMenu(props: {
             <ListItemText primary="Status"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="sets" config={props.config} disabled={!props.allowBackup} id="pageSets">
+        <MyListItemButton page="sets" config={props.config} disabled={!props.allowBackup || props.hasSource} id="pageSets">
             <ListItemIcon>
                 <AccountTree/>
             </ListItemIcon>
             <ListItemText primary="Backup Sets"/>
         </MyListItemButton>
-        <MyListItemButton page="destinations" config={props.config} disabled={!props.allowBackup} id="pageDestinations">
+        <MyListItemButton page="destinations" config={props.config} disabled={!props.allowBackup}
+                          id="pageDestinations">
             <ListItemIcon>
                 <CloudUpload/>
             </ListItemIcon>
             <ListItemText primary="Destinations"/>
         </MyListItemButton>
-        <MyListItemButton page="settings" config={props.config} disabled={!props.allowBackup} id="pageSettings">
+        <MyListItemButton page="settings" config={props.config} disabled={!props.allowBackup || props.hasSource} id="pageSettings">
             <ListItemIcon>
                 <Settings/>
             </ListItemIcon>
             <ListItemText primary="Settings"/>
+        </MyListItemButton>
+        <Divider sx={{my: 1}}/>
+        <MyListItemButton page="sources" config={props.config} disabled={!props.allowBackup || props.hasSource} id="pageSources">
+            <ListItemIcon>
+                <AutoAwesomeMotion/>
+            </ListItemIcon>
+            <ListItemText primary="Other Sources"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
         <MyListItemButton page="restore" config={props.config} disabled={!props.allowRestore} id="pageRestore">

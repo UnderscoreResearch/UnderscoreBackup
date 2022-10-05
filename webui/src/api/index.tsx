@@ -101,10 +101,12 @@ export type DestinationMap = {
 
 export interface BackupConfiguration {
     sets: BackupSet[],
-    destinations: DestinationMap
+    destinations: DestinationMap,
+    additionalSources?: DestinationMap,
     manifest: BackupManifest,
     properties?: PropertyMap,
-    limits?: BackupGlobalLimits
+    limits?: BackupGlobalLimits,
+    missingRetention?: BackupRetention
 }
 
 export interface BackupFile {
@@ -118,7 +120,8 @@ export interface BackupDefaults {
     set: BackupSet,
     pathSeparator: string,
     version: string,
-    defaultRestoreFolder: string
+    defaultRestoreFolder: string,
+    source?: string
 }
 
 export interface StatusLine {
@@ -292,6 +295,39 @@ export async function GetEncryptionKey(passphrase?: string): Promise<boolean> {
         return false;
     }
     return ret.specified;
+}
+
+export async function PostSelectSource(source: string, passphrase?: string): Promise<string | undefined> {
+    try {
+        const response = await fetch(baseApi + "sources/" + encodeURIComponent(source), {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json;charset=UTF-8',
+            },
+            body: JSON.stringify({
+                "passphrase": passphrase
+            })
+        });
+        if (!response.ok) {
+            try {
+                const json = await response.json();
+                if (json.message) {
+                    reportError(json.message);
+                } else {
+                    reportError(response.statusText);
+                }
+                if (response.status === 406)
+                    return "destinations";
+            } catch (error) {
+                reportError(response.statusText);
+            }
+            return undefined;
+        }
+        return "restore";
+    } catch (error) {
+        reportError(error);
+        return undefined;
+    }
 }
 
 export async function PutEncryptionKey(passphrase: string): Promise<boolean> {

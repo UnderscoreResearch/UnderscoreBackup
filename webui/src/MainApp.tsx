@@ -27,6 +27,7 @@ import {
     PostRemoteRestore,
     PostRestartSets,
     PostRestore,
+    PostSelectSource,
     PutEncryptionKey,
     StatusLine
 } from './api';
@@ -40,6 +41,7 @@ import {Backdrop, Button, CircularProgress} from "@mui/material";
 import InitialSetup from "./components/InitialSetup";
 import Restore, {RestorePropsChange} from "./components/Restore";
 import lodashObject from 'lodash';
+import Sources, {SourceProps} from "./components/Sources";
 
 const drawerWidth: number = 240;
 
@@ -107,8 +109,11 @@ interface MainAppState {
     setsValid: boolean,
     restoreDestination?: string,
     restoreRoots: BackupSetRoot[],
+    restoreSource: string,
     restoreTimestamp?: Date,
+    restoreIncludeDeleted?: boolean,
     restoreOverwrite: boolean,
+    selectedSource?: string,
     defaults?: BackupDefaults,
     activity: StatusLine[]
 }
@@ -141,6 +146,7 @@ function defaultState(): MainAppState {
         currentConfiguration: defaultConfig(),
         restoreRoots: roots,
         restoreOverwrite: false,
+        restoreSource: "",
         initialValid: false,
         destinationsValid: true,
         setsValid: true,
@@ -163,7 +169,7 @@ export default function MainApp() {
         })
     };
 
-    async function fetchConfig() {
+    async function fetchConfig(ignoreState?: boolean) {
         var newState = {} as MainAppState;
         newState.loading = false;
         newState.initialLoad = false;
@@ -172,8 +178,8 @@ export default function MainApp() {
             if (newConfig !== undefined) {
                 var newRebuildAvailable = false;
                 if (Object.keys(newConfig.destinations).length > 0) {
-                    const hasKey = await GetEncryptionKey(state.passphrase);
-                    if (hasKey && state.passphrase) {
+                    const hasKey = await GetEncryptionKey(ignoreState ? undefined : state.passphrase);
+                    if (hasKey && !ignoreState && state.passphrase) {
                         newState.validatedPassphrase = true;
                     }
                     if (!hasKey && newConfig.manifest.destination) {
@@ -194,8 +200,13 @@ export default function MainApp() {
                 newState.rebuildAvailable = newRebuildAvailable;
                 newState.initialValid = true;
                 newState.defaults = await GetDefaults();
+                if (newState.defaults)
+                    newState.selectedSource = newState.defaults.source;
+                else
+                    newState.selectedSource = undefined;
                 if (newState.currentConfiguration.sets.length == 0) {
                     newState.currentConfiguration.sets.push({...newState.defaults.set});
+                    newState.currentConfiguration.missingRetention = newState.defaults.set.retention;
                 }
             }
         } finally {
@@ -257,7 +268,21 @@ export default function MainApp() {
             } as MainAppState));
 
             if (state.hasKey) {
-                let success = await GetEncryptionKey(state.passphrase);
+                var success: boolean;
+                if (page === "restore") {
+                    let response = await PostSelectSource(
+                        state.restoreSource ? state.restoreSource : "-",
+                        state.passphrase);
+                    await fetchConfig();
+                    if (!response) {
+                        success = false;
+                    } else {
+                        success = true;
+                        navigate(response);
+                    }
+                } else {
+                    success = await GetEncryptionKey(state.passphrase);
+                }
                 setState((oldState) => ({
                     ...oldState,
                     ...{
@@ -266,7 +291,7 @@ export default function MainApp() {
                     }
                 } as MainAppState));
             } else {
-                var success;
+                var success: boolean;
                 if (state.rebuildAvailable) {
                     success = await PostRemoteRestore(state.passphrase);
                 } else {
@@ -325,6 +350,22 @@ export default function MainApp() {
         });
     }
 
+    function updateSources(valid: boolean, sources: SourceProps[]) {
+        let newVal: DestinationMap = {};
+        sources.forEach((item) => {
+            newVal[item.id] = item.destination;
+        })
+
+        setState({
+            ...state,
+            currentConfiguration: {
+                ...state.currentConfiguration,
+                additionalSources: newVal
+            },
+            destinationsValid: valid
+        });
+    }
+
     function getDestinationList(): DestinationProp[] {
         const keys = Object.keys(state.currentConfiguration.destinations);
         keys.sort();
@@ -332,6 +373,28 @@ export default function MainApp() {
         return keys.map(key => {
             return {
                 destination: state.currentConfiguration.destinations[key] as BackupDestination,
+                id: key
+            }
+        });
+    }
+
+    function sourceExist(key: string): boolean {
+        if (state.originalConfiguration && state.originalConfiguration.additionalSources) {
+            return !!state.originalConfiguration.additionalSources[key]
+        }
+        return false;
+    }
+
+    function getSourcesList(): SourceProps[] {
+        const keys = state.currentConfiguration.additionalSources
+            ? Object.keys(state.currentConfiguration.additionalSources)
+            : [];
+        keys.sort();
+
+        return keys.map(key => {
+            return {
+                destination: (state.currentConfiguration.additionalSources as DestinationMap)[key] as BackupDestination,
+                exist: sourceExist(key),
                 id: key
             }
         });
@@ -350,7 +413,9 @@ export default function MainApp() {
             passphrase: newState.passphrase,
             restoreDestination: newState.destination,
             restoreRoots: newState.roots,
+            restoreSource: newState.source,
             restoreTimestamp: newState.timestamp,
+            restoreIncludeDeleted: newState.includeDeleted,
             restoreOverwrite: newState.overwrite
         });
     }
@@ -365,7 +430,8 @@ export default function MainApp() {
             destination: state.restoreDestination,
             files: state.restoreRoots,
             overwrite: state.restoreOverwrite,
-            timestamp: state.restoreTimestamp ? state.restoreTimestamp.getTime() : undefined
+            timestamp: state.restoreTimestamp ? state.restoreTimestamp.getTime() : undefined,
+            includeDeleted: state.restoreIncludeDeleted ? state.restoreIncludeDeleted : false
         });
 
         await fetchActivity();
@@ -395,7 +461,7 @@ export default function MainApp() {
         setState((oldState) => oldState);
     }, [location.pathname]);
 
-    let currentProgress;
+    let currentProgress : string | undefined;
     let acceptButtonTitle: string = "";
     let cancelButtonTitle = "";
     let allowRestore = true;
@@ -413,20 +479,43 @@ export default function MainApp() {
             currentProgress = "Trimming Repository";
         } else if (state.activity.some(item => item.code.startsWith("VALIDATE_"))) {
             currentProgress = "Validating Repository";
-        } else if (state.activity.some(item => item.code.startsWith("RESTORE_"))) {
-            currentProgress = "Restore In Progress";
-            allowRestore = false;
-            allowBackup = false;
-        } else if (state.activity.some(item => item.code.startsWith("REPLAY_"))) {
-            currentProgress = "Replaying From Backup";
-            allowRestore = false;
-            allowBackup = false;
-        } else if (state.activity.some(item => item.code.startsWith("OPTIMIZING_"))) {
-            currentProgress = "Optimizing Log";
-            allowRestore = false;
-            allowBackup = false;
         } else {
-            currentProgress = "Currently Inactive"
+            if (state.selectedSource) {
+                const sourceActivity = state.activity.find(item => item.code == "SOURCE");
+                if (!state.loading && (!sourceActivity || sourceActivity.valueString !== state.selectedSource)) {
+                    fetchConfig();
+                }
+                if (state.activity.some(item => item.code.startsWith("RESTORE_"))) {
+                    currentProgress = `Restore From ${state.selectedSource} In Progress`;
+                    allowRestore = false;
+                    allowBackup = false;
+                } else if (state.activity.some(item => item.code.startsWith("REPLAY_"))) {
+                    currentProgress = `Syncing Contents From ${state.selectedSource}`;
+                    allowRestore = false;
+                    allowBackup = false;
+                } else {
+                    currentProgress = `Browsing ${state.selectedSource} contents`;
+                }
+            } else {
+                if (!state.loading && state.activity.some(item => item.code == "SOURCE")) {
+                    fetchConfig();
+                }
+                if (state.activity.some(item => item.code.startsWith("RESTORE_"))) {
+                    currentProgress = "Restore In Progress";
+                    allowRestore = false;
+                    allowBackup = false;
+                } else if (state.activity.some(item => item.code.startsWith("REPLAY_"))) {
+                    currentProgress = "Replaying From Backup";
+                    allowRestore = false;
+                    allowBackup = false;
+                } else if (state.activity.some(item => item.code.startsWith("OPTIMIZING_"))) {
+                    currentProgress = "Optimizing Log";
+                    allowRestore = false;
+                    allowBackup = false;
+                } else {
+                    currentProgress = "Currently Inactive"
+                }
+            }
         }
     }
 
@@ -442,12 +531,19 @@ export default function MainApp() {
         contents = <div/>
     } else if (completedSetup() && state.defaults) {
         calculateStatus();
+        if (state.selectedSource) {
+            cancelButtonTitle = "Cancel";
+        }
         if (page === "restore") {
+            if (state.validatedPassphrase && !cancelButtonTitle) {
+                cancelButtonTitle = "Back";
+            }
             acceptButtonTitle = "Restore";
         } else if (allowBackup) {
             acceptButtonTitle = "Save";
-        } else if (currentProgress == "Restore In Progress") {
+        } else if (currentProgress && currentProgress.startsWith("Restore ")) {
             acceptButtonTitle = "Cancel Restore";
+            cancelButtonTitle = "";
         }
 
         contents = <Routes>
@@ -466,6 +562,9 @@ export default function MainApp() {
                                                     defaultDestination={state.defaults.defaultRestoreFolder}
                                                     defaults={state.defaults}
                                                     roots={state.restoreRoots}
+                                                    sources={state.originalConfiguration.additionalSources ? Object.keys(state.originalConfiguration.additionalSources) : []}
+                                                    source={state.selectedSource ? state.selectedSource : state.restoreSource}
+                                                    activeSource={!!state.selectedSource}
                                                     overwrite={state.restoreOverwrite}
                                                     timestamp={state.restoreTimestamp}
                                                     validatedPassphrase={state.validatedPassphrase}
@@ -474,6 +573,8 @@ export default function MainApp() {
             <Route path="destinations" element={<Destinations destinations={getDestinationList()}
                                                               dontDelete={[state.currentConfiguration.manifest.destination]}
                                                               configurationUpdated={updateDestinations}/>}/>
+            <Route path="sources" element={<Sources sources={getSourcesList()}
+                                                    configurationUpdated={updateSources}/>}/>
             <Route path="sets" element={<Sets sets={state.currentConfiguration.sets}
                                               defaults={state.defaults}
                                               destinations={getDestinationList()}
@@ -510,6 +611,9 @@ export default function MainApp() {
             hasChanges = true;
             if (completedSetup()) {
                 cancelButtonTitle = "Revert";
+                if (!acceptButtonTitle) {
+                    acceptButtonTitle = "Save";
+                }
             }
             allowRestore = false;
         }
@@ -560,17 +664,17 @@ export default function MainApp() {
 
     function applyChanges() {
         if (valid) {
-            if (!allowBackup) {
-                if (!state.validatedPassphrase && state.passphrase) {
-                    applyPassphrase();
-                } else {
-                    applyConfig();
-                }
-            } else if (page === "restore") {
+            if (page === "restore") {
                 if (!state.validatedPassphrase && state.passphrase) {
                     applyPassphrase();
                 } else {
                     startRestore();
+                }
+            } else if (!allowBackup) {
+                if (!state.validatedPassphrase && state.passphrase && !hasChanges) {
+                    applyPassphrase();
+                } else {
+                    applyConfig();
                 }
             } else {
                 if (!lodashObject.isEqual(state.originalConfiguration, state.currentConfiguration)) {
@@ -591,9 +695,35 @@ export default function MainApp() {
         return false;
     }
 
+    async function unselectSource() {
+        setState((oldState) => {
+            return {
+                ...oldState,
+                loading: true,
+                validatedPassphrase: false,
+                restoreSource: "",
+                selectedSource: undefined,
+                passphrase: undefined
+            }
+        });
+        await PostSelectSource(
+            "-", undefined);
+        await fetchConfig(true);
+    }
+
     function applyCancel() {
         if (completedSetup()) {
-            location.reload();
+            if (page !== "restore" && hasChanges) {
+                location.reload();
+            } else if (state.selectedSource) {
+                unselectSource();
+            } else if (page === "restore") {
+                setState({
+                    ...state,
+                    validatedPassphrase: false,
+                    restoreSource: ""
+                });
+            }
         } else {
             setState({
                 ...state,
@@ -603,6 +733,10 @@ export default function MainApp() {
                 }
             });
         }
+    }
+
+    if (!allowRestore && page === "restore") {
+        navigate("status");
     }
 
     return (
@@ -699,6 +833,7 @@ export default function MainApp() {
                                     allowRestore={allowRestore}
                                     allowBackup={allowBackup}
                                     unresponsive={state.unresponsive}
+                                    hasSource={!!state.selectedSource}
                                     hasKey={state.hasKey}/>
 
                 }

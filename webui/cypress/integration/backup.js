@@ -24,6 +24,7 @@ it('backup', function () {
         '  },\n' +
         '  "manifest": {\n' +
         '    "destination": "d0",\n' +
+        '    "pauseOnBattery": false,\n' +
         '    "localLocation": "' + integrationDirectory + '"\n' +
         '  }\n' +
         '}', {force: true, parseSpecialCharSequences: false});

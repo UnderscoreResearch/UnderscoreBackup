@@ -10,7 +10,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +37,7 @@ import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.web.WebServer;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.ActivityAppender;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.LinuxState;
@@ -65,6 +68,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String OVER_WRITE = "over-write";
     public static final String TIMESTAMP = "timestamp";
     public static final String BIND_ADDRESS = "bind-address";
+    public static final String SOURCE = "source";
     public static final String URL_LOCATION = "URL_LOCATION";
     public static final String IDENTITY_LOCATION = "IDENTITY_LOCATION";
     public static final String INSTALLATION_IDENTITY = "INSTALLATION_IDENTITY";
@@ -79,13 +83,22 @@ public class CommandLineModule extends AbstractModule {
     public static final String DEFAULT_USER_MANIFEST_LOCATION = "DEFAULT_USER_MANIFEST_LOCATION";
     public static final String DEFAULT_MANIFEST_LOCATION = "DEFAULT_MANIFEST_LOCATION";
     public static final String MANIFEST_LOCATION = "MANIFEST_LOCATION";
+    public static final String ADDITIONAL_SOURCE = "ADDITIONAL_SOURCE";
+    public static final String SOURCE_CONFIG = "SOURCE_CONFIG";
+    public static final String SOURCE_CONFIG_LOCATION = "SOURCE_CONFIG_LOCATION";
 
     private final String[] argv;
     private final String passphrase;
+    private final String source;
 
-    public CommandLineModule(String[] argv, String passphrase) {
+    public CommandLineModule(String[] argv, String passphrase, String source) {
         this.argv = argv;
         this.passphrase = passphrase;
+        if (source != null) {
+            this.source = source;
+        } else {
+            this.source = "";
+        }
     }
 
     @Provides
@@ -102,10 +115,11 @@ public class CommandLineModule extends AbstractModule {
         options.addOption(null, PRIVATE_KEY_SEED, true, "Private key passphrase");
         options.addOption(null, DEVELOPER_MODE, false, "Developer mode");
         options.addOption(null, LOG_FILE, true, "Log file location");
-        options.addOption(null, INCLUDE_DELETED, true, "Include deleted files from repository");
+        options.addOption(null, INCLUDE_DELETED, false, "Include deleted files from repository");
         options.addOption(null, NO_LOG, false, "Don't write to a log file");
         options.addOption(null, BIND_ADDRESS, true, "Specify the address to bind UI webserver to (Default localhost)");
         options.addOption(null, NO_DELETE_REBUILD, false, "Rebuild repository without performing any deletes");
+        options.addOption(null, SOURCE, true, "Operate on a additional source");
         options.addOption("h", HUMAN_READABLE, false, "Display human readable sizes");
         options.addOption("R", RECURSIVE, false, "Process restore or list operation recursively");
         options.addOption(null, FULL_PATH, false, "Display full path");
@@ -178,6 +192,30 @@ public class CommandLineModule extends AbstractModule {
             return configuration.getManifest().getLocalLocation();
         }
         return defaultLocation;
+    }
+
+    @Provides
+    @Singleton
+    @Named(ADDITIONAL_SOURCE)
+    public String getSource(BackupConfiguration configuration, CommandLine commandLine) throws ParseException {
+        String additionalSource = calculateSource(commandLine);
+        if (additionalSource != null) {
+            if (!configuration.getAdditionalSources().containsKey(additionalSource)) {
+                throw new ParseException(String.format("Additional source %s not in config file", additionalSource));
+            }
+            return additionalSource;
+        }
+        return "";
+    }
+
+    private String calculateSource(CommandLine commandLine) {
+        if (!Strings.isNullOrEmpty(source)) {
+            return source;
+        }
+        if (commandLine.hasOption(SOURCE)) {
+            return commandLine.getOptionValue(SOURCE);
+        }
+        return null;
     }
 
     @Provides
@@ -358,6 +396,47 @@ public class CommandLineModule extends AbstractModule {
 
     @Provides
     @Singleton
+    @Named(SOURCE_CONFIG_LOCATION)
+    public String sourceConfigLocation(@Named(MANIFEST_LOCATION) String manifestLocation, @Named(ADDITIONAL_SOURCE) String source) {
+        return Paths.get(manifestLocation, "sources", source, "config.json").toString();
+    }
+
+    @Provides
+    @Singleton
+    @Named(SOURCE_CONFIG)
+    public BackupConfiguration backupConfiguration(BackupConfiguration configuration,
+                                                   @Named(ADDITIONAL_SOURCE) String additionalSource,
+                                                   @Named(SOURCE_CONFIG_LOCATION) String configLocation) throws IOException {
+        if (!Strings.isNullOrEmpty(additionalSource)) {
+            BackupConfiguration sourceConfig
+                    = BACKUP_CONFIGURATION_READER.readValue(new File(configLocation));
+            BackupDestination destination = configuration.getAdditionalSources().get(additionalSource);
+            BackupDestination manifestDestination = sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination());
+
+            // So this is a bit tricky. If the configuration for the manifest matches the URI and type we have then
+            // replace the destination with what is defined in the backup configuration. Otherwise, add a new destination
+            // with a generated name and make that the manifest location.
+            if (!Objects.equals(destination.getEndpointUri(), manifestDestination.getEndpointUri())
+                    || !Objects.equals(destination.getType(), manifestDestination.getType())) {
+                String manifestName = "manifest";
+                int i = 0;
+                while (sourceConfig.getDestinations().containsKey(manifestName)) {
+                    i++;
+                    manifestName = "manifest-" + i;
+                }
+                sourceConfig.getDestinations().put(manifestName, destination);
+                sourceConfig.getManifest().setDestination(manifestName);
+            } else {
+                sourceConfig.getDestinations().put(sourceConfig.getManifest().getDestination(), destination);
+            }
+            return sourceConfig;
+        }
+        return configuration;
+    }
+
+
+    @Provides
+    @Singleton
     @Named(PRIVATE_KEY_SEED)
     public String privateKeySeed(CommandLine commandLine) {
         if (!Strings.isNullOrEmpty(this.passphrase)) {
@@ -411,9 +490,17 @@ public class CommandLineModule extends AbstractModule {
     @Provides
     @Singleton
     @Named(KEY_FILE_NAME)
-    public String getKeyFileName(CommandLine commandLine, @Named(PRIVATE_KEY_SEED) String privateKeySeed)
+    public String getKeyFileName(CommandLine commandLine,
+                                 @Named(PRIVATE_KEY_SEED) String privateKeySeed,
+                                 @Named(MANIFEST_LOCATION) String manifestLocation,
+                                 @Named(ADDITIONAL_SOURCE) String source)
             throws ParseException {
-        String keyFile = commandLine.getOptionValue(KEY);
+        String keyFile;
+        if (!Strings.isNullOrEmpty(source)) {
+            keyFile = Paths.get(manifestLocation, "sources", source, "key").toString();
+        } else {
+            keyFile = commandLine.getOptionValue(KEY);
+        }
         if (Strings.isNullOrEmpty(keyFile)) {
             if (!Strings.isNullOrEmpty(privateKeySeed))
                 return DEFAULT_KEY_FILES[0];

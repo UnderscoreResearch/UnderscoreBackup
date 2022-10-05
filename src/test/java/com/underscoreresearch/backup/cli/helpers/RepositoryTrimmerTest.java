@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
-import com.underscoreresearch.backup.model.BackupManifest;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -42,6 +41,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.model.BackupManifest;
 import com.underscoreresearch.backup.model.BackupRetention;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
@@ -62,7 +62,7 @@ class RepositoryTrimmerTest {
     public void setup() throws IOException {
         manifestManager = Mockito.mock(ManifestManager.class);
         tempDir = Files.createTempDirectory("test").toFile();
-        repository = Mockito.spy(new MapdbMetadataRepository(tempDir.getPath()));
+        repository = Mockito.spy(new MapdbMetadataRepository(tempDir.getPath(), false));
         repository.open(false);
 
         backupConfiguration = new BackupConfiguration();

@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.configuration;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_SOURCE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.NEED_PRIVATE_KEY;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.PRIVATE_KEY_SEED;
@@ -58,9 +59,10 @@ public class EncryptionModule extends AbstractModule {
     public PublicKeyEncrypion publicKeyEncrypion(@Named(NEED_PRIVATE_KEY) boolean needPrivateKey,
                                                  @Named(PUBLIC_KEY_DATA) String publicKeyData,
                                                  @Named(KEY_FILE_NAME) String keyFile,
+                                                 @Named(ADDITIONAL_SOURCE) String source,
                                                  @Named(PRIVATE_KEY_SEED) String privateKeySeed) throws IOException {
         PublicKeyEncrypion publicKeyEncrypion;
-        if (!Strings.isNullOrEmpty(publicKeyData)) {
+        if (!Strings.isNullOrEmpty(publicKeyData) && Strings.isNullOrEmpty(source)) {
             publicKeyEncrypion = new ObjectMapper().readValue(publicKeyData, PublicKeyEncrypion.class);
         } else {
             try (FileInputStream inputStream = new FileInputStream(keyFile)) {

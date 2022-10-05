@@ -17,6 +17,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
@@ -26,6 +27,9 @@ import com.underscoreresearch.backup.model.BackupFile;
 
 @RequiredArgsConstructor
 public class BackupSearchAccessImpl implements BackupSearchAccess {
+    public static class InterruptedSearch extends RuntimeException {
+    }
+
     private final MetadataRepository repository;
     private final BackupContentsAccess contentsAccess;
     private final Long timestamp;
@@ -37,11 +41,14 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
     }
 
     @Override
-    public Stream<BackupFile> searchFiles(Pattern pathPattern) throws IOException {
+    public Stream<BackupFile> searchFiles(Pattern pathPattern, CloseableLock interruptableLock) throws IOException {
         AtomicReference<List<BackupFile>> filesPerPath = new AtomicReference<>(new ArrayList<>());
         AtomicReference<String> currentPath = new AtomicReference<>();
         return repository.allFiles(true)
                 .map(file -> {
+                    if (interruptableLock.requested()) {
+                        throw new InterruptedSearch();
+                    }
                     if (file.getPath().equals(currentPath.get())) {
                         if (filesPerPath.get() != null) {
                             filesPerPath.get().add(file);

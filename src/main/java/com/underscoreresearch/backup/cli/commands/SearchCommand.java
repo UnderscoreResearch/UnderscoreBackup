@@ -17,8 +17,10 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.implementation.BackupSearchAccessImpl;
 
-@CommandPlugin(value = "search", args = "Regular expression of search", description = "Search backup contents", needPrivateKey = false)
+@CommandPlugin(value = "search", args = "Regular expression of search", description = "Search backup contents",
+        needPrivateKey = false, supportSource = true)
 @Slf4j
 public class SearchCommand extends Command {
 
@@ -32,9 +34,12 @@ public class SearchCommand extends Command {
         BackupSearchAccess searchAccess = manifestManager.backupSearch(timestamp(commandLine),
                 commandLine.hasOption(INCLUDE_DELETED));
 
-        try (CloseableLock ignore = searchAccess.acquireLock()) {
-            searchAccess.searchFiles(Pattern.compile(commandLine.getArgList().get(1), Pattern.CASE_INSENSITIVE))
+        try (CloseableLock interrupt = searchAccess.acquireLock()) {
+            searchAccess.searchFiles(Pattern.compile(commandLine.getArgList().get(1), Pattern.CASE_INSENSITIVE),
+                            interrupt)
                     .forEach(file -> System.out.println(printFile(commandLine, true, file)));
+        } catch (BackupSearchAccessImpl.InterruptedSearch exc) {
+            log.warn("Search interrupted");
         }
     }
 }

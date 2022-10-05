@@ -53,7 +53,7 @@ public final class Main {
             }
         }
 
-        InstanceFactory.initialize(argv, null);
+        InstanceFactory.initialize(argv, null, null);
 
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
@@ -90,6 +90,12 @@ public final class Main {
                     }
 
                     InstanceFactory.getInstance(MetadataRepository.class).open(commandDef.readonlyRepository());
+                }
+
+                if (InstanceFactory.getAdditionalSource() != null && !commandDef.supportSource()) {
+                    log.error("The specified command can not operate on a secondary source");
+                    help();
+                    System.exit(1);
                 }
 
                 scheduledThreadPoolExecutor.scheduleAtFixedRate(() -> {

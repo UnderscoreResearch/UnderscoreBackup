@@ -1,24 +1,24 @@
 package com.underscoreresearch.backup.encryption;
 
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.spec.AlgorithmParameterSpec;
+import static com.underscoreresearch.backup.encryption.AesEncryptor.applyKeyData;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.spec.AlgorithmParameterSpec;
 
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.model.BackupBlockStorage;
-
-import static com.underscoreresearch.backup.encryption.AesEncryptor.applyKeyData;
 
 @Slf4j
 public abstract class AesEncryptorFormat {
@@ -87,7 +87,7 @@ public abstract class AesEncryptorFormat {
 
             return ret;
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
-                InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
+                 InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
     }
@@ -122,7 +122,7 @@ public abstract class AesEncryptorFormat {
             return cipher.doFinal(encryptedData, getIvSize() + PUBLIC_KEY_SIZE + offset,
                     adjustDecodeLength(encryptedData[0], encryptedData.length - getIvSize() - PUBLIC_KEY_SIZE - offset));
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
-                InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                 InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
     }

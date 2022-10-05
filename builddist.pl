@@ -20,6 +20,9 @@ sub cleanBuild {
 
 sub buildNpm {
     chdir("webui");
+    if (system("npm", "install") != 0) {
+        die;
+    }
     if (system("npm", "run", "build") != 0) {
         die;
     }
