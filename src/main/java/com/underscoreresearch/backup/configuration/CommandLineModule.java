@@ -93,7 +93,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption(null, PRIVATE_KEY_SEED, true, "Private key passphrase");
         options.addOption(null, DEVELOPER_MODE, false, "Developer mode");
         options.addOption(null, LOG_FILE, true, "Log file location");
-        options.addOption(null, INCLUDE_DELETED, true, "Include deleted files from repository");
+        options.addOption(null, INCLUDE_DELETED, false, "Include deleted files from repository");
         options.addOption(null, NO_LOG, false, "Don't write to a log file");
         options.addOption(null, BIND_ADDRESS, true, "Specify the address to bind UI webserver to (Default localhost)");
         options.addOption(null, NO_DELETE_REBUILD, false, "Rebuild repository without performing any deletes");

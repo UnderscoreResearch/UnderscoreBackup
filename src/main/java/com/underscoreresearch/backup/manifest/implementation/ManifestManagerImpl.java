@@ -534,6 +534,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             });
 
             copyRepository.close();
+            flushLog();
 
             ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                     configuration.getManifest().getOptimizeSchedule());

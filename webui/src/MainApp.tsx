@@ -108,6 +108,7 @@ interface MainAppState {
     restoreDestination?: string,
     restoreRoots: BackupSetRoot[],
     restoreTimestamp?: Date,
+    restoreIncludeDeleted?: boolean,
     restoreOverwrite: boolean,
     defaults?: BackupDefaults,
     activity: StatusLine[]
@@ -348,6 +349,7 @@ export default function MainApp() {
             restoreDestination: newState.destination,
             restoreRoots: newState.roots,
             restoreTimestamp: newState.timestamp,
+            restoreIncludeDeleted: newState.includeDeleted,
             restoreOverwrite: newState.overwrite
         });
     }
@@ -362,7 +364,8 @@ export default function MainApp() {
             destination: state.restoreDestination,
             files: state.restoreRoots,
             overwrite: state.restoreOverwrite,
-            timestamp: state.restoreTimestamp ? state.restoreTimestamp.getTime() : undefined
+            timestamp: state.restoreTimestamp ? state.restoreTimestamp.getTime() : undefined,
+            includeDeleted: state.restoreIncludeDeleted ? state.restoreIncludeDeleted : false
         });
 
         await fetchActivity();
