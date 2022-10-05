@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 import java.io.File;
@@ -47,6 +48,7 @@ public class DefaultsGet extends JsonWrap {
         private String defaultRestoreFolder;
         private String pathSeparator;
         private String version;
+        private String source;
         private BackupSet set;
     }
 
@@ -71,7 +73,8 @@ public class DefaultsGet extends JsonWrap {
                     home = home.substring(0, home.length() - 1);
                 }
                 BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
-                String manifestDestination = PathNormalizer.normalizePath(config.getManifest().getLocalLocation());
+                String manifestDestination = PathNormalizer.normalizePath(
+                        InstanceFactory.getInstance(MANIFEST_LOCATION));
                 List<BackupFilter> filters = new ArrayList<>();
                 if (manifestDestination.startsWith(home)) {
                     String backupDir = manifestDestination.substring(home.length() + 1);
@@ -118,6 +121,7 @@ public class DefaultsGet extends JsonWrap {
                 return new RsText(WRITER.writeValueAsString(DefaultsResponse.builder()
                         .set(set)
                         .version(VersionCommand.getVersion())
+                        .source(InstanceFactory.getAdditionalSource())
                         .pathSeparator(File.separator)
                         .defaultRestoreFolder(defaultRestore).build()));
             } catch (Exception exc) {

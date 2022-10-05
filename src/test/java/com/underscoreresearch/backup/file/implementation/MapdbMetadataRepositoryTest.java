@@ -44,7 +44,7 @@ class MapdbMetadataRepositoryTest {
     @BeforeEach
     public void setup() throws IOException {
         tempDir = Files.createTempDirectory("test").toFile();
-        repository = new MapdbMetadataRepository(tempDir.getPath());
+        repository = new MapdbMetadataRepository(tempDir.getPath(), false);
         repository.open(false);
 
         filePart = BackupFilePart.builder()
@@ -106,6 +106,17 @@ class MapdbMetadataRepositoryTest {
         assertThat(repository.block(HASH), Is.is(backupBlock));
 
         repository.deleteBlock(backupBlock);
+        assertNull(repository.block(HASH));
+    }
+
+    @Test
+    public void testClear() throws IOException {
+        assertNull(repository.block(HASH));
+
+        repository.addBlock(backupBlock);
+        assertThat(repository.block(HASH), Is.is(backupBlock));
+        repository.clear();
+
         assertNull(repository.block(HASH));
     }
 

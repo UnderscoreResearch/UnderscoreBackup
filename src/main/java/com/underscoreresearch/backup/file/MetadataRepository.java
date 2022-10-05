@@ -86,4 +86,10 @@ public interface MetadataRepository {
     long getDirectoryCount() throws IOException;
 
     long getPartCount() throws IOException;
+
+    void clear() throws IOException;
+
+    String lastSyncedLogFile() throws IOException;
+
+    void setLastSyncedLogFile(String entry) throws IOException;
 }

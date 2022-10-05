@@ -1,8 +1,12 @@
 package com.underscoreresearch.backup.configuration;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_SOURCE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.INSTALLATION_IDENTITY;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE_REBUILD;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
 
 import java.io.File;
@@ -11,6 +15,7 @@ import java.nio.file.Paths;
 
 import org.apache.commons.cli.CommandLine;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -149,7 +154,7 @@ public class BackupModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public LargeFileBlockAssignment largeFileBlockAssignment(BackupConfiguration configuration,
+    public LargeFileBlockAssignment largeFileBlockAssignment(@Named(SOURCE_CONFIG) BackupConfiguration configuration,
                                                              RawLargeFileBlockAssignment raw,
                                                              GzipLargeFileBlockAssignment gzip) {
         if ("true".equals(configuration.getProperty("largeBlockAssignment.raw", "false"))) {
@@ -196,18 +201,24 @@ public class BackupModule extends AbstractModule {
 
     @Singleton
     @Provides
-    public ManifestManagerImpl manifestManagerImplementation(BackupConfiguration configuration,
+    public ManifestManagerImpl manifestManagerImplementation(@Named(SOURCE_CONFIG) BackupConfiguration configuration,
+                                                             @Named(MANIFEST_LOCATION) String manifestLocation,
                                                              RateLimitController rateLimitController,
-                                                             @Named(INSTALLATION_IDENTITY) String installationIdentity)
+                                                             @Named(INSTALLATION_IDENTITY) String installationIdentity,
+                                                             @Named(ADDITIONAL_SOURCE) String source,
+                                                             CommandLine commandLine)
             throws IOException {
         BackupDestination destination = configuration.getDestinations().get(configuration.getManifest()
                 .getDestination());
 
         return new ManifestManagerImpl(configuration,
+                manifestLocation,
                 IOProviderFactory.getProvider(destination),
                 EncryptorFactory.getEncryptor(destination.getEncryption()),
                 rateLimitController,
-                installationIdentity);
+                installationIdentity,
+                source,
+                commandLine.hasOption(FORCE));
     }
 
     @Provides
@@ -218,15 +229,22 @@ public class BackupModule extends AbstractModule {
 
     @Singleton
     @Provides
-    public MapdbMetadataRepository mapdbMetadata(@Named(REPOSITORY_DB_PATH) String dbPath) throws IOException {
-        return new MapdbMetadataRepository(dbPath);
+    public MapdbMetadataRepository mapdbMetadata(@Named(REPOSITORY_DB_PATH) String dbPath,
+                                                 @Named(ADDITIONAL_SOURCE) String source) throws IOException {
+        return new MapdbMetadataRepository(dbPath, !Strings.isNullOrEmpty(source));
     }
 
     @Named(REPOSITORY_DB_PATH)
     @Singleton
     @Provides
-    public String repositoryDbPath(BackupConfiguration configuration) {
-        File metadataRoot = Paths.get(configuration.getManifest().getLocalLocation(), "db").toFile();
+    public String repositoryDbPath(@Named(MANIFEST_LOCATION) String manifestLocation, @Named(ADDITIONAL_SOURCE) String source) {
+        File metadataRoot;
+        if (!Strings.isNullOrEmpty(source)) {
+            metadataRoot = Paths.get(manifestLocation, "db", "sources",
+                    source).toFile();
+        } else {
+            metadataRoot = Paths.get(manifestLocation, "db").toFile();
+        }
         if (!metadataRoot.isDirectory()) {
             metadataRoot.mkdirs();
         }
@@ -235,15 +253,27 @@ public class BackupModule extends AbstractModule {
 
     @Singleton
     @Provides
-    public MetadataRepository metadataRepository(MapdbMetadataRepository xodusMetadata, ManifestManager manifest,
-                                                 CommandLine commandLine) {
-        return new LoggingMetadataRepository(xodusMetadata, manifest, commandLine.hasOption(NO_DELETE_REBUILD));
+    public LoggingMetadataRepository loggingMetadataRepository(MapdbMetadataRepository mapdbMetadata,
+                                                               ManifestManager manifest,
+                                                               CommandLine commandLine,
+                                                               @Named(ADDITIONAL_SOURCE) String source) {
+        if (Strings.isNullOrEmpty(source)) {
+            return new LoggingMetadataRepository(mapdbMetadata, manifest, commandLine.hasOption(NO_DELETE_REBUILD));
+        }
+        return new LoggingMetadataRepository.Readonly(mapdbMetadata, manifest,
+                false);
     }
 
     @Singleton
     @Provides
-    public LogConsumer logConsumer(MetadataRepository metadataRepository) {
-        return (LogConsumer) metadataRepository;
+    public MetadataRepository metadataRepository(LoggingMetadataRepository loggingMetadataRepository) {
+        return loggingMetadataRepository;
+    }
+
+    @Singleton
+    @Provides
+    public LogConsumer logConsumer(LoggingMetadataRepository metadataRepository) {
+        return metadataRepository;
     }
 
     @Provides

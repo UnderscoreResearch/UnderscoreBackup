@@ -9,8 +9,9 @@ import com.underscoreresearch.backup.io.IOUtils;
 
 @Slf4j
 public class RetryUtils {
-    private static final int DEFAULT_BASE = 1000;
+    public static final int DEFAULT_BASE = 1000;
     private static final int MAX_RETRIES = 5;
+    public static final int INDEX_RETRIES = 2;
 
     public static <T> T retry(Callable<T> callable,
                               Function<Exception, Boolean> shouldRetry) throws Exception {

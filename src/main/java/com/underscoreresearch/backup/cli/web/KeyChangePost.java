@@ -63,12 +63,13 @@ public class KeyChangePost extends JsonWrap {
                 return messageJson(403, "Invalid passphrase provided");
             }
 
-            InstanceFactory.reloadConfiguration(request.getPassphrase());
+            InstanceFactory.reloadConfiguration(request.getPassphrase(), null);
 
             ChangePassphraseCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
                     request.getNewPassphrase());
 
-            InstanceFactory.reloadConfiguration(null, true);
+            InstanceFactory.reloadConfiguration(null, null,
+                    () -> InteractiveCommand.startBackupIfAvailable());
 
             return messageJson(200, "Ok");
         }

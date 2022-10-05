@@ -52,7 +52,7 @@ export default function Timespan(props: DurationProps) {
 
     const pluralS = state.duration == 1 ? "" : "s";
 
-    return <div style={{display: "flex", alignItems: "center", marginRight: "8px"}}>
+    return <div style={{display: "flex", alignItems: "center", marginLeft: "8px"}}>
         <Typography>{props.title}</Typography>
         {state.unit !== "FOREVER" && state.unit !== "IMMEDIATE" &&
             <TextField variant="standard"

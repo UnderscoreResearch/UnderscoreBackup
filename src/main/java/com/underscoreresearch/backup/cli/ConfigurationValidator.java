@@ -69,10 +69,7 @@ public class ConfigurationValidator {
 
         String local = manifest.getLocalLocation();
         if (Strings.isNullOrEmpty(local)) {
-            String defaultLocation = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
-            debug(() -> log.debug("Missing localLocation in manifest config. Defaulting to " + defaultLocation));
-            manifest.setLocalLocation(defaultLocation);
-            local = defaultLocation;
+            local = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
         }
 
         File file = new File(local);

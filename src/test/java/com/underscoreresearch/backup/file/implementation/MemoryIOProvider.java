@@ -56,4 +56,8 @@ public class MemoryIOProvider implements IOProvider, IOIndex {
     public void delete(String key) throws IOException {
         contents.remove(key);
     }
+
+    @Override
+    public void checkCredentials(boolean readonly) throws IOException {
+    }
 }

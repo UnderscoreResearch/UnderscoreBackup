@@ -1,12 +1,17 @@
 import * as React from 'react';
+import {useEffect} from 'react';
 import {
     Button,
     Checkbox,
+    FormControl,
     FormControlLabel,
     InputAdornment,
+    InputLabel,
     List,
     ListItem,
+    MenuItem,
     Popover,
+    Select,
     Stack,
     TextField
 } from "@mui/material";
@@ -31,11 +36,13 @@ import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWit
 import {DisplayMessage} from "../App";
 import IconButton from "@mui/material/IconButton";
 import {Clear} from "@mui/icons-material";
+import Divider from "@mui/material/Divider";
 
 export interface RestorePropsChange {
     passphrase: string,
     timestamp?: Date,
     roots: BackupSetRoot[],
+    source: string,
     destination?: string,
     overwrite: boolean,
     includeDeleted?: boolean
@@ -49,6 +56,9 @@ export interface RestoreProps {
     overwrite: boolean,
     defaults: BackupDefaults,
     roots: BackupSetRoot[],
+    sources: string[],
+    source: string,
+    activeSource: boolean,
     onChange: (state: RestorePropsChange) => void,
     onSubmit: () => void,
     validatedPassphrase: boolean,
@@ -60,6 +70,7 @@ export interface RestoreState {
     timestamp?: Date,
     current: boolean,
     search: string,
+    source: string,
     showingSearch: string,
     roots: BackupSetRoot[],
     overwrite: boolean,
@@ -67,23 +78,29 @@ export interface RestoreState {
     includeDeleted?: boolean
 }
 
-export default function Restore(props: RestoreProps) {
-    const [state, setState] = React.useState<RestoreState>({
+function defaultState(props: RestoreProps) {
+    return {
         passphrase: props.passphrase ? props.passphrase : "",
         roots: props.roots,
         timestamp: props.timestamp,
         search: "",
+        source: props.source ? props.source : "-",
         showingSearch: "",
         current: !props.timestamp,
         overwrite: props.overwrite,
         destination: props.destination ? props.destination : props.defaultDestination,
         includeDeleted: props.includeDeleted
-    });
+    }
+}
+
+export default function Restore(props: RestoreProps) {
+    const [state, setState] = React.useState<RestoreState>(defaultState(props));
 
     function updateState(newState: RestoreState) {
         if (newState.passphrase.length > 0) {
             props.onChange({
                 passphrase: newState.passphrase,
+                source: props.activeSource ? props.source : newState.source,
                 timestamp: newState.current ? undefined : newState.timestamp,
                 overwrite: newState.overwrite,
                 destination: newState.destination,
@@ -93,6 +110,10 @@ export default function Restore(props: RestoreProps) {
         }
         setState(newState);
     }
+
+    useEffect(() => {
+        setState(defaultState(props))
+    }, [props.source === "" ? "1" : ""])
 
     function updateSelection(newRoots: BackupSetRoot[]) {
         updateState({
@@ -168,6 +189,7 @@ export default function Restore(props: RestoreProps) {
     }
 
     if (!props.passphrase || !props.validatedPassphrase) {
+
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
                 p: 2
@@ -182,6 +204,38 @@ export default function Restore(props: RestoreProps) {
                          '& .MuiTextField-root': {m: 1},
                      }}
                      style={{marginTop: 4}}>
+                    <FormControl fullWidth={true} style={{margin: "8px"}}>
+                        <InputLabel id="source-id-label">Source</InputLabel>
+                        {props.activeSource ?
+                            <Select
+                                labelId="source-id-label"
+                                value={state.source}
+                                label="Source"
+                                disabled={true}
+                            >
+                                <MenuItem key={props.source} value={props.source}>{props.source}</MenuItem>
+                            </Select>
+                            :
+                            <Select
+                                labelId="source-id-label"
+                                value={state.source}
+                                label="Source"
+                                onChange={(e) => {
+                                    updateState({
+                                        ...state,
+                                        source: e.target.value
+                                    })
+                                }
+                                }
+                            >
+                                <MenuItem key="-" value={"-"}>Local</MenuItem>
+                                {props.sources && props.sources.length > 0 && <Divider>Other Sources</Divider> }
+                                {props.sources.sort().map(str => {
+                                    return <MenuItem key={str} value={str}>{str}</MenuItem>;
+                                })}
+                            </Select>
+                        }
+                    </FormControl>
                     <TextField label="Passphrase" variant="outlined"
                                fullWidth={true}
                                required={true}

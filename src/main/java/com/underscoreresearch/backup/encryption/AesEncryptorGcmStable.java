@@ -1,22 +1,21 @@
 package com.underscoreresearch.backup.encryption;
 
-import com.underscoreresearch.backup.model.BackupBlockStorage;
-import lombok.extern.slf4j.Slf4j;
+import static com.underscoreresearch.backup.encryption.AesEncryptor.applyKeyData;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
-import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Inject;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.spec.AlgorithmParameterSpec;
 
-import static com.underscoreresearch.backup.encryption.AesEncryptor.applyKeyData;
+import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 @Slf4j
 public class AesEncryptorGcmStable extends AesEncryptorGcm {
@@ -67,7 +66,7 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
 
             return ret;
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
-                InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
+                 InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
     }
@@ -97,7 +96,7 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
             return cipher.doFinal(encryptedData, offset,
                     adjustDecodeLength(encryptedData[0], encryptedData.length - offset));
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
-                InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+                 InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
     }
@@ -117,7 +116,7 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
     }
 
     private byte convertFormat(byte format) {
-        switch(format) {
+        switch (format) {
             case PADDED_GCM:
                 return PADDED_GCM_STABLE;
             case NON_PADDED_GCM:

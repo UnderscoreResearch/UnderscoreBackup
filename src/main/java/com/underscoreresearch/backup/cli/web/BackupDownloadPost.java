@@ -78,7 +78,7 @@ public class BackupDownloadPost extends TkWrap {
 
                 for (BackupFile file : files) {
                     if (file.getAdded().equals(timestamp)) {
-                        InstanceFactory.reloadConfiguration(passphrase);
+                        InstanceFactory.reloadConfiguration(passphrase, InstanceFactory.getAdditionalSource());
 
                         DownloadScheduler scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
                         File tempfile = File.createTempFile("temp", null);
@@ -87,7 +87,9 @@ public class BackupDownloadPost extends TkWrap {
                         tempfile.deleteOnExit();
                         new Thread(() -> {
                             try {
-                                InstanceFactory.reloadConfiguration(null, true);
+                                InstanceFactory.reloadConfiguration(null,
+                                        InstanceFactory.getAdditionalSource(),
+                                        () -> InteractiveCommand.startBackupIfAvailable());
                             } catch (Exception e) {
                                 log.error("Failed to restart backup", e);
                             }

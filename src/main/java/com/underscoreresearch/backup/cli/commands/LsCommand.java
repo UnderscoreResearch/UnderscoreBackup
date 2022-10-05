@@ -26,7 +26,8 @@ import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupFile;
 
-@CommandPlugin(value = "ls", args = "[DIRECTORIES]...", description = "List backup contents", needPrivateKey = false)
+@CommandPlugin(value = "ls", args = "[DIRECTORIES]...", description = "List backup contents",
+        needPrivateKey = false, supportSource = true)
 @Slf4j
 public class LsCommand extends Command {
 

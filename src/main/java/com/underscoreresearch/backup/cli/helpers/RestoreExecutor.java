@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.DownloadScheduler;
@@ -34,6 +35,7 @@ public class RestoreExecutor {
                              String destination,
                              boolean recursive,
                              boolean overwrite) throws IOException {
+        String commonRoot = findCommonRoot(rootPaths);
         for (BackupSetRoot root : rootPaths) {
             String currentDestination = destination;
             String rootPath = normalizePath(root.getPath());
@@ -44,12 +46,12 @@ public class RestoreExecutor {
                         currentDestination += PATH_SEPARATOR;
                     }
                     if (rootPaths.size() != 1) {
-                        currentDestination += stripDrive(rootPath);
+                        currentDestination += stripCommonAndDrive(commonRoot, rootPath);
                     }
                 }
             }
             restorePaths(root, BackupFile.builder().path(rootPath).build(), currentDestination, recursive,
-                    overwrite, rootPaths.size() == 1);
+                    overwrite, rootPaths.size() == 1, commonRoot);
         }
         scheduler.waitForCompletion();
         StateLogger logger = InstanceFactory.getInstance(StateLogger.class);
@@ -57,7 +59,37 @@ public class RestoreExecutor {
         logger.reset();
     }
 
-    private String stripDrive(String rootPath) {
+    private String findCommonRoot(List<BackupSetRoot> rootPaths) {
+        String commonPath = null;
+        for (BackupSetRoot rootPath : rootPaths) {
+            String normalizedRoot = normalizePath(rootPath.getPath());
+            if (commonPath == null) {
+                commonPath = normalizedRoot;
+                if (!commonPath.endsWith(PATH_SEPARATOR)) {
+                    commonPath = commonPath.substring(0, commonPath.lastIndexOf(PATH_SEPARATOR) + 1);
+                }
+            } else {
+                for (int i = 0; i < commonPath.length(); i++) {
+                    if (normalizedRoot.charAt(i) != commonPath.charAt(i)) {
+                        commonPath = commonPath.substring(0, i);
+                        int lastPath = commonPath.lastIndexOf('/');
+                        if (lastPath >= 0) {
+                            commonPath = commonPath.substring(0, lastPath + 1);
+                        } else {
+                            commonPath = "";
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        return commonPath;
+    }
+
+    private String stripCommonAndDrive(String commonRoot, String rootPath) {
+        if (!Strings.isNullOrEmpty(commonRoot) && rootPath.startsWith(commonRoot)) {
+            rootPath = rootPath.substring(commonRoot.length() - 1);
+        }
         if (!rootPath.startsWith(PATH_SEPARATOR)) {
             return rootPath.substring(rootPath.indexOf(PATH_SEPARATOR) + 1);
         }
@@ -69,7 +101,8 @@ public class RestoreExecutor {
                               String inputDestination,
                               boolean recursive,
                               boolean overwrite,
-                              boolean root) throws IOException {
+                              boolean root,
+                              String commonRoot) throws IOException {
         if (InstanceFactory.isShutdown()) {
             return;
         }
@@ -97,6 +130,7 @@ public class RestoreExecutor {
                 files = files.stream().filter(file -> file.getPath().equals(strippedFilename))
                         .collect(Collectors.toList());
             }
+            root = true;
         }
         if (files != null) {
             files = files.stream().filter(file -> rootPath.includeFile(file.getPath(), null))
@@ -117,11 +151,12 @@ public class RestoreExecutor {
                     if (inputDestination == null || isNullFile(inputDestination))
                         currentDestination = inputDestination;
                     else
-                        currentDestination = destination + PATH_SEPARATOR + stripPath(stripDrive(file.getPath()));
+                        currentDestination = destination + PATH_SEPARATOR + stripPath(stripCommonAndDrive(commonRoot,
+                                file.getPath()));
                     if (file.getPath().endsWith(PATH_SEPARATOR)) {
                         if (recursive) {
                             restorePaths(rootPath, file,
-                                    currentDestination, recursive, overwrite, false);
+                                    currentDestination, recursive, overwrite, false, commonRoot);
                         }
                     } else {
                         downloadFile(scheduler, file, currentDestination, overwrite);

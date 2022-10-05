@@ -1,14 +1,13 @@
 import * as React from "react";
-import {BackupDefaults, BackupFilter, BackupRetentionAdditional, BackupSet, BackupSetRoot, GetLocalFiles} from "../api";
+import {BackupDefaults, BackupFilter, BackupSet, BackupSetRoot, GetLocalFiles} from "../api";
 import FileTreeView from './FileTreeView'
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import Cron from "../3rdparty/react-js-cron-mui";
 import {EditableList} from "./EditableList";
 import {Checkbox, FormControlLabel, FormGroup, Paper, Tab, Tabs, TextField} from "@mui/material";
 import {DestinationProp} from "./Destinations";
-import Timespan from "./Timespan";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
+import Retention from "./Retention";
 
 export interface SetState {
     valid: boolean,
@@ -95,84 +94,6 @@ function createExclusionControl(item: string, itemUpdated: (item: string) => voi
     />
 }
 
-function AdditionalTimespans(props: {
-    items: BackupRetentionAdditional[],
-    state: SetState,
-    updateState: (newState: SetState) => void
-}) {
-    function createItem(item: BackupRetentionAdditional, onItemUpdate: (item: BackupRetentionAdditional) => void)
-        : React.ReactElement {
-        return <div style={{display: "flex"}}>
-            <Timespan
-                timespan={item.validAfter}
-                requireTime={true}
-                onChange={(newTimespace) => {
-                    if (newTimespace) {
-                        onItemUpdate({
-                            validAfter: newTimespace,
-                            frequency: item.frequency
-                        });
-                    }
-                }}
-                title={"After"}/>
-            <Timespan timespan={item.frequency}
-                      onChange={(newTimespace) => {
-                          if (newTimespace) {
-                              onItemUpdate({
-                                  validAfter: item.validAfter,
-                                  frequency: newTimespace
-                              });
-                          }
-                      }}
-                      title={"keep at most one version per "}/>
-        </div>
-    }
-
-    function updateAdditionalState(items: BackupRetentionAdditional[]): void {
-        props.updateState({
-            ...props.state,
-            set: {
-                ...props.state.set,
-                retention: {
-                    ...props.state.set.retention,
-                    older: items
-                }
-            }
-        });
-    }
-
-    function createNewItem(): BackupRetentionAdditional {
-        const olderState = props.state.set.retention ? props.state.set.retention.older : undefined;
-        if (olderState && olderState.length > 0) {
-            const lastItem = olderState[olderState.length - 1];
-            return {
-                frequency: lastItem.frequency,
-                validAfter: {
-                    unit: lastItem.validAfter.unit,
-                    duration: lastItem.validAfter.duration * 2
-                }
-            }
-        }
-        return {
-            frequency: {
-                unit: "MONTHS",
-                duration: 1
-            },
-            validAfter: {
-                unit: "MONTHS",
-                duration: 1
-            }
-        }
-    }
-
-    return EditableList<BackupRetentionAdditional>({
-        createItem: createItem,
-        items: props.items,
-        onItemChanged: updateAdditionalState,
-        createNewItem: createNewItem
-    });
-}
-
 export default function SetConfig(props: SetProps) {
     const [state, setState] = React.useState(() => {
         return {
@@ -257,68 +178,13 @@ export default function SetConfig(props: SetProps) {
                   clockFormat='12-hour-clock'
                   clearButton={false}/>
             <DividerWithText>Retention</DividerWithText>
-            <Timespan timespan={state.set.retention ? state.set.retention.defaultFrequency : undefined}
-                      onChange={(newTimespace) => updateState({
-                          ...state,
-                          set: {
-                              ...state.set,
-                              retention: {
-                                  ...state.set.retention,
-                                  defaultFrequency: newTimespace
-                              }
-                          }
-                      })}
-                      title={"Initially keep at most one version per "}/>
-            <AdditionalTimespans
-                items={state.set.retention && state.set.retention.older ? state.set.retention.older : []}
-                state={state}
-                updateState={updateState}/>
-
-            <Timespan timespan={state.set.retention ? state.set.retention.retainDeleted : undefined}
-                      onChange={(newTimespace) => updateState({
-                          ...state,
-                          set: {
-                              ...state.set,
-                              retention: {
-                                  ...state.set.retention,
-                                  retainDeleted: newTimespace
-                              }
-                          }
-                      })}
-                      title={"Remove deleted files after "}/>
-            <div style={{display: "flex", alignItems: "center", marginTop: "8px"}}>
-                <FormControlLabel control={<Checkbox
-                    checked={state.set.retention ? !!state.set.retention.maximumVersions : false}
-                    onChange={(e) => updateState({
-                        ...state,
-                        set: {
-                            ...state.set,
-                            retention: {
-                                ...state.set.retention,
-                                maximumVersions: e.target.checked ? 10 : undefined
-                            }
-                        }
-                    })}
-                />} label={"Keep at most "}/>
-                <TextField variant="standard"
-                           disabled={!state.set.retention || !state.set.retention.maximumVersions}
-                           defaultValue={state.set.retention && state.set.retention.maximumVersions ? state.set.retention.maximumVersions : 10}
-                           inputProps={{min: 1, style: {textAlign: "right"}}}
-                           style={{width: "80px"}}
-                           type={"number"}
-                           onBlur={(e) => updateState({
-                               ...state,
-                               set: {
-                                   ...state.set,
-                                   retention: {
-                                       ...state.set.retention,
-                                       maximumVersions: parseInt(e.target.value)
-                                   }
-                               }
-                           })}/>
-                <Typography>versions of every file</Typography>
-            </div>
-
+            <Retention retention={state.set.retention} retentionUpdated={(e) => updateState({
+                ...state,
+                set: {
+                    ...state.set,
+                    retention: e
+                }
+            })}/>
         </TabPanel>
         <TabPanel index={state.tab} value={2}>
             <DividerWithText>Destinations</DividerWithText>

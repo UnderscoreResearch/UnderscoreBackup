@@ -84,12 +84,69 @@ public final class IOProviderFactory {
 
         try {
             Constructor<? extends IOProvider> constructor = clz.getConstructor(BackupDestination.class);
-            provider = constructor.newInstance(destination);
+            provider = readOnlyOnSource(constructor.newInstance(destination));
             providers.put(destination, provider);
             return provider;
         } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
                  InvocationTargetException e) {
             throw new IllegalArgumentException("Invalid provider type " + destination.getType(), e);
+        }
+    }
+
+    private static IOProvider readOnlyOnSource(IOProvider actualProvider) {
+        if (InstanceFactory.getAdditionalSource() != null) {
+            if (actualProvider instanceof IOIndex) {
+                return new IOIndex() {
+                    @Override
+                    public List<String> availableKeys(String prefix) throws IOException {
+                        return ((IOIndex) actualProvider).availableKeys(prefix);
+                    }
+
+                    @Override
+                    public String upload(String suggestedKey, byte[] data) throws IOException {
+                        throw new IOException(String.format("Cant upload data to %s", InstanceFactory.getAdditionalSource()));
+                    }
+
+                    @Override
+                    public byte[] download(String key) throws IOException {
+                        return actualProvider.download(key);
+                    }
+
+                    @Override
+                    public void delete(String key) throws IOException {
+                        throw new IOException(String.format("Cant delete data from %s", InstanceFactory.getAdditionalSource()));
+                    }
+
+                    @Override
+                    public void checkCredentials(boolean readOnly) throws IOException {
+                        actualProvider.checkCredentials(readOnly);
+                    }
+                };
+            } else {
+                return new IOProvider() {
+                    @Override
+                    public String upload(String suggestedKey, byte[] data) throws IOException {
+                        throw new IOException(String.format("Cant upload data to %s", InstanceFactory.getAdditionalSource()));
+                    }
+
+                    @Override
+                    public byte[] download(String key) throws IOException {
+                        return actualProvider.download(key);
+                    }
+
+                    @Override
+                    public void delete(String key) throws IOException {
+                        throw new IOException(String.format("Cant delete data from %s", InstanceFactory.getAdditionalSource()));
+                    }
+
+                    @Override
+                    public void checkCredentials(boolean readOnly) throws IOException {
+                        actualProvider.checkCredentials(readOnly);
+                    }
+                };
+            }
+        } else {
+            return actualProvider;
         }
     }
 }

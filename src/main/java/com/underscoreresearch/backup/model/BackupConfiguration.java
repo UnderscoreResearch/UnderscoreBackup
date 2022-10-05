@@ -22,6 +22,8 @@ public class BackupConfiguration {
     private BackupManifest manifest;
     private Map<String, String> properties;
     private BackupGlobalLimits limits;
+    private BackupRetention missingRetention;
+    private Map<String, BackupDestination> additionalSources;
 
     @JsonIgnore
     public int getProperty(String name, int defaultValue) {

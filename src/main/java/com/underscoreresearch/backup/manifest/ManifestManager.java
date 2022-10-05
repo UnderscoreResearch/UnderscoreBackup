@@ -24,4 +24,6 @@ public interface ManifestManager {
     BackupSearchAccess backupSearch(Long timestamp, boolean includeDeleted) throws IOException;
 
     void shutdown() throws IOException;
+
+    boolean isBusy();
 }

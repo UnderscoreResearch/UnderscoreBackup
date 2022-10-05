@@ -20,28 +20,33 @@ import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.smbj.SMBClient;
 import com.hierynomus.smbj.auth.AuthenticationContext;
+import com.hierynomus.smbj.common.SMBRuntimeException;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
 import com.hierynomus.smbj.share.File;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @IOPlugin(("SMB"))
 @Slf4j
-public class SMBIOProvider implements IOIndex, IOProvider, Closeable {
-    private String root;
+public class SMBIOProvider implements IOIndex, Closeable {
     private static final Pattern PATH_PARSER = Pattern.compile("^\\\\\\\\([^\\\\]+)\\\\([^\\\\]+)\\\\?(.*)");
     private static final Pattern URI_PARSER = Pattern.compile("^smb://([^//]+)/([^//]+)/?(.*)");
-    private final SMBClient client;
-    private final Connection connection;
-    private final Session session;
-    private final DiskShare share;
+    private final BackupDestination destination;
+    private final String host;
+    private final String shareName;
+    private String root;
+    private SMBClient client;
+    private Connection connection;
+    private Session session;
+    private DiskShare share;
 
     public SMBIOProvider(BackupDestination destination) {
+        this.destination = destination;
+
         Matcher matcher = PATH_PARSER.matcher(destination.getEndpointUri());
         if (!matcher.find()) {
             matcher = URI_PARSER.matcher(destination.getEndpointUri());
@@ -55,29 +60,45 @@ public class SMBIOProvider implements IOIndex, IOProvider, Closeable {
         if (!root.endsWith("\\"))
             root += "\\";
 
-        client = new SMBClient();
-        try {
-            connection = client.connect(matcher.group(1));
-        } catch (IOException exc) {
-            throw new RuntimeException(exc);
+        host = matcher.group(1);
+        shareName = matcher.group(2);
+    }
+
+    private DiskShare getShare() throws IOException {
+        if (share == null) {
+            if (connection != null) {
+                throw new IOException("Failed to connect to SMB share");
+            }
+
+            client = new SMBClient();
+            try {
+                connection = client.connect(host);
+                session = connection.authenticate(new AuthenticationContext(destination.getPrincipal(),
+                        destination.getCredential().toCharArray(),
+                        destination.getProperty("domain", "WORKGROUP")));
+                share = (DiskShare) session.connectShare(shareName);
+            } catch (SMBRuntimeException exc) {
+                throw new IOException("Failed to connect to SMB share", exc);
+            }
         }
-        session = connection.authenticate(new AuthenticationContext(destination.getPrincipal(),
-                destination.getCredential().toCharArray(),
-                destination.getProperty("domain", "WORKGROUP")));
-        share = (DiskShare) session.connectShare(matcher.group(2));
+        return share;
     }
 
     @Override
-    public List<String> availableKeys(String prefix) {
-        String physicalKey = physicalPath(prefix);
-        if (share.folderExists(root + physicalKey)) {
-            return share.list(root + physicalKey)
-                    .stream()
-                    .map(t -> t.getFileName())
-                    .filter(t -> !t.equals(".") && !t.equals(".."))
-                    .collect(Collectors.toList());
+    public List<String> availableKeys(String prefix) throws IOException {
+        try {
+            String physicalKey = physicalPath(prefix);
+            if (getShare().folderExists(root + physicalKey)) {
+                return getShare().list(root + physicalKey)
+                        .stream()
+                        .map(t -> t.getFileName())
+                        .filter(t -> !t.equals(".") && !t.equals(".."))
+                        .collect(Collectors.toList());
+            }
+            return Lists.newArrayList();
+        } catch (SMBRuntimeException exc) {
+            throw new IOException("Failed to list SMB folder", exc);
         }
-        return Lists.newArrayList();
     }
 
     private String physicalPath(String prefix) {
@@ -102,54 +123,83 @@ public class SMBIOProvider implements IOIndex, IOProvider, Closeable {
         createParent(root + parent);
 
 
-        try (File file = share.openFile(root + physicalKey,
-                EnumSet.of(AccessMask.FILE_WRITE_DATA),
-                null,
-                SMB2ShareAccess.ALL,
-                SMB2CreateDisposition.FILE_OVERWRITE_IF,
-                null)) {
-            file.write(data, 0);
+        try {
+            try (File file = getShare().openFile(root + physicalKey,
+                    EnumSet.of(AccessMask.FILE_WRITE_DATA),
+                    null,
+                    SMB2ShareAccess.ALL,
+                    SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                    null)) {
+                file.write(data, 0);
+            }
+        } catch (SMBRuntimeException exc) {
+            throw new IOException("Failed to upload file", exc);
         }
         return key;
     }
 
-    private void createParent(String parent) {
-        if (parent.length() > 0 && !share.folderExists(parent)) {
-            createParent(parentPath(parent));
-            share.mkdir(parent);
+    private void createParent(String parent) throws IOException {
+        try {
+            if (parent.length() > 0 && !getShare().folderExists(parent)) {
+                createParent(parentPath(parent));
+                getShare().mkdir(parent);
+            }
+        } catch (SMBRuntimeException exc) {
+            throw new IOException("Failed to create directory", exc);
         }
     }
 
     @Override
     public byte[] download(String key) throws IOException {
         String physicalKey = physicalPath(key);
-        try (File file = share.openFile(root + physicalKey,
-                EnumSet.of(AccessMask.FILE_READ_DATA),
-                null,
-                SMB2ShareAccess.ALL,
-                SMB2CreateDisposition.FILE_OPEN,
-                null)) {
-            try (InputStream stream = file.getInputStream()) {
-                byte[] data = IOUtils.readAllBytes(stream);
-                debug(() -> log.debug("Read {} ({})", key, readableSize(data.length)));
-                return data;
+        try {
+            try (File file = getShare().openFile(root + physicalKey,
+                    EnumSet.of(AccessMask.FILE_READ_DATA),
+                    null,
+                    SMB2ShareAccess.ALL,
+                    SMB2CreateDisposition.FILE_OPEN,
+                    null)) {
+                try (InputStream stream = file.getInputStream()) {
+                    byte[] data = IOUtils.readAllBytes(stream);
+                    debug(() -> log.debug("Read {} ({})", key, readableSize(data.length)));
+                    return data;
+                }
             }
+        } catch (SMBRuntimeException exc) {
+            throw new IOException("Failed to download file", exc);
         }
     }
 
     @Override
     public void delete(String key) throws IOException {
         String physicalKey = physicalPath(key);
-        if (share.fileExists(root + physicalKey)) {
-            share.rm(root + physicalKey);
+        try {
+            if (getShare().fileExists(root + physicalKey)) {
+                getShare().rm(root + physicalKey);
+            }
+        } catch (SMBRuntimeException exc) {
+            throw new IOException("Failed to delete file", exc);
+        }
+    }
+
+    @Override
+    public void checkCredentials(boolean readOnly) throws IOException {
+        if (!getShare().folderExists(root)) {
+            if (readOnly)
+                throw new IOException("Root folder does not exist");
+            createParent(root);
         }
     }
 
     @Override
     public void close() throws IOException {
-        share.close();
-        session.close();
-        connection.close();
-        client.close();
+        if (share != null)
+            share.close();
+        if (session != null)
+            session.close();
+        if (connection != null)
+            connection.close();
+        if (client != null)
+            client.close();
     }
 }

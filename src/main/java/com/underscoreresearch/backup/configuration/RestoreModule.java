@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.configuration;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
+
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -50,7 +52,7 @@ public class RestoreModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public BlockDownloaderImpl blockDownloader(BackupConfiguration configuration,
+    public BlockDownloaderImpl blockDownloader(@Named(SOURCE_CONFIG) BackupConfiguration configuration,
                                                RateLimitController rateLimitController,
                                                MetadataRepository metadataRepository,
                                                @Named(DOWNLOAD_THREADS) int threads) {

@@ -80,11 +80,11 @@ public class BackupCommand extends SimpleCommand {
         });
 
         if (asynchronous) {
-            Thread thread = new Thread(() -> executeScheduler(scheduler));
+            Thread thread = new Thread(() -> executeScheduler(scheduler), "ScannerScheduler");
             thread.start();
             do {
                 Thread.sleep(1);
-            } while(!scheduler.isRunning() && thread.isAlive());
+            } while (!scheduler.isRunning() && thread.isAlive());
         } else {
             executeScheduler(scheduler);
         }

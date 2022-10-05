@@ -101,6 +101,18 @@ Depending on the size of your repository this might take a few minutes. This ope
 
 # Configuration file specification
 
+The configuration file is a JSON file with the following root fields.
+
+## Configuration fields
+
+* **sets** - List of backup sets to process.
+* **destinations** - A map of backup destinations and their names.
+* **limits** - Global throughput limits.
+* **manifest** - Backup manifest options.
+* **properties** - Custom additional properties.
+* **missingRetention** - If specified used for retention of files not covered by any set.
+* **additionalSources** - A map of backup destinations for manifest of secondary backup sources.
+
 ## Backup set definitions
 Backup set definitions have the following fields.
 
@@ -170,11 +182,14 @@ There is another root property which is a map of strings to string for additiona
 
 * **smallFileBlockAssignment.maximumSize** - Maximum size for small block assignment (Suitable for smaller files where it is important to pack multiple files into a single block). Defaults to 4091kb.
 * **smallFileBlockAssignment.targetSize** - Target size of a small block total block size. Defaults to 8182kb.
-* **largeBlockAssignment.raw** - If set to true, don't GZip large blocks.
+* **largeBlockAssignment.raw** - If set to true, don't GZip large blocks. Changing this will break an existing backup.
 * **largeBlockAssignment.maximumSize** - Maximum size of large blocks. Defaults to 8182kb.
-* **reedSolomon.dataSlices** - Number of Reed Solomon data slizes to use. Defaults to 17.
-* **reedSolomon.paritySlices** - Number of Reed Solomon parity slizes to use. Defaults to 3.
+* **reedSolomon.dataSlices** - Number of Reed Solomon data slices to use. Defaults to 17. Changing this will break an existing backup.
+* **reedSolomon.paritySlices** - Number of Reed Solomon parity slices to use. Defaults to 3. Changing this will break an existing backup.
 * **noneErrorCorrection.maximumFileSize** - Maximum part size for none error correction. Defaults to 16384kb.
+* **maximumRefreshedBytes** - Maximum amount of bytes to refresh because of destination retention setting per run.
+* **randomizeScheduleSeconds** - Number of seconds to jitter any scheduled times. Will always be past the scheduled time.
+* **crossSourceDedupe** - Allow data to be deduped across multiple hosts. Affects how the keys to AES encryption are handled.
 
 Future development ideas
 ==============

@@ -60,6 +60,11 @@ public class UploadSchedulerImplTest {
         public void delete(String key) throws IOException {
 
         }
+
+        @Override
+        public void checkCredentials(boolean readonly) throws IOException {
+
+        }
     }
 
     @Test

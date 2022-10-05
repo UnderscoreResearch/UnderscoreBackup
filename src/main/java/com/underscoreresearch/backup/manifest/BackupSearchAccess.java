@@ -10,5 +10,5 @@ import com.underscoreresearch.backup.model.BackupFile;
 public interface BackupSearchAccess {
     CloseableLock acquireLock();
 
-    Stream<BackupFile> searchFiles(Pattern pathPattern) throws IOException;
+    Stream<BackupFile> searchFiles(Pattern pathPattern, CloseableLock interruptableLock) throws IOException;
 }

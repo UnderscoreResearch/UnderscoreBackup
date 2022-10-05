@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
@@ -31,33 +32,37 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @CommandPlugin(value = "rebuild-repository", description = "Rebuild repository metadata from logs",
-        readonlyRepository = false)
+        readonlyRepository = false, supportSource = true)
 @Slf4j
 public class RebuildRepositoryCommand extends Command {
     private static final ObjectReader READER = new ObjectMapper().readerFor(BackupConfiguration.class);
 
     @Override
     public void executeCommand(CommandLine commandLine) throws Exception {
-        try {
-            String config = downloadRemoteConfiguration();
-            if (!config.equals(InstanceFactory.getInstance(CONFIG_DATA))) {
-                throw new IOException("Configuration file does not match. Use -f flag to continue or use download-config command to replace");
-            }
-        } catch (Exception exc) {
-            if (commandLine.hasOption(FORCE)) {
-                log.info("Overriding error validating configuration file");
-            } else {
-                log.error(exc.getMessage());
-                System.exit(1);
+        if (InstanceFactory.getAdditionalSource() == null) {
+            try {
+                String config = downloadRemoteConfiguration(null);
+                if (!config.equals(InstanceFactory.getInstance(CONFIG_DATA))) {
+                    throw new IOException("Configuration file does not match. Use -f flag to continue or use download-config command to replace");
+                }
+            } catch (Exception exc) {
+                if (commandLine.hasOption(FORCE)) {
+                    log.info("Overriding error validating configuration file");
+                } else {
+                    log.error(exc.getMessage());
+                    System.exit(1);
+                }
             }
         }
 
-        rebuildFromLog();
+        rebuildFromLog(false);
     }
 
-    public static String downloadRemoteConfiguration() throws IOException {
-        BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
-        BackupDestination destination = configuration.getDestinations().get(configuration.getManifest().getDestination());
+    public static String downloadRemoteConfiguration(String source) throws IOException {
+        BackupDestination destination = getManifestDestination(source);
+        if (destination == null) {
+            throw new IOException("Could not find destination for configuration");
+        }
         IOProvider provider = IOProviderFactory.getProvider(destination);
         byte[] data = provider.download("configuration.json");
         try {
@@ -86,18 +91,66 @@ public class RebuildRepositoryCommand extends Command {
         }
     }
 
-    public static void rebuildFromLog() throws IOException {
+    public static void rebuildFromLog(boolean async) {
         log.info("Rebuilding repository from logs");
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
-        repository.close();
-        String root = InstanceFactory.getInstance(REPOSITORY_DB_PATH);
-        cleanDir(new File(root));
-        repository.open(false);
+        if (InstanceFactory.getAdditionalSource() == null) {
+            try {
+                repository.close();
+                String root = InstanceFactory.getInstance(REPOSITORY_DB_PATH);
+                cleanDir(new File(root));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
         LogConsumer logConsumer = InstanceFactory.getInstance(LogConsumer.class);
 
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
-        manifestManager.replayLog(logConsumer);
-        repository.close();
+        if (async) {
+            Thread thread = new Thread(() -> executeRebuildLog(manifestManager, logConsumer, repository),
+                    "LogRebuild");
+            InstanceFactory.addOrderedCleanupHook(() -> {
+                try {
+                    manifestManager.shutdown();
+                } catch (IOException e) {
+                    log.error("Failed to shut down log replay", e);
+                }
+                while (thread.isAlive()) {
+                    log.info("Waiting for rebuild to get to a checkpoint");
+                    try {
+                        thread.join();
+                    } catch (InterruptedException e) {
+                    }
+                }
+            });
+            thread.start();
+            do {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    log.error("Failed to wait", e);
+                }
+            } while (!manifestManager.isBusy() && thread.isAlive());
+        } else {
+            executeRebuildLog(manifestManager, logConsumer, repository);
+        }
+    }
+
+    private static void executeRebuildLog(ManifestManager manifestManager,
+                                          LogConsumer logConsumer,
+                                          MetadataRepository repository) {
+        try {
+            repository.open(false);
+            manifestManager.replayLog(logConsumer);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try {
+                repository.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

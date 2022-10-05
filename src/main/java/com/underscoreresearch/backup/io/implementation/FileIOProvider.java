@@ -17,13 +17,12 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @IOPlugin(("FILE"))
 @Slf4j
-public class FileIOProvider implements IOIndex, IOProvider {
+public class FileIOProvider implements IOIndex {
     private final String root;
 
     public FileIOProvider(BackupDestination destination) {
@@ -79,6 +78,16 @@ public class FileIOProvider implements IOIndex, IOProvider {
         File file = getFile(key);
         if (file.exists() && !file.delete()) {
             throw new IOException("Failed to delete " + file);
+        }
+    }
+
+    @Override
+    public void checkCredentials(boolean readOnly) throws IOException {
+        File file = new File(root);
+        if (!file.exists()) {
+            if (readOnly || !file.mkdirs()) {
+                throw new IOException("Failed to create root of local destination");
+            }
         }
     }
 }

@@ -138,6 +138,10 @@ public class WebServer {
                                     new FkRegex(base + "/api/auth-endpoint", new AuthEndpointGet(address, getConfigurationUrl())),
                                     new FkRegex(base + "/api/shutdown", new ShutdownGet()),
 
+                                    new FkRegex(base + "/api/sources/[^\\/]*", new TkFork(
+                                            new FkMethods("POST", new SourceSelectPost(base))
+                                    )),
+
                                     new FkRegex(base + "/api/encryption-key", new TkFork(
                                             new FkMethods("POST", new KeyPost()),
                                             new FkMethods("PUT", new GenerateKeyPut()))),
@@ -152,6 +156,8 @@ public class WebServer {
                                     createIndexPath(base + "/status"),
                                     createIndexPath(base + "/sets"),
                                     createIndexPath(base + "/destinations"),
+                                    createIndexPath(base + "/sources"),
+                                    createIndexPath(base + "/share"),
                                     createIndexPath(base + "/settings"),
                                     createIndexPath(base + "/restore"),
 

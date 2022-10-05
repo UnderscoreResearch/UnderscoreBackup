@@ -19,4 +19,6 @@ public @interface CommandPlugin {
     boolean needConfiguration() default true;
 
     boolean readonlyRepository() default true;
+
+    boolean supportSource() default false;
 }

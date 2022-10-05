@@ -10,6 +10,7 @@ import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.Take;
@@ -18,12 +19,14 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
 public class RemoteRestorePost extends JsonWrap {
@@ -44,16 +47,12 @@ public class RemoteRestorePost extends JsonWrap {
         public Response act(Request req) throws Exception {
             String passphrase = PrivateKeyRequest.decodePrivateKeyRequest(req);
             try {
-                BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
-                IOProvider provider = IOProviderFactory.getProvider(configuration.getDestinations()
-                        .get(configuration.getManifest().getDestination()));
                 try {
-                    byte[] keyData = provider.download("/publickey.json");
-                    PublicKeyEncrypion publicKeyEncrypion = READER.readValue(keyData);
-
-                    PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithPassphrase(passphrase, publicKeyEncrypion);
-                    if (!publicKeyEncrypion.getPublicKey().equals(ret.getPublicKey())) {
-                        return messageJson(403, "Invalid passphrase provided for restore");
+                    byte[] keyData;
+                    try {
+                        keyData = downloadKeyData(passphrase, null);
+                    } catch (ParseException exc) {
+                        return messageJson(403, exc.getMessage());
                     }
 
                     File privateKeyFile = getDefaultEncryptionFileName(InstanceFactory
@@ -62,11 +61,11 @@ public class RemoteRestorePost extends JsonWrap {
                         writer.write(keyData);
                     }
 
-                    InstanceFactory.reloadConfiguration(passphrase);
+                    InstanceFactory.reloadConfiguration(passphrase, null);
                     try {
-                        String config = RebuildRepositoryCommand.downloadRemoteConfiguration();
+                        String config = RebuildRepositoryCommand.downloadRemoteConfiguration(null);
 
-                        updateConfiguration(config, true);
+                        updateConfiguration(config, true, true);
                     } catch (Exception exc) {
                         log.error("Failed to update configuraion", exc);
                         privateKeyFile.delete();
@@ -75,21 +74,8 @@ public class RemoteRestorePost extends JsonWrap {
 
                     // We want the rebild to start before we return.
                     Object lock = new Object();
-                    synchronized (lock) {
-                        new Thread(() -> {
-                            InstanceFactory.reloadConfiguration(passphrase);
-
-                            try {
-                                synchronized (lock) {
-                                    lock.notify();
-                                }
-                                RebuildRepositoryCommand.rebuildFromLog();
-                            } catch (IOException e) {
-                                log.error("Failed to restore", e);
-                            }
-                        }, "RemoteRestore").start();
-                        lock.wait();
-                    }
+                    InstanceFactory.reloadConfiguration(passphrase, null,
+                            () -> RebuildRepositoryCommand.rebuildFromLog(true));
                     return messageJson(200, "Remote restore initiated");
                 } catch (Exception exc) {
                     return JsonWrap.messageJson(400, "Couldn't fetch remote configuration");
@@ -99,5 +85,38 @@ public class RemoteRestorePost extends JsonWrap {
             }
             return messageJson(404, "No valid config available");
         }
+    }
+
+
+    public static byte[] downloadKeyData(String passphrase, String source) throws ParseException, IOException {
+        IOProvider provider = getIoProvider(source);
+        byte[] keyData = provider.download("/publickey.json");
+        PublicKeyEncrypion publicKeyEncrypion = READER.readValue(keyData);
+
+        PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithPassphrase(passphrase, publicKeyEncrypion);
+        if (!publicKeyEncrypion.getPublicKey().equals(ret.getPublicKey())) {
+            throw new ParseException("Invalid passphrase provided for restore");
+        }
+        return keyData;
+    }
+
+    public static IOProvider getIoProvider(String source) {
+        BackupDestination destination = getManifestDestination(source);
+        IOProvider provider = IOProviderFactory.getProvider(destination);
+        return provider;
+    }
+
+    public static BackupDestination getManifestDestination(String source) {
+        BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
+        BackupDestination destination;
+        if (Strings.isNullOrEmpty(source)) {
+            destination = configuration.getDestinations().get(configuration.getManifest().getDestination());
+        } else {
+            destination = configuration.getAdditionalSources().get(source);
+        }
+        if (destination == null) {
+            log.error("Manifest destination did not exist");
+        }
+        return destination;
     }
 }

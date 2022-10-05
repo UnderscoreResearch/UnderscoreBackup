@@ -180,6 +180,11 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                     if (!hasSchedules) {
                         break;
                     }
+                    try {
+                        InstanceFactory.getInstance(ManifestManager.class).flushLog();
+                    } catch (IOException e) {
+                        log.error("Failed to flush backup log", e);
+                    }
 
                     log.info("Paused for next scheduled scan");
                     System.gc();

@@ -76,7 +76,7 @@ class ManifestManagerImplTest {
         String configurationData = new ObjectMapper().writeValueAsString(configuration);
 
         InstanceFactory.initialize(new String[]{"--passphrase", "test", "--config-data", configurationData,
-                "--public-key-data", PUBLIC_KEY_DATA}, null);
+                "--public-key-data", PUBLIC_KEY_DATA}, null, null);
 
         rateLimitController = Mockito.mock(RateLimitController.class);
         memoryIOProvider = Mockito.spy(new MemoryIOProvider(null));
@@ -87,7 +87,7 @@ class ManifestManagerImplTest {
     @Test
     public void testUploadConfig() throws IOException {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any());
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
         manifestManager.addLogEntry("doh", "doh");
         assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
     }
@@ -99,7 +99,7 @@ class ManifestManagerImplTest {
         try (FileOutputStream stream = new FileOutputStream(file)) {
             stream.write(new byte[]{1, 2, 3});
         }
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
         manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
         manifestManager.addLogEntry("doh", "doh");
         Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any());
@@ -110,7 +110,7 @@ class ManifestManagerImplTest {
 
     @Test
     public void testDelayedUpload() throws IOException, InterruptedException {
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -124,7 +124,7 @@ class ManifestManagerImplTest {
 
     @Test
     public void testLoggingUpdateAndReplay() throws IOException {
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -142,7 +142,7 @@ class ManifestManagerImplTest {
 
         Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any());
 
-        manifestManager = new ManifestManagerImpl(configuration, memoryIOProvider, encryptor, rateLimitController, "id");
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
         manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false));
 
@@ -150,8 +150,8 @@ class ManifestManagerImplTest {
     }
 
     private void compareInvocations(MetadataRepository repository1, MetadataRepository repository2) throws JsonProcessingException {
-        List<Invocation> det1 = stripInvications(repository1);
-        List<Invocation> det2 = stripInvications(repository2);
+        List<Invocation> det1 = stripInvocations(repository1);
+        List<Invocation> det2 = stripInvocations(repository2);
         assertThat(createInvocationString(det1), Is.is(createInvocationString(det2)));
     }
 
@@ -173,7 +173,7 @@ class ManifestManagerImplTest {
         return builder.toString();
     }
 
-    private List<Invocation> stripInvications(MetadataRepository repository1) {
+    private List<Invocation> stripInvocations(MetadataRepository repository1) {
         return Mockito.mockingDetails(repository1).getInvocations().stream()
                 .filter(t -> {
                     switch (t.getMethod().getName()) {
@@ -183,6 +183,8 @@ class ManifestManagerImplTest {
                         case "lastDirectory":
                         case "hasActivePath":
                         case "flushLogging":
+                        case "lastSyncedLogFile":
+                        case "setLastSyncedLogFile":
                             return false;
                     }
                 })

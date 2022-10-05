@@ -30,8 +30,8 @@ public class BackupPauseGet extends JsonWrap {
         public Response act(Request req) throws Exception {
             String config = WRITER.writeValueAsString(InstanceFactory.getInstance(BackupConfiguration.class));
             try {
-                updateConfiguration(config, true);
-                InstanceFactory.reloadConfiguration(null);
+                updateConfiguration(config, true, false);
+                InstanceFactory.reloadConfiguration(null, null);
                 return messageJson(200, "Updated configuration");
             } catch (Exception exc) {
                 return messageJson(400, exc.getMessage());

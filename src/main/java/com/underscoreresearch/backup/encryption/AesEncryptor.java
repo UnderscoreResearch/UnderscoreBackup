@@ -3,12 +3,13 @@ package com.underscoreresearch.backup.encryption;
 import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.KEY_DATA;
 import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.PUBLIC_KEY;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * AES 256 encryptor.
@@ -29,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
  * algorithm.
  * <p>
  * The entire rest of the data is the encryption payload.
- *
+ * <p>
  * There is also another format used when storage is specified by default. In this format only the first byte is used
  * to specify the format and the entire rest of the payload is the encryption. The IV in this case is a 0 array, the
  * encryption key is the SHA3-256 of the payload (Which is different from the SHA-256 used to create the block ID. In
@@ -44,7 +45,7 @@ public class AesEncryptor implements Encryptor {
     private final AesEncryptorFormat defaultFormat;
     private final AesEncryptorFormat legacyFormat;
     private final AesEncryptorFormat stableFormat;
-    
+
     @Inject
     public AesEncryptor(PublicKeyEncrypion key) {
         this.key = key;
@@ -55,7 +56,7 @@ public class AesEncryptor implements Encryptor {
         stableDedupe = true;
         try {
             BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
-            stableDedupe = !("false".equals(config.getProperty("crossHostDedupe", "true")));
+            stableDedupe = !("false".equals(config.getProperty("crossSourceDedupe", "true")));
         } catch (Exception exc) {
             log.warn("Failed to read config for encryption setup");
             stableDedupe = true;

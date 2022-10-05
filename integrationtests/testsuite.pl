@@ -274,6 +274,7 @@ $extraDestination
   },
   "manifest": {
     "destination": "d0",
+    "pauseOnBattery": false,
     "localLocation": "$escapedRoot"
   }
 }

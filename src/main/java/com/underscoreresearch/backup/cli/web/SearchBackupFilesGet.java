@@ -24,6 +24,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.implementation.BackupSearchAccessImpl;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 
@@ -51,9 +52,6 @@ public class SearchBackupFilesGet extends JsonWrap {
                             .map(t -> new ExternalBackupFile(t))
                             .collect(Collectors.toList())));
         }
-    }
-
-    private static class DoneException extends RuntimeException {
     }
 
     public static List<BackupFile> getRequestFiles(Request req) throws IOException {
@@ -97,15 +95,15 @@ public class SearchBackupFilesGet extends JsonWrap {
 
         List<BackupFile> ret = new ArrayList<>();
 
-        try (CloseableLock ignored = access.acquireLock()) {
+        try (CloseableLock interrupt = access.acquireLock()) {
             try {
-                access.searchFiles(pattern).forEach(item -> {
+                access.searchFiles(pattern, interrupt).forEach(item -> {
                     ret.add(item);
                     if (ret.size() == MAX_HITS) {
-                        throw new DoneException();
+                        throw new BackupSearchAccessImpl.InterruptedSearch();
                     }
                 });
-            } catch (DoneException exc) {
+            } catch (BackupSearchAccessImpl.InterruptedSearch exc) {
             }
         }
 

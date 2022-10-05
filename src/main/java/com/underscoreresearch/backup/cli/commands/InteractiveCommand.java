@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEVELOPER_MODE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -39,13 +40,11 @@ public class InteractiveCommand extends Command {
 
         try {
             BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
-            if (configuration.getManifest() != null && configuration.getManifest().getLocalLocation() != null) {
-                File file = new File(configuration.getManifest().getLocalLocation(), "server.pid");
-                try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
-                    writer.write(ManagementFactory.getRuntimeMXBean().getPid() + "\n");
-                }
-                file.deleteOnExit();
+            File file = new File(InstanceFactory.getInstance(MANIFEST_LOCATION), "server.pid");
+            try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+                writer.write(ManagementFactory.getRuntimeMXBean().getPid() + "\n");
             }
+            file.deleteOnExit();
 
             try {
                 InstanceFactory.getInstance(PublicKeyEncrypion.class);
@@ -55,8 +54,8 @@ public class InteractiveCommand extends Command {
                         && configuration.getManifest().getInteractiveBackup()) {
                     log.warn("Resetting interactive backup parameter because key is missing");
                     ConfigurationPost.updateConfiguration(InstanceFactory.getInstance(CommandLineModule.CONFIG_DATA),
-                            true);
-                    InstanceFactory.reloadConfiguration(null);
+                            true, true);
+                    InstanceFactory.reloadConfiguration(null, null);
                 }
                 throw exc;
             }

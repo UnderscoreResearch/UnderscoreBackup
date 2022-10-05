@@ -3,6 +3,7 @@ import {
     BackupConfiguration,
     BackupGlobalLimits,
     BackupManifest,
+    BackupRetention,
     DeleteReset,
     PostChangeEncryptionKey,
     PropertyMap
@@ -29,6 +30,8 @@ import UIAuthentication from "./UIAuthentication";
 import Cron from "../3rdparty/react-js-cron-mui";
 import {DisplayMessage} from "../App";
 import Box from "@mui/material/Box";
+import Retention from "./Retention";
+import Typography from "@mui/material/Typography";
 
 export interface SettingsProps {
     config: BackupConfiguration,
@@ -45,6 +48,7 @@ interface SettingsState {
     showResetWarning: boolean,
     configData: string,
     limits: BackupGlobalLimits,
+    missingRetention?: BackupRetention,
     properties?: PropertyMap
 }
 
@@ -58,6 +62,7 @@ function createInitialState(config: BackupConfiguration): SettingsState {
         passphraseConfirm: "",
         oldPassphrase: "",
         properties: config.properties,
+        missingRetention: config.missingRetention,
         configData: JSON.stringify(config, null, 2),
         limits: config.limits ? config.limits : {}
     }
@@ -72,6 +77,7 @@ export default function Settings(props: SettingsProps) {
         const sendState = {
             ...props.config,
             properties: newState.properties,
+            missingRetention: newState.missingRetention,
             limits: newState.limits,
             manifest: newState.manifest
         } as BackupConfiguration;
@@ -232,6 +238,15 @@ export default function Settings(props: SettingsProps) {
                                })}/>
                 </Grid>
             </Grid>
+        </Paper>
+        <Paper sx={{p: 2}}>
+            <DividerWithText>Missing Retention</DividerWithText>
+            <Typography variant={"body2"} style={{marginBottom: "16px"}}>The retention settings to use for any files
+                that are not covered by a set</Typography>
+            <Retention retention={state.missingRetention} retentionUpdated={(newState) => updateState({
+                ...state,
+                missingRetention: newState
+            })}/>
         </Paper>
         <Paper sx={{p: 2}}>
             <DividerWithText>Advanced settings</DividerWithText>

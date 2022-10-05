@@ -22,6 +22,16 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
+    public String lastSyncedLogFile() throws IOException {
+        return null;
+    }
+
+    @Override
+    public void setLastSyncedLogFile(String entry) throws IOException {
+
+    }
+
+    @Override
     public List<BackupFile> file(String path) throws IOException {
         return null;
     }
@@ -170,6 +180,11 @@ public class NullRepository implements MetadataRepository {
             @Override
             public void close() {
             }
+
+            @Override
+            public boolean requested() {
+                return false;
+            }
         };
     }
 
@@ -191,5 +206,10 @@ public class NullRepository implements MetadataRepository {
     @Override
     public long getPartCount() {
         return 0;
+    }
+
+    @Override
+    public void clear() throws IOException {
+
     }
 }

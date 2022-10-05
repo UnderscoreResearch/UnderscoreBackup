@@ -25,13 +25,13 @@ export interface DestinationsProps {
 
 export default function Destinations(props: DestinationsProps) {
     const [state, setState] = React.useState(() => {
-        let destinationId: string | undefined = temporaryStorage.getItem("destinationId");
+        let destinationId: string | null = temporaryStorage.getItem("destinationId");
         if (destinationId) {
             const pendingDestination = JSON.parse(temporaryStorage.getItem("destination") as string);
             for (let i = 0; i < props.destinations.length; i++) {
                 if (props.destinations[i].id === destinationId) {
                     props.destinations[i].destination = pendingDestination;
-                    destinationId = undefined;
+                    destinationId = null;
                     break;
                 }
             }
