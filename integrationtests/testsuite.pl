@@ -272,6 +272,13 @@ $retention
 $extraDestination
     }
   },
+  "additionalSources": {
+    "same": {
+      "type": "FILE",
+      "encryption": "AES256",
+      "endpointUri": "$escapedBackupRoot"
+    }
+  },
   "manifest": {
     "destination": "d0",
     "pauseOnBattery": false,
@@ -379,9 +386,8 @@ my $DELAY = 11;
 my @completionTimestamp;
 my $pid;
 
-# Test superblocks & interactive
-
 print "Interactive & superblock test\n";
+
 &cleanRunPath();
 &prepareTestPath();
 &generateData(7, 1);
@@ -401,6 +407,7 @@ if (!$pid) {
 waitpid($pid, 0);
 
 print "Rebuild from backup test\n";
+
 &prepareTestPath();
 &generateData(7, 1, $answerRoot);
 chdir($root);
@@ -417,6 +424,16 @@ if (!$pid) {
 &executeCypressTest("setuprebuild.js");
 &executeCypressTest("restore.js");
 
+&validateAnswer();
+
+print "Rebuild from other source\n";
+
+&prepareTestPath();
+&generateData(7, 1, $answerRoot);
+chdir($root);
+
+&executeCypressTest("sourcerestore.js");
+
 &killInteractive();
 waitpid($pid, 0);
 
@@ -426,6 +443,7 @@ waitpid($pid, 0);
 &prepareRunPath();
 
 &prepareTestPath();
+
 print "Generation 1\n";
 &generateData(1);
 &executeUnderscoreBackup("backup");
@@ -461,7 +479,21 @@ print "Generation 6\n";
 &generateData(6);
 &executeUnderscoreBackup("backup");
 
-# Random bits and ends
+print "Other source tests\n";
+
+&executeUnderscoreBackup("download-config", "--passphrase", "1234", "--source", "same");
+&executeUnderscoreBackup("rebuild-repository", "--passphrase", "1234", "--source", "same");
+&executeUnderscoreBackup("rebuild-repository", "--passphrase", "1234", "--source", "same");
+&executeUnderscoreBackup("restore", "/", "=", "--passphrase", "1234");
+&executeUnderscoreBackup("ls", "/", "--full-path", "--source", "same");
+&executeUnderscoreBackup("history", "--source", "same", File::Spec->catdir(File::Spec->catdir($testRoot, "a"), "0"));
+&executeUnderscoreBackup("search", "--source", "same", "a");
+&prepareTestPath();
+&generateData(1, 0, $answerRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[0] - 1) . " seconds ago", "--source", "same", $testRoot, $testRoot);
+&validateAnswer();
+
+print "Random bits and ends\n";
 
 &executeUnderscoreBackup("version");
 &executeUnderscoreBackup("list-destination");
@@ -513,7 +545,7 @@ print "Generation 6\n";
 &executeUnderscoreBackup("restore", "--passphrase", "1234", $testRoot, $testRoot);
 &validateAnswer();
 
-# Test repository trimmingg
+print "Test repository trimming\n";
 
 &createConfigFile(<<"__EOF__");
       "retention": {
@@ -529,7 +561,7 @@ __EOF__
 &executeUnderscoreBackup("restore", "--passphrase", "1234", $testRoot, $testRoot);
 &validateAnswer();
 
-# test updating
+print "Test incremental updating\n";
 
 undef @completionTimestamp;
 &prepareRunPath('', ",\"maxRetention\": {\"unit\": \"SECONDS\", \"duration\": 30}, \"errorCorrection\": \"RS\"");
@@ -580,6 +612,8 @@ print "Generation 6 incremental\n";
 &prepareTestPath();
 &generateData(5, 1);
 &executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[4] - 1) . " seconds ago", "/", "=");
+
+print "Test changing password\n";
 
 &executeUnderscoreBackupStdin("12345\n12345", "change-passphrase", "--passphrase", "1234");
 

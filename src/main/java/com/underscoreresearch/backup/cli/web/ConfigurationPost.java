@@ -125,10 +125,10 @@ public class ConfigurationPost extends JsonWrap {
         }
     }
 
-    public static void updateSourceConfiguration(String config, boolean validate) throws IOException {
+    public static void updateSourceConfiguration(String config, boolean validateDestinations) throws IOException {
         BackupConfiguration configuration = READER.readValue(config);
-        if (validate) {
-            ConfigurationValidator.validateConfiguration(configuration, false);
+        ConfigurationValidator.validateConfiguration(configuration, false);
+        if (validateDestinations) {
             validateDestinations(configuration);
         }
         File configFile = new File(InstanceFactory.getInstance(SOURCE_CONFIG_LOCATION));

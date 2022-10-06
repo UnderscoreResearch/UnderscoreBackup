@@ -116,13 +116,17 @@ public class UIManager {
         }
     }
 
-    private static void writeOsxNotification(String location, String message) {
+    private static synchronized void writeOsxNotification(String location, String message) {
         File file = new File(new File(InstanceFactory.getInstance(CommandLineModule.URL_LOCATION)).getParentFile(), location);
         try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
             writer.write(message);
-            ConfigurationPost.setReadOnlyFilePermissions(file);
         } catch (IOException e) {
             log.error("Failed to write notification message", e);
+        }
+        try {
+            ConfigurationPost.setReadOnlyFilePermissions(file);
+        } catch (IOException e) {
+            log.warn("Failed to make notification message read only", e);
         }
     }
 

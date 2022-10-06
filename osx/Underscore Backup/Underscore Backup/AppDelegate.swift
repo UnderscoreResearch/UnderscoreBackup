@@ -30,19 +30,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         statusItem?.button?.image = itemImage
         
         let homeDir = FileManager.default.urls(for: .applicationDirectory, in: .userDomainMask);
-        if let dir = homeDir.first {
+        for dir in homeDir {
             let path = dir.appendingPathComponent("configuration.url");
             do {
                 let contents = try String(contentsOf: path, encoding: .utf8);
-                url = URL(string: contents);
+                url = URL(string: contents.trimmingCharacters(in: .whitespacesAndNewlines));
+                if (url != nil) {
+                    break;
+                }
             } catch {
-                NSApp.terminate(self);
             }
+        }
+
+        if (url != nil) {
+            Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(fireTimer), userInfo: nil, repeats: true)
         } else {
             NSApp.terminate(self);
         }
-
-        Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(fireTimer), userInfo: nil, repeats: true)
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -76,7 +80,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
 
         let homeDir = FileManager.default.urls(for: .applicationDirectory, in: .userDomainMask);
-        if let dir = homeDir.first {
+        for dir in homeDir {
             var path = dir.appendingPathComponent("notification");
             do {
                 let contents = try String(contentsOf: path, encoding: .utf8);

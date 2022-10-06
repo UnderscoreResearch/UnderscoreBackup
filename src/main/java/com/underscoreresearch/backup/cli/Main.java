@@ -1,9 +1,12 @@
 package com.underscoreresearch.backup.cli;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -75,17 +78,10 @@ public final class Main {
 
                 if (commandDef.needConfiguration()) {
                     if (!InstanceFactory.hasConfiguration(commandDef.readonlyRepository())) {
-                        try {
-                            ConfigurationValidator.validateConfiguration(InstanceFactory.getInstance(BackupConfiguration.class),
-                                    commandDef.readonlyRepository());
-                        } catch (ProvisionException exc) {
-                            for (Message message : exc.getErrorMessages()) {
-                                log.error(message.getMessage());
-                            }
-                            System.exit(1);
-                        } catch (IllegalArgumentException exc) {
-                            log.error(exc.getMessage());
-                            System.exit(1);
+                        validateMainConfiguration(commandDef, () -> InstanceFactory.getInstance(BackupConfiguration.class));
+                        if (InstanceFactory.getAdditionalSource() != null) {
+                            validateMainConfiguration(commandDef,
+                                    () -> InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class));
                         }
                     }
 
@@ -127,6 +123,21 @@ public final class Main {
             }
             log.error("Fatal exception", exc);
             System.exit(2);
+        }
+    }
+
+    private static void validateMainConfiguration(CommandPlugin commandDef, Supplier<BackupConfiguration> configFetcher) {
+        try {
+            ConfigurationValidator.validateConfiguration(configFetcher.get(),
+                    commandDef.readonlyRepository());
+        } catch (ProvisionException exc) {
+            for (Message message : exc.getErrorMessages()) {
+                log.error(message.getMessage());
+            }
+            System.exit(1);
+        } catch (IllegalArgumentException exc) {
+            log.error(exc.getMessage());
+            System.exit(1);
         }
     }
 }

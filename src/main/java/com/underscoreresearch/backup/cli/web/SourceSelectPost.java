@@ -24,6 +24,7 @@ import org.takes.rq.RqHref;
 
 import com.google.common.base.Strings;
 import com.google.inject.ProvisionException;
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
@@ -53,15 +54,19 @@ public class SourceSelectPost extends JsonWrap {
 
             String password;
             if (Strings.isNullOrEmpty(source)) {
-                InstanceFactory.reloadConfiguration(null, null);
                 try {
                     password = decodePrivateKeyRequest(req);
                 } catch (HttpException exc) {
                     password = null;
                 }
-                if (password != null && !PrivateKeyRequest.validatePassphrase(password)) {
-                    return messageJson(403, "Invalid passphrase provided");
+                if (password != null) {
+                    InstanceFactory.reloadConfiguration(null, null);
+                    if (password != null && !PrivateKeyRequest.validatePassphrase(password)) {
+                        return messageJson(403, "Invalid passphrase provided");
+                    }
                 }
+                InstanceFactory.reloadConfiguration(null, null,
+                        () -> InteractiveCommand.startBackupIfAvailable());
             } else {
                 if (configuration.getAdditionalSources() == null || configuration.getAdditionalSources().get(source) == null) {
                     return messageJson(404, "Source not found");
