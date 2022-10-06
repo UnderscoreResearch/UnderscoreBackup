@@ -169,6 +169,18 @@ export default function MainApp() {
         })
     };
 
+    async function updateSelectedSource(state: MainAppState) {
+        const defaults = await GetDefaults();
+        if (defaults.source !== state.selectedSource) {
+            setState((oldState) => {
+                return {
+                    ...oldState,
+                    selectedSource: defaults.source
+                }
+            });
+        }
+    }
+
     async function fetchConfig(ignoreState?: boolean) {
         var newState = {} as MainAppState;
         newState.loading = false;
@@ -483,7 +495,7 @@ export default function MainApp() {
             if (state.selectedSource) {
                 const sourceActivity = state.activity.find(item => item.code == "SOURCE");
                 if (!state.loading && (!sourceActivity || sourceActivity.valueString !== state.selectedSource)) {
-                    fetchConfig();
+                    updateSelectedSource(state);
                 }
                 if (state.activity.some(item => item.code.startsWith("RESTORE_"))) {
                     currentProgress = `Restore From ${state.selectedSource} In Progress`;
@@ -494,11 +506,11 @@ export default function MainApp() {
                     allowRestore = false;
                     allowBackup = false;
                 } else {
-                    currentProgress = `Browsing ${state.selectedSource} contents`;
+                    currentProgress = `Browsing ${state.selectedSource} Contents`;
                 }
             } else {
                 if (!state.loading && state.activity.some(item => item.code == "SOURCE")) {
-                    fetchConfig();
+                    updateSelectedSource(state);
                 }
                 if (state.activity.some(item => item.code.startsWith("RESTORE_"))) {
                     currentProgress = "Restore In Progress";
@@ -532,7 +544,7 @@ export default function MainApp() {
     } else if (completedSetup() && state.defaults) {
         calculateStatus();
         if (state.selectedSource) {
-            cancelButtonTitle = "Cancel";
+            cancelButtonTitle = "Exit";
         }
         if (page === "restore") {
             if (state.validatedPassphrase && !cancelButtonTitle) {

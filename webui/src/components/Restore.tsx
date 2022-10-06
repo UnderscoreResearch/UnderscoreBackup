@@ -220,6 +220,7 @@ export default function Restore(props: RestoreProps) {
                                 labelId="source-id-label"
                                 value={state.source}
                                 label="Source"
+                                id={"restoreSource"}
                                 onChange={(e) => {
                                     updateState({
                                         ...state,
