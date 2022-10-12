@@ -40,12 +40,12 @@ public class SearchBackupFilesGet extends JsonWrap {
         super(new Implementation(base));
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         public Implementation(String base) {
         }
 
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             return new RsText(WRITER.writeValueAsString(
                     getRequestFiles(req)
                             .stream()

@@ -2,9 +2,11 @@ package com.underscoreresearch.backup.file;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.SystemUtils;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class PathNormalizer {
@@ -19,19 +21,14 @@ public final class PathNormalizer {
 
         String ret;
         boolean directory = path.endsWith(File.separator);
-        try {
-            File file = new File(path);
-            if (!file.isAbsolute())
-                file = new File(System.getProperty("user.dir"), path);
-            file = file.getCanonicalFile();
-            if (file.exists()) {
-                directory = file.isDirectory();
-            }
-            ret = file.getAbsolutePath();
-        } catch (IOException exc) {
-            ret = path;
+        File file = new File(path);
+        if (!file.isAbsolute() && !path.startsWith(File.separator))
+            file = new File(System.getProperty("user.dir"), path);
+        if (file.exists()) {
+            directory = file.isDirectory();
         }
-        ret = ret.replace(File.separator, PATH_SEPARATOR);
+        ret = file.getPath().replace(File.separator, PATH_SEPARATOR);
+        ret = resolveRelative(ret);
         if (ret.endsWith(PATH_SEPARATOR)) {
             if (!directory && ret.length() > 1) {
                 ret = ret.substring(0, ret.length() - 1);
@@ -40,6 +37,12 @@ public final class PathNormalizer {
             ret += PATH_SEPARATOR;
         }
         return ret;
+    }
+
+    private static Pattern RESOLVE_RELATIVE = Pattern.compile("/(([^/]+/\\.\\.(/|$))|(\\.(/|$)))+");
+
+    private static String resolveRelative(String ret) {
+        return RESOLVE_RELATIVE.matcher(ret).replaceAll("/");
     }
 
     public static String physicalPath(final String normalizedPath) {

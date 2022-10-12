@@ -75,7 +75,7 @@ class ManifestManagerImplTest {
 
         String configurationData = new ObjectMapper().writeValueAsString(configuration);
 
-        InstanceFactory.initialize(new String[]{"--passphrase", "test", "--config-data", configurationData,
+        InstanceFactory.initialize(new String[]{"--no-log", "--passphrase", "test", "--config-data", configurationData,
                 "--public-key-data", PUBLIC_KEY_DATA}, null, null);
 
         rateLimitController = Mockito.mock(RateLimitController.class);

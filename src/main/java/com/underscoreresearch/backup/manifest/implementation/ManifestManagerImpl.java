@@ -495,6 +495,8 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
                 processedFiles.incrementAndGet();
             }
+            log.info("Optimizing repository metadata (This could take a while)");
+            flushLogging();
         } finally {
             log.info("Completed reprocessing logs");
             resetStatus();
@@ -637,7 +639,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             });
 
             copyRepository.close();
-            flushLog();
+            flushLogging();
 
             ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                     configuration.getManifest().getOptimizeSchedule());

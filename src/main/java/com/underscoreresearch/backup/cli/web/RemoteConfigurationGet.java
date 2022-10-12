@@ -25,9 +25,9 @@ public class RemoteConfigurationGet extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             try {
                 BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
                 IOProvider provider = IOProviderFactory.getProvider(configuration.getDestinations()

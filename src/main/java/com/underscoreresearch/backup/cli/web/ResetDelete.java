@@ -34,9 +34,9 @@ public class ResetDelete extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             executeShielded(() -> new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION)).delete());
             executeShielded(() -> new File(InstanceFactory.getInstance(KEY_FILE_NAME)).delete());
 

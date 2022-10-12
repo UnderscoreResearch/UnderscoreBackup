@@ -46,9 +46,9 @@ public class KeyChangePost extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             BackupRestoreRequest request = READER.readValue(new RqPrint(req).printBody());
 
             if (Strings.isEmpty(request.getPassphrase())) {

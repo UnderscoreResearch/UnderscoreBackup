@@ -42,7 +42,7 @@ public class BackupDownloadPost extends TkWrap {
         super(new Implementation(base));
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         private final String base;
 
         public Implementation(String base) {
@@ -50,7 +50,7 @@ public class BackupDownloadPost extends TkWrap {
         }
 
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             try {
                 String path = decodeFile(req, base);
                 Href href = new RqHref.Base(req).href();

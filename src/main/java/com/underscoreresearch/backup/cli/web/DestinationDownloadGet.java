@@ -24,7 +24,7 @@ public class DestinationDownloadGet extends JsonWrap {
         super(new Implementation(base));
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         private final String base;
 
         public Implementation(String base) {
@@ -32,7 +32,7 @@ public class DestinationDownloadGet extends JsonWrap {
         }
 
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             try {
                 DestinationDecoder destination
                         = new DestinationDecoder(req, base);

@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.configuration;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.io.IOProviderFactory.removeOldProviders;
 
 import java.io.IOException;
@@ -44,7 +45,7 @@ public abstract class InstanceFactory {
 
     public static boolean hasConfiguration(boolean readOnly) {
         try {
-            BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+            BackupConfiguration config = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
             if (cachedConfig == config) {
                 return cachedHasConfig;
             }
@@ -53,7 +54,7 @@ public abstract class InstanceFactory {
             } else {
                 cachedConfig = config;
                 ConfigurationValidator.validateConfiguration(config,
-                        readOnly);
+                        readOnly, InstanceFactory.getAdditionalSource() != null);
                 cachedHasConfig = true;
             }
         } catch (ProvisionException exc) {
@@ -121,7 +122,10 @@ public abstract class InstanceFactory {
             shutdown = false;
             initialize(initialArguments, passphrase, source);
             if (hasConfiguration(true)) {
-                ConfigurationValidator.validateConfiguration(getInstance(BackupConfiguration.class), true);
+                ConfigurationValidator.validateConfiguration(
+                        getInstance(SOURCE_CONFIG, BackupConfiguration.class),
+                        true,
+                        source != null);
             }
             removeOldProviders();
 
@@ -155,7 +159,7 @@ public abstract class InstanceFactory {
         }
     }
 
-    public static void initialize(Injector injector) {
+    private static void initialize(Injector injector) {
         defaultFactory = new DefaultFactory(injector);
     }
 

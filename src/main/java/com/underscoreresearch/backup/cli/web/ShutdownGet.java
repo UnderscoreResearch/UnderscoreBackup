@@ -21,9 +21,9 @@ public class ShutdownGet extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             System.exit(0);
             return messageJson(200, "Shutting down");
         }

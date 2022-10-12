@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.reflections.Reflections;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
@@ -44,18 +43,6 @@ public final class IOProviderFactory {
     }
 
     public static void removeOldProviders() {
-        BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
-
-        Map<BackupDestination, IOProvider> newProviders = new HashMap<>();
-        if (configuration.getDestinations() != null) {
-            for (Map.Entry<String, BackupDestination> entry : configuration.getDestinations().entrySet()) {
-                IOProvider provider = providers.remove(entry.getValue());
-                if (provider != null) {
-                    newProviders.put(entry.getValue(), provider);
-                }
-            }
-        }
-
         for (Map.Entry<BackupDestination, IOProvider> entry : providers.entrySet()) {
             if (entry.getValue() instanceof Closeable) {
                 try {
@@ -66,7 +53,7 @@ public final class IOProviderFactory {
             }
         }
 
-        providers = newProviders;
+        providers = new HashMap<>();
     }
 
     public static void registerProvider(String type, Class<? extends IOProvider> provider) {

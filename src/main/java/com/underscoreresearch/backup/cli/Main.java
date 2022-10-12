@@ -78,10 +78,10 @@ public final class Main {
 
                 if (commandDef.needConfiguration()) {
                     if (!InstanceFactory.hasConfiguration(commandDef.readonlyRepository())) {
-                        validateMainConfiguration(commandDef, () -> InstanceFactory.getInstance(BackupConfiguration.class));
+                        validateMainConfiguration(commandDef, () -> InstanceFactory.getInstance(BackupConfiguration.class), false);
                         if (InstanceFactory.getAdditionalSource() != null) {
                             validateMainConfiguration(commandDef,
-                                    () -> InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class));
+                                    () -> InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class), true);
                         }
                     }
 
@@ -126,10 +126,12 @@ public final class Main {
         }
     }
 
-    private static void validateMainConfiguration(CommandPlugin commandDef, Supplier<BackupConfiguration> configFetcher) {
+    private static void validateMainConfiguration(CommandPlugin commandDef,
+                                                  Supplier<BackupConfiguration> configFetcher,
+                                                  boolean source) {
         try {
             ConfigurationValidator.validateConfiguration(configFetcher.get(),
-                    commandDef.readonlyRepository());
+                    commandDef.readonlyRepository(), source);
         } catch (ProvisionException exc) {
             for (Message message : exc.getErrorMessages()) {
                 log.error(message.getMessage());

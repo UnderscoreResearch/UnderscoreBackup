@@ -5,10 +5,7 @@ use Cwd;
 use File::Spec;
 use File::Find qw(finddepth);
 use File::Compare;
-use LWP::UserAgent;
 use IPC::Open2;
-
-my $ua = new LWP::UserAgent;
 
 my $originalRoot = getcwd();
 my $root = shift(@ARGV);
@@ -357,7 +354,7 @@ sub validateAnswer {
 }
 
 sub killInteractive {
-    $ua->get("http://127.0.0.1:12345/fixed/api/shutdown");
+    system("curl http://localhost:12345/fixed/api/shutdown");
 }
 
 sub executeCypressTest {
@@ -368,6 +365,9 @@ sub executeCypressTest {
         "run",
         "--spec", File::Spec->catdir("cypress", File::Spec->catdir("integration", shift(@_)))
     );
+    if ($ENV{"CYPRESS_RECORD_KEY"}) {
+        push(@args, "--record");
+    }
     push(@args, @_);
     print "Executing " . join(" ", @args) . "\n";
 
@@ -386,65 +386,70 @@ my $DELAY = 11;
 my @completionTimestamp;
 my $pid;
 
-print "Interactive & superblock test\n";
+if ($underscoreBackup !~ /\.exe$/i && !$ENV{"GITHUB_ACTION"}) {
+    print "Interactive & superblock test\n";
 
-&cleanRunPath();
-&prepareTestPath();
-&generateData(7, 1);
+    &cleanRunPath();
+    &prepareTestPath();
+    &generateData(7, 1);
 
-$pid = fork();
-if (!$pid) {
-    &executeUnderscoreBackup("interactive", "--developer-mode");
-    print "Interactive process terminated\n";
-    exit(0);
+    $pid = fork();
+    if (!$pid) {
+        &executeUnderscoreBackup("interactive", "--developer-mode");
+        print "Interactive process terminated\n";
+        exit(0);
+    }
+
+    sleep(5);
+
+    &executeCypressTest("setup.js");
+    &executeCypressTest("backup.js");
+
+    &killInteractive();
+
+    waitpid($pid, 0);
+
+    print "Rebuild from backup test\n";
+
+    &prepareTestPath();
+    &generateData(7, 1, $answerRoot);
+    chdir($root);
+    finddepth { wanted => \&zapFile, no_chdir => 1 }, "db";
+    unlink($configFile);
+    unlink($keyFile);
+    $pid = fork();
+    if (!$pid) {
+        &executeUnderscoreBackup("interactive", "--developer-mode");
+        print "Interactive process terminated\n";
+        exit(0);
+    }
+
+    sleep(5);
+
+    &executeCypressTest("setuprebuild.js");
+    &executeCypressTest("restore.js");
+
+    &validateAnswer();
+
+    print "Rebuild from other source\n";
+
+    &prepareTestPath();
+    &generateData(7, 1, $answerRoot);
+    chdir($root);
+
+    &executeCypressTest("sourcerestore.js");
+
+    &killInteractive();
+    waitpid($pid, 0);
+
+    &validateAnswer();
+    &validateLog();
 }
-
-&executeCypressTest("setup.js");
-&executeCypressTest("backup.js");
-
-&killInteractive();
-
-waitpid($pid, 0);
-
-print "Rebuild from backup test\n";
-
-&prepareTestPath();
-&generateData(7, 1, $answerRoot);
-chdir($root);
-finddepth { wanted => \&zapFile, no_chdir => 1 }, "db";
-unlink($configFile);
-unlink($keyFile);
-$pid = fork();
-if (!$pid) {
-    &executeUnderscoreBackup("interactive", "--developer-mode");
-    print "Interactive process terminated\n";
-    exit(0);
-}
-
-&executeCypressTest("setuprebuild.js");
-&executeCypressTest("restore.js");
-
-&validateAnswer();
-
-print "Rebuild from other source\n";
-
-&prepareTestPath();
-&generateData(7, 1, $answerRoot);
-chdir($root);
-
-&executeCypressTest("sourcerestore.js");
-
-&killInteractive();
-waitpid($pid, 0);
-
-&validateAnswer();
-&validateLog();
 
 &prepareRunPath();
 
-&prepareTestPath();
-
 print "Generation 1\n";
+&prepareTestPath();
 &generateData(1);
 &executeUnderscoreBackup("backup");
 push(@completionTimestamp, time());

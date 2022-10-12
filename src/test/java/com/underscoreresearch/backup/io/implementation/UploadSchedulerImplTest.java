@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.google.common.base.Stopwatch;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
@@ -29,6 +30,7 @@ public class UploadSchedulerImplTest {
 
     @BeforeEach
     public void setup() {
+        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
         rateLimitController = new RateLimitController(null);
         destination = new BackupDestination();
         destination.setType("DELAY");
@@ -103,7 +105,7 @@ public class UploadSchedulerImplTest {
         }
 
         assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.greaterThan(900L));
-        assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.lessThan(1500L));
+        assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.lessThan(2000L));
         assertThat(success.get(), Is.is(true));
     }
 

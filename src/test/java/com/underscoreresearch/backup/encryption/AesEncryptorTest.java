@@ -12,6 +12,7 @@ import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 class AesEncryptorTest {
@@ -22,6 +23,7 @@ class AesEncryptorTest {
 
     @BeforeEach
     public void setup() {
+        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
         key = PublicKeyEncrypion.generateKeyWithPassphrase("Seed", null);
         publicKey = key.publicOnly();
 

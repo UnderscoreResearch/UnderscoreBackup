@@ -71,7 +71,7 @@ public class InteractiveCommand extends Command {
     }
 
     public static void startBackupIfAvailable() {
-        if (InstanceFactory.hasConfiguration(false)) {
+        if (InstanceFactory.getAdditionalSource() == null && InstanceFactory.hasConfiguration(false)) {
             BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
             if (configuration.getSets().size() > 0
                     && configuration.getManifest().getInteractiveBackup() != null

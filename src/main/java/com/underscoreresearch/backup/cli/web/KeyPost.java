@@ -28,9 +28,9 @@ public class KeyPost extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             String passphrase = null;
             try {
                 passphrase = PrivateKeyRequest.decodePrivateKeyRequest(req);

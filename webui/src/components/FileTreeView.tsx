@@ -195,14 +195,10 @@ function createFilters(remainingPath: string, checked: boolean, filters?: Backup
 }
 
 function physicalRoots(roots: BackupSetRoot[], defaults: BackupDefaults): BackupSetRoot[] {
-    const rootedWithSeparator = defaults.set.roots[0].path.startsWith(defaults.pathSeparator);
     return roots.map((root) => {
         let physicalPath;
         if (root.path !== "/") {
             physicalPath = root.path.replaceAll("/", defaults.pathSeparator);
-            if (physicalPath.startsWith(defaults.pathSeparator) && !rootedWithSeparator) {
-                physicalPath = physicalPath.substring(1);
-            }
         } else {
             physicalPath = root.path;
         }

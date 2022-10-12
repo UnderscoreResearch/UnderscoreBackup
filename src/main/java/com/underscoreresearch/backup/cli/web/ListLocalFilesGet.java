@@ -30,7 +30,7 @@ public class ListLocalFilesGet extends JsonWrap {
         super(new Implementation(base));
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         private final String base;
 
         public Implementation(String base) {
@@ -38,7 +38,7 @@ public class ListLocalFilesGet extends JsonWrap {
         }
 
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             String path = decodePath(req, base);
             Set<BackupFile> files = InstanceFactory.getInstance(FileSystemAccess.class).directoryFiles(path);
             return new RsText(WRITER.writeValueAsString(files

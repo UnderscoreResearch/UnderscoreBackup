@@ -33,13 +33,13 @@ public class ConfigurationValidator {
     private static final String DEFAULT_ERROR_CORRECTION = "NONE";
     private static final int DEFAULT_UNSYNCED_SIZE = 8 * 1024 * 1024;
 
-    public static void validateConfiguration(BackupConfiguration configuration, boolean readOnly) {
+    public static void validateConfiguration(BackupConfiguration configuration, boolean readOnly, boolean source) {
         validateSets(configuration);
         validateDestinations(configuration);
-        validateManifest(configuration, readOnly);
+        validateManifest(configuration, readOnly, source);
     }
 
-    private static void validateManifest(BackupConfiguration configuration, boolean readOnly) {
+    private static void validateManifest(BackupConfiguration configuration, boolean readOnly, boolean source) {
         BackupManifest manifest = configuration.getManifest();
         if (manifest == null) {
             throw new IllegalArgumentException("Missing manifest section from configuration file");
@@ -67,27 +67,29 @@ public class ConfigurationValidator {
             throw new IllegalArgumentException("Manifest destination must not use error correction");
         }
 
-        String local = manifest.getLocalLocation();
-        if (Strings.isNullOrEmpty(local)) {
-            local = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
-        }
-
-        File file = new File(local);
-        if (!file.isDirectory()) {
-            if (readOnly) {
-                throw new IllegalArgumentException("Repository does not exist, run backup or rebuild-repository first");
-            }
-            log.warn("Local location for backup metadata does not exist.");
-            file.mkdirs();
-        } else {
-            file = new File(file, "db");
-            if (file.exists() && !file.isDirectory()) {
-                throw new IllegalArgumentException("Repository " + file.toString() + " exists but is not a directory");
+        if (!source) {
+            String local = manifest.getLocalLocation();
+            if (Strings.isNullOrEmpty(local)) {
+                local = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
             }
 
-            file = new File(file, "logs");
-            if (file.exists() && !file.isDirectory()) {
-                throw new IllegalArgumentException("Repository " + file.toString() + " does exist but is not a directory");
+            File file = new File(local);
+            if (!file.isDirectory()) {
+                if (readOnly) {
+                    throw new IllegalArgumentException("Repository does not exist, run backup or rebuild-repository first");
+                }
+                log.warn("Local location for backup metadata does not exist.");
+                file.mkdirs();
+            } else {
+                file = new File(file, "db");
+                if (file.exists() && !file.isDirectory()) {
+                    throw new IllegalArgumentException("Repository " + file.toString() + " exists but is not a directory");
+                }
+
+                file = new File(file, "logs");
+                if (file.exists() && !file.isDirectory()) {
+                    throw new IllegalArgumentException("Repository " + file.toString() + " does exist but is not a directory");
+                }
             }
         }
 

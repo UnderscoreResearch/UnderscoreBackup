@@ -125,7 +125,7 @@ export default function Retention(props: RetentionProps) {
                   })}
                   title={"Remove deleted files after "}/>
         <div style={{display: "flex", alignItems: "center", marginTop: "8px"}}>
-            <FormControlLabel control={<Checkbox
+            <FormControlLabel style={{marginLeft: "0px"}} control={<Checkbox
                 checked={state.retention ? !!state.retention.maximumVersions : false}
                 onChange={(e) => updateState({
                     ...state,

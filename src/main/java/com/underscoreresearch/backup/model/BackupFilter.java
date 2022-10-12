@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.model;
 
+import static com.underscoreresearch.backup.model.BackupSetRoot.withoutFinalSeparator;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,11 +42,29 @@ public class BackupFilter {
         this.children = children;
     }
 
-    public String fileMatch(final String file) {
+    public String fileMatch(String file) {
         for (String path : paths) {
             if (file.startsWith(path)) {
                 if (path.length() == file.length() ||
                         file.substring(path.length(), path.length() + PathNormalizer.PATH_SEPARATOR.length()).
+                                equals(PathNormalizer.PATH_SEPARATOR)) {
+                    return path;
+                }
+            }
+        }
+        return null;
+    }
+
+    public String directoryMatch(String file) {
+        file = withoutFinalSeparator(file);
+        String ret = fileMatch(file);
+        if (ret != null) {
+            return ret;
+        }
+        for (String path : paths) {
+            if (path.startsWith(file)) {
+                if (path.length() == file.length() ||
+                        path.substring(file.length(), file.length() + PathNormalizer.PATH_SEPARATOR.length()).
                                 equals(PathNormalizer.PATH_SEPARATOR)) {
                     return path;
                 }
@@ -58,7 +78,8 @@ public class BackupFilter {
             return shouldInclude();
         }
 
-        final String subPath = file.substring(path.length() + PathNormalizer.PATH_SEPARATOR.length());
+        int subLength = path.length() + PathNormalizer.PATH_SEPARATOR.length();
+        final String subPath = file.substring(Math.min(file.length(), subLength));
 
         if (children != null) {
             for (BackupFilter filter : children) {
@@ -80,8 +101,11 @@ public class BackupFilter {
         final String subPath = file.substring(path.length() + PathNormalizer.PATH_SEPARATOR.length());
 
         if (children != null) {
+            if (subPath.length() == 0) {
+                return true;
+            }
             for (BackupFilter filter : children) {
-                String filterPath = filter.fileMatch(subPath);
+                String filterPath = filter.directoryMatch(subPath);
                 if (filterPath != null) {
                     return true;
                 }

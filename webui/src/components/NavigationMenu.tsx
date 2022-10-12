@@ -12,7 +12,6 @@ import AutoAwesomeMotion from "@mui/icons-material/AutoAwesomeMotion";
 import Dashboard from "@mui/icons-material/Dashboard";
 import {Link} from "react-router-dom";
 import {BackupConfiguration} from "../api";
-import {Share} from "@mui/icons-material";
 
 function MyListItemButton(props: {
     page: string,
@@ -62,7 +61,8 @@ export default function NavigationMenu(props: {
             <ListItemText primary="Status"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="sets" config={props.config} disabled={!props.allowBackup || props.hasSource} id="pageSets">
+        <MyListItemButton page="sets" config={props.config} disabled={!props.allowBackup || props.hasSource}
+                          id="pageSets">
             <ListItemIcon>
                 <AccountTree/>
             </ListItemIcon>
@@ -75,14 +75,16 @@ export default function NavigationMenu(props: {
             </ListItemIcon>
             <ListItemText primary="Destinations"/>
         </MyListItemButton>
-        <MyListItemButton page="settings" config={props.config} disabled={!props.allowBackup || props.hasSource} id="pageSettings">
+        <MyListItemButton page="settings" config={props.config} disabled={!props.allowBackup || props.hasSource}
+                          id="pageSettings">
             <ListItemIcon>
                 <Settings/>
             </ListItemIcon>
             <ListItemText primary="Settings"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="sources" config={props.config} disabled={!props.allowBackup || props.hasSource} id="pageSources">
+        <MyListItemButton page="sources" config={props.config} disabled={!props.allowBackup || props.hasSource}
+                          id="pageSources">
             <ListItemIcon>
                 <AutoAwesomeMotion/>
             </ListItemIcon>

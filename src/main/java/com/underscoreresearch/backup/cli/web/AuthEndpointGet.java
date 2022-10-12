@@ -46,7 +46,7 @@ public class AuthEndpointGet extends JsonWrap {
         super(new Implementation(address, baseApi));
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         private static final TemporalAmount MAX_OPEN_DURATION = Duration.ofMinutes(10);
         private final InetAddress address;
         private final URI baseApi;
@@ -60,7 +60,7 @@ public class AuthEndpointGet extends JsonWrap {
         private static Instant lastRequested;
 
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             try {
                 if (!address.isLoopbackAddress()) {
                     return messageJson(409, "OAuth only supported with loopback interface");

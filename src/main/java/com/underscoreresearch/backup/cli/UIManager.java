@@ -121,7 +121,7 @@ public class UIManager {
         try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
             writer.write(message);
         } catch (IOException e) {
-            log.error("Failed to write notification message", e);
+            log.warn("Failed to write notification message", e);
         }
         try {
             ConfigurationPost.setReadOnlyFilePermissions(file);
