@@ -18,6 +18,16 @@ class PathNormalizerTest {
     }
 
     @Test
+    public void testRelativeResolve() {
+        assertThat(PathNormalizer.normalizePath(File.separator + "test" +
+                File.separator + ".." + File.separator + "." + File.separator + "hello"  +
+                File.separator + "."), is("/hello"));
+        assertThat(PathNormalizer.normalizePath(File.separator + "test" +
+                File.separator + ".." + File.separator + "." + File.separator + "hello"  +
+                File.separator + "." + File.separator + "there" + File.separator), is("/hello/there/"));
+    }
+
+    @Test
     public void physicalTest() {
         assertThat(PathNormalizer.physicalPath("/test/"), is(File.separator + "test" + File.separator));
     }

@@ -133,7 +133,7 @@ public class RestoreExecutor {
             root = true;
         }
         if (files != null) {
-            files = files.stream().filter(file -> rootPath.includeFile(file.getPath(), null))
+            files = files.stream().filter(file -> rootPath.includeFileOrDirectory(file))
                     .collect(Collectors.toList());
 
             File destinationFile = new File(PathNormalizer.physicalPath(destination));
@@ -153,7 +153,7 @@ public class RestoreExecutor {
                     else
                         currentDestination = destination + PATH_SEPARATOR + stripPath(stripCommonAndDrive(commonRoot,
                                 file.getPath()));
-                    if (file.getPath().endsWith(PATH_SEPARATOR)) {
+                    if (file.isDirectory()) {
                         if (recursive) {
                             restorePaths(rootPath, file,
                                     currentDestination, recursive, overwrite, false, commonRoot);

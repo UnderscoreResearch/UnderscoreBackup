@@ -69,7 +69,7 @@ public class BackupSetRoot {
         return path + PATH_SEPARATOR;
     }
 
-    private static String withoutFinalSeparator(String path) {
+    public static String withoutFinalSeparator(String path) {
         if (path.endsWith(PATH_SEPARATOR))
             return path.substring(0, path.length() - 1);
         return path;
@@ -133,5 +133,12 @@ public class BackupSetRoot {
         } else {
             normalizedPath = path;
         }
+    }
+
+    public boolean includeFileOrDirectory(BackupFile file) {
+        if (file.isDirectory())
+            return includeDirectory(file.getPath());
+        else
+            return includeFile(file.getPath(), null);
     }
 }
