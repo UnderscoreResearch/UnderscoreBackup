@@ -60,9 +60,9 @@ public class DefaultsGet extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             try {
                 String physicalHome = System.getProperty("user.home");
                 String defaultRestore = Paths.get(

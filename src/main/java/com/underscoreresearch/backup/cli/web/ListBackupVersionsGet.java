@@ -32,7 +32,7 @@ public class ListBackupVersionsGet extends JsonWrap {
         super(new Implementation(base));
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         private final String base;
 
         public Implementation(String base) {
@@ -40,7 +40,7 @@ public class ListBackupVersionsGet extends JsonWrap {
         }
 
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             return new RsText(WRITER.writeValueAsString(
                     getRequestVersions(req, base)
                             .stream()

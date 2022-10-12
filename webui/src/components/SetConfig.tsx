@@ -10,7 +10,6 @@ import Box from "@mui/material/Box";
 import Retention from "./Retention";
 
 export interface SetState {
-    valid: boolean,
     set: BackupSet,
     tab: number
 }
@@ -104,7 +103,10 @@ export default function SetConfig(props: SetProps) {
 
     function updateState(newState: SetState) {
         setState(newState);
-        props.setUpdated(newState.set.destinations.length > 0 && newState.set.roots.length > 0, newState.set);
+        props.setUpdated(newState.set.destinations.length > 0 &&
+            newState.set.roots.length > 0 &&
+            !!newState.set.id,
+            newState.set);
     }
 
     function changedSchedule(value: string) {
@@ -162,21 +164,23 @@ export default function SetConfig(props: SetProps) {
             />
         </TabPanel>
         <TabPanel value={state.tab} index={1}>
-            <FormControlLabel control={<Checkbox
-                checked={state.set.schedule !== undefined}
-                onChange={(e) => updateState({
-                    ...state,
-                    set: {
-                        ...state.set,
-                        schedule: e.target.checked ? "0 3 * * *" : undefined
-                    }
-                })}
-            />} label="Run on schedule"/>
+            <div style={{marginLeft: "8px"}}>
+                <FormControlLabel control={<Checkbox
+                    checked={state.set.schedule !== undefined}
+                    onChange={(e) => updateState({
+                        ...state,
+                        set: {
+                            ...state.set,
+                            schedule: e.target.checked ? "0 3 * * *" : undefined
+                        }
+                    })}
+                />} label="Run on schedule"/>
 
-            <Cron disabled={state.set.schedule === undefined}
-                  value={state.set.schedule ? state.set.schedule : "0 3 * * *"} setValue={changedSchedule}
-                  clockFormat='12-hour-clock'
-                  clearButton={false}/>
+                <Cron disabled={state.set.schedule === undefined}
+                      value={state.set.schedule ? state.set.schedule : "0 3 * * *"} setValue={changedSchedule}
+                      clockFormat='12-hour-clock'
+                      clearButton={false}/>
+            </div>
             <DividerWithText>Retention</DividerWithText>
             <Retention retention={state.set.retention} retentionUpdated={(e) => updateState({
                 ...state,
@@ -187,8 +191,21 @@ export default function SetConfig(props: SetProps) {
             })}/>
         </TabPanel>
         <TabPanel index={state.tab} value={2}>
+            <TextField label="Set Name" variant="outlined"
+                       required={true}
+                       fullWidth={true}
+                       value={state.set.id}
+                       error={!state.set.id}
+                       onChange={(e) => updateState({
+                           ...state,
+                           set: {
+                               ...state.set,
+                               id: e.target.value
+                           }
+                       })}
+            />
             <DividerWithText>Destinations</DividerWithText>
-            <FormGroup>
+            <FormGroup style={{marginLeft: "8px"}}>
                 {props.destinations.map(dest => <FormControlLabel
                     key={dest.id}
                     label={dest.destination.endpointUri}

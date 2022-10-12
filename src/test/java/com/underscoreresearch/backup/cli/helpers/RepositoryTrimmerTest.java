@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository;
 import com.underscoreresearch.backup.io.IOIndex;
@@ -60,6 +61,7 @@ class RepositoryTrimmerTest {
 
     @BeforeEach
     public void setup() throws IOException {
+        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
         manifestManager = Mockito.mock(ManifestManager.class);
         tempDir = Files.createTempDirectory("test").toFile();
         repository = Mockito.spy(new MapdbMetadataRepository(tempDir.getPath(), false));

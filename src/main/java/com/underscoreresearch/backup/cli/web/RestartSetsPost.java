@@ -32,9 +32,9 @@ public class RestartSetsPost extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             String body = new RqPrint(req).printBody();
             try {
                 RestartSetRequest request = READER.readValue(body);

@@ -52,7 +52,7 @@ public class DownloadSchedulerImplTest {
         }
 
         assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.greaterThan(900L));
-        assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.lessThan(1500L));
+        assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.lessThan(2000L));
         scheduler.waitForCompletion();
 
         Mockito.verify(downloader, Mockito.times(100)).downloadFile(any(), any());

@@ -230,7 +230,7 @@ export default function Restore(props: RestoreProps) {
                                 }
                             >
                                 <MenuItem key="-" value={"-"}>Local</MenuItem>
-                                {props.sources && props.sources.length > 0 && <Divider>Other Sources</Divider> }
+                                {props.sources && props.sources.length > 0 && <Divider>Other Sources</Divider>}
                                 {props.sources.sort().map(str => {
                                     return <MenuItem key={str} value={str}>{str}</MenuItem>;
                                 })}

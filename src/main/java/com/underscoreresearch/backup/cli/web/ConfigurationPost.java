@@ -47,9 +47,9 @@ public class ConfigurationPost extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             String config = new RqPrint(req).printBody();
             try {
                 if (Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource())) {
@@ -97,7 +97,7 @@ public class ConfigurationPost extends JsonWrap {
             configuration.getManifest().setInteractiveBackup(null);
             config = WRITER.writeValueAsString(configuration);
         }
-        ConfigurationValidator.validateConfiguration(configuration, false);
+        ConfigurationValidator.validateConfiguration(configuration, false, false);
         if (validateDestinations) {
             validateDestinations(configuration);
         }
@@ -127,7 +127,7 @@ public class ConfigurationPost extends JsonWrap {
 
     public static void updateSourceConfiguration(String config, boolean validateDestinations) throws IOException {
         BackupConfiguration configuration = READER.readValue(config);
-        ConfigurationValidator.validateConfiguration(configuration, false);
+        ConfigurationValidator.validateConfiguration(configuration, false, true);
         if (validateDestinations) {
             validateDestinations(configuration);
         }

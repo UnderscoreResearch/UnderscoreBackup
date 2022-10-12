@@ -473,7 +473,7 @@ export default function MainApp() {
         setState((oldState) => oldState);
     }, [location.pathname]);
 
-    let currentProgress : string | undefined;
+    let currentProgress: string | undefined;
     let acceptButtonTitle: string = "";
     let cancelButtonTitle = "";
     let allowRestore = true;

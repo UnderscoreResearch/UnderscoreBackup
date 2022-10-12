@@ -36,7 +36,7 @@ public class SourceSelectPost extends JsonWrap {
         super(new Implementation(base));
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         private final String base;
 
         private Implementation(String base) {
@@ -44,7 +44,7 @@ public class SourceSelectPost extends JsonWrap {
         }
 
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             Href href = new RqHref.Base(req).href();
             String source = URLDecoder.decode(href.path().substring(base.length()), StandardCharsets.UTF_8);
             if ("-".equals(source)) {

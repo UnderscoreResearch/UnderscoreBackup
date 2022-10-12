@@ -48,8 +48,12 @@ export default function Sets(props: SetsProps) {
     }
 
     function sendUpdate(newState: SetState[]) {
+        const ids: string[] = newState.map(t => t.set.id);
+        // @ts-ignore
+        const deduped = [...new Set(ids)];
+
         props.configurationUpdated(
-            !newState.some(item => !item.valid),
+            deduped.length == newState.length && !newState.some(item => !item.valid),
             newState.map(item => item.set)
         );
     }
