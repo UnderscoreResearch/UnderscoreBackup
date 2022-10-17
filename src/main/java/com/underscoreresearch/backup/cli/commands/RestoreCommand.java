@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.INCL
 import static com.underscoreresearch.backup.configuration.CommandLineModule.OVER_WRITE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.IOException;
@@ -57,13 +58,17 @@ public class RestoreCommand extends Command {
             destination = commandLine.getArgList().get(commandLine.getArgList().size() - 1);
             paths = commandLine.getArgList().subList(1, commandLine.getArgList().size() - 1);
         }
-        if (paths.size() == 1 && destination.equals(paths.get(0)) && !commandLine.hasOption(FORCE)) {
-            throw new ParseException("Must use -f option to restore over original location");
+        
+        if (destination == null || (paths.size() == 1 && destination.equals(paths.get(0)))) {
+            if (!commandLine.hasOption(FORCE))
+                throw new ParseException("Must use -f option to restore over original location");
+            else
+                destination = null;
         }
 
-        if (!isNullFile(destination)) {
+        if (destination != null && !isNullFile(destination)) {
             destination = PathNormalizer.normalizePath(destination);
-            if (destination.endsWith(PATH_SEPARATOR))
+            if (destination.endsWith(PATH_SEPARATOR) && ! destination.equals(ROOT))
                 destination = destination.substring(0, destination.length() - 1);
         }
 

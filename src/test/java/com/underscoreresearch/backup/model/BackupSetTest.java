@@ -24,13 +24,13 @@ class BackupSetTest {
             systemTypePrefix = "C:";
 
             filter2 = BackupFilter.builder().paths(Lists.newArrayList("foobar/test",
-                            systemTypePrefix + "/home/ANT.AMAZON.COM/mauritz/.gradle"))
+                            systemTypePrefix + "/home/mauritz/.gradle"))
                     .type(BackupFilterType.EXCLUDE).build();
         } else {
             systemTypePrefix = "";
 
             filter2 = BackupFilter.builder().paths(Lists.newArrayList("foobar/test",
-                            systemTypePrefix + "home/ANT.AMAZON.COM/mauritz/.gradle"))
+                            systemTypePrefix + "home/mauritz/.gradle"))
                     .type(BackupFilterType.EXCLUDE).build();
         }
         filter1 = BackupFilter.builder().paths(Lists.newArrayList("foo")).type(BackupFilterType.INCLUDE).children(
@@ -119,7 +119,7 @@ class BackupSetTest {
 
     @ParameterizedTest
     @CsvSource(value = {
-            "/home/ANT.AMAZON.COM/mauritz/.gradle,false",
+            "/home/mauritz/.gradle,false",
             "/root/foobar/test/sub,true",
     }, delimiter = ',')
     public void testRootInDirectory(String path, boolean included) {
