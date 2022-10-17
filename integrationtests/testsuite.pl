@@ -116,7 +116,7 @@ sub createGeneration {
     # Need one really large file to test super blocks
     if ($curGen == 7) {
         chdir($curRoot);
-        if ($ENV{"GITHUB_ACTION"}) {
+        if ($ENV{"GITHUB_ACTION"} && `uname -m` !~ /arm/i) {
             generateFile("large", 0, 1 * 1024 * 1024 * 1024);
         } else {
             generateFile("large", 0, 17 * 1024 * 1024 * 1024);
@@ -386,7 +386,7 @@ my $DELAY = 11;
 my @completionTimestamp;
 my $pid;
 
-if ($underscoreBackup !~ /\.exe$/i && !$ENV{"GITHUB_ACTION"}) {
+if ($underscoreBackup !~ /\.exe$/i || !$ENV{"GITHUB_ACTION"}) {
     print "Interactive & superblock test\n";
 
     &cleanRunPath();
