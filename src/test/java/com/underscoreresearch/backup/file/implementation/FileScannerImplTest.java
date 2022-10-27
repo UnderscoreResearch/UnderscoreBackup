@@ -44,40 +44,11 @@ class FileScannerImplTest {
     private List<String> backedUp;
     private boolean delayedBackup;
 
-    private class Consumer implements FileConsumer {
-
-        @Override
-        public void backupFile(BackupSet backupSet, BackupFile file, BackupCompletion completionPromise) {
-            if (file.getPath().equals(stopFile)) {
-                scanner.shutdown();
-            }
-
-            assertThat(backupSet, Is.is(set));
-
-            if (delayedBackup) {
-                new Thread(() -> {
-                    try {
-                        Thread.sleep((int) (Math.random() * 500));
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                    backupFileSubmit(file, completionPromise);
-                }).start();
-            } else
-                backupFileSubmit(file, completionPromise);
-        }
-
-        @Override
-        public void flushAssignments() {
-
-        }
-    }
-
     @BeforeEach
     public void setup() throws IOException {
         tempDir = Files.createTempDirectory("test").toFile();
-        repository = new LoggingMetadataRepository(new MapdbMetadataRepository(tempDir.getPath(), false), Mockito.mock(ManifestManager.class), false);
+        repository = new LoggingMetadataRepository(new MapdbMetadataRepository(tempDir.getPath(), false),
+                Mockito.mock(ManifestManager.class), false);
         repository.open(false);
 
         access = new FileSystemAccessImpl();
@@ -154,5 +125,35 @@ class FileScannerImplTest {
             currentFile.delete();
         }
         tempDir.delete();
+    }
+
+    private class Consumer implements FileConsumer {
+
+        @Override
+        public void backupFile(BackupSet backupSet, BackupFile file, BackupCompletion completionPromise) {
+            if (file.getPath().equals(stopFile)) {
+                scanner.shutdown();
+            }
+
+            assertThat(backupSet, Is.is(set));
+
+            if (delayedBackup) {
+                new Thread(() -> {
+                    try {
+                        Thread.sleep((int) (Math.random() * 500));
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    backupFileSubmit(file, completionPromise);
+                }).start();
+            } else
+                backupFileSubmit(file, completionPromise);
+        }
+
+        @Override
+        public void flushAssignments() {
+
+        }
     }
 }

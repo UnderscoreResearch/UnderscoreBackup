@@ -1,0 +1,9 @@
+#!/bin/sh
+
+systemctl stop underscorebackup.service
+systemctl disable underscorebackup.service
+
+if grep -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg 2>&1 > /dev/null
+then
+  grep -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg > /etc/underscorebackup/javaoptions.cfg
+fi

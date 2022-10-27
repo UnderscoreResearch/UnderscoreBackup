@@ -1,13 +1,16 @@
 import * as React from "react";
-import {BackupDefaults, BackupFilter, BackupSet, BackupSetRoot, GetLocalFiles} from "../api";
+import {BackupDefaults, BackupSet, BackupSetRoot, GetLocalFiles, PostRestartSets} from "../api";
 import FileTreeView from './FileTreeView'
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import Cron from "../3rdparty/react-js-cron-mui";
-import {EditableList} from "./EditableList";
-import {Checkbox, FormControlLabel, FormGroup, Paper, Tab, Tabs, TextField} from "@mui/material";
+import {Checkbox, FormControlLabel, FormGroup, Paper, Tab, Tabs, TextField, Tooltip} from "@mui/material";
 import {DestinationProp} from "./Destinations";
 import Box from "@mui/material/Box";
 import Retention from "./Retention";
+import {expandRoots} from "../api/utils";
+import ExclusionList from "./ExclusionList";
+import IconButton from "@mui/material/IconButton";
+import {RestartAlt} from "@mui/icons-material";
 
 export interface SetState {
     set: BackupSet,
@@ -16,6 +19,7 @@ export interface SetState {
 
 export interface SetProps {
     set: BackupSet,
+    allowReset: boolean,
     destinations: DestinationProp[],
     defaults: BackupDefaults,
     setUpdated: (valid: boolean, val: BackupSet) => void
@@ -51,53 +55,11 @@ function TabPanel(props: TabPanelProps) {
     );
 }
 
-function expandFilters(filters: BackupFilter[]): BackupFilter[] {
-    let ret: BackupFilter[] = [];
-    filters.forEach(filter => {
-        if (filter.paths.length > 1) {
-            filter.paths.forEach(path => {
-                let children: BackupFilter[] | undefined;
-                if (filter.children) {
-                    children = expandFilters(JSON.parse(JSON.stringify(filter.children)));
-                }
-                ret.push({
-                    paths: [path],
-                    children: children,
-                    type: filter.type
-                });
-            });
-        } else {
-            ret.push(filter);
-        }
-    })
-    return ret;
-}
-
-function expandRoots(set: BackupSet, defaults: BackupDefaults): BackupSet {
-    for (let i = 0; i < set.roots.length; i++) {
-        const root = set.roots[i];
-        if (root.filters)
-            root.filters = expandFilters(root.filters);
-        if (root.path !== "/" && !root.path.endsWith(defaults.pathSeparator))
-            root.path += defaults.pathSeparator;
-    }
-    return set;
-}
-
-
-function createExclusionControl(item: string, itemUpdated: (item: string) => void): React.ReactElement {
-    return <TextField variant="standard"
-                      fullWidth={true}
-                      defaultValue={item}
-                      onBlur={(e) => itemUpdated(e.target.value)}
-    />
-}
-
 export default function SetConfig(props: SetProps) {
     const [state, setState] = React.useState(() => {
         return {
             tab: 0,
-            set: expandRoots(props.set, props.defaults)
+            set: expandRoots(props.set, props.defaults) as BackupSet
         } as SetState
     });
 
@@ -149,6 +111,15 @@ export default function SetConfig(props: SetProps) {
     }
 
     return <Paper sx={{p: 2}}>
+        {props.allowReset &&
+            <Tooltip
+                title="Restart processing set">
+                <IconButton style={{float: "right"}} onClick={() => {
+                    PostRestartSets([props.set.id]);
+                }
+                }><RestartAlt/></IconButton>
+            </Tooltip>
+        }
         <Tabs value={state.tab} onChange={changeTab}>
             <Tab label="Contents"/>
             <Tab label="Schedule"/>
@@ -191,19 +162,21 @@ export default function SetConfig(props: SetProps) {
             })}/>
         </TabPanel>
         <TabPanel index={state.tab} value={2}>
-            <TextField label="Set Name" variant="outlined"
-                       required={true}
-                       fullWidth={true}
-                       value={state.set.id}
-                       error={!state.set.id}
-                       onChange={(e) => updateState({
-                           ...state,
-                           set: {
-                               ...state.set,
-                               id: e.target.value
-                           }
-                       })}
-            />
+            <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                <TextField label="Set Name" variant="outlined"
+                           required={true}
+                           fullWidth={true}
+                           value={state.set.id}
+                           error={!state.set.id}
+                           onChange={(e) => updateState({
+                               ...state,
+                               set: {
+                                   ...state.set,
+                                   id: e.target.value
+                               }
+                           })}
+                />
+            </div>
             <DividerWithText>Destinations</DividerWithText>
             <FormGroup style={{marginLeft: "8px"}}>
                 {props.destinations.map(dest => <FormControlLabel
@@ -232,14 +205,7 @@ export default function SetConfig(props: SetProps) {
                     }/>)}
             </FormGroup>
             <DividerWithText>Excluded files</DividerWithText>
-            {
-                EditableList<string>({
-                    createItem: createExclusionControl,
-                    items: (state.set.exclusions ? state.set.exclusions : []) as string[],
-                    onItemChanged: exclusionsChanged,
-                    createNewItem: () => ""
-                })
-            }
+            <ExclusionList exclusions={state.set.exclusions} exclusionsChanged={exclusionsChanged}/>
         </TabPanel>
     </Paper>;
 }

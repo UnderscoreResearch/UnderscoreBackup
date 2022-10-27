@@ -1,5 +1,5 @@
 import * as React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import CssBaseline from '@mui/material/CssBaseline';
 import {ThemeProvider} from '@mui/material/styles';
 import App from './App';
@@ -8,12 +8,12 @@ import theme from './theme';
 if (window.location.pathname === "/") {
     window.location.pathname = "/fixed/";
 } else {
-    ReactDOM.render(
-        <ThemeProvider theme={theme}>
-            {/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
+    const container = document.querySelector('#root');
+    if (container) {
+        const root = createRoot(container);
+        root.render(<ThemeProvider theme={theme}>
             <CssBaseline/>
             <App/>
-        </ThemeProvider>,
-        document.querySelector('#root'),
-    );
+        </ThemeProvider>);
+    }
 }

@@ -11,6 +11,7 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
@@ -28,6 +29,21 @@ public class NullRepository implements MetadataRepository {
 
     @Override
     public void setLastSyncedLogFile(String entry) throws IOException {
+
+    }
+
+    @Override
+    public void addAdditionalBlock(BackupBlockAdditional block) throws IOException {
+
+    }
+
+    @Override
+    public BackupBlockAdditional additionalBlock(String publicKey, String blockHash) throws IOException {
+        return null;
+    }
+
+    @Override
+    public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
 
     }
 

@@ -33,29 +33,11 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
     private static final int MAX_ENTRIES = 100;
 
     private static Map<String, ActivityAppender> APPENDERS = new HashMap<>();
-
-    private static class LogStatusLine extends StatusLine {
-        @Getter
-        @JsonIgnore
-        private Instant expire;
-
-        public LogStatusLine(String reporter, String code, String message) {
-            super(reporter, code, message);
-
-            this.expire = Instant.now().plus(Duration.ofHours(12));
-        }
-    }
-
     private ConcurrentLinkedDeque<LogStatusLine> events = new ConcurrentLinkedDeque<>();
     private ConcurrentLinkedDeque<LogStatusLine> errorEvents = new ConcurrentLinkedDeque<>();
 
     protected ActivityAppender(String name, Filter filter, Layout<String> layout) {
         super(name, filter, layout, true, Property.EMPTY_ARRAY);
-    }
-
-    @Override
-    public boolean temporal() {
-        return true;
     }
 
     @PluginFactory
@@ -66,6 +48,11 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
         if (!APPENDERS.containsKey(name))
             APPENDERS.put(name, new ActivityAppender(name, filter, layout));
         return APPENDERS.get(name);
+    }
+
+    @Override
+    public boolean temporal() {
+        return true;
     }
 
     @Override
@@ -103,5 +90,17 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
         errorEvents.forEach(ret::add);
         events.forEach(ret::add);
         return ret;
+    }
+
+    private static class LogStatusLine extends StatusLine {
+        @Getter
+        @JsonIgnore
+        private Instant expire;
+
+        public LogStatusLine(String reporter, String code, String message) {
+            super(reporter, code, message);
+
+            this.expire = Instant.now().plus(Duration.ofHours(12));
+        }
     }
 }

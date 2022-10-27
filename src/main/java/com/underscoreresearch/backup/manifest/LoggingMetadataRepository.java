@@ -1,105 +1,113 @@
 package com.underscoreresearch.backup.manifest;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DIRECTORY_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_PART_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.PUSH_ACTIVE_PATH_READER;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
 import com.underscoreresearch.backup.model.BackupActiveFile;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockAdditional;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
+import com.underscoreresearch.backup.model.BackupShare;
 
 @Slf4j
 public class LoggingMetadataRepository implements MetadataRepository, LogConsumer {
     private static final long CURRENT_SPAN = 60 * 1000;
     private final MetadataRepository repository;
+    @Getter(AccessLevel.PROTECTED)
     private final ManifestManager manifestManager;
-    private final ObjectMapper mapper = new ObjectMapper();
-
+    private final Map<String, BackupShare> shares;
     private final Map<String, LogReader> decoders;
     private final Map<String, PendingActivePath> pendingActivePaths = new HashMap<>();
     private final Set<String> missingActivePaths = new HashSet<>();
     private final ScheduledThreadPoolExecutor activePathSubmitters = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat("LoggingMetadataRepository-%d").build());
+    private final Map<String, ShareManifestManager> shareManagers;
     private boolean firstLogEntry = true;
 
-    public static class Readonly extends LoggingMetadataRepository {
-        public Readonly(MetadataRepository repository, ManifestManager manifestManager, boolean noDeleteReplay) {
-            super(repository, manifestManager, noDeleteReplay);
-        }
-
-        @Override
-        protected synchronized void writeLogEntry(String type, Object obj) {
-            throw new RuntimeException("Tried to write to a read only repository");
-        }
-    }
-
-    @Data
-    private static class PendingActivePath {
-        private BackupActivePath path;
-        private Instant submitted;
-
-        public PendingActivePath(BackupActivePath path) {
-            this.path = path;
-            submitted = Instant.now();
-        }
+    public LoggingMetadataRepository(MetadataRepository repository,
+                                     ManifestManager manifestManager,
+                                     Map<String, BackupShare> shares,
+                                     Map<String, ShareManifestManager> shareManagers,
+                                     boolean noDeleteReplay) {
+        this(repository, manifestManager, shares, shareManagers, 60 * 1000, noDeleteReplay);
     }
 
     public LoggingMetadataRepository(MetadataRepository repository,
                                      ManifestManager manifestManager,
                                      boolean noDeleteReplay) {
-        this(repository, manifestManager, 60 * 1000, noDeleteReplay);
+        this(repository, manifestManager, null, null, 60 * 1000, noDeleteReplay);
     }
 
     public LoggingMetadataRepository(MetadataRepository repository,
                                      ManifestManager manifestManager,
+                                     Map<String, BackupShare> shares,
+                                     Map<String, ShareManifestManager> shareManagers,
                                      int activePathDelay,
                                      boolean noDeleteReplay) {
         this.repository = repository;
         this.manifestManager = manifestManager;
+        this.shares = shares;
+        this.shareManagers = shareManagers;
 
         activePathSubmitters.scheduleAtFixedRate(() -> submitPendingActivePaths(Duration.ofMillis(activePathDelay)),
                 Math.min(activePathDelay, 1000), Math.min(activePathDelay, 1000), TimeUnit.MILLISECONDS);
 
         ImmutableMap.Builder<String, LogReader> decoderBuilder = ImmutableMap.<String, LogReader>builder()
-                .put("file", (firstLogEntry, json) -> repository.addFile(mapper.readValue(json, BackupFile.class)))
-                .put("block", (firstLogEntry, json) -> repository.addBlock(mapper.readValue(json, BackupBlock.class)))
+                .put("file", (firstLogEntry, json) -> repository.addFile(BACKUP_FILE_READER.readValue(json)))
+                .put("block", (firstLogEntry, json) -> repository.addBlock(BACKUP_BLOCK_READER.readValue(json)))
                 .put("dir", (firstLogEntry, json) -> {
-                    BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
+                    BackupDirectory dir = BACKUP_DIRECTORY_READER.readValue(json);
                     repository.addDirectory(dir);
                 })
                 .put("deletePath", (firstLogEntry, json) -> {
-                    PushActivePath activePath = mapper.readValue(json, PushActivePath.class);
+                    PushActivePath activePath = PUSH_ACTIVE_PATH_READER.readValue(json);
                     repository.popActivePath(activePath.getSetId(), activePath.getPath());
                 })
                 .put("path", (firstLogEntry, json) -> {
-                    PushActivePath activePath = mapper.readValue(json, PushActivePath.class);
+                    PushActivePath activePath = PUSH_ACTIVE_PATH_READER.readValue(json);
                     repository.pushActivePath(activePath.getSetId(), activePath.getPath(), activePath.getActivePath());
                 });
 
@@ -117,11 +125,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                     });
         } else {
             decoderBuilder
-                    .put("deleteFile", (firstLogEntry, json) -> repository.deleteFile(mapper.readValue(json, BackupFile.class)))
-                    .put("deletePart", (firstLogEntry, json) -> repository.deleteFilePart(mapper.readValue(json, BackupFilePart.class)))
-                    .put("deleteBlock", (firstLogEntry, json) -> repository.deleteBlock(mapper.readValue(json, BackupBlock.class)))
+                    .put("deleteFile", (firstLogEntry, json) -> repository.deleteFile(BACKUP_FILE_READER.readValue(json)))
+                    .put("deletePart", (firstLogEntry, json) -> repository.deleteFilePart(BACKUP_FILE_PART_READER.readValue(json)))
+                    .put("deleteBlock", (firstLogEntry, json) -> repository.deleteBlock(BACKUP_BLOCK_READER.readValue(json)))
                     .put("deleteDir", (firstLogEntry, json) -> {
-                        BackupDirectory dir = mapper.readValue(json, BackupDirectory.class);
+                        BackupDirectory dir = BACKUP_DIRECTORY_READER.readValue(json);
                         repository.deleteDirectory(dir.getPath(), dir.getAdded());
                     })
                     .put("clear", (firstLogEntry, json) -> {
@@ -175,26 +183,72 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
         firstLogEntry = false;
     }
 
-    private interface LogReader {
-        void applyJson(boolean firstEntry, String json) throws IOException;
-    }
-
-    protected synchronized void writeLogEntry(String type, Object obj) {
+    protected synchronized void writeLogEntry(BaseManifestManager logger, String type, Object obj) {
         try {
             if (obj != null) {
-                manifestManager.addLogEntry(type, mapper.writeValueAsString(obj));
+                logger.addLogEntry(type, MAPPER.writeValueAsString(obj));
             } else {
-                manifestManager.addLogEntry(type, "");
+                logger.addLogEntry(type, "");
             }
         } catch (JsonProcessingException e) {
             log.error("Failed to process " + type, e);
         }
     }
 
+    void writeLogEntry(String type, Object obj) {
+        writeLogEntry(manifestManager, type, obj);
+    }
+
     @Override
     public void addFile(BackupFile file) throws IOException {
         writeLogEntry("file", file);
+
+        if (shares != null) {
+            for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
+                BackupShare share = shares.get(entry.getKey());
+                if (share != null && share.getContents().includeFile(file.getPath())) {
+                    if (file.getLocations() != null) {
+                        for (BackupLocation location : file.getLocations()) {
+                            for (BackupFilePart part : location.getParts()) {
+                                shareBlocks(entry.getKey(), entry.getValue(), part.getBlockHash());
+                            }
+                        }
+                    }
+                    writeLogEntry(entry.getValue(), "file", file);
+                }
+            }
+        }
+
         repository.addFile(file);
+    }
+
+    private void shareBlocks(String publicKey, ShareManifestManager shareManager, String blockHash) throws IOException {
+        BackupBlockAdditional additional = repository.additionalBlock(publicKey, blockHash);
+        if (additional == null) {
+            throw new RuntimeException("Missing block for share");
+        }
+        if (!additional.isUsed()) {
+            additional.setUsed(true);
+            BackupBlock block = repository.block(blockHash);
+            if (block.isSuperBlock()) {
+                for (String otherHash : block.getHashes())
+                    shareBlocks(publicKey, shareManager, otherHash);
+            } else if (block.getStorage() != null) {
+                for (BackupBlockStorage storage : block.getStorage())
+                    shareManager.addUsedDestinations(storage.getDestination());
+            }
+            BackupBlock additionalBlock = block.createAdditionalBlock(additional);
+            writeLogEntry(shareManager, "block", additionalBlock);
+
+            repository.addAdditionalBlock(additional);
+        }
+    }
+
+    private Map<String, ShareManifestManager> getShareManagers() {
+        if (shareManagers != null) {
+            return shareManagers;
+        }
+        return manifestManager.getActivatedShares();
     }
 
     @Override
@@ -205,6 +259,21 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public void setLastSyncedLogFile(String entry) throws IOException {
         repository.setLastSyncedLogFile(entry);
+    }
+
+    @Override
+    public void addAdditionalBlock(BackupBlockAdditional block) throws IOException {
+        repository.addAdditionalBlock(block);
+    }
+
+    @Override
+    public BackupBlockAdditional additionalBlock(String publicKey, String blockHash) throws IOException {
+        return repository.additionalBlock(publicKey, blockHash);
+    }
+
+    @Override
+    public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
+        repository.deleteAdditionalBlock(publicKey, blockHash);
     }
 
     @Override
@@ -220,6 +289,16 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public boolean deleteFile(BackupFile file) throws IOException {
         writeLogEntry("deleteFile", file);
+
+        if (shares != null) {
+            for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
+                BackupShare share = shares.get(entry.getKey());
+                if (share != null && share.getContents().includeFile(file.getPath())) {
+                    writeLogEntry(entry.getValue(), "deleteFile", file);
+                }
+            }
+        }
+
         return repository.deleteFile(file);
     }
 
@@ -302,6 +381,38 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public void addBlock(BackupBlock block) throws IOException {
+        if (block.getStorage() != null && block.getStorage().size() > 0
+                && block.getStorage().get(0).hasAdditionalStorageProperties()) {
+            Map<String, BackupBlockAdditional> additionalBlocks = new HashMap<>();
+            for (BackupBlockStorage storage : block.getStorage()) {
+                for (Map.Entry<EncryptionKey, Map<String, String>> entry
+                        : storage.getAdditionalStorageProperties().entrySet()) {
+                    BackupBlockAdditional additional = additionalBlocks.computeIfAbsent(entry.getKey().getPublicKey(),
+                            (key) -> BackupBlockAdditional.builder().used(false).publicKey(key).hash(block.getHash())
+                                    .properties(new ArrayList<>())
+                                    .build());
+                    additional.getProperties().add(entry.getValue());
+                }
+            }
+
+            for (BackupBlockAdditional blockAdditional : additionalBlocks.values()) {
+                if (blockAdditional.getProperties().size() != block.getStorage().size()) {
+                    throw new RuntimeException("Internal mismatch between block and additional block storage size");
+                }
+                BackupBlockAdditional existing = repository.additionalBlock(blockAdditional.getPublicKey(), blockAdditional.getHash());
+                if (existing != null && existing.isUsed()) {
+                    blockAdditional.setUsed(existing.isUsed());
+
+                    BackupBlock newBlock = block.createAdditionalBlock(blockAdditional);
+                    ShareManifestManager logWriter = getShareManagers().get(blockAdditional.getPublicKey());
+                    if (logWriter == null)
+                        throw new RuntimeException(String.format("Unknown log writer for public key share %s",
+                                blockAdditional.getPublicKey()));
+                    writeLogEntry(logWriter, "block", newBlock);
+                }
+                repository.addAdditionalBlock(blockAdditional);
+            }
+        }
         writeLogEntry("block", block);
         repository.addBlock(block);
     }
@@ -314,6 +425,18 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public boolean deleteBlock(BackupBlock block) throws IOException {
         writeLogEntry("deleteBlock", block);
+
+        for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
+            BackupBlockAdditional additional = repository.additionalBlock(entry.getKey(), block.getHash());
+            if (additional != null) {
+                if (additional.isUsed()) {
+                    BackupBlock additonalBlock = BackupBlock.builder().hash(block.getHash()).build();
+                    entry.getValue().addLogEntry("deleteBlock", BACKUP_BLOCK_WRITER.writeValueAsString(additonalBlock));
+                }
+                repository.deleteAdditionalBlock(entry.getKey(), block.getHash());
+            }
+        }
+
         return repository.deleteBlock(block);
     }
 
@@ -337,7 +460,29 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
             }
         }
 
+        // Need share implementation
+
         if (currentData == null || !directory.getFiles().equals(currentData.getFiles())) {
+            if (shares != null) {
+                for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
+                    BackupShare share = shares.get(entry.getKey());
+                    String parent = directory.getPath();
+                    if (!parent.endsWith("/"))
+                        parent += "/";
+
+                    if (share != null && share.getContents().includeForShare(parent)) {
+                        NavigableSet<String> newContents = new TreeSet<>();
+                        for (String file : directory.getFiles()) {
+                            if (share.getContents().includeForShare(PathNormalizer.combinePaths(parent, file)))
+                                newContents.add(file);
+                        }
+                        if (newContents.size() > 0) {
+                            writeLogEntry(entry.getValue(), "dir", directory.toBuilder().files(newContents).build());
+                        }
+                    }
+                }
+            }
+
             writeLogEntry("dir", directory);
             repository.addDirectory(directory);
         }
@@ -355,7 +500,16 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public boolean deleteDirectory(String path, long timestamp) throws IOException {
-        writeLogEntry("deleteDir", new BackupDirectory(path, timestamp, null));
+        BackupDirectory deletedDir = new BackupDirectory(path, timestamp, null);
+        if (shares != null) {
+            for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
+                BackupShare share = shares.get(entry.getKey());
+                if (share != null && share.getContents().includeForShare(path)) {
+                    writeLogEntry(entry.getValue(), "deleteDir", deletedDir);
+                }
+            }
+        }
+        writeLogEntry("deleteDir", deletedDir);
         return repository.deleteDirectory(path, timestamp);
     }
 
@@ -439,5 +593,33 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
         flushLogging();
         repository.close();
         activePathSubmitters.shutdownNow();
+    }
+
+    private interface LogReader {
+        void applyJson(boolean firstEntry, String json) throws IOException;
+    }
+
+    public static class Readonly extends LoggingMetadataRepository {
+        public Readonly(MetadataRepository repository,
+                        ManifestManager manifestManager,
+                        boolean noDeleteReplay) {
+            super(repository, manifestManager, null, null, noDeleteReplay);
+        }
+
+        @Override
+        protected synchronized void writeLogEntry(String type, Object obj) {
+            throw new RuntimeException("Tried to write to a read only repository");
+        }
+    }
+
+    @Data
+    private static class PendingActivePath {
+        private BackupActivePath path;
+        private Instant submitted;
+
+        public PendingActivePath(BackupActivePath path) {
+            this.path = path;
+            submitted = Instant.now();
+        }
     }
 }

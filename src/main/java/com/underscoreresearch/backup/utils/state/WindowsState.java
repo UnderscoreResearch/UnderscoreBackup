@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class WindowsState extends MachineState {
     public WindowsState(boolean pauseOnBattery) {
         super(pauseOnBattery);
@@ -29,5 +32,18 @@ public class WindowsState extends MachineState {
         } catch (IOException ex) {
         }
         return false;
+    }
+
+    @Override
+    public void lowPriority() {
+        try {
+            Process process = Runtime.getRuntime()
+                    .exec(String.format("wmic process where processid=%d CALL setpriority \"idle\"", ProcessHandle.current().pid()));
+            if (process.waitFor() != 0) {
+                throw new IOException();
+            }
+        } catch (IOException | InterruptedException e) {
+            log.warn("Can't change process to low priority", e);
+        }
     }
 }

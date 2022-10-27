@@ -37,6 +37,41 @@ public class BackupActivePath {
     @Setter
     private boolean unprocessed;
 
+    public BackupActivePath(String parent, Set<BackupActiveFile> files) {
+        String realParent;
+        if (parent.length() > 0 && !parent.endsWith(PATH_SEPARATOR))
+            realParent = parent + PATH_SEPARATOR;
+        else
+            realParent = parent;
+
+        this.files = new HashMap<>();
+        for (BackupActiveFile item : files) {
+            this.files.put(realParent + item.getPath(), item);
+        }
+    }
+
+    public static String stripPath(String path) {
+        int ind;
+        if (path.endsWith(PATH_SEPARATOR))
+            ind = path.lastIndexOf(PATH_SEPARATOR, path.length() - PATH_SEPARATOR.length() - 1);
+        else
+            ind = path.lastIndexOf(PATH_SEPARATOR);
+        if (ind >= 0)
+            return path.substring(ind + PATH_SEPARATOR.length());
+        return path;
+    }
+
+    public static String findParent(String path) {
+        int ind;
+        if (path.endsWith(PATH_SEPARATOR))
+            ind = path.lastIndexOf(PATH_SEPARATOR, path.length() - PATH_SEPARATOR.length() - 1);
+        else
+            ind = path.lastIndexOf(PATH_SEPARATOR);
+        if (ind >= 0)
+            return path.substring(0, ind + PATH_SEPARATOR.length());
+        return null;
+    }
+
     @JsonProperty
     public Set<BackupActiveFile> getFiles() {
         return new HashSet<>(files.values());
@@ -58,19 +93,6 @@ public class BackupActivePath {
 
         files = files.entrySet().stream().collect(Collectors.toMap(t -> realParent + t.getValue().getPath(),
                 Map.Entry::getValue));
-    }
-
-    public BackupActivePath(String parent, Set<BackupActiveFile> files) {
-        String realParent;
-        if (parent.length() > 0 && !parent.endsWith(PATH_SEPARATOR))
-            realParent = parent + PATH_SEPARATOR;
-        else
-            realParent = parent;
-
-        this.files = new HashMap<>();
-        for (BackupActiveFile item : files) {
-            this.files.put(realParent + item.getPath(), item);
-        }
     }
 
     @JsonIgnore
@@ -110,28 +132,6 @@ public class BackupActivePath {
                 .filter(t -> t.getValue().getStatus() == BackupActiveStatus.INCLUDED)
                 .map(t -> t.getValue().getPath())
                 .collect(Collectors.toSet());
-    }
-
-    public static String stripPath(String path) {
-        int ind;
-        if (path.endsWith(PATH_SEPARATOR))
-            ind = path.lastIndexOf(PATH_SEPARATOR, path.length() - PATH_SEPARATOR.length() - 1);
-        else
-            ind = path.lastIndexOf(PATH_SEPARATOR);
-        if (ind >= 0)
-            return path.substring(ind + PATH_SEPARATOR.length());
-        return path;
-    }
-
-    public static String findParent(String path) {
-        int ind;
-        if (path.endsWith(PATH_SEPARATOR))
-            ind = path.lastIndexOf(PATH_SEPARATOR, path.length() - PATH_SEPARATOR.length() - 1);
-        else
-            ind = path.lastIndexOf(PATH_SEPARATOR);
-        if (ind >= 0)
-            return path.substring(0, ind + PATH_SEPARATOR.length());
-        return null;
     }
 
     public void mergeChanges(BackupActivePath otherPaths) {

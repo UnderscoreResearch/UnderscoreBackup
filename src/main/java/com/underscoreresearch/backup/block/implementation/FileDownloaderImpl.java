@@ -32,19 +32,6 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 @Slf4j
 public class FileDownloaderImpl implements FileDownloader, StatusLogger {
     private static final long GB = 1024 * 1024 * 1024;
-
-    @Data
-    private static class Progress {
-        private long completed;
-        private long total;
-        private Instant started;
-
-        public Progress(long total) {
-            this.total = total;
-            started = Instant.now();
-        }
-    }
-
     private final MetadataRepository repository;
     private final FileSystemAccess fileSystemAccess;
     private AtomicBoolean shutdown = new AtomicBoolean();
@@ -61,7 +48,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
     }
 
     @Override
-    public void downloadFile(BackupFile source, String destinationFile) throws IOException {
+    public void downloadFile(BackupFile source, String destinationFile, String passphrase) throws IOException {
         Progress progress = new Progress(source.getLength());
         synchronized (activeFiles) {
             activeFiles.put(source.getPath(), progress);
@@ -112,7 +99,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                                     }
                                     FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
                                     try {
-                                        byte[] fileData = extractor.extractPart(part, block);
+                                        byte[] fileData = extractor.extractPart(part, block, passphrase);
                                         if (fileData == null) {
                                             throw new IOException("Failed to extra data for part of block " + block.getHash());
                                         }
@@ -217,6 +204,18 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                                     + readableSize(entry.getValue().getTotal()));
                 }
             }).collect(Collectors.toList());
+        }
+    }
+
+    @Data
+    private static class Progress {
+        private long completed;
+        private long total;
+        private Instant started;
+
+        public Progress(long total) {
+            this.total = total;
+            started = Instant.now();
         }
     }
 }

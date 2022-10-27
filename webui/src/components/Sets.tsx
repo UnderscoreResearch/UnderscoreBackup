@@ -6,6 +6,7 @@ import {DestinationProp} from "./Destinations";
 
 export interface SetsProps {
     sets: BackupSet[],
+    allowReset: boolean,
     defaults: BackupDefaults,
     destinations: DestinationProp[],
     configurationUpdated: (valid: boolean, destinations: BackupSet[]) => void
@@ -73,6 +74,7 @@ export default function Sets(props: SetsProps) {
         createItem: (item, itemUpdated: (item: SetState) => void) => {
             return <SetConfig set={item.set}
                               destinations={props.destinations}
+                              allowReset={props.allowReset}
                               defaults={props.defaults}
                               setUpdated={(valid, set) => {
                                   itemUpdated({valid: valid, set: set});

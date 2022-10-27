@@ -1,7 +1,9 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
 import java.nio.file.Paths;
@@ -17,11 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.SystemUtils;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rs.RsText;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -39,25 +38,24 @@ import com.underscoreresearch.backup.model.BackupTimeUnit;
 import com.underscoreresearch.backup.model.BackupTimespan;
 
 @Slf4j
-public class DefaultsGet extends JsonWrap {
+public class StateGet extends JsonWrap {
+    private static ObjectWriter WRITER = MAPPER.writerFor(StateResponse.class);
+
+    public StateGet() {
+        super(new Implementation());
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    private static class DefaultsResponse {
-        private String defaultRestoreFolder;
+    private static class StateResponse {
         private String pathSeparator;
         private String version;
         private String source;
-        private BackupSet set;
-    }
-
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
-            .writerFor(DefaultsResponse.class);
-
-    public DefaultsGet() {
-        super(new Implementation());
+        private boolean validDestinations;
+        private BackupSet defaultSet;
+        private String defaultRestoreFolder;
     }
 
     private static class Implementation extends BaseImplementation {
@@ -100,10 +98,22 @@ public class DefaultsGet extends JsonWrap {
 
                 if (!SystemUtils.IS_OS_WINDOWS) {
                     exclusions.add("/lost\\+found/");
+                    exclusions.add("/.config/google-chrome/");
+                    exclusions.add("/.mozilla/firefox/");
+                } else {
+                    exclusions.add("/Google/Chrome/");
+                    exclusions.add("/Mozilla/Firefox/");
                 }
 
                 BackupSetRoot root = BackupSetRoot.builder().filters(filters).build();
                 root.setNormalizedPath(home);
+                if (SystemUtils.IS_OS_WINDOWS) {
+                    root.setFilters(Lists.newArrayList(BackupFilter
+                            .builder()
+                            .type(BackupFilterType.EXCLUDE)
+                            .paths(Lists.newArrayList("OneDrive"))
+                            .build()));
+                }
 
                 BackupSet set = BackupSet.builder().schedule("0 3 * * *")
                         .exclusions(exclusions)
@@ -118,9 +128,19 @@ public class DefaultsGet extends JsonWrap {
                                         .build())))
                                 .retainDeleted(BackupTimespan.builder().duration(1).unit(BackupTimeUnit.MONTHS).build()).build())
                         .build();
-                return new RsText(WRITER.writeValueAsString(DefaultsResponse.builder()
-                        .set(set)
+
+                boolean validDestinations = false;
+                if (InstanceFactory.hasConfiguration(false)) {
+                    BackupConfiguration sourceConfig = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
+                    if (sourceConfig != null) {
+                        validDestinations = ConfigurationPost.isValidatesDestinations(sourceConfig);
+                    }
+                }
+
+                return new RsText(WRITER.writeValueAsString(StateResponse.builder()
+                        .defaultSet(set)
                         .version(VersionCommand.getVersion())
+                        .validDestinations(validDestinations)
                         .source(InstanceFactory.getAdditionalSource())
                         .pathSeparator(File.separator)
                         .defaultRestoreFolder(defaultRestore).build()));

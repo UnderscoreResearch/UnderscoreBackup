@@ -80,7 +80,7 @@ export default function SpeedLimit(props: SpeedLimitProps) {
                    label={props.title}
                    onBlur={(e) => updateState({
                        ...state,
-                       speed: e.target.value as number,
+                       speed: parseInt(e.target.value),
                    })}/>
         <Select disabled={!state.enabled} style={{minWidth: "10em", margin: "4px"}} value={state.unit}
                 onChange={(e) => updateState({

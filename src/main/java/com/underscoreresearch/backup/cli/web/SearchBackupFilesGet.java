@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
@@ -10,14 +12,11 @@ import java.util.stream.Collectors;
 import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.misc.Href;
 import org.takes.rq.RqHref;
 import org.takes.rs.RsText;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -29,29 +28,12 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public class SearchBackupFilesGet extends JsonWrap {
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
-            .writerFor(new TypeReference<List<ExternalBackupFile>>() {
-            });
-
     private static final long MAX_HITS = 1000;
+    private static ObjectWriter WRITER = MAPPER.writerFor(new TypeReference<List<ExternalBackupFile>>() {
+    });
 
     public SearchBackupFilesGet(String base) {
         super(new Implementation(base));
-    }
-
-    private static class Implementation extends BaseImplementation {
-        public Implementation(String base) {
-        }
-
-        @Override
-        public Response actualAct(Request req) throws Exception {
-            return new RsText(WRITER.writeValueAsString(
-                    getRequestFiles(req)
-                            .stream()
-                            .map(t -> new ExternalBackupFile(t))
-                            .collect(Collectors.toList())));
-        }
     }
 
     public static List<BackupFile> getRequestFiles(Request req) throws IOException {
@@ -108,5 +90,19 @@ public class SearchBackupFilesGet extends JsonWrap {
         }
 
         return ret;
+    }
+
+    private static class Implementation extends BaseImplementation {
+        public Implementation(String base) {
+        }
+
+        @Override
+        public Response actualAct(Request req) throws Exception {
+            return new RsText(WRITER.writeValueAsString(
+                    getRequestFiles(req)
+                            .stream()
+                            .map(t -> new ExternalBackupFile(t))
+                            .collect(Collectors.toList())));
+        }
     }
 }

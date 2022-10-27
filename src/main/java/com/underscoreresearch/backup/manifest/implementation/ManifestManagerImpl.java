@@ -1,58 +1,55 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
+import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
-import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.cli.ParseException;
+import org.jetbrains.annotations.NotNull;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
-import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
@@ -60,85 +57,63 @@ import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.ShareActivateMetadataRepository;
+import com.underscoreresearch.backup.manifest.ShareManifestManager;
+import com.underscoreresearch.backup.model.BackupActivatedShare;
 import com.underscoreresearch.backup.model.BackupActivePath;
+import com.underscoreresearch.backup.model.BackupBlockAdditional;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.utils.AccessLock;
 import com.underscoreresearch.backup.utils.NonClosingInputStream;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class ManifestManagerImpl implements ManifestManager, StatusLogger {
-    private final static DateTimeFormatter LOG_FILE_FORMATTER
-            = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.nnnnnnnnn").withZone(ZoneId.of("UTC"));
-    private static final String LOG_ROOT = "logs";
-    private static final String IDENTITY_MANIFEST_LOCATION = "identity";
-
-    private final BackupConfiguration configuration;
-    private final RateLimitController rateLimitController;
-    private final String localRoot;
-    private final BackupDestination manifestDestination;
-    private final IOProvider provider;
-    private final Encryptor encryptor;
-    private final String installationIdentity;
+public class ManifestManagerImpl extends BaseManifestManagerImpl implements ManifestManager, StatusLogger {
     private final String source;
-    private final boolean forceIdentity;
-
-    @Getter
-    @Setter
-    private boolean disabledFlushing;
-
-    private AccessLock currentLogLock;
-    private String lastLogFilename;
-    private long currentLogLength;
-    private Object lock = new Object();
-    private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
-            new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
-    private LogConsumer logConsumer;
-    private AtomicBoolean currentlyClosingLog = new AtomicBoolean();
-    private boolean initialized;
-    private boolean shutdown;
+    private Map<String, ShareManifestManager> activeShares;
+    private String operation;
+    private AtomicLong totalFiles;
+    private AtomicLong totalOperations;
+    private AtomicLong processedFiles;
+    private AtomicLong processedOperations;
+    private Stopwatch operationDuration;
 
     public ManifestManagerImpl(BackupConfiguration configuration,
-                               String localRoot,
+                               String manifestLocation,
                                IOProvider provider,
                                Encryptor encryptor,
                                RateLimitController rateLimitController,
                                String installationIdentity,
                                String source,
-                               boolean forceIdentity)
+                               boolean forceIdentity,
+                               EncryptionKey publicKey)
             throws IOException {
-        this.configuration = configuration;
-        this.rateLimitController = rateLimitController;
-        this.localRoot = localRoot;
-        this.installationIdentity = installationIdentity;
+        super(configuration,
+                configuration.getDestinations().get(configuration.getManifest().getDestination()),
+                manifestLocation,
+                provider,
+                encryptor,
+                rateLimitController,
+                installationIdentity,
+                forceIdentity,
+                publicKey);
         this.source = source;
-        this.forceIdentity = forceIdentity;
-
-        manifestDestination = configuration.getDestinations().get(configuration.getManifest().getDestination());
-        if (manifestDestination == null) {
-            throw new IllegalArgumentException("Can't find destination for manifest");
-        }
-
-        this.provider = provider;
-        if (!(provider instanceof IOIndex)) {
-            throw new IllegalArgumentException("Manifest destination must be able to support listing files");
-        }
-        this.encryptor = encryptor;
     }
 
-    private void uploadPending(LogConsumer logConsumer) throws IOException {
-        PublicKeyEncrypion publicKeyEncrypion = InstanceFactory.getInstance(PublicKeyEncrypion.class);
+    protected void uploadPending(LogConsumer logConsumer) throws IOException {
+        EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
         startOperation("Upload pending");
         try {
             processedFiles = new AtomicLong(0);
             totalFiles = new AtomicLong(2);
             try {
-                PublicKeyEncrypion existingPublicKey = new ObjectMapper().readValue(provider.download("publickey.json"),
-                        PublicKeyEncrypion.class);
-                if (!publicKeyEncrypion.getSalt().equals(existingPublicKey.getSalt())
-                        || !publicKeyEncrypion.getPublicKey().equals(existingPublicKey.getPublicKey())) {
+                EncryptionKey existingPublicKey = ENCRYPTION_KEY_READER
+                        .readValue(getProvider().download("publickey.json"));
+                if (!encryptionKey.getSalt().equals(existingPublicKey.getSalt())
+                        || !encryptionKey.getPublicKey().equals(existingPublicKey.getPublicKey())) {
                     throw new IOException("Public key that exist in destination does not match current public key");
                 }
             } catch (Exception exc) {
@@ -147,7 +122,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 }
                 log.info("Public key does not exist");
                 uploadConfigData("publickey.json",
-                        new ByteArrayInputStream(new ObjectMapper().writeValueAsBytes(publicKeyEncrypion)),
+                        new ByteArrayInputStream(ENCRYPTION_KEY_WRITER.writeValueAsBytes(encryptionKey)),
                         false);
             } finally {
                 processedFiles.incrementAndGet();
@@ -187,286 +162,41 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         }
     }
 
-    private void uploadLogFile(String file, InputStream stream) throws IOException {
-        String uploadFilename = transformLogFilename(file);
-        uploadConfigData(uploadFilename, stream, true);
-        if (logConsumer.lastSyncedLogFile() != null && logConsumer.lastSyncedLogFile().compareTo(uploadFilename) > 0) {
-            log.warn("Uploaded log file {} out of order, already uploaded {}", uploadFilename,
-                    logConsumer.lastSyncedLogFile());
-        } else {
-            logConsumer.setLastSyncedLogFile(uploadFilename);
-        }
-    }
-
-    private List<File> existingLogFiles() throws IOException {
-        File parent = Paths.get(localRoot, "logs").toFile();
-        if (parent.isDirectory()) {
-            return Arrays.stream(parent.list()).map(file -> new File(parent, file)).collect(Collectors.toList());
-        }
-        return new ArrayList<>();
-    }
-
-    @Override
-    public void initialize(LogConsumer logConsumer, boolean immediate) {
-        synchronized (lock) {
-            if (logConsumer != null) {
-                this.logConsumer = logConsumer;
-            }
-
-            if (immediate) {
-                internalInitialize();
-            }
-        }
-    }
-
     public void validateIdentity() {
         if (Strings.isNullOrEmpty(source)) {
-            byte[] data;
-            try {
-                debug(() -> log.debug("Validating manifest installation identity"));
-                data = provider.download(IDENTITY_MANIFEST_LOCATION);
-                rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
-            } catch (Exception exc) {
-                storeIdentity();
-                return;
-            }
-            String destinationIdentity = new String(data, StandardCharsets.UTF_8);
-            if (!destinationIdentity.equals(installationIdentity)) {
-                if (forceIdentity) {
-                    log.error("Another installation of UnderscoreBackup is already writing to this manifest "
-                            + "destination. Proceeding anyway because of --force flag on command line. Consider doing "
-                            + "a log optimize operation to avoid data corruption");
-                    storeIdentity();
-                } else {
-                    throw new RuntimeException(
-                            new ParseException("Another installation of UnderscoreBackup is already writing to this manifest "
-                                    + "destination. To take over backing up from this installation execute a "
-                                    + "rebuild-repository operation or reset the local configuration under settings in the UI"));
-                }
-            }
+            super.validateIdentity();
         }
     }
 
     public void storeIdentity() {
         if (Strings.isNullOrEmpty(source)) {
-            log.info("Updating manifest installation identity");
-            try {
-                byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
-                provider.upload(IDENTITY_MANIFEST_LOCATION, data);
-                rateLimitController.acquireUploadPermits(manifestDestination, data.length);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to save identity to target");
-            }
+            super.storeIdentity();
         }
     }
 
-    private void internalInitialize() {
-        synchronized (lock) {
-            if (!initialized) {
-                validateIdentity();
-
-                try {
-                    uploadPending(logConsumer);
-                } catch (IOException e) {
-                    throw new RuntimeException("Failed to initialize metadata system for writing", e);
-                } finally {
-                    initialized = true;
-                }
-            }
-        }
-    }
-
-    private void uploadConfigData(String filename, InputStream inputStream, boolean encrypt) throws IOException {
-        byte[] data;
-        if (encrypt) {
-            validateIdentity();
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
-                IOUtils.copyStream(inputStream, gzipStream);
-            }
-            data = encryptor.encryptBlock(null, outputStream.toByteArray());
-        } else {
-            data = IOUtils.readAllBytes(inputStream);
-        }
-        log.info("Uploading {} ({})", filename, readableSize(data.length));
-        rateLimitController.acquireUploadPermits(manifestDestination, data.length);
-        provider.upload(filename, data);
-    }
-
-    private String transformLogFilename(String path) {
-        String filename = Paths.get(path).getFileName().toString();
-        return "logs" + PATH_SEPARATOR + filename.replaceAll("(\\d{4}-\\d{2}-\\d{2})-", "$1" + PATH_SEPARATOR) + ".gz";
+    public void uploadConfigData(String filename, byte[] data) throws IOException {
+        uploadConfigData(filename, new ByteArrayInputStream(data), true);
     }
 
     @Override
-    public void addLogEntry(String type, String jsonDefinition) {
-        boolean flush = false;
-
-        synchronized (lock) {
-            internalInitialize();
-
-            try {
-                if (currentLogLock == null) {
-                    createNewLogFile();
-                }
-                byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(StandardCharsets.UTF_8);
-                currentLogLock.getLockedChannel().write(ByteBuffer.wrap(data));
-                if (!disabledFlushing) {
-                    currentLogLock.getLockedChannel().force(false);
-                }
-                currentLogLength += data.length;
-
-                if (!currentlyClosingLog.get()
-                        && currentLogLength > configuration.getManifest().getMaximumUnsyncedSize()) {
-                    flush = true;
-                }
-            } catch (IOException exc) {
-                log.error("Failed to save log entry: " + type + ": " + jsonDefinition, exc);
-
-                try {
-                    flushLogging();
-                } catch (IOException exc2) {
-                    log.error("Start new log file", exc2);
-                    try {
-                        currentLogLock.close();
-                    } catch (IOException e) {
-                        log.error("Failed to close lock", e);
-                    }
-                    currentLogLock = null;
-                }
-            }
-        }
-
-        if (flush) {
-            try {
-                flushLogging();
-            } catch (IOException exc) {
-                log.error("Failed to flush log");
-            }
-        }
-    }
-
-    private void flushLogging() throws IOException {
-        boolean performFlush = false;
-        synchronized (lock) {
-            if (!currentlyClosingLog.get()) {
-                currentlyClosingLog.set(true);
-                performFlush = true;
-            }
-        }
-        if (performFlush) {
-            try {
-                InstanceFactory.getInstance(MetadataRepository.class).flushLogging();
-            } catch (Exception exc) {
-                log.error("Failed to flush repository before starting new log file", exc);
-            }
-            synchronized (lock) {
-                try {
-                    closeLogFile();
-                } catch (Exception exc) {
-                    log.error("Failed to close log file", exc);
-                } finally {
-                    currentlyClosingLog.set(false);
-                }
-            }
-        }
-    }
-
-    private void createNewLogFile() throws IOException {
-        closeLogFile();
-        currentLogLength = 0;
-        String filename;
-        filename = createLogFilename();
-
-        new File(filename).getParentFile().mkdirs();
-        currentLogLock = new AccessLock(filename);
-        lastLogFilename = filename;
-        currentLogLock.lock(true);
-
-        File dir = new File(filename).getParentFile();
-        if (!dir.isDirectory())
-            dir.mkdirs();
-
-        if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
-            String logName = filename;
-            executor.schedule(() -> {
-                        synchronized (lock) {
-                            if (currentLogLock != null && logName.equals(currentLogLock.getFilename())) {
-                                try {
-                                    createNewLogFile();
-                                } catch (IOException exc) {
-                                    log.error("Failed to create new log file", exc);
-                                }
-                            }
-                        }
-                    },
-                    configuration.getManifest().getMaximumUnsyncedSeconds(),
-                    TimeUnit.SECONDS);
-        }
-    }
-
-    private String createLogFilename() {
-        String filename;
-        filename = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
-        while (filename.equals(lastLogFilename)) {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-            }
-            debug(() -> log.warn("Had to wait a bit to get a unique filename for log"));
-            filename = Paths.get(localRoot, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
-        }
-        return filename;
-    }
-
-    private void closeLogFile() throws IOException {
-        if (currentLogLock != null) {
-            currentLogLock.getLockedChannel().position(0);
-            String filename = currentLogLock.getFilename();
-            boolean uploaded = false;
-            try (InputStream stream = Channels.newInputStream(currentLogLock.getLockedChannel())) {
-                uploadLogFile(filename, stream);
-                uploaded = true;
-            } finally {
-                try {
-                    currentLogLock.close();
-                } catch (IOException exc) {
-                    log.error("Failed to close log file lock {}", filename, exc);
-                }
-                if (uploaded) {
-                    if (!(new File(filename).delete())) {
-                        log.error("Failed to delete log file {}", filename);
-                    }
-                }
-                currentLogLength = 0;
-                currentLogLock = null;
-            }
-        }
-    }
-
-    public void flushLog() throws IOException {
-        synchronized (lock) {
-            closeLogFile();
-        }
-    }
-
-    @Override
-    public void replayLog(LogConsumer consumer) throws IOException {
+    public void replayLog(LogConsumer consumer, String passphrase) throws IOException {
         storeIdentity();
 
         startOperation("Replay log");
 
         if (consumer.lastSyncedLogFile() != null) {
-            log.info("Continuing rebuild from after file {}", logConsumer.lastSyncedLogFile());
+            log.info("Continuing rebuild from after file {}", getLogConsumer().lastSyncedLogFile());
+        } else {
+            log.info("Started log replay");
         }
 
-        IOIndex index = (IOIndex) provider;
-        List<String> days = getListOfLogFiles(consumer, index, LOG_ROOT, true);
-
         try {
+            IOIndex index = (IOIndex) getProvider();
+            List<String> days = getListOfLogFiles(consumer, index, LOG_ROOT, true);
+
             totalFiles = new AtomicLong(days.size());
             processedFiles = new AtomicLong(0L);
-            processedOperations = new AtomicLong();
+            processedOperations = new AtomicLong(0L);
 
             for (String day : days) {
                 List<String> files = getListOfLogFiles(consumer, index, day, false);
@@ -474,11 +204,12 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                 totalFiles.addAndGet(files.size());
 
                 for (String file : files) {
-                    byte[] data = provider.download(file);
+                    byte[] data = getProvider().download(file);
 
                     try {
                         log.info("Processing log file {}", file);
-                        byte[] unencryptedData = encryptor.decodeBlock(null, data);
+                        byte[] unencryptedData = getEncryptor().decodeBlock(null, data,
+                                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(passphrase));
                         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(unencryptedData)) {
                             try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
                                 processLogInputStream(consumer, gzipInputStream);
@@ -488,14 +219,18 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                     } catch (Exception exc) {
                         log.error("Failed to read log file " + file, exc);
                     }
-                    if (!Strings.isNullOrEmpty(source) && (shutdown || InstanceFactory.isShutdown())) {
+                    if (!Strings.isNullOrEmpty(source) && (isShutdown() || InstanceFactory.isShutdown())) {
                         return;
                     }
                     processedFiles.incrementAndGet();
                 }
                 processedFiles.incrementAndGet();
             }
-            log.info("Optimizing repository metadata (This could take a while)");
+            if (processedOperations.get() > 1000000L) {
+                log.info("Optimizing repository metadata (This could take a while)");
+            } else {
+                log.info("Optimizing repository metadata");
+            }
             flushLogging();
         } finally {
             log.info("Completed reprocessing logs");
@@ -503,30 +238,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
         }
     }
 
-    private static List<String> getListOfLogFiles(LogConsumer consumer, IOIndex index, String parent, boolean partial)
-            throws IOException {
-        final String parentPrefix;
-        if (!parent.endsWith(PATH_SEPARATOR)) {
-            parentPrefix = parent + PATH_SEPARATOR;
-        } else {
-            parentPrefix = parent;
-        }
-        List<String> files = index.availableKeys(parent).stream().map(file -> parentPrefix + file)
-                .sorted().collect(Collectors.toList());
-
-        String lastSyncedFile = consumer.lastSyncedLogFile();
-
-        if (lastSyncedFile != null) {
-            files = files.stream()
-                    .filter(file -> file.compareTo(lastSyncedFile.length() > file.length() ?
-                            lastSyncedFile.substring(0, file.length()) :
-                            lastSyncedFile) >= (partial ? 0 : 1))
-                    .collect(Collectors.toList());
-        }
-        return files;
-    }
-
-    private void processLogInputStream(LogConsumer consumer, InputStream inputStream) throws IOException {
+    protected void processLogInputStream(LogConsumer consumer, InputStream inputStream) throws IOException {
         try (InputStreamReader inputStreamReader
                      = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
             try (BufferedReader reader = new BufferedReader(inputStreamReader)) {
@@ -547,9 +259,90 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     }
 
     @Override
+    protected void additionalInitialization() {
+        activeShares = new HashMap<>();
+        if (getConfiguration().getShares() != null) {
+            Map<String, BackupActivatedShare> existingShares = new HashMap<>();
+            File sharesDirectory = new File(getManifestLocation(), "shares");
+            if (sharesDirectory.isDirectory()) {
+                for (File shareFile : sharesDirectory.listFiles()) {
+                    if (shareFile.isDirectory()) {
+                        File configFile = new File(shareFile, SHARE_CONFIG_FILE);
+                        if (configFile.exists()) {
+                            try {
+                                BackupActivatedShare share = BACKUP_ACTIVATED_SHARE_READER.readValue(configFile);
+                                existingShares.put(shareFile.getName(), share);
+                            } catch (IOException e) {
+                                log.error("Failed to read share definition for {}", shareFile.getName(), e);
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (Map.Entry<String, BackupShare> entry : getConfiguration().getShares().entrySet()) {
+                BackupActivatedShare existingShare = existingShares.get(entry.getKey());
+                if (existingShare == null) {
+                    log.warn("Encountered share {} that is not activated", entry.getValue().getName());
+                } else if (existingShare.getShare().equals(entry.getValue())) {
+                    try {
+                        ShareManifestManager manager = createShareManager(entry.getKey(), existingShare, true);
+                        activeShares.put(entry.getKey(), manager);
+                        manager.initialize(getLogConsumer(), true);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    existingShares.remove(entry.getKey());
+                }
+            }
+
+            if (existingShares.size() > 0 && getLogConsumer() instanceof MetadataRepository) {
+                startOperation("Deactivating shares");
+                processedOperations = new AtomicLong(0);
+                totalOperations = new AtomicLong(existingShares.size());
+                try {
+                    MetadataRepository metadataRepository = (MetadataRepository) getLogConsumer();
+                    for (String share : existingShares.keySet()) {
+                        log.info("Deleting unused share {}", existingShares.get(share).getShare().getName());
+                        try {
+                            metadataRepository.deleteAdditionalBlock(share, null);
+                        } catch (IOException e) {
+                            log.error("Failed to delete share {}", existingShares.get(share).getShare().getName(), e);
+                        }
+
+                        File shareDir = new File(sharesDirectory, share);
+                        deleteContents(shareDir);
+                        shareDir.delete();
+                        processedOperations.incrementAndGet();
+                    }
+                } finally {
+                    resetStatus();
+                    log.info("Completed deleting shares");
+                }
+            }
+        }
+    }
+
+    @NotNull
+    private ShareManifestManagerImpl createShareManager(String publicKey, BackupActivatedShare share, boolean activated) throws IOException {
+        return new ShareManifestManagerImpl(
+                getConfiguration(),
+                share.getShare().getDestination(),
+                Paths.get(getManifestLocation(), "shares", publicKey).toString(),
+                IOProviderFactory.getProvider(share.getShare().getDestination()),
+                EncryptorFactory.getEncryptor(share.getShare().getDestination().getEncryption()),
+                getRateLimitController(),
+                getInstallationIdentity() + publicKey,
+                isForceIdentity(),
+                EncryptionKey.createWithPublicKey(publicKey),
+                activated,
+                share
+        );
+    }
+
+    @Override
     public void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException {
-        initialize(logConsumer, false);
-        internalInitialize();
+        initialize(logConsumer, true);
         flushLogging();
 
         if (existingLogFiles().size() > 0) {
@@ -557,19 +350,9 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             return;
         }
 
-        IOIndex index = (IOIndex) provider;
-        List<String> existingLogs = new ArrayList<>();
-        for (String day : index.availableKeys(LOG_ROOT)) {
-            for (String file : index.availableKeys(LOG_ROOT + PATH_SEPARATOR + day)) {
-                String path = LOG_ROOT + PATH_SEPARATOR + day;
-                if (!path.endsWith(PATH_SEPARATOR)) {
-                    path += PATH_SEPARATOR;
-                }
-                existingLogs.add(path + file);
-            }
-        }
+        List<String> existingLogs = getExistingLogs();
 
-        disabledFlushing = true;
+        setDisabledFlushing(true);
 
         try (CloseableLock ignored = existingRepository.acquireLock()) {
             LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this, false);
@@ -585,7 +368,7 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
                     + existingRepository.getBlockCount()
                     + existingRepository.getDirectoryCount()
                     + activePaths.size()
-                    + configuration.getSets().size() + 1);
+                    + getConfiguration().getSets().size() + 1);
 
             log.info("Processing files");
             existingRepository.allFiles(true).forEach((file) -> {
@@ -642,20 +425,25 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
             flushLogging();
 
             ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
-                    configuration.getManifest().getOptimizeSchedule());
+                    getConfiguration().getManifest().getOptimizeSchedule());
 
             log.info("Deleting old log files");
-            totalFiles = new AtomicLong(existingLogs.size());
-            processedFiles = new AtomicLong();
-            for (String oldFile : existingLogs) {
-                provider.delete(oldFile);
-                debug(() -> log.debug("Deleted {}", oldFile));
-                processedFiles.incrementAndGet();
-            }
+            deleteLogFiles(existingLogs);
         } finally {
             resetStatus();
 
-            disabledFlushing = false;
+            setDisabledFlushing(false);
+        }
+    }
+
+    @Override
+    public void deleteLogFiles(List<String> existingLogs) throws IOException {
+        totalFiles = new AtomicLong(existingLogs.size());
+        processedFiles = new AtomicLong();
+        for (String oldFile : existingLogs) {
+            getProvider().delete(oldFile);
+            debug(() -> log.debug("Deleted {}", oldFile));
+            processedFiles.incrementAndGet();
         }
     }
 
@@ -674,20 +462,13 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     }
 
     @Override
-    public void shutdown() throws IOException {
-        synchronized (lock) {
-            executor.shutdownNow();
-            closeLogFile();
-            shutdown = true;
-        }
-    }
+    public void updateKeyData(EncryptionKey key) throws IOException {
+        EncryptionKey publicKey = key.publicOnly();
 
-    private String operation;
-    private AtomicLong totalFiles;
-    private AtomicLong totalOperations;
-    private AtomicLong processedFiles;
-    private AtomicLong processedOperations;
-    private Stopwatch operationDuration;
+        ENCRYPTION_KEY_WRITER.writeValue(new File(InstanceFactory.getInstance(CommandLineModule.KEY_FILE_NAME)),
+                publicKey);
+        uploadKeyData(key);
+    }
 
     private void startOperation(String operation) {
         log.info(operation);
@@ -700,12 +481,183 @@ public class ManifestManagerImpl implements ManifestManager, StatusLogger {
     }
 
     @Override
+    public Map<String, ShareManifestManager> getActivatedShares() {
+        if (activeShares != null) {
+            return activeShares;
+        }
+        return new HashMap<>();
+    }
+
+    @Override
+    public void activateShares(LogConsumer consumer, EncryptionKey.PrivateKey privateKey) throws IOException {
+        initialize(consumer, true);
+
+        MetadataRepository repository = (MetadataRepository) consumer;
+
+        if (getConfiguration().getShares() != null) {
+            Map<EncryptionKey, ShareManifestManager> pendingShareManagers = new HashMap<>();
+            Map<String, BackupShare> pendingShares = new HashMap<>();
+
+            for (Map.Entry<String, BackupShare> entry : getConfiguration().getShares().entrySet()) {
+                if (!activeShares.containsKey(entry.getKey())) {
+                    pendingShareManagers.put(EncryptionKey.createWithPublicKey(entry.getKey()),
+                            createShareManager(entry.getKey(), BackupActivatedShare.builder().share(entry.getValue())
+                                    .usedDestinations(new HashSet<>()).build(), false));
+                    pendingShares.put(entry.getKey(), entry.getValue());
+                }
+            }
+
+            if (pendingShareManagers.size() > 0) {
+                startOperation("Activating shares");
+                processedOperations = new AtomicLong();
+
+                try (CloseableLock ignored = repository.acquireLock()) {
+                    totalOperations = new AtomicLong(repository.getBlockCount() + repository.getFileCount()
+                            + repository.getDirectoryCount());
+                    log.info("Fetching existing logs");
+
+                    Map<String, List<String>> existingLogs = new HashMap<>();
+                    for (Map.Entry<EncryptionKey, ShareManifestManager> entry : pendingShareManagers.entrySet()) {
+                        entry.getValue().validateIdentity();
+                        existingLogs.put(entry.getKey().getPublicKey(), entry.getValue().getExistingLogs());
+                    }
+
+                    ShareActivateMetadataRepository copyRepository = new ShareActivateMetadataRepository(repository,
+                            this, pendingShares,
+                            pendingShareManagers.entrySet().stream()
+                                    .map(entry -> Map.entry(entry.getKey().getPublicKey(), entry.getValue()))
+                                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                    copyRepository.clear();
+
+                    log.info("Calculating new block storage keys if needed");
+
+                    HashSet<String> usedDestinations = new HashSet<>();
+
+                    repository.allBlocks().forEach((block) -> {
+                        if (isShutdown()) {
+                            throw new CancellationException();
+                        }
+                        for (Map.Entry<EncryptionKey, ShareManifestManager> entry : pendingShareManagers.entrySet()) {
+                            processedOperations.incrementAndGet();
+                            List<BackupBlockStorage> newStorage =
+                                    block.getStorage().stream()
+                                            .map((storage) -> {
+                                                usedDestinations.add(storage.getDestination());
+                                                return EncryptorFactory.getEncryptor(storage.getEncryption())
+                                                        .reKeyStorage(storage, privateKey, entry.getKey());
+                                            })
+                                            .collect(Collectors.toList());
+                            BackupBlockAdditional blockAdditional = BackupBlockAdditional.builder()
+                                    .publicKey(entry.getKey().getPublicKey())
+                                    .used(false)
+                                    .hash(block.getHash())
+                                    .properties(new ArrayList<>())
+                                    .build();
+                            for (int i = 0; i < newStorage.size(); i++) {
+                                Map<String, String> oldProperties = block.getStorage().get(i).getProperties();
+                                blockAdditional.getProperties().add(newStorage
+                                        .get(i)
+                                        .getProperties()
+                                        .entrySet()
+                                        .stream()
+                                        .filter((check) -> !check.getValue().equals(oldProperties.get(check.getKey())))
+                                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                            }
+                            try {
+                                repository.addAdditionalBlock(blockAdditional);
+                            } catch (IOException e) {
+                                throw new RuntimeException("Failed to create share", e);
+                            }
+                        }
+                    });
+
+                    log.info("Writing files to shares");
+
+                    repository.allFiles(true).forEach(file -> {
+                        if (isShutdown()) {
+                            throw new CancellationException();
+                        }
+                        try {
+                            processedOperations.incrementAndGet();
+                            copyRepository.addFile(file);
+                        } catch (IOException e) {
+                            log.error("Failed to write file {}", file.getPath(), e);
+                        }
+                    });
+
+                    log.info("Writing directories to shares");
+
+                    repository.allDirectories(true).forEach(dir -> {
+                        if (isShutdown()) {
+                            throw new CancellationException();
+                        }
+                        try {
+                            processedOperations.incrementAndGet();
+                            copyRepository.addDirectory(dir);
+                        } catch (IOException e) {
+                            log.error("Failed to write file {}", dir.getPath(), e);
+                        }
+                    });
+
+                    log.info("Deleting any existing log files");
+
+                    totalFiles = new AtomicLong(existingLogs.values().stream().map(t -> t.size()).reduce(0, (a, b) -> a + b));
+                    processedFiles = new AtomicLong();
+                    for (Map.Entry<EncryptionKey, ShareManifestManager> entry : pendingShareManagers.entrySet()) {
+                        entry.getValue().flushLog();
+                        entry.getValue().deleteLogFiles(existingLogs.get(entry.getKey().getPublicKey()));
+                        processedFiles.addAndGet(existingLogs.get(entry.getKey().getPublicKey()).size());
+                        entry.getValue().completeActivation();
+
+                        activeShares.put(entry.getKey().getPublicKey(), entry.getValue());
+                    }
+                } catch (CancellationException exc) {
+                    log.warn("Cancelled share activation");
+                } finally {
+                    resetStatus();
+                }
+            }
+        }
+    }
+
+    @Override
     public void resetStatus() {
-        operation = null;
-        totalFiles = null;
-        processedFiles = null;
-        processedOperations = null;
-        operationDuration = null;
+        synchronized (getLock()) {
+            operation = null;
+            totalFiles = null;
+            processedFiles = null;
+            processedOperations = null;
+            operationDuration = null;
+            getLock().notifyAll();
+        }
+    }
+
+    public void flushLog() throws IOException {
+        synchronized (getLock()) {
+            super.flushLog();
+
+            if (activeShares != null) {
+                for (ShareManifestManager others : activeShares.values())
+                    others.flushLog();
+            }
+        }
+    }
+
+    public void shutdown() throws IOException {
+        synchronized (getLock()) {
+            super.shutdown();
+            if (activeShares != null) {
+                for (ShareManifestManager others : activeShares.values())
+                    others.shutdown();
+            }
+            while(operation != null) {
+                try {
+                    getLock().wait();
+                } catch (InterruptedException e) {
+                    log.warn("Failed to wait", e);
+                }
+            }
+        }
     }
 
     @Override

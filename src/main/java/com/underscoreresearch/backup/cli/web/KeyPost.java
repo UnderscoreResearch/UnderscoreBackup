@@ -1,31 +1,31 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rs.RsText;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 public class KeyPost extends JsonWrap {
-    @Data
-    @AllArgsConstructor
-    public static class KeyResponse {
-        private Boolean specified;
-    }
-
-    private static ObjectWriter WRITER = new ObjectMapper()
+    private static ObjectWriter WRITER = MAPPER
             .writerFor(KeyResponse.class);
 
     public KeyPost() {
         super(new Implementation());
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class KeyResponse {
+        private Boolean specified;
     }
 
     private static class Implementation extends BaseImplementation {
@@ -45,7 +45,7 @@ public class KeyPost extends JsonWrap {
                     }
                 }
 
-                InstanceFactory.getInstance(PublicKeyEncrypion.class);
+                InstanceFactory.getInstance(EncryptionKey.class);
                 return new RsText(WRITER.writeValueAsString(new KeyResponse(true)));
             } catch (Exception exc) {
                 return new RsText(WRITER.writeValueAsString(new KeyResponse(false)));

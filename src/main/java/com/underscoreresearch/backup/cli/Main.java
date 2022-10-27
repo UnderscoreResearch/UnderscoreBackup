@@ -19,10 +19,13 @@ import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.ProvisionException;
 import com.google.inject.spi.Message;
+import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public final class Main {
@@ -56,7 +59,7 @@ public final class Main {
             }
         }
 
-        InstanceFactory.initialize(argv, null, null);
+        InstanceFactory.initialize(argv, null);
 
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
@@ -88,10 +91,23 @@ public final class Main {
                     InstanceFactory.getInstance(MetadataRepository.class).open(commandDef.readonlyRepository());
                 }
 
+                if (commandDef.preferNice()) {
+                    InstanceFactory.getInstance(MachineState.class).lowPriority();
+                }
+
                 if (InstanceFactory.getAdditionalSource() != null && !commandDef.supportSource()) {
                     log.error("The specified command can not operate on a secondary source");
                     help();
                     System.exit(1);
+                }
+
+                Command commandInstance = InstanceFactory.getInstance(command);
+
+                if (commandDef.needPrivateKey()) {
+                    EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
+                    String passphrase = EncryptionModule.getPassphrase();
+                    key.getPrivateKey(passphrase);
+                    commandInstance.setPassphrase(passphrase);
                 }
 
                 scheduledThreadPoolExecutor.scheduleAtFixedRate(() -> {
@@ -99,7 +115,6 @@ public final class Main {
                         }, 1, 1,
                         TimeUnit.MINUTES);
 
-                Command commandInstance = InstanceFactory.getInstance(command);
                 commandInstance.executeCommand(commandLine);
                 System.exit(0);
             }

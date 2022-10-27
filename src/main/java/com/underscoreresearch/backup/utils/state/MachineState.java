@@ -51,6 +51,9 @@ public class MachineState {
         }
     }
 
+    public void lowPriority() {
+    }
+
     private synchronized boolean occassionallyGetOnBattery() {
         if (nextCheck.isBefore(Instant.now())) {
             lastValue = getOnBattery();

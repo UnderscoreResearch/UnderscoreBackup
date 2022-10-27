@@ -1,25 +1,17 @@
 package com.underscoreresearch.backup.cli.web;
 
-import java.util.List;
+import static com.underscoreresearch.backup.utils.SerializationUtils.EXTERNAL_BACKUP_FILES_WRITER;
+
 import java.util.stream.Collectors;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rs.RsText;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public class ListDestinationFilesGet extends JsonWrap {
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
-            .writerFor(new TypeReference<List<ExternalBackupFile>>() {
-            });
 
     public ListDestinationFilesGet(String base) {
         super(new Implementation(base));
@@ -43,7 +35,7 @@ public class ListDestinationFilesGet extends JsonWrap {
             }
 
             IOIndex index = (IOIndex) destination.getProvider();
-            return new RsText(WRITER.writeValueAsString(index.availableKeys(destination.getPath()).stream()
+            return new RsText(EXTERNAL_BACKUP_FILES_WRITER.writeValueAsString(index.availableKeys(destination.getPath()).stream()
                     .map(t -> ExternalBackupFile.builder().path(destination.getPath() + t).build())
                     .collect(Collectors.toList())));
         }

@@ -23,14 +23,16 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.block.assignments.EncryptedSmallBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.GzipLargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.LargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.RawLargeFileBlockAssignment;
-import com.underscoreresearch.backup.block.assignments.SmallFileBlockAssignment;
+import com.underscoreresearch.backup.block.assignments.ZipSmallBlockAssignment;
 import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
 import com.underscoreresearch.backup.cli.helpers.BlockRefresher;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.FileScanner;
@@ -57,10 +59,10 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 
 public class BackupModule extends AbstractModule {
     public static final int DEFAULT_LARGE_MAXIMUM_SIZE = 8 * 1024 * 1024 - 10 * 1024;
+    public static final String REPOSITORY_DB_PATH = "REPOSITORY_DB_PATH";
     private static final int DEFAULT_SMALL_FILE_TARGET_SIZE = DEFAULT_LARGE_MAXIMUM_SIZE;
     private static final int DEFAULT_SMALL_FILE_MAXIMUM_SIZE = DEFAULT_SMALL_FILE_TARGET_SIZE / 2;
     private static final int DEFAULT_UPLOAD_THREADS = 4;
-    public static final String REPOSITORY_DB_PATH = "REPOSITORY_DB_PATH";
 
     @Singleton
     @Provides
@@ -102,19 +104,31 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public FileConsumer fileConsumer(MetadataRepository repository,
-                                     SmallFileBlockAssignment smallFileBlockAssignment,
+                                     EncryptedSmallBlockAssignment smallFileBlockAssignment,
                                      LargeFileBlockAssignment largeFileBlockAssignment) {
         return new FileConsumerImpl(repository, Lists.newArrayList(smallFileBlockAssignment, largeFileBlockAssignment));
     }
 
     @Provides
     @Singleton
-    public SmallFileBlockAssignment smallFileBlockAssignment(BackupConfiguration configuration,
-                                                             BlockDownloader blockDownloader,
-                                                             MetadataRepository metadataRepository,
-                                                             FileBlockUploader fileBlockUploader,
-                                                             FileSystemAccess fileSystemAccess) {
-        return new SmallFileBlockAssignment(fileBlockUploader, blockDownloader, metadataRepository, fileSystemAccess,
+    public ZipSmallBlockAssignment zipFileBlockAssignment(BackupConfiguration configuration,
+                                                          BlockDownloader blockDownloader,
+                                                          MetadataRepository metadataRepository,
+                                                          FileBlockUploader fileBlockUploader,
+                                                          FileSystemAccess fileSystemAccess) {
+        return new ZipSmallBlockAssignment(fileBlockUploader, blockDownloader, metadataRepository, fileSystemAccess,
+                configuration.getProperty("smallFileBlockAssignment.maximumSize", DEFAULT_SMALL_FILE_MAXIMUM_SIZE),
+                configuration.getProperty("smallFileBlockAssignment.targetSize", DEFAULT_SMALL_FILE_TARGET_SIZE));
+    }
+
+    @Provides
+    @Singleton
+    public EncryptedSmallBlockAssignment encryptedSmallBlockAssignment(BackupConfiguration configuration,
+                                                                       BlockDownloader blockDownloader,
+                                                                       MetadataRepository metadataRepository,
+                                                                       FileBlockUploader fileBlockUploader,
+                                                                       FileSystemAccess fileSystemAccess) {
+        return new EncryptedSmallBlockAssignment(fileBlockUploader, blockDownloader, metadataRepository, fileSystemAccess,
                 configuration.getProperty("smallFileBlockAssignment.maximumSize", DEFAULT_SMALL_FILE_MAXIMUM_SIZE),
                 configuration.getProperty("smallFileBlockAssignment.targetSize", DEFAULT_SMALL_FILE_TARGET_SIZE));
     }
@@ -142,8 +156,10 @@ public class BackupModule extends AbstractModule {
     @Singleton
     public FileBlockUploaderImpl fileBlockUploader(BackupConfiguration configuration,
                                                    MetadataRepository repository,
-                                                   UploadScheduler uploadScheduler) {
-        return new FileBlockUploaderImpl(configuration, repository, uploadScheduler);
+                                                   UploadScheduler uploadScheduler,
+                                                   ManifestManager manifestManager,
+                                                   EncryptionKey key) {
+        return new FileBlockUploaderImpl(configuration, repository, uploadScheduler, manifestManager, key);
     }
 
     @Provides
@@ -206,6 +222,7 @@ public class BackupModule extends AbstractModule {
                                                              RateLimitController rateLimitController,
                                                              @Named(INSTALLATION_IDENTITY) String installationIdentity,
                                                              @Named(ADDITIONAL_SOURCE) String source,
+                                                             EncryptionKey encryptionKey,
                                                              CommandLine commandLine)
             throws IOException {
         BackupDestination destination = configuration.getDestinations().get(configuration.getManifest()
@@ -218,7 +235,8 @@ public class BackupModule extends AbstractModule {
                 rateLimitController,
                 installationIdentity,
                 source,
-                commandLine.hasOption(FORCE));
+                commandLine.hasOption(FORCE),
+                encryptionKey);
     }
 
     @Provides
@@ -255,12 +273,18 @@ public class BackupModule extends AbstractModule {
     @Provides
     public LoggingMetadataRepository loggingMetadataRepository(MapdbMetadataRepository mapdbMetadata,
                                                                ManifestManager manifest,
+                                                               BackupConfiguration configuration,
                                                                CommandLine commandLine,
                                                                @Named(ADDITIONAL_SOURCE) String source) {
         if (Strings.isNullOrEmpty(source)) {
-            return new LoggingMetadataRepository(mapdbMetadata, manifest, commandLine.hasOption(NO_DELETE_REBUILD));
+            return new LoggingMetadataRepository(mapdbMetadata,
+                    manifest,
+                    configuration.getShares(),
+                    null,
+                    commandLine.hasOption(NO_DELETE_REBUILD));
         }
-        return new LoggingMetadataRepository.Readonly(mapdbMetadata, manifest,
+        return new LoggingMetadataRepository.Readonly(mapdbMetadata,
+                manifest,
                 false);
     }
 
@@ -288,8 +312,10 @@ public class BackupModule extends AbstractModule {
                                          BlockDownloader fileDownloader,
                                          UploadScheduler uploadScheduler,
                                          BackupConfiguration configuration,
+                                         ManifestManager manifestManager,
                                          MetadataRepository repository) {
-        return new BlockRefresher(threads, fileDownloader, uploadScheduler, configuration, repository);
+        return new BlockRefresher(threads, fileDownloader, uploadScheduler, configuration, repository,
+                manifestManager);
     }
 
     @Provides

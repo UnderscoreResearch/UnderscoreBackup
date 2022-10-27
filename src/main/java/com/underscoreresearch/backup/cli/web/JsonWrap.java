@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -11,17 +13,10 @@ import org.takes.tk.TkWithType;
 import org.takes.tk.TkWrap;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 public class JsonWrap extends TkWrap {
-    private static ObjectWriter WRITER = new ObjectMapper().writerFor(Message.class);
-
-    @AllArgsConstructor
-    @Data
-    public static class Message {
-        private String message;
-    }
+    private static ObjectWriter WRITER = MAPPER.writerFor(Message.class);
 
     public JsonWrap(Take take) {
         super(new TkWithType(take, "application/json"));
@@ -33,5 +28,11 @@ public class JsonWrap extends TkWrap {
         } catch (JsonProcessingException e) {
             return new RsWithStatus(new RsText("{\"message\": \"Can't write error message\"}"), code);
         }
+    }
+
+    @AllArgsConstructor
+    @Data
+    public static class Message {
+        private String message;
     }
 }

@@ -1,24 +1,11 @@
 package com.underscoreresearch.backup.cli.web;
 
-import java.util.Set;
-
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rs.RsWithBody;
 import org.takes.rs.RsWithType;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.underscoreresearch.backup.model.BackupFile;
-
 public class DestinationDownloadGet extends JsonWrap {
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
-            .writerFor(new TypeReference<Set<BackupFile>>() {
-            });
 
     public DestinationDownloadGet(String base) {
         super(new Implementation(base));

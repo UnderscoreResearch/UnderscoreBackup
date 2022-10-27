@@ -38,7 +38,7 @@ class LoggingMetadataRepositoryTest {
     public void setup() {
         repository = Mockito.mock(MetadataRepository.class);
         manifestManager = Mockito.mock(ManifestManager.class);
-        loggingMetadataRepository = new LoggingMetadataRepository(repository, manifestManager, 500, false);
+        loggingMetadataRepository = new LoggingMetadataRepository(repository, manifestManager, null, null, 500, false);
         backupFile = new BackupFile();
         backupBlock = new BackupBlock();
         backupFilePart = new BackupFilePart();

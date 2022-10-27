@@ -22,23 +22,6 @@ public class DownloadSchedulerImplTest {
     public void setup() {
     }
 
-    @IOPlugin("DELAY")
-    public static class DelayedFiledownloader implements FileDownloader {
-        @Override
-        public void downloadFile(BackupFile source, String destination) throws IOException {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void shutdown() {
-
-        }
-    }
-
     @Test
     public void testConcurrency() throws IOException {
         DelayedFiledownloader downloader = Mockito.spy(new DelayedFiledownloader());
@@ -48,14 +31,14 @@ public class DownloadSchedulerImplTest {
 
         for (int i = 0; i < 100; i++) {
             int val = i;
-            scheduler.scheduleDownload(BackupFile.builder().path(i + "").length((long) i).build(), val + "");
+            scheduler.scheduleDownload(BackupFile.builder().path(i + "").length((long) i).build(), val + "", "pwd");
         }
 
         assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.greaterThan(900L));
         assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.lessThan(2000L));
         scheduler.waitForCompletion();
 
-        Mockito.verify(downloader, Mockito.times(100)).downloadFile(any(), any());
+        Mockito.verify(downloader, Mockito.times(100)).downloadFile(any(), any(), any());
     }
 
     @Test
@@ -66,7 +49,7 @@ public class DownloadSchedulerImplTest {
         new Thread(() -> {
             for (int i = 0; i < 100; i++) {
                 int val = i;
-                scheduler.scheduleDownload(new BackupFile(), val + "");
+                scheduler.scheduleDownload(new BackupFile(), val + "", "pwd");
             }
         }).start();
 
@@ -78,6 +61,23 @@ public class DownloadSchedulerImplTest {
 
         scheduler.shutdown();
 
-        Mockito.verify(downloader, Mockito.atMost(10)).downloadFile(any(), any());
+        Mockito.verify(downloader, Mockito.atMost(10)).downloadFile(any(), any(), any());
+    }
+
+    @IOPlugin("DELAY")
+    public static class DelayedFiledownloader implements FileDownloader {
+        @Override
+        public void downloadFile(BackupFile source, String destination, String passphrase) throws IOException {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void shutdown() {
+
+        }
     }
 }

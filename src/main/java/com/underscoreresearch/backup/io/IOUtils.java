@@ -19,9 +19,9 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 public final class IOUtils {
     private static final long INTERNET_WAIT = 1000;
     private static final Duration INTERNET_SUCCESS_CACHE = Duration.ofSeconds(2);
+    private static final int DEFAULT_BUFFER_SIZE = 8192;
     private static Instant internetSuccessfulUntil = null;
     private static AtomicBoolean waitingForInternetMessage = new AtomicBoolean();
-    private static final int DEFAULT_BUFFER_SIZE = 8192;
 
     public static byte[] readAllBytes(InputStream stream) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

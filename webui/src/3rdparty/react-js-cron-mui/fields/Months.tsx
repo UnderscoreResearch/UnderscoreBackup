@@ -40,7 +40,6 @@ export default function Months(props: MonthsProps) {
             <CustomSelect
                 placeholder={locale.emptyMonths || DEFAULT_LOCALE_EN.emptyMonths}
                 optionsList={optionsList}
-                grid={false}
                 value={value}
                 unit={{
                     ...UNITS[3],

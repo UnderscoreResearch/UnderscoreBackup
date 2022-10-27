@@ -26,15 +26,6 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 public class BackupPartialFile {
     public static final int SUPER_BLOCK_SIZE = 1000;
     public static final int MINIMUM_EXTRA_BLOCKS = 100;
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PartialCompletedPath {
-        private Long position;
-        private BackupFilePart part;
-    }
-
     private BackupFile file;
     private List<PartialCompletedPath> parts;
     private int superBlocks;
@@ -86,5 +77,13 @@ public class BackupPartialFile {
                     readableNumber(parts.size()), readableNumber(newList.size())));
             parts = newList;
         }
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class PartialCompletedPath {
+        private Long position;
+        private BackupFilePart part;
     }
 }

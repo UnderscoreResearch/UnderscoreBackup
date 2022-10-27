@@ -1,24 +1,20 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rs.RsText;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class ConfigurationGet extends JsonWrap {
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
-            .writerFor(BackupConfiguration.class);
 
     public ConfigurationGet() {
         super(new Implementation());
@@ -31,7 +27,12 @@ public class ConfigurationGet extends JsonWrap {
                 if (InstanceFactory.hasConfiguration(false)) {
                     BackupConfiguration config = InstanceFactory.getInstance(CommandLineModule.SOURCE_CONFIG,
                             BackupConfiguration.class);
-                    return new RsText(WRITER.writeValueAsString(config));
+                    return new RsText(BACKUP_CONFIGURATION_WRITER.writeValueAsString(config));
+                } else if (InstanceFactory.getAdditionalSource() != null) {
+                    log.warn("Have a source but an invalid configuration {}, bailing",
+                            InstanceFactory.getAdditionalSource());
+                    InstanceFactory.reloadConfiguration(null, () -> InteractiveCommand.startBackupIfAvailable());
+                    return actualAct(req);
                 }
             } catch (Exception exc) {
                 log.warn("Failed to read existing config", exc);

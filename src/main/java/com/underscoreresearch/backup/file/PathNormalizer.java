@@ -1,11 +1,11 @@
 package com.underscoreresearch.backup.file;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.regex.Pattern;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+
 import org.apache.commons.lang3.SystemUtils;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -13,6 +13,7 @@ public final class PathNormalizer {
 
     public static final String PATH_SEPARATOR = "/";
     public static final String ROOT = "/";
+    private static Pattern RESOLVE_RELATIVE = Pattern.compile("/(([^/]+/\\.\\.(/|$))|(\\.(/|$)))+");
 
     public static String normalizePath(final String path) {
         if (path.equals(ROOT) || path.equals(File.separator)) {
@@ -39,13 +40,24 @@ public final class PathNormalizer {
         return ret;
     }
 
-    private static Pattern RESOLVE_RELATIVE = Pattern.compile("/(([^/]+/\\.\\.(/|$))|(\\.(/|$)))+");
-
     private static String resolveRelative(String ret) {
         return RESOLVE_RELATIVE.matcher(ret).replaceAll("/");
     }
 
     public static String physicalPath(final String normalizedPath) {
         return normalizedPath.replace(PATH_SEPARATOR, File.separator);
+    }
+
+    public static String combinePaths(String base, String additional) {
+        if (ROOT.equals(base) && SystemUtils.IS_OS_WINDOWS) {
+            return additional;
+        }
+        if (base.endsWith(PATH_SEPARATOR)) {
+            if (additional.startsWith(PATH_SEPARATOR))
+                return base + additional.substring(1);
+            else
+                return base + additional;
+        }
+        return base + PATH_SEPARATOR + additional;
     }
 }

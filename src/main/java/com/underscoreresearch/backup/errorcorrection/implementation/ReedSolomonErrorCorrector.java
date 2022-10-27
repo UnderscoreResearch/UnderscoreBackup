@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.errorcorrection.implementation;
 
+import static com.underscoreresearch.backup.errorcorrection.implementation.ReedSolomonErrorCorrector.RS;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -13,9 +15,10 @@ import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorPlugin;
 import com.underscoreresearch.backup.errorcorrection.implementation.reedsolomon.ReedSolomon;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
-@ErrorCorrectorPlugin("RS")
+@ErrorCorrectorPlugin(RS)
 @Slf4j
 public class ReedSolomonErrorCorrector implements ErrorCorrector {
+    public static final String RS = "RS";
     private static final int ECC_SIZE = 8;
     private static final String DATA_SHARDS = "d";
     private static final String EC_LENGTH = "l";
@@ -33,7 +36,7 @@ public class ReedSolomonErrorCorrector implements ErrorCorrector {
     public List<byte[]> encodeErrorCorrection(BackupBlockStorage storage, byte[] originalData)
             throws Exception {
         storage.addProperty(DATA_SHARDS, Integer.toString(dataShards));
-        storage.setEc("RS");
+        storage.setEc(RS);
         int shardSize = (originalData.length + dataShards - 1) / dataShards;
 
         byte[][] shards = new byte[totalShards][shardSize + ECC_SIZE];
@@ -46,8 +49,9 @@ public class ReedSolomonErrorCorrector implements ErrorCorrector {
                 System.arraycopy(originalData, i * shardSize, shards[i], 0, length);
             }
         }
-        if (originalData.length != shardSize * dataShards)
+        if (originalData.length != shardSize * dataShards) {
             storage.addProperty(EC_LENGTH, Integer.toString(originalData.length));
+        }
 
         ReedSolomon reedSolomon = ReedSolomon.create(dataShards, parityShards);
         reedSolomon.encodeParity(shards, 0, shardSize);

@@ -60,6 +60,17 @@ public final class IOProviderFactory {
         providerClasses.put(type, provider);
     }
 
+    public static synchronized boolean hasProvider(BackupDestination destination) {
+        IOProvider provider = providers.get(destination);
+        if (provider != null) {
+            return true;
+        }
+        Class<? extends IOProvider> clz = providerClasses.get(destination.getType());
+        if (clz == null)
+            return false;
+        return true;
+    }
+
     public static synchronized IOProvider getProvider(BackupDestination destination) {
         IOProvider provider = providers.get(destination);
         if (provider != null) {

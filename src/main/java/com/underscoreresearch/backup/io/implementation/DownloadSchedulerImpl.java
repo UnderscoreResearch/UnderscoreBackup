@@ -4,6 +4,8 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
 import static com.underscoreresearch.backup.utils.LogUtil.readableDuration;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_WRITER;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,9 +23,6 @@ import org.mapdb.Serializer;
 import org.mapdb.serializer.SerializerArrayTuple;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Stopwatch;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -42,9 +41,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
     private Stopwatch duration;
     private DB fileDb;
     private BTreeMap<Object[], String> fileMap;
-
-    private static final ObjectWriter WRITER = new ObjectMapper().writerFor(BackupFile.class);
-    private static final ObjectReader READER = new ObjectMapper().readerFor(BackupFile.class);
+    private String pendingPassphrase;
 
     public DownloadSchedulerImpl(int maximumConcurrency,
                                  FileDownloader fileDownloader) {
@@ -53,7 +50,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
     }
 
     @Override
-    public void scheduleDownload(BackupFile file, String destination) {
+    public void scheduleDownload(BackupFile file, String destination, String passphrase) {
         if (duration == null)
             duration = Stopwatch.createStarted();
 
@@ -63,13 +60,14 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
 
             try {
                 pendingOutstanding.incrementAndGet();
-                fileMap.put(new Object[]{file.getLocations().get(0).getParts().get(0).getBlockHash(), WRITER.writeValueAsString(file)},
+                fileMap.put(new Object[]{file.getLocations().get(0).getParts().get(0).getBlockHash(), BACKUP_FILE_WRITER.writeValueAsString(file)},
                         destination);
+                pendingPassphrase = passphrase;
             } catch (JsonProcessingException e) {
                 log.error("Failed to temporarily serialize backup file", e);
             }
         } else {
-            internalSchedule(file, destination);
+            internalSchedule(file, destination, passphrase);
         }
     }
 
@@ -101,9 +99,9 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                 }
                 try {
                     pendingOutstanding.decrementAndGet();
-                    BackupFile file = READER.readValue((String) entry.getKey()[1]);
+                    BackupFile file = BACKUP_FILE_READER.readValue((String) entry.getKey()[1]);
                     String destination = entry.getValue();
-                    internalSchedule(file, destination);
+                    internalSchedule(file, destination, pendingPassphrase);
                 } catch (JsonProcessingException e) {
                     log.error("Failed to deserialize backup file", e);
                 }
@@ -117,12 +115,14 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
 
             closingFileMap.close();
             closingDb.close();
+
+            pendingPassphrase = null;
         }
 
         super.waitForCompletion();
     }
 
-    private void internalSchedule(BackupFile file, String destination) {
+    private void internalSchedule(BackupFile file, String destination, String passphrase) {
         schedule(() -> {
             try {
                 if (file.getLength() == null) {
@@ -131,13 +131,15 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                 }
                 log.info("Restoring " + file.getPath() + " to " + destination
                         + " (" + readableSize(file.getLength()) + ")");
-                fileDownloader.downloadFile(file, destination);
+                fileDownloader.downloadFile(file, destination, passphrase);
                 debug(() -> log.debug("Restored " + file.getPath()));
                 totalSize.addAndGet(file.getLength());
                 totalCount.incrementAndGet();
             } catch (Exception e) {
-                log.error("Failed to restore file " + file.getPath(), e);
-                failedCount.incrementAndGet();
+                if (!isShutdown()) {
+                    log.error("Failed to restore file " + file.getPath(), e);
+                    failedCount.incrementAndGet();
+                }
             }
         });
     }

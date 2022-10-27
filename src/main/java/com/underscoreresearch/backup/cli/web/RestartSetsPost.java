@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
 import java.io.IOException;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -9,10 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rq.RqPrint;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -20,16 +20,15 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 
 @Slf4j
 public class RestartSetsPost extends JsonWrap {
-    @Data
-    private static class RestartSetRequest {
-        private Set<String> sets;
-    }
-
-    private static final ObjectReader READER = new ObjectMapper()
-            .readerFor(RestartSetRequest.class);
+    private static final ObjectReader READER = MAPPER.readerFor(RestartSetRequest.class);
 
     public RestartSetsPost() {
         super(new Implementation());
+    }
+
+    @Data
+    private static class RestartSetRequest {
+        private Set<String> sets;
     }
 
     private static class Implementation extends BaseImplementation {
@@ -54,7 +53,7 @@ public class RestartSetsPost extends JsonWrap {
                         log.error("Failed to reset pending schedule for set {}", set);
                     }
                 });
-                InstanceFactory.reloadConfiguration(null, null,
+                InstanceFactory.reloadConfiguration(null,
                         () -> InteractiveCommand.startBackupIfAvailable());
                 return messageJson(200, "Updated configuration");
             } catch (Exception exc) {

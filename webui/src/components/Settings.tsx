@@ -465,7 +465,7 @@ export default function Settings(props: SettingsProps) {
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleResetWarningClose} autoFocus>Cancel</Button>
+                <Button onClick={handleResetWarningClose} autoFocus={true}>Cancel</Button>
                 <Button onClick={performResetWarningClose} color="error">
                     Agree
                 </Button>

@@ -56,12 +56,14 @@ public final class EncryptorFactory {
         return InstanceFactory.getInstance(clz);
     }
 
-    public static byte[] encryptBlock(String encryption, BackupBlockStorage storage, byte[] data) {
-        storage.setEncryption(encryption);
-        return getEncryptor(encryption).encryptBlock(storage, data);
+    public static byte[] encryptBlock(String encryption, BackupBlockStorage storage, byte[] data, EncryptionKey key) {
+        if (storage != null) {
+            storage.setEncryption(encryption);
+        }
+        return getEncryptor(encryption).encryptBlock(storage, data, key);
     }
 
-    public static byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData) {
-        return getEncryptor(storage.getEncryption()).decodeBlock(storage, encryptedData);
+    public static byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, EncryptionKey.PrivateKey key) {
+        return getEncryptor(storage.getEncryption()).decodeBlock(storage, encryptedData, key);
     }
 }

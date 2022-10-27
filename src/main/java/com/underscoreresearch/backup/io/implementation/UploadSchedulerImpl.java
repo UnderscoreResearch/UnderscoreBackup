@@ -29,6 +29,14 @@ public class UploadSchedulerImpl extends SchedulerImpl implements StatusLogger, 
         this.rateLimitController = rateLimitController;
     }
 
+    public static String splitHash(String hash) {
+        if (hash.length() > 4) {
+            return hash.substring(0, 2) + PATH_SEPARATOR + hash.substring(2, 4) + PATH_SEPARATOR + hash.substring(4);
+        }
+
+        return hash;
+    }
+
     @Override
     public void scheduleUpload(BackupDestination destination, String hash, int index, byte[] data, BackupUploadCompletion completionPromise) {
         String suggestedKey = PREFIX + splitHash(hash) + PATH_SEPARATOR + index;
@@ -50,14 +58,6 @@ public class UploadSchedulerImpl extends SchedulerImpl implements StatusLogger, 
         };
 
         schedule(runnable);
-    }
-
-    public static String splitHash(String hash) {
-        if (hash.length() > 4) {
-            return hash.substring(0, 2) + PATH_SEPARATOR + hash.substring(2, 4) + PATH_SEPARATOR + hash.substring(4);
-        }
-
-        return hash;
     }
 
     @Override

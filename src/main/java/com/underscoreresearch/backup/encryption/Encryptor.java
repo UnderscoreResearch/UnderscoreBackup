@@ -3,9 +3,9 @@ package com.underscoreresearch.backup.encryption;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 public interface Encryptor {
-    byte[] encryptBlock(BackupBlockStorage storage, byte[] data);
+    byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key);
 
-    byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData);
+    byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, EncryptionKey.PrivateKey key);
 
     default void backfillEncryption(BackupBlockStorage storage, byte[] encryptedBlob) {
     }
@@ -15,6 +15,6 @@ public interface Encryptor {
     }
 
     BackupBlockStorage reKeyStorage(BackupBlockStorage storage,
-                                    PublicKeyEncrypion oldPrivateKey,
-                                    PublicKeyEncrypion newPublicKey);
+                                    EncryptionKey.PrivateKey oldPrivateKey,
+                                    EncryptionKey newPublicKey);
 }

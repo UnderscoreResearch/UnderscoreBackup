@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.SecureRandom;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,19 +18,26 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 class AesEncryptorTest {
-    private PublicKeyEncrypion key;
-    private PublicKeyEncrypion publicKey;
+    private EncryptionKey key;
     private AesEncryptor encryptor;
     private AesEncryptor decryptor;
 
+    public static synchronized BackupBlockStorage getFirstAdditionalStorage(BackupBlockStorage root) {
+        return root.getAdditionalStorageProperties().entrySet().stream().map(e -> {
+            Map<String, String> additionalProperties = new HashMap<>(root.getProperties());
+            additionalProperties.putAll(e.getValue());
+            BackupBlockStorage storage = root.toBuilder().properties(additionalProperties).build();
+            return storage;
+        }).findFirst().get();
+    }
+
     @BeforeEach
     public void setup() {
-        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
-        key = PublicKeyEncrypion.generateKeyWithPassphrase("Seed", null);
-        publicKey = key.publicOnly();
+        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null);
+        key = EncryptionKey.generateKeyWithPassphrase("Seed");
 
-        encryptor = new AesEncryptor(publicKey);
-        decryptor = new AesEncryptor(key);
+        encryptor = new AesEncryptor();
+        decryptor = new AesEncryptor();
     }
 
     @Test
@@ -38,9 +47,9 @@ class AesEncryptorTest {
             byte[] data = new byte[i];
             random.nextBytes(data);
 
-            byte[] encryptedData = encryptor.encryptBlock(null, data);
-            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(null, encryptedData));
-            byte[] decryptedData = decryptor.decodeBlock(null, encryptedData);
+            byte[] encryptedData = encryptor.encryptBlock(null, data, key);
+            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(null, encryptedData, new EncryptionKey.PrivateKey(null, null, null)));
+            byte[] decryptedData = decryptor.decodeBlock(null, encryptedData, key.getPrivateKey("Seed"));
 
             assertThat(decryptedData, Is.is(data));
         }
@@ -48,16 +57,16 @@ class AesEncryptorTest {
 
     @Test
     public void legacyExplicit() {
-        AesEncryptorFormat encryptorFormat = new AesEncryptorCbc(publicKey);
+        AesEncryptorFormat encryptorFormat = new AesEncryptorCbc();
 
         SecureRandom random = new SecureRandom();
         for (int i = 1; i < 256; i++) {
             byte[] data = new byte[i];
             random.nextBytes(data);
 
-            byte[] encryptedData = encryptorFormat.encryptBlock(null, data);
-            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(null, encryptedData));
-            byte[] decryptedData = decryptor.decodeBlock(null, encryptedData);
+            byte[] encryptedData = encryptorFormat.encryptBlock(null, data, key);
+            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(null, encryptedData, new EncryptionKey.PrivateKey(null, null, null)));
+            byte[] decryptedData = decryptor.decodeBlock(null, encryptedData, key.getPrivateKey("Seed"));
 
             assertThat(decryptedData, Is.is(data));
         }
@@ -65,18 +74,18 @@ class AesEncryptorTest {
 
     @Test
     public void legacyImplicit() {
-        AesEncryptorFormat encryptorFormat = new AesEncryptorCbc(publicKey);
+        AesEncryptorFormat encryptorFormat = new AesEncryptorCbc();
 
         SecureRandom random = new SecureRandom();
         for (int i = 1; i < 256; i++) {
             byte[] data = new byte[i];
             random.nextBytes(data);
 
-            byte[] encryptedData = encryptorFormat.encryptBlock(null, data);
+            byte[] encryptedData = encryptorFormat.encryptBlock(null, data, key);
             byte[] strippedFirstByte = new byte[encryptedData.length - 1];
             System.arraycopy(encryptedData, 1, strippedFirstByte, 0, strippedFirstByte.length);
-            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(null, strippedFirstByte));
-            byte[] decryptedData = decryptor.decodeBlock(null, strippedFirstByte);
+            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(null, strippedFirstByte, new EncryptionKey.PrivateKey(null, null, null)));
+            byte[] decryptedData = decryptor.decodeBlock(null, strippedFirstByte, key.getPrivateKey("Seed"));
 
             assertThat(decryptedData, Is.is(data));
         }
@@ -91,18 +100,46 @@ class AesEncryptorTest {
 
             BackupBlockStorage storage = new BackupBlockStorage();
             assertFalse(encryptor.validStorage(storage));
-            byte[] encryptedData = encryptor.encryptBlock(storage, data);
-            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(storage, encryptedData));
-            byte[] decryptedData = decryptor.decodeBlock(storage, encryptedData);
+            byte[] encryptedData = encryptor.encryptBlock(storage, data, key);
+            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(storage, encryptedData, new EncryptionKey.PrivateKey(null, null, null)));
+            byte[] decryptedData = decryptor.decodeBlock(storage, encryptedData, key.getPrivateKey("Seed"));
             assertNotNull(storage.getProperties().get("p"));
 
             assertTrue(encryptor.validStorage(storage));
 
             assertThat(decryptedData, Is.is(data));
 
-            PublicKeyEncrypion otherKey = PublicKeyEncrypion.generateKeys();
-            byte[] otherData = new AesEncryptor(otherKey.publicOnly()).encryptBlock(new BackupBlockStorage(), data);
+            EncryptionKey otherKey = EncryptionKey.generateKeys();
+            byte[] otherData = new AesEncryptor().encryptBlock(new BackupBlockStorage(),
+                    data, otherKey.publicOnly());
             assertThat(encryptedData, Is.is(otherData));
         }
     }
+
+    @Test
+    public void withAdditionalStorage() {
+        SecureRandom random = new SecureRandom();
+        for (int i = 1; i < 256; i++) {
+            byte[] data = new byte[i];
+            random.nextBytes(data);
+
+            BackupBlockStorage storage = new BackupBlockStorage();
+            assertFalse(encryptor.validStorage(storage));
+            EncryptionKey additionalKey = EncryptionKey.generateKeys();
+            storage.getAdditionalStorageProperties().put(additionalKey.shareableKey(), new HashMap<>());
+            byte[] encryptedData = encryptor.encryptBlock(storage, data, key);
+            assertThrows(IllegalStateException.class, () -> encryptor.decodeBlock(storage, encryptedData, new EncryptionKey.PrivateKey(null, null, null)));
+            byte[] decryptedData = decryptor.decodeBlock(storage, encryptedData, key.getPrivateKey("Seed"));
+            assertNotNull(storage.getProperties().get("p"));
+
+            assertTrue(encryptor.validStorage(storage));
+
+            assertThat(decryptedData, Is.is(data));
+
+            decryptedData = new AesEncryptor().decodeBlock(
+                    getFirstAdditionalStorage(storage), encryptedData, additionalKey.getPrivateKey(null));
+            assertThat(decryptedData, Is.is(data));
+        }
+    }
+
 }

@@ -31,40 +31,6 @@ import java.util.Arrays;
  * implementation</a>.
  */
 final class Curve25519 {
-    /**
-     * Best effort fix-timing array comparison.
-     *
-     * @return true if two arrays are equal.
-     */
-    private static final boolean byteEqual(final byte[] x, final byte[] y) {
-        if (x == null || y == null) {
-            return false;
-        }
-        if (x.length != y.length) {
-            return false;
-        }
-        int res = 0;
-        for (int i = 0; i < x.length; i++) {
-            res |= x[i] ^ y[i];
-        }
-        return res == 0;
-    }
-
-    /**
-     * Encodes a byte array to hex.
-     */
-    public static String hexEncode(final byte[] bytes) {
-        String chars = "0123456789abcdef";
-        StringBuilder result = new StringBuilder(2 * bytes.length);
-        for (byte b : bytes) {
-            // convert to unsigned
-            int val = b & 0xff;
-            result.append(chars.charAt(val / 16));
-            result.append(chars.charAt(val % 16));
-        }
-        return result.toString();
-    }
-
     // https://cr.yp.to/ecdh.html#validate doesn't recommend validating peer's public key. However,
     // validating public key doesn't harm security and in certain cases, prevents unwanted edge
     // cases.
@@ -150,6 +116,40 @@ final class Curve25519 {
                             (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0x7f
                     }
             };
+
+    /**
+     * Best effort fix-timing array comparison.
+     *
+     * @return true if two arrays are equal.
+     */
+    private static final boolean byteEqual(final byte[] x, final byte[] y) {
+        if (x == null || y == null) {
+            return false;
+        }
+        if (x.length != y.length) {
+            return false;
+        }
+        int res = 0;
+        for (int i = 0; i < x.length; i++) {
+            res |= x[i] ^ y[i];
+        }
+        return res == 0;
+    }
+
+    /**
+     * Encodes a byte array to hex.
+     */
+    public static String hexEncode(final byte[] bytes) {
+        String chars = "0123456789abcdef";
+        StringBuilder result = new StringBuilder(2 * bytes.length);
+        for (byte b : bytes) {
+            // convert to unsigned
+            int val = b & 0xff;
+            result.append(chars.charAt(val / 16));
+            result.append(chars.charAt(val % 16));
+        }
+        return result.toString();
+    }
 
     /**
      * Computes Montgomery's double-and-add formulas.

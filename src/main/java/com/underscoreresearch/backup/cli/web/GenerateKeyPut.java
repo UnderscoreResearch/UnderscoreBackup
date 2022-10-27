@@ -5,7 +5,6 @@ import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePriv
 import org.apache.commons.cli.CommandLine;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 
 import com.underscoreresearch.backup.cli.commands.GenerateKeyCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;

@@ -32,8 +32,20 @@ public class BackupSetRoot {
         this.filters = filters;
     }
 
+    private static String withFinalSeparator(String path) {
+        if (path.endsWith(PATH_SEPARATOR))
+            return path;
+        return path + PATH_SEPARATOR;
+    }
+
+    public static String withoutFinalSeparator(String path) {
+        if (path.endsWith(PATH_SEPARATOR))
+            return path.substring(0, path.length() - 1);
+        return path;
+    }
+
     @JsonIgnore
-    public boolean includeFile(String file, BackupSet set) {
+    public boolean includeFile(String file, BackupFileSelection set) {
         if (inRoot(file)) {
             if (file.endsWith(PATH_SEPARATOR)) {
                 file = file.substring(0, file.length() - PATH_SEPARATOR.length());
@@ -63,18 +75,6 @@ public class BackupSetRoot {
         }
     }
 
-    private static String withFinalSeparator(String path) {
-        if (path.endsWith(PATH_SEPARATOR))
-            return path;
-        return path + PATH_SEPARATOR;
-    }
-
-    public static String withoutFinalSeparator(String path) {
-        if (path.endsWith(PATH_SEPARATOR))
-            return path.substring(0, path.length() - 1);
-        return path;
-    }
-
     @JsonIgnore
     public boolean inRoot(String file) {
         return withoutFinalSeparator(file).equals(withoutFinalSeparator(normalizedPath))
@@ -92,7 +92,7 @@ public class BackupSetRoot {
                 String subPath = getSubPath(path);
                 if (filters != null) {
                     for (BackupFilter filter : filters) {
-                        String filterPath = filter.fileMatch(subPath);
+                        String filterPath = filter.directoryMatch(subPath);
                         if (filterPath != null) {
                             return filter.includeMatchedDirectory(filterPath, subPath);
                         }

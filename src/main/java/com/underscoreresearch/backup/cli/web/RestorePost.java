@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,12 +18,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rq.RqPrint;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.block.FileDownloader;
@@ -37,8 +36,12 @@ import com.underscoreresearch.backup.model.BackupSetRoot;
 
 @Slf4j
 public class RestorePost extends JsonWrap {
-    private static final ObjectReader READER = new ObjectMapper()
-            .readerFor(BackupRestoreRequest.class);
+    private static final ObjectReader READER = MAPPER.readerFor(BackupRestoreRequest.class);
+    private static ObjectWriter WRITER = MAPPER.writerFor(com.underscoreresearch.backup.cli.web.KeyPost.KeyResponse.class);
+
+    public RestorePost() {
+        super(new Implementation());
+    }
 
     @Data
     @NoArgsConstructor
@@ -66,13 +69,6 @@ public class RestorePost extends JsonWrap {
         }
     }
 
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .writerFor(com.underscoreresearch.backup.cli.web.KeyPost.KeyResponse.class);
-
-    public RestorePost() {
-        super(new Implementation());
-    }
-
     private static class Implementation extends BaseImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
@@ -90,7 +86,7 @@ public class RestorePost extends JsonWrap {
                 return messageJson(400, "Missing files to restore");
             }
 
-            InstanceFactory.reloadConfiguration(request.getPassphrase(), InstanceFactory.getAdditionalSource());
+            InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource());
             new Thread(() -> {
                 AtomicBoolean restart = new AtomicBoolean(true);
                 try {
@@ -122,7 +118,7 @@ public class RestorePost extends JsonWrap {
                     String destination = request.getDestination();
 
                     try {
-                        RestoreExecutor restoreExecutor = new RestoreExecutor(contents);
+                        RestoreExecutor restoreExecutor = new RestoreExecutor(contents, request.getPassphrase());
                         if (destination != null && !isNullFile(destination)) {
                             new File(destination).mkdirs();
                         }
@@ -137,7 +133,7 @@ public class RestorePost extends JsonWrap {
                 InstanceFactory.waitForShutdown();
 
                 if (restart.get()) {
-                    InstanceFactory.reloadConfiguration(null, InstanceFactory.getAdditionalSource(),
+                    InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
                             () -> InteractiveCommand.startBackupIfAvailable());
                 }
             }, "RestorePost").start();

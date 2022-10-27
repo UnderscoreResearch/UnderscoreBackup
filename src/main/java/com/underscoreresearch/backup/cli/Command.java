@@ -9,7 +9,7 @@ import org.apache.commons.cli.CommandLine;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 public abstract class Command {
-    public abstract void executeCommand(CommandLine commandLine) throws Exception;
+    private String passphrase;
 
     public static String args(Class<? extends Command> clz) {
         CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
@@ -39,18 +39,6 @@ public abstract class Command {
         return true;
     }
 
-    public String name() {
-        return name(this.getClass());
-    }
-
-    public String description() {
-        return name(this.getClass());
-    }
-
-    public boolean needPrivateKey() {
-        return needPrivateKey(this.getClass());
-    }
-
     @SuppressWarnings("unchecked")
     public static List<Class<? extends Command>> allCommandClasses() {
         List<Class<? extends Command>> commands = new ArrayList<>();
@@ -68,5 +56,27 @@ public abstract class Command {
             }
         }
         return null;
+    }
+
+    public abstract void executeCommand(CommandLine commandLine) throws Exception;
+
+    public String name() {
+        return name(this.getClass());
+    }
+
+    public String description() {
+        return name(this.getClass());
+    }
+
+    public String getPassphrase() {
+        return passphrase;
+    }
+
+    public void setPassphrase(String passphrase) {
+        this.passphrase = passphrase;
+    }
+
+    public boolean needPrivateKey() {
+        return needPrivateKey(this.getClass());
     }
 }

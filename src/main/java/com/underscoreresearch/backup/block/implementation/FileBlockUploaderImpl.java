@@ -3,22 +3,24 @@ package com.underscoreresearch.backup.block.implementation;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupCompletion;
@@ -30,13 +32,25 @@ import com.underscoreresearch.backup.model.BackupUploadCompletion;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
-@RequiredArgsConstructor
 @Slf4j
 public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
     private final BackupConfiguration configuration;
     private final MetadataRepository repository;
     private final UploadScheduler uploadScheduler;
     private final AtomicLong totalBlocks = new AtomicLong();
+    private final ManifestManager manifestManager;
+    private final EncryptionKey key;
+    private Set<String> activatedShares;
+
+    public FileBlockUploaderImpl(BackupConfiguration configuration, MetadataRepository repository,
+                                 UploadScheduler uploadScheduler, ManifestManager manifestManager,
+                                 EncryptionKey key) {
+        this.configuration = configuration;
+        this.repository = repository;
+        this.uploadScheduler = uploadScheduler;
+        this.manifestManager = manifestManager;
+        this.key = key;
+    }
 
     @Override
     public void uploadBlock(BackupSet set,
@@ -44,6 +58,14 @@ public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
                             String blockHash,
                             String format,
                             BackupCompletion completionFuture) {
+        if (activatedShares == null) {
+            synchronized (this) {
+                if (activatedShares == null) {
+                    activatedShares = manifestManager.getActivatedShares().keySet();
+                }
+            }
+        }
+
         BackupBlock block = BackupBlock.builder()
                 .format(format)
                 .hash(blockHash)
@@ -92,13 +114,21 @@ public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
 
                 List<byte[]> parts;
                 {
-                    byte[] encrypted = EncryptorFactory.encryptBlock(destination.getEncryption(), storage, unencryptedData.getData());
+                    if (configuration.getShares() != null) {
+                        for (String key : configuration.getShares().keySet())
+                            if (activatedShares.contains(key))
+                                storage.getAdditionalStorageProperties().put(EncryptionKey.createWithPublicKey(key),
+                                        new HashMap<>());
+                    }
+                    byte[] encrypted = EncryptorFactory.encryptBlock(destination.getEncryption(),
+                            storage, unencryptedData.getData(), key);
                     if (destinationsLeft <= 0)
                         unencryptedData.clear();
 
                     parts = ErrorCorrectorFactory.encodeBlocks(destination.getErrorCorrection(), storage, encrypted);
                 }
                 storage.setParts(new ArrayList<>(parts.size()));
+
                 for (int i = 0; i < parts.size(); i++) {
                     storage.getParts().add(null);
                     int currentIndex = i;
