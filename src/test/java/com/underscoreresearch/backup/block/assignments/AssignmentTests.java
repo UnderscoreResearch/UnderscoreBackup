@@ -199,7 +199,7 @@ class AssignmentTests {
 
     @Test
     public void zipUpload() throws InterruptedException {
-        SmallFileBlockAssignment fileBlockAssignment = new SmallFileBlockAssignment(uploader,
+        SmallFileBlockAssignment fileBlockAssignment = new ZipSmallBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class),
                 repository, access, 150, 300);
         expectedFormat = "ZIP";
@@ -254,7 +254,7 @@ class AssignmentTests {
 
     @Test
     public void zipUploadExists() throws InterruptedException {
-        SmallFileBlockAssignment largeFileBlockAssignment = new SmallFileBlockAssignment(uploader,
+        SmallFileBlockAssignment largeFileBlockAssignment = new ZipSmallBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class),
                 repository, access, 150, 300);
         expectedFormat = "ZIP";
@@ -288,7 +288,7 @@ class AssignmentTests {
 
     @Test
     public void zipUploadExistsWrongDestination() throws InterruptedException {
-        SmallFileBlockAssignment largeFileBlockAssignment = new SmallFileBlockAssignment(uploader,
+        SmallFileBlockAssignment largeFileBlockAssignment = new ZipSmallBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class), repository, access, 150, 300);
         expectedFormat = "ZIP";
         registerPart = true;
@@ -304,6 +304,55 @@ class AssignmentTests {
 
         assertThat(uploadedData.size(), Matchers.greaterThan(0));
 
+        assertFalse(failed.get());
+    }
+
+
+    @Test
+    public void encryptedUploadDownload() throws InterruptedException, IOException {
+        BlockDownloader downloader = Mockito.mock(BlockDownloader.class);
+        Mockito.when(downloader.downloadBlock(Mockito.anyString(), Mockito.eq("pwd"))).thenAnswer((t) ->
+                uploadedData.get(t.getArgument(0)));
+        SmallFileBlockAssignment fileBlockAssignment = new EncryptedSmallBlockAssignment(uploader,
+                downloader, repository, access, 150, 300);
+        expectedFormat = "ENC";
+
+        AtomicBoolean failed = new AtomicBoolean();
+        for (int i = 1; i <= 300; i++) {
+            BackupFile file = BackupFile.builder().path(i + "").length((long) i).lastChanged((long) i).build();
+            int size = i;
+            if (size <= 150) {
+                assertThat(fileBlockAssignment.assignBlocks(set, file, (locations) -> {
+                    try {
+                        synchronized (uploadedData) {
+                            int index = 0;
+                            for (BackupFilePart part : locations.get(0).getParts()) {
+                                byte[] data = fileBlockAssignment.extractPart(part, null, "pwd");
+                                index = data.length;
+
+                                byte[] buffer = new byte[index];
+                                for (int j = 0; j < index; j++) {
+                                    buffer[j] = (byte) j;
+                                }
+                                assertThat(data, Is.is(buffer));
+                            }
+                            assertThat(index, Is.is(size));
+                            assertThat(locations.size(), Is.is(1));
+                            assertThat(locations.get(0).getParts().size(), Is.is(1));
+                        }
+                    } catch (Throwable exc) {
+                        failed.set(true);
+                        throw new RuntimeException(exc);
+                    }
+                }), Is.is(true));
+            } else {
+                assertThat(fileBlockAssignment.assignBlocks(set, file, (doh) -> {
+                }), Is.is(false));
+            }
+        }
+        fileBlockAssignment.flushAssignments();
+
+        Thread.sleep(100);
         assertFalse(failed.get());
     }
 }

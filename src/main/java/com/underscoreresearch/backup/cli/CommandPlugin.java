@@ -21,4 +21,6 @@ public @interface CommandPlugin {
     boolean readonlyRepository() default true;
 
     boolean supportSource() default false;
+
+    boolean preferNice() default false;
 }

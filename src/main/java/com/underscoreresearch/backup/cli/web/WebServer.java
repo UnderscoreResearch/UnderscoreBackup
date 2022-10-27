@@ -46,40 +46,15 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 @Slf4j
 public class WebServer {
     private static final Opt<Identity> AUTHENTICATED = new Opt.Single<Identity>(new Identity.Simple("urn:users:root"));
+    private static WebServer server;
     private ServerSocket socket;
     private String base;
-
-    private static WebServer server;
 
     public static synchronized WebServer getInstance() {
         if (server == null) {
             server = new WebServer();
         }
         return server;
-    }
-
-    private class PsNoAuthConfigured implements Pass {
-
-        @Override
-        public Opt<Identity> enter(Request request) throws Exception {
-            try {
-                if (InstanceFactory.hasConfiguration(false)) {
-                    BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
-                    String configUser = config.getManifest().getConfigUser();
-                    String configPassword = config.getManifest().getConfigPassword();
-                    if (configUser != null && configPassword != null) {
-                        return new Opt.Empty<Identity>();
-                    }
-                }
-            } catch (Exception exc) {
-            }
-            return AUTHENTICATED;
-        }
-
-        @Override
-        public Response exit(Response response, Identity identity) throws Exception {
-            return response;
-        }
     }
 
     public void start(boolean developerMode) {
@@ -111,55 +86,77 @@ public class WebServer {
             Take serviceTake = new TkForward(
                     new TkAuth(
                             new TkFork(
+                                    new FkRegex(base + "/api", new TkFork(
+                                            new FkMethods("DELETE", new ResetDelete()))),
+                                    new FkRegex(base + "/api/activity", new TkFork(
+                                            new FkMethods("GET", new ActivityGet())
+                                    )),
+                                    new FkRegex(base + "/api/auth-endpoint", new TkFork(
+                                            new FkMethods("GET", new AuthEndpointGet(address, getConfigurationUrl()))
+                                    )),
+                                    new FkRegex(base + "/api/backup/pause", new TkFork(
+                                            new FkMethods("GET", new BackupPauseGet()))),
+                                    new FkRegex(base + "/api/backup-download/.*", new TkFork(
+                                            new FkMethods("POST", new BackupDownloadPost(base)))),
+                                    new FkRegex(base + "/api/backup-files(/.*)?", new TkFork(
+                                            new FkMethods("GET", new ListBackupFilesGet(base))
+                                    )),
+                                    new FkRegex(base + "/api/backup-versions(/.*)?", new TkFork(
+                                            new FkMethods("GET", new ListBackupVersionsGet(base))
+                                    )),
                                     new FkRegex(base + "/api/configuration", new TkFork(
                                             new FkMethods("GET", new ConfigurationGet()),
                                             new FkMethods("POST", new ConfigurationPost()))),
-                                    new FkRegex(base + "/api/defaults", new DefaultsGet()),
-                                    new FkRegex(base + "/api/remote-configuration", new RemoteConfigurationGet()),
-                                    new FkRegex(base + "/api/restore", new TkFork(
-                                            new FkMethods("POST", new RestorePost()))),
+                                    new FkRegex(base + "/api/state", new TkFork(
+                                            new FkMethods("GET", new StateGet())
+                                    )),
+                                    new FkRegex(base + "/api/destination-download/.*", new TkFork(
+                                            new FkMethods("GET", new DestinationDownloadGet(base))
+                                    )),
+                                    new FkRegex(base + "/api/destination-files(/.*)?", new TkFork(
+                                            new FkMethods("GET", new ListDestinationFilesGet(base))
+                                    )),
+                                    new FkRegex(base + "/api/encryption-key", new TkFork(
+                                            new FkMethods("POST", new KeyPost()),
+                                            new FkMethods("PUT", new GenerateKeyPut()))),
+                                    new FkRegex(base + "/api/encryption-key/additional", new TkFork(
+                                            new FkMethods("PUT", new AdditionalKeyPut()),
+                                            new FkMethods("POST", new AdditionalKeysPost()))),
+                                    new FkRegex(base + "/api/encryption-key/change", new TkFork(
+                                            new FkMethods("POST", new KeyChangePost()))),
+                                    new FkRegex(base + "/api/local-files(/.*)?", new TkFork(
+                                            new FkMethods("GET", new ListLocalFilesGet(base))
+                                    )),
                                     new FkRegex(base + "/api/remote-configuration/rebuild", new TkFork(
                                             new FkMethods("POST", new RemoteRestorePost()))),
-                                    new FkRegex(base + "/api/backup/pause", new TkFork(
-                                            new FkMethods("GET", new BackupPauseGet()))),
                                     new FkRegex(base + "/api/sets/restart", new TkFork(
                                             new FkMethods("POST", new RestartSetsPost()))),
-
-                                    new FkRegex(base + "/api/local-files(/.*)?", new ListLocalFilesGet(base)),
-                                    new FkRegex(base + "/api/backup-files(/.*)?", new ListBackupFilesGet(base)),
-                                    new FkRegex(base + "/api/search-backup", new SearchBackupFilesGet(base)),
-                                    new FkRegex(base + "/api/backup-versions(/.*)?", new ListBackupVersionsGet(base)),
-                                    new FkRegex(base + "/api/destination-files(/.*)?", new ListDestinationFilesGet(base)),
-                                    new FkRegex(base + "/api/activity", new ActivityGet()),
-
-                                    new FkRegex(base + "/api/backup-download/.*", new TkFork(
-                                            new FkMethods("POST", new BackupDownloadPost(base)))),
-                                    new FkRegex(base + "/api/destination-download/.*", new DestinationDownloadGet(base)),
-                                    new FkRegex(base + "/api/auth-endpoint", new AuthEndpointGet(address, getConfigurationUrl())),
-                                    new FkRegex(base + "/api/shutdown", new ShutdownGet()),
-
+                                    new FkRegex(base + "/api/remote-configuration", new TkFork(
+                                            new FkMethods("GET", new RemoteConfigurationGet())
+                                    )),
+                                    new FkRegex(base + "/api/restore", new TkFork(
+                                            new FkMethods("POST", new RestorePost()))),
+                                    new FkRegex(base + "/api/search-backup", new TkFork(
+                                            new FkMethods("GET", new SearchBackupFilesGet(base))
+                                    )),
+                                    new FkRegex(base + "/api/shares", new TkFork(
+                                            new FkMethods("GET", new ActiveSharesGet()),
+                                            new FkMethods("POST", new ActivateSharesPost()))),
+                                    new FkRegex(base + "/api/shutdown", new TkFork(
+                                            new FkMethods("GET", new ShutdownGet())
+                                    )),
                                     new FkRegex(base + "/api/sources/[^\\/]*", new TkFork(
                                             new FkMethods("POST", new SourceSelectPost(base))
                                     )),
 
-                                    new FkRegex(base + "/api/encryption-key", new TkFork(
-                                            new FkMethods("POST", new KeyPost()),
-                                            new FkMethods("PUT", new GenerateKeyPut()))),
-
-                                    new FkRegex(base + "/api", new TkFork(
-                                            new FkMethods("DELETE", new ResetDelete()))),
-
-                                    new FkRegex(base + "/api/encryption-key/change", new TkFork(
-                                            new FkMethods("POST", new KeyChangePost()))),
-
                                     createIndexPath(base),
-                                    createIndexPath(base + "/status"),
-                                    createIndexPath(base + "/sets"),
                                     createIndexPath(base + "/destinations"),
-                                    createIndexPath(base + "/sources"),
-                                    createIndexPath(base + "/share"),
-                                    createIndexPath(base + "/settings"),
                                     createIndexPath(base + "/restore"),
+                                    createIndexPath(base + "/sets"),
+                                    createIndexPath(base + "/status"),
+                                    createIndexPath(base + "/settings"),
+                                    createIndexPath(base + "/share"),
+                                    createIndexPath(base + "/sources"),
 
                                     createFiletypePath("css", "text/css"),
                                     createFiletypePath("html", "text/html"),
@@ -167,10 +164,17 @@ public class WebServer {
                                     createFiletypePath("woff", "font/woff"),
                                     createFiletypePath("woff2", "font/woff2"),
                                     createFiletypePath("ttf", "font/ttf"),
+
                                     new FkRegex("/favicon.+\\.ico",
-                                            new TkWithType(new StrippedPrefixClasspath("", "/web"), "image/x-icon")),
+                                            new TkFork(
+                                                    new FkMethods("GET",
+                                                            new TkWithType(new StrippedPrefixClasspath("", "/web"), "image/x-icon"))
+                                            )),
                                     new FkRegex("/manifest\\.webmanifest",
-                                            new TkWithType(new StrippedPrefixClasspath("", "/web"), "application/manifest+json"))
+                                            new TkFork(
+                                                    new FkMethods("GET",
+                                                            new TkWithType(new StrippedPrefixClasspath("", "/web"), "application/manifest+json"))
+                                            ))
                             ),
                             new PsChain(
                                     new PsNoAuthConfigured(),
@@ -232,8 +236,10 @@ public class WebServer {
     }
 
     private Fork createIndexPath(String base) {
-        return new FkRegex(base, new TkWithType(new StrippedPrefixClasspath(base, "/web/index.html"),
-                "text/html"));
+        return new FkRegex(base, new TkFork(
+                new FkMethods("GET", new TkWithType(new StrippedPrefixClasspath(base, "/web/index.html"),
+                        "text/html"))
+        ));
     }
 
     public void launchPage() {
@@ -255,7 +261,7 @@ public class WebServer {
         if (address.isAnyLocalAddress()) {
             try {
                 hostname = InetAddress.getLocalHost().getHostName();
-            } catch (UnknownHostException e) {
+            } catch (UnknownHostException ignored) {
             }
         }
         try {
@@ -268,6 +274,33 @@ public class WebServer {
 
     private Fork createFiletypePath(String extension, String contentType) {
         return new FkRegex(base + "/[^\\/].+\\." + extension,
-                new TkWithType(new StrippedPrefixClasspath(base, "/web"), contentType));
+                new TkFork(
+                        new FkMethods("GET",
+                                new TkWithType(new StrippedPrefixClasspath(base, "/web"), contentType))
+                ));
+    }
+
+    private static class PsNoAuthConfigured implements Pass {
+
+        @Override
+        public Opt<Identity> enter(Request request) throws Exception {
+            try {
+                if (InstanceFactory.hasConfiguration(false)) {
+                    BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+                    String configUser = config.getManifest().getConfigUser();
+                    String configPassword = config.getManifest().getConfigPassword();
+                    if (configUser != null && configPassword != null) {
+                        return new Opt.Empty<Identity>();
+                    }
+                }
+            } catch (Exception exc) {
+            }
+            return AUTHENTICATED;
+        }
+
+        @Override
+        public Response exit(Response response, Identity identity) throws Exception {
+            return response;
+        }
     }
 }

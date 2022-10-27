@@ -29,10 +29,8 @@ public abstract class InstanceFactory {
     private static boolean shutdown;
     private static String[] initialArguments;
     private static List<Runnable> shutdownHooks = new ArrayList<>();
-
-    public static Reflections getReflections() {
-        return reflections;
-    }
+    private static BackupConfiguration cachedConfig;
+    private static boolean cachedHasConfig;
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -40,8 +38,9 @@ public abstract class InstanceFactory {
         }));
     }
 
-    private static BackupConfiguration cachedConfig;
-    private static boolean cachedHasConfig;
+    public static Reflections getReflections() {
+        return reflections;
+    }
 
     public static boolean hasConfiguration(boolean readOnly) {
         try {
@@ -71,40 +70,22 @@ public abstract class InstanceFactory {
         return ret;
     }
 
-    protected abstract <T> T instance(Class<T> tClass);
-
-    protected abstract <T> T instance(String name, Class<T> tClass);
-
-    @AllArgsConstructor
-    private static class DefaultFactory extends InstanceFactory {
-        private Injector injector;
-
-        @Override
-        protected <T> T instance(Class<T> tClass) {
-            return injector.getInstance(tClass);
-        }
-
-        @Override
-        protected <T> T instance(String name, Class<T> tClass) {
-            return injector.getInstance(Key.get(tClass, Names.named(name)));
-        }
-    }
-
-    public static void initialize(String[] argv, String passphrase, String source) {
+    public static void initialize(String[] argv, String source) {
         initialArguments = argv;
+        shutdown = false;
         initialize(Guice.createInjector(
-                new CommandLineModule(argv, passphrase, source),
+                new CommandLineModule(argv, source),
                 new EncryptionModule(),
                 new ErrorCorrectionModule(),
                 new BackupModule(),
                 new RestoreModule()));
     }
 
-    public static void reloadConfiguration(String passphrase, String source) {
-        reloadConfiguration(passphrase, source, null);
+    public static void reloadConfiguration(String source) {
+        reloadConfiguration(source, null);
     }
 
-    public static void reloadConfiguration(String passphrase, String source, Runnable startup) {
+    public static void reloadConfiguration(String source, Runnable startup) {
         synchronized (shutdownHooks) {
             executeOrderedCleanupHook();
             MetadataRepository repository = null;
@@ -119,8 +100,7 @@ public abstract class InstanceFactory {
             } catch (IOException e) {
                 log.error("Failed to close metadata repository");
             }
-            shutdown = false;
-            initialize(initialArguments, passphrase, source);
+            initialize(initialArguments, source);
             if (hasConfiguration(true)) {
                 ConfigurationValidator.validateConfiguration(
                         getInstance(SOURCE_CONFIG, BackupConfiguration.class),
@@ -189,5 +169,24 @@ public abstract class InstanceFactory {
 
     public static String getInstance(String name) {
         return defaultFactory.instance(name, String.class);
+    }
+
+    protected abstract <T> T instance(Class<T> tClass);
+
+    protected abstract <T> T instance(String name, Class<T> tClass);
+
+    @AllArgsConstructor
+    private static class DefaultFactory extends InstanceFactory {
+        private Injector injector;
+
+        @Override
+        protected <T> T instance(Class<T> tClass) {
+            return injector.getInstance(tClass);
+        }
+
+        @Override
+        protected <T> T instance(String name, Class<T> tClass) {
+            return injector.getInstance(Key.get(tClass, Names.named(name)));
+        }
     }
 }

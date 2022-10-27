@@ -24,13 +24,6 @@ public class ReedSolomon {
     private final byte[][] parityRows;
 
     /**
-     * Creates a ReedSolomon codec with the default coding loop.
-     */
-    public static ReedSolomon create(int dataShardCount, int parityShardCount) {
-        return new ReedSolomon(dataShardCount, parityShardCount, new InputOutputByteTableCodingLoop());
-    }
-
-    /**
      * Initializes a new encoder/decoder, with a chosen coding loop.
      */
     public ReedSolomon(int dataShardCount, int parityShardCount, CodingLoop codingLoop) {
@@ -53,6 +46,54 @@ public class ReedSolomon {
         for (int i = 0; i < parityShardCount; i++) {
             parityRows[i] = matrix.getRow(dataShardCount + i);
         }
+    }
+
+    /**
+     * Creates a ReedSolomon codec with the default coding loop.
+     */
+    public static ReedSolomon create(int dataShardCount, int parityShardCount) {
+        return new ReedSolomon(dataShardCount, parityShardCount, new InputOutputByteTableCodingLoop());
+    }
+
+    /**
+     * Create the matrix to use for encoding, given the number of
+     * data shards and the number of total shards.
+     * <p>
+     * The top square of the matrix is guaranteed to be an identity
+     * matrix, which means that the data shards are unchanged after
+     * encoding.
+     */
+    private static Matrix buildMatrix(int dataShards, int totalShards) {
+        // Start with a Vandermonde matrix.  This matrix would work,
+        // in theory, but doesn't have the property that the data
+        // shards are unchanged after encoding.
+        Matrix vandermonde = vandermonde(totalShards, dataShards);
+
+        // Multiple by the inverse of the top square of the matrix.
+        // This will make the top square be the identity matrix, but
+        // preserve the property that any square subset of rows is
+        // invertible.
+        Matrix top = vandermonde.submatrix(0, 0, dataShards, dataShards);
+        return vandermonde.times(top.invert());
+    }
+
+    /**
+     * Create a Vandermonde matrix, which is guaranteed to have the
+     * property that any subset of rows that forms a square matrix
+     * is invertible.
+     *
+     * @param rows Number of rows in the result.
+     * @param cols Number of columns in the result.
+     * @return A Matrix.
+     */
+    private static Matrix vandermonde(int rows, int cols) {
+        Matrix result = new Matrix(rows, cols);
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                result.set(r, c, Galois.exp((byte) r, c));
+            }
+        }
+        return result;
     }
 
     /**
@@ -297,46 +338,5 @@ public class ReedSolomon {
         if (shardLength < offset + byteCount) {
             throw new IllegalArgumentException("buffers to small: " + byteCount + offset);
         }
-    }
-
-    /**
-     * Create the matrix to use for encoding, given the number of
-     * data shards and the number of total shards.
-     * <p>
-     * The top square of the matrix is guaranteed to be an identity
-     * matrix, which means that the data shards are unchanged after
-     * encoding.
-     */
-    private static Matrix buildMatrix(int dataShards, int totalShards) {
-        // Start with a Vandermonde matrix.  This matrix would work,
-        // in theory, but doesn't have the property that the data
-        // shards are unchanged after encoding.
-        Matrix vandermonde = vandermonde(totalShards, dataShards);
-
-        // Multiple by the inverse of the top square of the matrix.
-        // This will make the top square be the identity matrix, but
-        // preserve the property that any square subset of rows is
-        // invertible.
-        Matrix top = vandermonde.submatrix(0, 0, dataShards, dataShards);
-        return vandermonde.times(top.invert());
-    }
-
-    /**
-     * Create a Vandermonde matrix, which is guaranteed to have the
-     * property that any subset of rows that forms a square matrix
-     * is invertible.
-     *
-     * @param rows Number of rows in the result.
-     * @param cols Number of columns in the result.
-     * @return A Matrix.
-     */
-    private static Matrix vandermonde(int rows, int cols) {
-        Matrix result = new Matrix(rows, cols);
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                result.set(r, c, Galois.exp((byte) r, c));
-            }
-        }
-        return result;
     }
 }

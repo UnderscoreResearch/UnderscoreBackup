@@ -42,14 +42,11 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 @Slf4j
 public class
 S3IOProvider implements IOIndex, Closeable {
-    private final BackupDestination destination;
     private final S3Client client;
     private final String root;
     private final String bucket;
 
     public S3IOProvider(BackupDestination destination) {
-        this.destination = destination;
-
         AwsBasicCredentials credentials = AwsBasicCredentials.create(destination.getPrincipal(),
                 destination.getCredential());
 

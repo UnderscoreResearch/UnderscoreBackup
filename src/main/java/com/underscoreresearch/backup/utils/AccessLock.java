@@ -17,16 +17,16 @@ public class AccessLock implements Closeable {
     private FileChannel channel;
     private FileLock lock;
 
+    public AccessLock(String filename) {
+        this.filename = filename;
+    }
+
     public synchronized FileChannel getLockedChannel() throws IOException {
         if (lock != null) {
             return lock.channel();
         } else {
             throw new IOException("Tried getting channel of unheld lock");
         }
-    }
-
-    public AccessLock(String filename) {
-        this.filename = filename;
     }
 
     public synchronized boolean tryLock(boolean exclusive) throws IOException {

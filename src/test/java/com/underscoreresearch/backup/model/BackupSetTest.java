@@ -10,6 +10,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.file.PathNormalizer;
 
 class BackupSetTest {
     BackupFilter filter1;
@@ -40,7 +41,7 @@ class BackupSetTest {
         set = BackupSet.builder()
                 .roots(Lists.newArrayList(BackupSetRoot.builder()
                         .filters(Lists.newArrayList(filter1, filter2))
-                        .path(systemTypePrefix + "/root/").build()))
+                        .path(systemTypePrefix + "/another/root/").build()))
                 .exclusions(Lists.newArrayList("\\.bak$")).build();
 
         rootSet = BackupSet.builder()
@@ -63,20 +64,20 @@ class BackupSetTest {
 
     @ParameterizedTest
     @CsvSource(value = {
-            "/root/foo/bar,false",
-            "/roots,false",
-            "/root/foo.back,true",
-            "/root/foo.bak,false",
-            "/root,true",
-            "/roots,false",
-            "/root/,true",
-            "/root/foo/bars,true",
-            "/root/foo,true",
-            "/root/foos,true",
-            "/root/foo/bar/back/,true",
-            "/root/foo/bar/back/what,true",
-            "/root/foobar/test,false",
-            "/root/foobar/test/sub,false"
+            "/another/root/foo/bar,false",
+            "/another/roots,false",
+            "/another/root/foo.back,true",
+            "/another/root/foo.bak,false",
+            "/another/root,true",
+            "/another/roots,false",
+            "/another/root/,true",
+            "/another/root/foo/bars,true",
+            "/another/root/foo,true",
+            "/another/root/foos,true",
+            "/another/root/foo/bar/back/,true",
+            "/another/root/foo/bar/back/what,true",
+            "/another/root/foobar/test,false",
+            "/another/root/foobar/test/sub,false"
     }, delimiter = ',')
     public void testMatches(String path, boolean included) {
         assertThat(path, set.includeFile(systemTypePrefix + path), is(included));
@@ -84,11 +85,11 @@ class BackupSetTest {
 
     @ParameterizedTest
     @CsvSource(value = {
-            "/root,true",
-            "/root/foo,true",
-            "/root/,true",
-            "/roots,false",
-            "/root/foobar/test/sub,true"
+            "/another/root,true",
+            "/another/root/foo,true",
+            "/another/root/,true",
+            "/another/roots,false",
+            "/another/root/foobar/test/sub,true"
     }, delimiter = ',')
     public void testInRoot(String path, boolean included) {
         assertThat(path, set.inRoot(systemTypePrefix + path), is(included));
@@ -96,25 +97,54 @@ class BackupSetTest {
 
     @ParameterizedTest
     @CsvSource(value = {
-            "/root/foobar/test,false",
-            "/root/foobar/test/sub,false",
-            "/roots,false",
-            "/root/foo.back,true",
-            "/root/foobar,true",
-            "/root/foobar/false,true",
-            "/root/foo.bak,true",
-            "/root,true",
-            "/roots,false",
-            "/root/,true",
-            "/root/foo/bars,true",
-            "/root/foo,true",
-            "/root/foos,true",
-            "/root/foo/bar,true",
-            "/root/foo/bar/back/,true",
-            "/root/foo/bar/back/what,true",
+            "/another/root/foobar,true",
+            "/another/root/foobar/test,false",
+            "/another/root/foobar/test/sub,false",
+            "/another/roots,false",
+            "/another/root/foo.back,true",
+            "/another/root/foobar/false,true",
+            "/another/root/foo.bak,true",
+            "/another/root,true",
+            "/another/roots,false",
+            "/another/root/,true",
+            "/another/root/foo/bars,true",
+            "/another/root/foo,true",
+            "/another/root/foos,true",
+            "/another/root/foo/bar/,true",
+            "/another/root/foo/bar/back/,true",
+            "/another/root/foo/bar/back/what,true",
+            "/another/root/foo/bar/foo/,false"
     }, delimiter = ',')
     public void testInDirectory(String path, boolean included) {
         assertThat(path, set.includeDirectory(systemTypePrefix + path), is(included));
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {
+            "/,true",
+            "/another/,true",
+            "/another/root/,true",
+            "/another/root/foobar/test,false",
+            "/another/root/foobar/test/sub,false",
+            "/another/roots,false",
+            "/another/root/foo.back,true",
+            "/another/root/foobar,true",
+            "/another/root/foobar/false,true",
+            "/another/root/foo.bak,false",
+            "/another/root,true",
+            "/another/roots,false",
+            "/another/root/,true",
+            "/another/root/foo/bars,true",
+            "/another/root/foo,true",
+            "/another/root/foos,true",
+            "/another/root/foo/bar,false",
+            "/another/root/foo/bar/,true",
+            "/another/root/foo/bar/foo/,false",
+            "/another/root/foo/bar/back/,true",
+            "/another/root/foo/bar/back/what,true"
+    }, delimiter = ',')
+    public void testInShare(String path, boolean included) {
+        assertThat(path, set.includeForShare(!path.equals(PathNormalizer.ROOT) ? systemTypePrefix + path : path), is(included));
     }
 
     @ParameterizedTest

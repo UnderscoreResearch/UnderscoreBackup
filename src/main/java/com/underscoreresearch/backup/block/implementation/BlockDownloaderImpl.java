@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
@@ -35,6 +36,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     private final BackupConfiguration configuration;
     private final RateLimitController rateLimitController;
     private final MetadataRepository metadataRepository;
+    private final EncryptionKey key;
 
     private AtomicLong totalSize = new AtomicLong();
     private AtomicLong totalCount = new AtomicLong();
@@ -43,16 +45,18 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     public BlockDownloaderImpl(BackupConfiguration configuration,
                                RateLimitController rateLimitController,
                                MetadataRepository metadataRepository,
+                               EncryptionKey key,
                                int maximumConcurrency) {
         super(maximumConcurrency);
 
         this.configuration = configuration;
         this.rateLimitController = rateLimitController;
         this.metadataRepository = metadataRepository;
+        this.key = key;
     }
 
     @Override
-    public byte[] downloadBlock(String blockHash) throws IOException {
+    public byte[] downloadBlock(String blockHash, String passphrase) throws IOException {
         BackupBlock block = metadataRepository.block(blockHash);
         if (block == null) {
             throw new IOException(String.format("Trying to get unknown block %s", blockHash));
@@ -61,7 +65,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         for (int storageIndex = 0; storageIndex < block.getStorage().size(); storageIndex++) {
             BackupBlockStorage storage = block.getStorage().get(storageIndex);
             try {
-                return EncryptorFactory.decodeBlock(storage, downloadEncryptedBlockStorage(block, storage));
+                return EncryptorFactory.decodeBlock(storage, downloadEncryptedBlockStorage(block, storage), key.getPrivateKey(passphrase));
             } catch (Exception exc) {
                 if (storageIndex == block.getStorage().size() - 1 || InstanceFactory.isShutdown()) {
                     throw new IOException("Failed to download block " + block.getHash() + " was unreadable", exc);

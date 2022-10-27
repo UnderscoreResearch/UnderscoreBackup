@@ -34,12 +34,19 @@ public class ConfigurationValidator {
     private static final int DEFAULT_UNSYNCED_SIZE = 8 * 1024 * 1024;
 
     public static void validateConfiguration(BackupConfiguration configuration, boolean readOnly, boolean source) {
-        validateSets(configuration);
+        validateSets(configuration, source);
         validateDestinations(configuration);
         validateManifest(configuration, readOnly, source);
     }
 
     private static void validateManifest(BackupConfiguration configuration, boolean readOnly, boolean source) {
+        if (source) {
+            if (configuration.getManifest() == null) {
+                configuration.setManifest(new BackupManifest());
+            }
+            return;
+        }
+
         BackupManifest manifest = configuration.getManifest();
         if (manifest == null) {
             throw new IllegalArgumentException("Missing manifest section from configuration file");
@@ -67,29 +74,27 @@ public class ConfigurationValidator {
             throw new IllegalArgumentException("Manifest destination must not use error correction");
         }
 
-        if (!source) {
-            String local = manifest.getLocalLocation();
-            if (Strings.isNullOrEmpty(local)) {
-                local = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
+        String local = manifest.getLocalLocation();
+        if (Strings.isNullOrEmpty(local)) {
+            local = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
+        }
+
+        File file = new File(local);
+        if (!file.isDirectory()) {
+            if (readOnly) {
+                throw new IllegalArgumentException("Repository does not exist, run backup or rebuild-repository first");
+            }
+            log.warn("Local location for backup metadata does not exist.");
+            file.mkdirs();
+        } else {
+            file = new File(file, "db");
+            if (file.exists() && !file.isDirectory()) {
+                throw new IllegalArgumentException("Repository " + file.toString() + " exists but is not a directory");
             }
 
-            File file = new File(local);
-            if (!file.isDirectory()) {
-                if (readOnly) {
-                    throw new IllegalArgumentException("Repository does not exist, run backup or rebuild-repository first");
-                }
-                log.warn("Local location for backup metadata does not exist.");
-                file.mkdirs();
-            } else {
-                file = new File(file, "db");
-                if (file.exists() && !file.isDirectory()) {
-                    throw new IllegalArgumentException("Repository " + file.toString() + " exists but is not a directory");
-                }
-
-                file = new File(file, "logs");
-                if (file.exists() && !file.isDirectory()) {
-                    throw new IllegalArgumentException("Repository " + file.toString() + " does exist but is not a directory");
-                }
+            file = new File(file, "logs");
+            if (file.exists() && !file.isDirectory()) {
+                throw new IllegalArgumentException("Repository " + file.toString() + " does exist but is not a directory");
             }
         }
 
@@ -127,13 +132,13 @@ public class ConfigurationValidator {
                 throw new IllegalArgumentException("Invalid encryptor " + destination.getErrorCorrection());
             }
 
-            if (IOProviderFactory.getProvider(entry.getValue()) == null) {
-                throw new IllegalArgumentException("Can't create backup destination " + entry.getKey());
+            if (!IOProviderFactory.hasProvider(entry.getValue())) {
+                throw new IllegalArgumentException("Unsupported backup destination type " + entry.getKey());
             }
         }
     }
 
-    private static void validateSets(BackupConfiguration configuration) {
+    private static void validateSets(BackupConfiguration configuration, boolean source) {
         if (configuration.getSets() == null) {
             configuration.setSets(new ArrayList<>());
         }
@@ -217,7 +222,7 @@ public class ConfigurationValidator {
                 }
             }
 
-            if (Strings.isNullOrEmpty(backupSet.getSchedule())) {
+            if (Strings.isNullOrEmpty(backupSet.getSchedule()) && !source) {
                 debug(() -> log.debug("Backup set " + backupSet.getId()
                         + " is missing a schedule so will only be scanned once on startup"));
             }

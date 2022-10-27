@@ -8,10 +8,10 @@ import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupLimits;
 
 public class RateLimitController {
-    private RateLimiter uploadLimit;
-    private RateLimiter downloadLimit;
     private final Map<BackupDestination, RateLimiter> destinationUploadLimit = new HashMap<>();
     private final Map<BackupDestination, RateLimiter> destinationDownloadLimit = new HashMap<>();
+    private RateLimiter uploadLimit;
+    private RateLimiter downloadLimit;
 
     public RateLimitController(BackupLimits overallLimits) {
         if (overallLimits != null) {

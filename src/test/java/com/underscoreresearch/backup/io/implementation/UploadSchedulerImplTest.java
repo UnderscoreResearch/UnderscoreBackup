@@ -30,43 +30,12 @@ public class UploadSchedulerImplTest {
 
     @BeforeEach
     public void setup() {
-        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
+        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null);
         rateLimitController = new RateLimitController(null);
         destination = new BackupDestination();
         destination.setType("DELAY");
 
         IOProviderFactory.registerProvider("DELAY", DelayIOProvider.class);
-    }
-
-    @IOPlugin("DELAY")
-    public static class DelayIOProvider implements IOProvider {
-        public DelayIOProvider(BackupDestination destination) {
-        }
-
-        @Override
-        public String upload(String suggestedKey, byte[] data) throws IOException {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            return suggestedKey;
-        }
-
-        @Override
-        public byte[] download(String key) throws IOException {
-            throw new RuntimeException("Shouldn't get here");
-        }
-
-        @Override
-        public void delete(String key) throws IOException {
-
-        }
-
-        @Override
-        public void checkCredentials(boolean readonly) throws IOException {
-
-        }
     }
 
     @Test
@@ -237,6 +206,37 @@ public class UploadSchedulerImplTest {
         assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.greaterThan(900L));
         assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS), Matchers.lessThan(1500L));
         assertThat(success.get(), Is.is(true));
+    }
+
+    @IOPlugin("DELAY")
+    public static class DelayIOProvider implements IOProvider {
+        public DelayIOProvider(BackupDestination destination) {
+        }
+
+        @Override
+        public String upload(String suggestedKey, byte[] data) throws IOException {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return suggestedKey;
+        }
+
+        @Override
+        public byte[] download(String key) throws IOException {
+            throw new RuntimeException("Shouldn't get here");
+        }
+
+        @Override
+        public void delete(String key) throws IOException {
+
+        }
+
+        @Override
+        public void checkCredentials(boolean readonly) throws IOException {
+
+        }
     }
 
 }

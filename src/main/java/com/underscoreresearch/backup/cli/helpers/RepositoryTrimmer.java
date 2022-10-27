@@ -42,6 +42,7 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.BackupContentsAccessPathOnly;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -61,85 +62,27 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 @RequiredArgsConstructor
 @Slf4j
 public class RepositoryTrimmer implements StatusLogger {
-    @Data
-    public static class Statistics {
-        private long files;
-        private long fileVersions;
-        private long totalSize;
-        private long totalSizeLastVersion;
-        private long blockParts;
-        private long blocks;
-
-        private long deletedBlocks;
-        private long deletedVersions;
-        private long deletedFiles;
-        private long deletedDirectoryVersions;
-        private long deletedDirectories;
-        private long deletedBlockParts;
-        private long deletedBlockPartReferences;
-
-        private synchronized void addFiles(long files) {
-            this.files += files;
-        }
-
-        private synchronized void addFileVersions(long fileVersions) {
-            this.fileVersions += fileVersions;
-        }
-
-        private synchronized void addTotalSize(long totalSize) {
-            this.totalSize += totalSize;
-        }
-
-        private synchronized void addTotalSizeLastVersion(long totalSizeLastVersion) {
-            this.totalSizeLastVersion += totalSizeLastVersion;
-        }
-
-        private synchronized void addBlockParts(long blockParts) {
-            this.blockParts += blockParts;
-        }
-
-        private synchronized void addBlocks(long blocks) {
-            this.blocks += blocks;
-        }
-
-        private synchronized void addDeletedBlocks(long deletedBlocks) {
-            this.deletedBlocks += deletedBlocks;
-        }
-
-        private synchronized void addDeletedVersions(long deletedVersions) {
-            this.deletedVersions += deletedVersions;
-        }
-
-        private synchronized void addDeletedFiles(long deletedFiles) {
-            this.deletedFiles += deletedFiles;
-        }
-
-        private synchronized void addDeletedDirectoryVersions(long deletedDirectoryVersions) {
-            this.deletedDirectoryVersions += deletedDirectoryVersions;
-        }
-
-        private synchronized void addDeletedDirectories(long deletedDirectories) {
-            this.deletedDirectories += deletedDirectories;
-        }
-
-        private synchronized void addDeletedBlockParts(long deletedParts) {
-            this.deletedBlockParts += deletedParts;
-        }
-
-        private synchronized void addDeletedBlockPartReferences(long deletedParts) {
-            this.deletedBlockPartReferences += deletedParts;
-        }
-    }
-
     private final MetadataRepository metadataRepository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
     private final boolean force;
-
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private AtomicLong processedSteps = new AtomicLong();
     private AtomicLong totalSteps = new AtomicLong();
     private Duration lastHeartbeat;
+    private LoadingCache<String, NavigableSet<String>> directoryCache = CacheBuilder
+            .newBuilder()
+            .maximumSize(50)
+            .build(new CacheLoader<>() {
+                @Override
+                public NavigableSet<String> load(String key) throws Exception {
+                    BackupDirectory ret = metadataRepository.lastDirectory(key);
+                    if (ret == null) {
+                        return new TreeSet<>();
+                    }
+                    return ret.getFiles();
+                }
+            });
 
     @Override
     public void resetStatus() {
@@ -167,24 +110,6 @@ public class RepositoryTrimmer implements StatusLogger {
         return new ArrayList<>();
     }
 
-    private static class InterruptedException extends RuntimeException {
-
-    }
-
-    private LoadingCache<String, NavigableSet<String>> directoryCache = CacheBuilder
-            .newBuilder()
-            .maximumSize(50)
-            .build(new CacheLoader<>() {
-                @Override
-                public NavigableSet<String> load(String key) throws Exception {
-                    BackupDirectory ret = metadataRepository.lastDirectory(key);
-                    if (ret == null) {
-                        return new TreeSet<>();
-                    }
-                    return ret.getFiles();
-                }
-            });
-
     public synchronized Statistics trimRepository(boolean filesOnly) throws IOException {
         File tempFile = File.createTempFile("block", ".db");
 
@@ -202,7 +127,7 @@ public class RepositoryTrimmer implements StatusLogger {
                 HTreeMap<String, Boolean> usedBlockMap = usedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
                         Serializer.BOOLEAN).createOrOpen();
 
-                manifestManager.initialize(null, true);
+                manifestManager.initialize((LogConsumer) metadataRepository, true);
 
                 boolean hasActivePaths = trimActivePaths();
                 filesOnly |= hasActivePaths;
@@ -618,5 +543,79 @@ public class RepositoryTrimmer implements StatusLogger {
 
     private BackupSet findSet(BackupFile backupFile) {
         return configuration.getSets().stream().filter(t -> t.inRoot(backupFile.getPath())).findAny().orElse(null);
+    }
+
+    @Data
+    public static class Statistics {
+        private long files;
+        private long fileVersions;
+        private long totalSize;
+        private long totalSizeLastVersion;
+        private long blockParts;
+        private long blocks;
+
+        private long deletedBlocks;
+        private long deletedVersions;
+        private long deletedFiles;
+        private long deletedDirectoryVersions;
+        private long deletedDirectories;
+        private long deletedBlockParts;
+        private long deletedBlockPartReferences;
+
+        private synchronized void addFiles(long files) {
+            this.files += files;
+        }
+
+        private synchronized void addFileVersions(long fileVersions) {
+            this.fileVersions += fileVersions;
+        }
+
+        private synchronized void addTotalSize(long totalSize) {
+            this.totalSize += totalSize;
+        }
+
+        private synchronized void addTotalSizeLastVersion(long totalSizeLastVersion) {
+            this.totalSizeLastVersion += totalSizeLastVersion;
+        }
+
+        private synchronized void addBlockParts(long blockParts) {
+            this.blockParts += blockParts;
+        }
+
+        private synchronized void addBlocks(long blocks) {
+            this.blocks += blocks;
+        }
+
+        private synchronized void addDeletedBlocks(long deletedBlocks) {
+            this.deletedBlocks += deletedBlocks;
+        }
+
+        private synchronized void addDeletedVersions(long deletedVersions) {
+            this.deletedVersions += deletedVersions;
+        }
+
+        private synchronized void addDeletedFiles(long deletedFiles) {
+            this.deletedFiles += deletedFiles;
+        }
+
+        private synchronized void addDeletedDirectoryVersions(long deletedDirectoryVersions) {
+            this.deletedDirectoryVersions += deletedDirectoryVersions;
+        }
+
+        private synchronized void addDeletedDirectories(long deletedDirectories) {
+            this.deletedDirectories += deletedDirectories;
+        }
+
+        private synchronized void addDeletedBlockParts(long deletedParts) {
+            this.deletedBlockParts += deletedParts;
+        }
+
+        private synchronized void addDeletedBlockPartReferences(long deletedParts) {
+            this.deletedBlockPartReferences += deletedParts;
+        }
+    }
+
+    private static class InterruptedException extends RuntimeException {
+
     }
 }

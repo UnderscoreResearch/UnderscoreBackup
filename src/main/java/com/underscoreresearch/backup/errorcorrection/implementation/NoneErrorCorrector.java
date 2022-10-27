@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.errorcorrection.implementation;
 
+import static com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector.NONE;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,13 +16,14 @@ import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorPlugin;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 @RequiredArgsConstructor
-@ErrorCorrectorPlugin("NONE")
+@ErrorCorrectorPlugin(NONE)
 public class NoneErrorCorrector implements ErrorCorrector {
+    public static final String NONE = "NONE";
     private final int maximumPartSize;
 
     @Override
     public List<byte[]> encodeErrorCorrection(BackupBlockStorage storage, byte[] originalData) throws Exception {
-        storage.setEc("NONE");
+        storage.setEc(NONE);
         if (originalData.length <= maximumPartSize) {
             return Lists.newArrayList(originalData);
         }

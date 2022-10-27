@@ -21,10 +21,10 @@ class PathNormalizerTest {
     public void testRelativeResolve() {
         String root = File.separator;
         assertThat(PathNormalizer.normalizePath(root + "test" +
-                File.separator + ".." + File.separator + "." + File.separator + "hello"  +
+                File.separator + ".." + File.separator + "." + File.separator + "hello" +
                 File.separator + "."), is("/hello"));
         assertThat(PathNormalizer.normalizePath(root + "test" +
-                File.separator + ".." + File.separator + "." + File.separator + "hello"  +
+                File.separator + ".." + File.separator + "." + File.separator + "hello" +
                 File.separator + "." + File.separator + "there" + File.separator), is("/hello/there/"));
     }
 
@@ -33,12 +33,12 @@ class PathNormalizerTest {
         String currentDir = System.getProperty("user.dir");
 
         assertThat(PathNormalizer.normalizePath(currentDir + File.separator + "test" +
-                File.separator + ".." + File.separator + "." + File.separator + "hello"  +
-                File.separator + "."),
+                        File.separator + ".." + File.separator + "." + File.separator + "hello" +
+                        File.separator + "."),
                 is(currentDir.replace(File.separator, PathNormalizer.PATH_SEPARATOR) + "/hello"));
         assertThat(PathNormalizer.normalizePath(currentDir + File.separator + "test" +
-                File.separator + ".." + File.separator + "." + File.separator + "hello"  +
-                File.separator + "." + File.separator + "there" + File.separator),
+                        File.separator + ".." + File.separator + "." + File.separator + "hello" +
+                        File.separator + "." + File.separator + "there" + File.separator),
                 is(currentDir.replace(File.separator, PathNormalizer.PATH_SEPARATOR) + "/hello/there/"));
     }
 

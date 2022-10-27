@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,7 +29,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.cli.commands.BackupCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.NoneEncryptor;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -36,14 +39,20 @@ import com.underscoreresearch.backup.file.implementation.MemoryIOProvider;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupFileSpecification;
 import com.underscoreresearch.backup.model.BackupManifest;
+import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupSetRoot;
+import com.underscoreresearch.backup.model.BackupShare;
 
 class ManifestManagerImplTest {
     private static final String PUBLIC_KEY_DATA = "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}";
@@ -54,40 +63,78 @@ class ManifestManagerImplTest {
     private MemoryIOProvider memoryIOProvider;
     private Encryptor encryptor;
     private File tempDir;
+    private File backupDir;
+    private File shareDir;
+    private EncryptionKey sharePrivateKey;
+    private EncryptionKey publickKey;
 
     @BeforeEach
     public void setup() throws IOException {
         tempDir = Files.createTempDirectory("test").toFile();
+        backupDir = Files.createTempDirectory("backup").toFile();
+        shareDir = Files.createTempDirectory("share").toFile();
+        sharePrivateKey = EncryptionKey.generateKeyWithPassphrase("testkey");
+        File sourceFile = new File(System.getProperty("user.dir"), "src");
+
+        BackupDestination shareDestination = BackupDestination.builder()
+                .type("FILE")
+                .endpointUri(shareDir.getAbsolutePath())
+                .encryption("AES256")
+                .errorCorrection("NONE")
+                .build();
 
         configuration = BackupConfiguration.builder()
                 .destinations(ImmutableMap.of("TEST", BackupDestination.builder()
                         .type("FILE")
-                        .endpointUri("file:///test/")
+                        .endpointUri(backupDir.getAbsolutePath())
                         .encryption("AES256")
+                        .errorCorrection("NONE")
                         .build()))
+                .sets(Lists.newArrayList(BackupSet.builder()
+                        .id("test")
+                        .destinations(Lists.newArrayList("TEST"))
+                        .roots(Lists.newArrayList(BackupSetRoot.builder()
+                                .path(sourceFile.getAbsolutePath()).build()))
+                        .build()))
+                .shares(ImmutableMap.of(sharePrivateKey.getPublicKey(), BackupShare.builder()
+                        .contents(BackupFileSpecification.builder()
+                                .roots(Lists.newArrayList(BackupSetRoot.builder()
+                                        .path(new File(sourceFile, "main").getAbsolutePath()).build()))
+                                .build())
+                        .name("Name")
+                        .destination(shareDestination)
+                        .build()))
+                .additionalSources(ImmutableMap.of("other", shareDestination))
                 .manifest(BackupManifest.builder()
                         .destination("TEST")
                         .maximumUnsyncedSize(100)
                         .maximumUnsyncedSeconds(1)
+                        .pauseOnBattery(false)
                         .localLocation(tempDir.getPath())
                         .build())
                 .build();
-
-        String configurationData = new ObjectMapper().writeValueAsString(configuration);
-
-        InstanceFactory.initialize(new String[]{"--no-log", "--passphrase", "test", "--config-data", configurationData,
-                "--public-key-data", PUBLIC_KEY_DATA}, null, null);
 
         rateLimitController = Mockito.mock(RateLimitController.class);
         memoryIOProvider = Mockito.spy(new MemoryIOProvider(null));
         memoryIOProvider.upload("publickey.json", PUBLIC_KEY_DATA.getBytes("UTF-8"));
         encryptor = Mockito.spy(new NoneEncryptor());
+
+        initializeFactory();
+    }
+
+    private void initializeFactory() throws JsonProcessingException {
+        InstanceFactory.initialize(new String[]{"--no-log", "--passphrase", "test", "--config-data",
+                new ObjectMapper().writeValueAsString(configuration),
+                "--encryption-key-data", PUBLIC_KEY_DATA}, null);
+
+        publickKey = InstanceFactory.getInstance(EncryptionKey.class);
     }
 
     @Test
     public void testUploadConfig() throws IOException {
-        Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any());
-        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
+        Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any(), any());
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
+                rateLimitController, "id", null, false, publickKey);
         manifestManager.addLogEntry("doh", "doh");
         assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
     }
@@ -99,10 +146,11 @@ class ManifestManagerImplTest {
         try (FileOutputStream stream = new FileOutputStream(file)) {
             stream.write(new byte[]{1, 2, 3});
         }
-        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
+                rateLimitController, "id", null, false, publickKey);
         manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
         manifestManager.addLogEntry("doh", "doh");
-        Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any());
+        Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any(), any());
         assertThat(file.isFile(), Is.is(false));
         assertNotNull(memoryIOProvider.download("logs"
                 + PATH_SEPARATOR + "2020-02-02" + PATH_SEPARATOR + "22-00-22.222222.gz"));
@@ -110,7 +158,8 @@ class ManifestManagerImplTest {
 
     @Test
     public void testDelayedUpload() throws IOException, InterruptedException {
-        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
+                rateLimitController, "id", null, false, publickKey);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -124,7 +173,8 @@ class ManifestManagerImplTest {
 
     @Test
     public void testLoggingUpdateAndReplay() throws IOException {
-        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
+                rateLimitController, "id", null, false, publickKey);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -140,11 +190,12 @@ class ManifestManagerImplTest {
         repository.flushLogging();
         manifestManager.shutdown();
 
-        Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any());
+        Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any(), any());
 
-        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor, rateLimitController, "id", null, false);
+        manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
+                rateLimitController, "id", null, false, publickKey);
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
-        manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false));
+        manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false), "test");
 
         compareInvocations(firstRepository, secondRepository);
     }
@@ -191,9 +242,54 @@ class ManifestManagerImplTest {
                 .collect(Collectors.toList());
     }
 
+    @Test
+    public void backupWithShare() throws Exception {
+        configuration.getManifest().setMaximumUnsyncedSize(1000 * 1000);
+        initializeFactory();
+
+        InstanceFactory.getInstance(MetadataRepository.class).open(false);
+        manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
+        manifestManager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
+                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey("test"));
+
+        BackupCommand.executeBackup(false);
+    }
+
+    @Test
+    public void shareWithBackupAndDelete() throws Exception {
+        configuration.getManifest().setMaximumUnsyncedSize(1000 * 1000);
+        initializeFactory();
+
+        InstanceFactory.getInstance(MetadataRepository.class).open(false);
+        manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
+        manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), false);
+        BackupCommand.executeBackup(false);
+        manifestManager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
+                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey("test"));
+
+        InstanceFactory.shutdown();
+        InstanceFactory.waitForShutdown();
+        configuration.setShares(new HashMap<>());
+        initializeFactory();
+
+        // Just want to make sure we have a few more blocks to delete.
+        MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
+        metadataRepository.addAdditionalBlock(
+                BackupBlockAdditional.builder().publicKey(sharePrivateKey.getPublicKey()).hash("a").build());
+        metadataRepository.addAdditionalBlock(
+                BackupBlockAdditional.builder().publicKey(sharePrivateKey.getPublicKey()).hash("b").build());
+
+        manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
+        manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
+    }
+
     @AfterEach
     public void teardown() {
+        InstanceFactory.shutdown();
+        InstanceFactory.waitForShutdown();
         deleteDir(tempDir);
+        deleteDir(backupDir);
+        deleteDir(shareDir);
     }
 
     private void deleteDir(File tempDir) {

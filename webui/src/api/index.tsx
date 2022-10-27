@@ -58,6 +58,11 @@ export interface BackupSet {
     retention?: BackupRetention
 }
 
+export interface BackupFileSpecification {
+    roots: BackupSetRoot[],
+    exclusions?: string[]
+}
+
 export interface BackupLimits {
     maximumUploadBytesPerSecond?: number,
     maximumDownloadBytesPerSecond?: number
@@ -88,6 +93,12 @@ export interface BackupDestination {
     limits?: BackupLimits
 }
 
+export interface BackupShare {
+    name: string,
+    destination: BackupDestination,
+    contents: BackupFileSpecification
+}
+
 export interface BackupGlobalLimits {
     maximumUploadBytesPerSecond?: number,
     maximumDownloadBytesPerSecond?: number,
@@ -99,6 +110,10 @@ export type DestinationMap = {
     [key: string]: BackupDestination
 }
 
+export type ShareMap = {
+    [key: string]: BackupShare
+}
+
 export interface BackupConfiguration {
     sets: BackupSet[],
     destinations: DestinationMap,
@@ -106,7 +121,8 @@ export interface BackupConfiguration {
     manifest: BackupManifest,
     properties?: PropertyMap,
     limits?: BackupGlobalLimits,
-    missingRetention?: BackupRetention
+    missingRetention?: BackupRetention,
+    shares?: ShareMap
 }
 
 export interface BackupFile {
@@ -116,11 +132,12 @@ export interface BackupFile {
     path: string
 }
 
-export interface BackupDefaults {
-    set: BackupSet,
+export interface BackupState {
     pathSeparator: string,
     version: string,
     defaultRestoreFolder: string,
+    defaultSet: BackupSet,
+    validDestinations: boolean,
     source?: string
 }
 
@@ -131,6 +148,15 @@ export interface StatusLine {
     value?: number,
     totalValue?: number,
     valueString?: string
+}
+
+export interface AdditionalKey {
+    publicKey: string,
+    privateKey: string
+}
+
+export interface AdditionalKeys {
+    keys: AdditionalKey[]
 }
 
 export interface StatusResponse {
@@ -144,6 +170,10 @@ export interface BackupRestoreRequest {
     overwrite: boolean,
     timestamp?: number,
     includeDeleted?: boolean
+}
+
+export interface ActiveShares {
+    activeShares: string[]
 }
 
 function reportError(errors: any) {
@@ -180,14 +210,15 @@ export async function GetConfiguration(): Promise<BackupConfiguration | undefine
     return await MakeCall("configuration");
 }
 
-export async function GetDefaults(): Promise<BackupDefaults> {
-    const defaults = await MakeCall("defaults");
+export async function GetState(): Promise<BackupState> {
+    const defaults = await MakeCall("state");
     if (!defaults) {
         return {
             defaultRestoreFolder: "/",
             pathSeparator: "/",
             version: "",
-            set: {
+            validDestinations: false,
+            defaultSet: {
                 id: "home",
                 roots: [],
                 destinations: [],
@@ -196,10 +227,6 @@ export async function GetDefaults(): Promise<BackupDefaults> {
         };
     }
     return defaults;
-}
-
-export async function GetRemoteConfiguration(): Promise<BackupConfiguration | undefined> {
-    return await MakeCall("remote-configuration");
 }
 
 export async function GetLocalFiles(path: string): Promise<BackupFile[] | undefined> {
@@ -345,6 +372,47 @@ export async function PutEncryptionKey(passphrase: string): Promise<boolean> {
         return false;
     }
     return true;
+}
+
+export async function PutAdditionalEncryptionKey(passphrase: string, privateKey?: string): Promise<AdditionalKey | undefined> {
+    return await MakeCall("encryption-key/additional", {
+        method: 'PUT',
+        headers: {
+            'content-type': 'application/json;charset=UTF-8',
+        },
+        body: JSON.stringify({
+            "passphrase": passphrase,
+            "privateKey": privateKey
+        })
+    });
+}
+
+export async function PostAdditionalEncryptionKeys(passphrase: string): Promise<AdditionalKeys | undefined> {
+    return await MakeCall("encryption-key/additional", {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json;charset=UTF-8',
+        },
+        body: JSON.stringify({
+            "passphrase": passphrase
+        })
+    });
+}
+
+export async function GetActiveShares(): Promise<ActiveShares | undefined> {
+    return await MakeCall("shares");
+}
+
+export async function PostActivateShares(passphrase: string): Promise<AdditionalKeys | undefined> {
+    return await MakeCall("shares", {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json;charset=UTF-8',
+        },
+        body: JSON.stringify({
+            "passphrase": passphrase
+        })
+    });
 }
 
 export async function DeleteReset(): Promise<boolean> {

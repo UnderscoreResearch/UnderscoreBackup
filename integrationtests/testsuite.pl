@@ -6,6 +6,7 @@ use File::Spec;
 use File::Find qw(finddepth);
 use File::Compare;
 use IPC::Open2;
+use POSIX qw(strftime);
 
 my $originalRoot = getcwd();
 my $root = shift(@ARGV);
@@ -31,9 +32,11 @@ my $testRoot = File::Spec->catdir($root, "data");
 my $answerRoot = File::Spec->catdir($root, "answer");
 my $backupRoot = File::Spec->catdir($root, "backup");
 my $backupRoot2 = File::Spec->catdir($root, "backup2");
+my $shareRoot = File::Spec->catdir($root, "share");
 my $configFile = File::Spec->catdir($root, "config.json");
 my $keyFile = File::Spec->catdir($root, "key");
 my $logFile = File::Spec->catdir($root, "output.log");
+my $sharedPublicKey;
 
 my @directories = (
     "a",
@@ -116,11 +119,7 @@ sub createGeneration {
     # Need one really large file to test super blocks
     if ($curGen == 7) {
         chdir($curRoot);
-        if ($ENV{"GITHUB_ACTION"} && `uname -m` !~ /arm/i) {
-            generateFile("large", 0, 1 * 1024 * 1024 * 1024);
-        } else {
-            generateFile("large", 0, 17 * 1024 * 1024 * 1024);
-        }
+        generateFile("large", 0, 1 * 1024 * 1024 * 1024);
     }
 }
 
@@ -174,16 +173,30 @@ sub validateLog() {
     }
 }
 
-sub executeUnderscoreBackupStdin {
-    my $input = shift(@_);
-    chdir($root);
-    my @args = (
+sub executeUnderscoreBackupParameters {
+    return (
         $underscoreBackup,
         "-k", $keyFile,
         "-c", $configFile,
         "--log-file", $logFile,
         "-f", "-R", "-d"
-    );
+    )
+};
+
+
+sub executeUnderscoreBackupWithOutput {
+    my @args = &executeUnderscoreBackupParameters();
+    push(@args, @_);
+
+    my $cmd = "\"".join("\" \"", @args)."\"";
+    print "Executing $cmd\n";
+    return `$cmd`;
+}
+
+sub executeUnderscoreBackupStdin {
+    my $input = shift(@_);
+    chdir($root);
+    my @args = &executeUnderscoreBackupParameters();
     push(@args, @_);
     print "Executing " . join(" ", @args) . "\n";
 
@@ -202,7 +215,6 @@ sub executeUnderscoreBackupStdin {
     } elsif (system(@args) != 0) {
         die "Failed executing: $?";
     }
-
 
     &validateLog();
 }
@@ -237,6 +249,37 @@ __EOF__
     $escapedBackupRoot =~ s/\\/\\\\/g;
     my $escapedBackupRoot2 = $backupRoot2;
     $escapedBackupRoot2 =~ s/\\/\\\\/g;
+    my $escapedShareRoot = $shareRoot;
+    $escapedShareRoot =~ s/\\/\\\\/g;
+    my $shareDefinition = "";
+
+    if ($sharedPublicKey) {
+      $shareDefinition = <<"__EOF__";
+  "shares": {
+    "$sharedPublicKey": {
+      "name": "share",
+      "destination": {
+          "type": "FILE",
+          "encryption": "AES256",
+          "endpointUri": "$escapedShareRoot"
+      },
+      "contents": {
+        "roots": [
+          {
+            "path": "$escapedTestRoot",
+            "filters": [
+              {
+                "type": "EXCLUDE",
+                "paths": [ "a" ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+__EOF__
+    }
 
     open(CONFIG, ">$configFile") || die;
     print CONFIG <<"__EOF__";
@@ -274,8 +317,14 @@ $extraDestination
       "type": "FILE",
       "encryption": "AES256",
       "endpointUri": "$escapedBackupRoot"
+    },
+    "shared": {
+      "type": "FILE",
+      "encryption": "AES256",
+      "endpointUri": "$escapedShareRoot"
     }
   },
+$shareDefinition
   "manifest": {
     "destination": "d0",
     "pauseOnBattery": false,
@@ -359,12 +408,16 @@ sub killInteractive {
 
 sub executeCypressTest {
     chdir($webuiDir);
+    my $script = shift(@_);
     my @args = (
         "npx",
         "cypress",
         "run",
-        "--spec", File::Spec->catdir("cypress", File::Spec->catdir("integration", shift(@_)))
+        "--spec", File::Spec->catdir("cypress", File::Spec->catdir("e2e", $script. ".cy.ts"))
     );
+    if ($ENV{"GITHUB_TARGET"}) {
+        push(@args, "--tag", $ENV{"GITHUB_TARGET"}.",$script");
+    }
     if ($ENV{"CYPRESS_RECORD_KEY"}) {
         push(@args, "--record");
     }
@@ -374,6 +427,13 @@ sub executeCypressTest {
     $ENV{"CYPRESS_TEST_ROOT"} = $root;
     $ENV{"CYPRESS_TEST_DATA"} = $testRoot;
     $ENV{"CYPRESS_TEST_BACKUP"} = $backupRoot;
+    $ENV{"CYPRESS_TEST_SHARE"} = $shareRoot;
+
+#    @args = (
+#        "npx",
+#        "cypress",
+#        "open"
+#        );
 
     if (system(@args) != 0) {
         &killInteractive();
@@ -402,8 +462,7 @@ if ($underscoreBackup !~ /\.exe$/i || !$ENV{"GITHUB_ACTION"}) {
 
     sleep(5);
 
-    &executeCypressTest("setup.js");
-    &executeCypressTest("backup.js");
+    &executeCypressTest("backup");
 
     &killInteractive();
 
@@ -426,8 +485,7 @@ if ($underscoreBackup !~ /\.exe$/i || !$ENV{"GITHUB_ACTION"}) {
 
     sleep(5);
 
-    &executeCypressTest("setuprebuild.js");
-    &executeCypressTest("restore.js");
+    &executeCypressTest("restore");
 
     &validateAnswer();
 
@@ -437,7 +495,15 @@ if ($underscoreBackup !~ /\.exe$/i || !$ENV{"GITHUB_ACTION"}) {
     &generateData(7, 1, $answerRoot);
     chdir($root);
 
-    &executeCypressTest("sourcerestore.js");
+    &executeCypressTest("sourcerestore");
+
+    print "Activate share and restore\n";
+
+    &prepareTestPath();
+    &generateData(7, 1, $answerRoot);
+    chdir($root);
+
+    &executeCypressTest("sharerestore");
 
     &killInteractive();
     waitpid($pid, 0);
@@ -448,41 +514,73 @@ if ($underscoreBackup !~ /\.exe$/i || !$ENV{"GITHUB_ACTION"}) {
 
 &prepareRunPath();
 
+for my $row (split(/\n/, &executeUnderscoreBackupWithOutput("generate-key", "--additional", "--passphrase", "1234"))) {
+    print $row;
+    if ($row =~ /(\S+)/) {
+        my $key = $1;
+        if ($key !~ /^=/) {
+            $sharedPublicKey = $key;
+        }
+    }
+}
+
+print "Created public key for sharing $sharedPublicKey\n";
+
+&createConfigFile();
+
 print "Generation 1\n";
 &prepareTestPath();
 &generateData(1);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
+
+&executeUnderscoreBackup("activate-shares", "--passphrase", "1234");
 
 sleep($DELAY);
 print "Generation 2\n";
 &prepareTestPath();
 &generateData(2);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
+
 print "Generation 3\n";
 &prepareTestPath();
 &generateData(3);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
+
 print "Generation 4\n";
 &prepareTestPath();
 &generateData(4);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
+
 print "Generation 5\n";
 &prepareTestPath();
 &generateData(5);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
+
 print "Generation 6\n";
 &prepareTestPath();
 &generateData(6);
 &executeUnderscoreBackup("backup");
+
+print "Shared data tests\n";
+
+&prepareTestPath();
+&executeUnderscoreBackup("list-keys", "--passphrase", "1234");
+&executeUnderscoreBackup("download-config", "--passphrase", "1234", "--source", "shared");
+&executeUnderscoreBackup("rebuild-repository", "--passphrase", "1234", "--source", "shared");
+&generateData(4, 0, $answerRoot);
+finddepth { wanted => \&zapFile, no_chdir => 1 }, File::Spec->catdir($answerRoot, "a");
+
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[3], "--source", "shared", "/");
+&validateAnswer();
 
 print "Other source tests\n";
 
@@ -495,7 +593,7 @@ print "Other source tests\n";
 &executeUnderscoreBackup("search", "--source", "same", "a");
 &prepareTestPath();
 &generateData(1, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[0] - 1) . " seconds ago", "--source", "same", $testRoot, $testRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[0], "--source", "same", $testRoot, $testRoot);
 &validateAnswer();
 
 print "Random bits and ends\n";
@@ -522,27 +620,27 @@ print "Random bits and ends\n";
 
 &prepareTestPath();
 &generateData(1, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[0] - 1) . " seconds ago", $testRoot, $testRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[0], $testRoot, $testRoot);
 &validateAnswer();
 
 &prepareTestPath();
 &generateData(2, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[1] - 1) . " seconds ago", $testRoot, $testRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[1], $testRoot, $testRoot);
 &validateAnswer();
 
 &prepareTestPath();
 &generateData(3, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[2] - 1) . " seconds ago", $testRoot, $testRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[2], $testRoot, $testRoot);
 &validateAnswer();
 
 &prepareTestPath();
 &generateData(4, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[3] - 1) . " seconds ago", $testRoot, $testRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[3], $testRoot, $testRoot);
 &validateAnswer();
 
 &prepareTestPath();
 &generateData(5, 0, $answerRoot);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[4] - 1) . " seconds ago", $testRoot, $testRoot);
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[4], $testRoot, $testRoot);
 &validateAnswer();
 
 &prepareTestPath();
@@ -575,27 +673,27 @@ undef @completionTimestamp;
 print "Generation 1 incremental\n";
 &generateData(1);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
 print "Generation 2 incremental\n";
 &generateData(2);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
 print "Generation 3 incremental\n";
 &generateData(3);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
 print "Generation 4 incremental\n";
 &generateData(4);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
 print "Generation 5 incremental\n";
 &generateData(5);
 &executeUnderscoreBackup("backup");
-push(@completionTimestamp, time());
+push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
 
 print "Generation 6 incremental\n";
@@ -604,19 +702,20 @@ print "Generation 6 incremental\n";
 
 &prepareTestPath();
 &generateData(1, 1);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[0] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[0], "/", "=");
 &prepareTestPath();
 &generateData(2, 1);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[1] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[1], "/", "=");
 &prepareTestPath();
 &generateData(3, 1);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[2] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[2], "/", "=");
 &prepareTestPath();
 &generateData(4, 1);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[3] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[3], "/", "=");
 &prepareTestPath();
+
 &generateData(5, 1);
-&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", (time() - $completionTimestamp[4] - 1) . " seconds ago", "/", "=");
+&executeUnderscoreBackup("restore", "--passphrase", "1234", "-t", $completionTimestamp[4], "/", "=");
 
 print "Test changing password\n";
 

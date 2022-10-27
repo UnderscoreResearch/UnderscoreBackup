@@ -2,23 +2,19 @@ package com.underscoreresearch.backup.block.assignments;
 
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
 
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,13 +25,11 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
-import com.underscoreresearch.backup.block.BlockFormatPlugin;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockCompletion;
 import com.underscoreresearch.backup.model.BackupCompletion;
@@ -48,16 +42,26 @@ import com.underscoreresearch.backup.model.BackupSet;
 
 @RequiredArgsConstructor
 @Slf4j
-@BlockFormatPlugin("ZIP")
-public class SmallFileBlockAssignment extends BaseBlockAssignment implements FileBlockExtractor {
+public abstract class SmallFileBlockAssignment extends BaseBlockAssignment implements FileBlockExtractor {
     private static final int MAX_FILES_PER_BLOCK = 1024;
     private final FileBlockUploader uploader;
+    @Getter(AccessLevel.PROTECTED)
     private final BlockDownloader blockDownloader;
     private final MetadataRepository repository;
     private final FileSystemAccess access;
     private final int maximumFileSize;
+    @Getter(AccessLevel.PROTECTED)
     private final int targetSize;
     private Map<BackupSet, PendingFile> pendingFiles = new HashMap<>();
+    private LoadingCache<KeyFetch, CachedData> cache = CacheBuilder
+            .newBuilder()
+            .maximumSize(2)
+            .build(new CacheLoader<>() {
+                @Override
+                public CachedData load(KeyFetch key) throws Exception {
+                    return createCacheData(key.getBlockHash(), key.getPassphrase());
+                }
+            });
 
     @Override
     protected boolean internalAssignBlocks(BackupSet set, BackupPartialFile backupPartialFile,
@@ -96,19 +100,21 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
 
     private synchronized void internalAssignBlock(BackupSet set, byte[] data, BackupBlockCompletion completionFuture)
             throws IOException {
-        PendingFile pendingFile = pendingFiles.computeIfAbsent(set, t -> new PendingFile());
+        PendingFile pendingFile = pendingFiles.computeIfAbsent(set, t -> createPendingFile());
         if (pendingFile.estimateSize() + data.length >= targetSize
                 || pendingFile.getFileCount() >= MAX_FILES_PER_BLOCK) {
             uploadPending(set, pendingFile);
-            pendingFile = new PendingFile();
+            pendingFile = createPendingFile();
             pendingFiles.put(set, pendingFile);
         }
         pendingFile.addData(data, set, completionFuture);
     }
 
+    protected abstract PendingFile createPendingFile();
+
     private void uploadPending(BackupSet set, PendingFile pendingFile) {
         try {
-            uploader.uploadBlock(set, new BackupData(pendingFile.data()), pendingFile.hash(), "ZIP", (success) -> {
+            uploader.uploadBlock(set, new BackupData(pendingFile.data()), pendingFile.hash(), getFormat(), (success) -> {
                 pendingFile.complete(success);
             });
         } catch (IOException e) {
@@ -117,6 +123,8 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
         }
         pendingFiles.remove(set);
     }
+
+    protected abstract String getFormat();
 
     @Override
     public synchronized void flushAssignments() {
@@ -128,81 +136,13 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
         pendingFiles.clear();
     }
 
-    @Data
-    @AllArgsConstructor
-    private static class CacheEntry {
-        private boolean compressed;
-        private byte[] data;
-
-        public byte[] get() throws IOException {
-            if (compressed) {
-                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
-                    try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
-                        return IOUtils.readAllBytes(gzipInputStream);
-                    }
-                }
-            }
-            return data;
-        }
-    }
-
-    @Data
-    private class CachedData {
-        private static final long MINIMUM_COMPRESSED_SIZE = 8192;
-        private static final long MINIMUM_COMPRESSED_RATIO = 2;
-        private Map<String, CacheEntry> blockEntries;
-
-        private CachedData(String hash) {
-            try {
-                blockEntries = new HashMap<>();
-                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(blockDownloader.downloadBlock(hash))) {
-                    try (ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
-                        ZipEntry ze;
-                        while ((ze = zipInputStream.getNextEntry()) != null) {
-                            byte[] data = IOUtils.readAllBytes(zipInputStream);
-                            if (ze.getSize() > MINIMUM_COMPRESSED_SIZE
-                                    && ze.getSize() / ze.getCompressedSize() > MINIMUM_COMPRESSED_RATIO) {
-                                try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-                                    try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
-                                        gzipOutputStream.write(data);
-                                    }
-                                    blockEntries.put(ze.getName(), new CacheEntry(true, byteArrayOutputStream.toByteArray()));
-                                }
-                            } else {
-                                blockEntries.put(ze.getName(), new CacheEntry(false, data));
-                            }
-                        }
-                    }
-                }
-            } catch (IOException exc) {
-                throw new RuntimeException(exc);
-            }
-        }
-
-        public byte[] get(String key) throws IOException {
-            CacheEntry entry = blockEntries.get(key);
-            if (entry != null) {
-                return entry.get();
-            }
-            return null;
-        }
-    }
-
-    private LoadingCache<String, CachedData> cache = CacheBuilder
-            .newBuilder()
-            .maximumSize(2)
-            .build(new CacheLoader<String, CachedData>() {
-                @Override
-                public CachedData load(String key) throws Exception {
-                    return new CachedData(key);
-                }
-            });
+    protected abstract CachedData createCacheData(String key, String passphrase);
 
     @Override
-    public byte[] extractPart(BackupFilePart file, BackupBlock block) throws IOException {
+    public byte[] extractPart(BackupFilePart file, BackupBlock block, String passphrase) throws IOException {
         try {
-            CachedData data = cache.get(block.getHash());
-            return data.get(file.getBlockIndex().toString());
+            CachedData data = cache.get(new KeyFetch(file.getBlockHash(), passphrase));
+            return data.get(file.getBlockIndex(), file.getPartHash());
         } catch (ExecutionException e) {
             throw new IOException("Failed to process contents of block " + file.getBlockHash(), e);
         }
@@ -213,9 +153,33 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
         throw new NotImplementedException();
     }
 
-    private class PendingFile {
-        private ByteArrayOutputStream output = new ByteArrayOutputStream(targetSize);
-        private ZipOutputStream zipOutputStream = new ZipOutputStream(output);
+    @AllArgsConstructor
+    private static class KeyFetch {
+        @Getter
+        private String blockHash;
+        @Getter
+        private String passphrase;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            KeyFetch keyFetch = (KeyFetch) o;
+            return Objects.equals(blockHash, keyFetch.blockHash);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(blockHash);
+        }
+    }
+
+    @Data
+    protected abstract class CachedData {
+        public abstract byte[] get(int index, String partHash) throws IOException;
+    }
+
+    protected abstract class PendingFile {
         private int currentIndex;
         private Hash hash = new Hash();
         private Map<String, List<BackupFilePart>> pendingParts = new HashMap<>();
@@ -261,11 +225,7 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
                 currentIndex++;
                 hash.addBytes(data);
 
-                ZipEntry entry = new ZipEntry(currentIndex + "");
-                zipOutputStream.putNextEntry(entry);
-                zipOutputStream.write(data, 0, data.length);
-                zipOutputStream.closeEntry();
-                zipOutputStream.flush();
+                addPartData(currentIndex, data, partHash);
 
                 piecePart = Lists.newArrayList(BackupFilePart.builder()
                         .partHash(partHash)
@@ -290,18 +250,11 @@ public class SmallFileBlockAssignment extends BaseBlockAssignment implements Fil
 
         }
 
-        public synchronized int estimateSize() {
-            return output.size();
-        }
+        protected abstract void addPartData(int index, byte[] data, String partHash) throws IOException;
 
-        public synchronized byte[] data() throws IOException {
-            zipOutputStream.close();
-            zipOutputStream = null;
-            byte[] data = output.toByteArray();
-            output.close();
-            output = null;
-            return data;
-        }
+        public abstract int estimateSize();
+
+        public abstract byte[] data() throws IOException;
 
         public synchronized String hash() {
             return hash.getHash();

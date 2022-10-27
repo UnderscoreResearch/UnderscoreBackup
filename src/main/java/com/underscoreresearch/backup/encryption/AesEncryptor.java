@@ -40,18 +40,16 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 @EncryptorPlugin("AES256")
 @Slf4j
 public class AesEncryptor implements Encryptor {
-    private boolean stableDedupe;
-    private final PublicKeyEncrypion key;
     private final AesEncryptorFormat defaultFormat;
     private final AesEncryptorFormat legacyFormat;
     private final AesEncryptorFormat stableFormat;
+    private boolean stableDedupe;
 
     @Inject
-    public AesEncryptor(PublicKeyEncrypion key) {
-        this.key = key;
-        defaultFormat = new AesEncryptorGcm(key);
-        stableFormat = new AesEncryptorGcmStable(key);
-        legacyFormat = new AesEncryptorCbc(key);
+    public AesEncryptor() {
+        defaultFormat = new AesEncryptorGcm();
+        stableFormat = new AesEncryptorGcmStable();
+        legacyFormat = new AesEncryptorCbc();
 
         stableDedupe = true;
         try {
@@ -61,6 +59,23 @@ public class AesEncryptor implements Encryptor {
             log.warn("Failed to read config for encryption setup");
             stableDedupe = true;
         }
+    }
+
+    public static byte[] applyKeyData(BackupBlockStorage storage, byte[] encryptionKey) {
+        if (storage != null && storage.getProperties() != null && storage.getProperties().containsKey(KEY_DATA)) {
+            byte[] keyData = Hash.decodeBytes(storage.getProperties().get(KEY_DATA));
+
+            return applyKeyData(keyData, encryptionKey);
+        }
+        return encryptionKey;
+    }
+
+    public static byte[] applyKeyData(byte[] keyData, byte[] encryptionKey) {
+        byte[] ret = new byte[encryptionKey.length];
+        for (int i = 0; i < keyData.length; i++) {
+            ret[i] = (byte) (encryptionKey[i] ^ keyData[i]);
+        }
+        return ret;
     }
 
     private AesEncryptorFormat getEncryptorFormat(byte[] data) {
@@ -88,17 +103,17 @@ public class AesEncryptor implements Encryptor {
     }
 
     @Override
-    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data) {
+    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key) {
         if (storage != null && stableDedupe) {
-            return stableFormat.encryptBlock(storage, data);
+            return stableFormat.encryptBlock(storage, data, key);
         }
-        return defaultFormat.encryptBlock(storage, data);
+        return defaultFormat.encryptBlock(storage, data, key);
     }
 
     @Override
-    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData) {
+    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, EncryptionKey.PrivateKey key) {
         return getEncryptorFormat(encryptedData).decodeBlock(storage, encryptedData,
-                getEncryptionFormatOffset(encryptedData));
+                getEncryptionFormatOffset(encryptedData), key);
     }
 
     @Override
@@ -113,42 +128,26 @@ public class AesEncryptor implements Encryptor {
     }
 
     @Override
-    public BackupBlockStorage reKeyStorage(BackupBlockStorage storage, PublicKeyEncrypion oldPrivateKey, PublicKeyEncrypion newPublicKey) {
+    public BackupBlockStorage reKeyStorage(BackupBlockStorage storage, EncryptionKey.PrivateKey oldPrivateKey,
+                                           EncryptionKey newPublicKey) {
         if (storage.getProperties() == null || !storage.getProperties().containsKey(PUBLIC_KEY)) {
             return null;
         }
-        PublicKeyEncrypion blockPublicKey = new PublicKeyEncrypion();
+        EncryptionKey blockPublicKey = new EncryptionKey();
         blockPublicKey.setPublicKey(storage.getProperties().get(PUBLIC_KEY));
-        byte[] privateKey = PublicKeyEncrypion.combinedSecret(oldPrivateKey, blockPublicKey);
+        byte[] privateKey = EncryptionKey.combinedSecret(oldPrivateKey, blockPublicKey);
         privateKey = applyKeyData(storage, privateKey);
 
-        PublicKeyEncrypion newBlockKey = PublicKeyEncrypion.generateKeys();
-        byte[] newPrivateKey = PublicKeyEncrypion.combinedSecret(newBlockKey, newPublicKey);
+        EncryptionKey newBlockKey = EncryptionKey.generateKeys();
+        byte[] newPrivateKey = EncryptionKey.combinedSecret(newBlockKey.getPrivateKey(null), newPublicKey);
         byte[] keyData = applyKeyData(newPrivateKey, privateKey);
 
-        BackupBlockStorage newStorage = new BackupBlockStorage(storage.getDestination(), storage.getEc(),
-                storage.getEncryption(), Maps.newHashMap(storage.getProperties()),
-                storage.getParts(), storage.getCreated());
+        BackupBlockStorage newStorage = storage.toBuilder()
+                .properties(Maps.newHashMap(storage.getProperties()))
+                .build();
         newStorage.addProperty(PUBLIC_KEY, newBlockKey.getPublicKey());
         newStorage.addProperty(KEY_DATA, Hash.encodeBytes(keyData));
 
         return newStorage;
-    }
-
-    public static byte[] applyKeyData(BackupBlockStorage storage, byte[] encryptionKey) {
-        if (storage != null && storage.getProperties() != null && storage.getProperties().containsKey(KEY_DATA)) {
-            byte[] keyData = Hash.decodeBytes(storage.getProperties().get(KEY_DATA));
-
-            return applyKeyData(keyData, encryptionKey);
-        }
-        return encryptionKey;
-    }
-
-    public static byte[] applyKeyData(byte[] keyData, byte[] encryptionKey) {
-        byte[] ret = new byte[encryptionKey.length];
-        for (int i = 0; i < keyData.length; i++) {
-            ret[i] = (byte) (encryptionKey[i] ^ keyData[i]);
-        }
-        return ret;
     }
 }

@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,7 +21,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.file.MetadataRepository;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 @AllArgsConstructor
@@ -34,11 +35,6 @@ public class BackupBlock {
     private List<BackupBlockStorage> storage;
     private List<String> hashes;
     private List<Long> offsets;
-
-    @JsonIgnore
-    public boolean isSuperBlock() {
-        return isSuperBlock(hash);
-    }
 
     public static boolean isSuperBlock(String hash) {
         return hash.startsWith(SUPERBLOCK_PREFIX);
@@ -59,5 +55,23 @@ public class BackupBlock {
             return blocks;
         }
         return Lists.newArrayList(block);
+    }
+
+    @JsonIgnore
+    public boolean isSuperBlock() {
+        return isSuperBlock(hash);
+    }
+
+    public BackupBlock createAdditionalBlock(BackupBlockAdditional blockAdditional) {
+        List<BackupBlockStorage> newStorages = new ArrayList<>();
+        for (int i = 0; i < storage.size(); i++) {
+            BackupBlockStorage cs = storage.get(i);
+            BackupBlockStorage newStorage = cs.toBuilder()
+                    .properties(new HashMap<>(cs.getProperties()))
+                    .build();
+            newStorage.getProperties().putAll(blockAdditional.getProperties().get(i));
+            newStorages.add(newStorage);
+        }
+        return toBuilder().storage(newStorages).build();
     }
 }

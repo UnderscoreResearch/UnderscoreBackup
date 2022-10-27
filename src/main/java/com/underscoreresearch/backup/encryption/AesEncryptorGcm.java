@@ -1,21 +1,15 @@
 package com.underscoreresearch.backup.encryption;
 
 import javax.crypto.spec.GCMParameterSpec;
-import javax.inject.Inject;
 import java.security.spec.AlgorithmParameterSpec;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AesEncryptorGcm extends AesEncryptorFormat {
-    private static final String ENCRYPTION_ALGORITHM = "AES/GCM/NoPadding";
     public static final byte PADDED_GCM = 2;
     public static final byte NON_PADDED_GCM = 1;
-
-    @Inject
-    public AesEncryptorGcm(PublicKeyEncrypion key) {
-        super(key);
-    }
+    private static final String ENCRYPTION_ALGORITHM = "AES/GCM/NoPadding";
 
     @Override
     protected String getKeyAlgorithm() {

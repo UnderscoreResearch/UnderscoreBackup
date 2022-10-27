@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.configuration;
 
 import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAULT_KEY_FILES;
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,8 +25,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.SystemUtils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Strings;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -33,7 +32,6 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.joestelmach.natty.DateGroup;
 import com.joestelmach.natty.Parser;
-import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.web.WebServer;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -47,12 +45,11 @@ import com.underscoreresearch.backup.utils.state.WindowsState;
 
 @Slf4j
 public class CommandLineModule extends AbstractModule {
-    public static final String NEED_PRIVATE_KEY = "NEED_PRIVATE_KEY";
     public static final String CONFIG_FILE_LOCATION = "CONFIG_FILE_LOCATION";
 
     public static final String PRIVATE_KEY_SEED = "passphrase";
     public static final String KEY_FILE_NAME = "key-file-name";
-    public static final String PUBLIC_KEY_DATA = "public-key-data";
+    public static final String ENCRYPTION_KEY_DATA = "encryption-key-data";
     public static final String CONFIG_DATA = "config-data";
     public static final String NO_LOG = "no-log";
     public static final String LOG_FILE = "log-file";
@@ -68,79 +65,31 @@ public class CommandLineModule extends AbstractModule {
     public static final String OVER_WRITE = "over-write";
     public static final String TIMESTAMP = "timestamp";
     public static final String BIND_ADDRESS = "bind-address";
+    public static final String ADDITIONAL_KEY = "additional-key";
     public static final String SOURCE = "source";
     public static final String URL_LOCATION = "URL_LOCATION";
     public static final String IDENTITY_LOCATION = "IDENTITY_LOCATION";
     public static final String INSTALLATION_IDENTITY = "INSTALLATION_IDENTITY";
     public static final String NO_DELETE_REBUILD = "no-delete-rebuild";
-
-    private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
-    private static final String DEFAULT_LOCAL_PATH = "/var/cache/underscorebackup";
-    private static final String DEFAULT_LOG_PATH = "/var/log/underscorebackup.log";
-
-    private static final ObjectReader BACKUP_CONFIGURATION_READER
-            = new ObjectMapper().readerFor(BackupConfiguration.class);
     public static final String DEFAULT_USER_MANIFEST_LOCATION = "DEFAULT_USER_MANIFEST_LOCATION";
     public static final String DEFAULT_MANIFEST_LOCATION = "DEFAULT_MANIFEST_LOCATION";
     public static final String MANIFEST_LOCATION = "MANIFEST_LOCATION";
     public static final String ADDITIONAL_SOURCE = "ADDITIONAL_SOURCE";
     public static final String SOURCE_CONFIG = "SOURCE_CONFIG";
     public static final String SOURCE_CONFIG_LOCATION = "SOURCE_CONFIG_LOCATION";
-
+    private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
+    private static final String DEFAULT_LOCAL_PATH = "/var/cache/underscorebackup";
+    private static final String DEFAULT_LOG_PATH = "/var/log/underscorebackup.log";
     private final String[] argv;
-    private final String passphrase;
     private final String source;
 
-    public CommandLineModule(String[] argv, String passphrase, String source) {
+    public CommandLineModule(String[] argv, String source) {
         this.argv = argv;
-        this.passphrase = passphrase;
         if (source != null) {
             this.source = source;
         } else {
             this.source = "";
         }
-    }
-
-    @Provides
-    @Singleton
-    public Options options() {
-        Options options = new Options();
-
-        options.addOption("k", KEY, true, "Location for key file");
-        options.addOption("d", DEBUG, false, "Enable verbose debugging");
-        options.addOption("f", FORCE, false, "Force running command regardless of validation errors");
-        options.addOption("c", CONFIG, true, "Location for configuration file");
-        options.addOption(null, CONFIG_DATA, true, "Configuration data");
-        options.addOption(null, PUBLIC_KEY_DATA, true, "Public key data");
-        options.addOption(null, PRIVATE_KEY_SEED, true, "Private key passphrase");
-        options.addOption(null, DEVELOPER_MODE, false, "Developer mode");
-        options.addOption(null, LOG_FILE, true, "Log file location");
-        options.addOption(null, INCLUDE_DELETED, false, "Include deleted files from repository");
-        options.addOption(null, NO_LOG, false, "Don't write to a log file");
-        options.addOption(null, BIND_ADDRESS, true, "Specify the address to bind UI webserver to (Default localhost)");
-        options.addOption(null, NO_DELETE_REBUILD, false, "Rebuild repository without performing any deletes");
-        options.addOption(null, SOURCE, true, "Operate on a additional source");
-        options.addOption("h", HUMAN_READABLE, false, "Display human readable sizes");
-        options.addOption("R", RECURSIVE, false, "Process restore or list operation recursively");
-        options.addOption(null, FULL_PATH, false, "Display full path");
-        options.addOption("o", OVER_WRITE, false, "Overwrite existing files when restoring");
-        options.addOption("t", TIMESTAMP, true, "Timestamp to use for restore operations");
-
-        return options;
-    }
-
-    @Provides
-    @Singleton
-    public CommandLine commandLine(Options options) throws ParseException {
-        CommandLineParser parser = new DefaultParser();
-        CommandLine cl = parser.parse(options, argv);
-        return cl;
-    }
-
-    @Provides
-    @Named(DEBUG)
-    public boolean debug(CommandLine commandLine) throws ParseException {
-        return commandLine.hasOption(DEBUG);
     }
 
     public static Long timestamp(CommandLine commandLine) throws ParseException {
@@ -160,6 +109,69 @@ public class CommandLineModule extends AbstractModule {
             }
         }
         throw new ParseException("Failed to derive date from parameter: " + commandLine.getOptionValue(TIMESTAMP));
+    }
+
+    public static String getDefaultUserManifestLocation() {
+        File userDir = new File(System.getProperty("user.home"));
+        File configDir;
+        if (SystemUtils.IS_OS_WINDOWS) {
+            configDir = new File(userDir, "AppData\\Local\\UnderscoreBackup");
+        } else {
+            configDir = new File(userDir, ".underscoreBackup");
+        }
+        configDir.mkdirs();
+        return configDir.getAbsolutePath();
+    }
+
+    public static String getKeyFileName(String source) {
+        if (!Strings.isNullOrEmpty(source)) {
+            return Paths.get(InstanceFactory.getInstance(MANIFEST_LOCATION), "sources", source, "key").toString();
+        } else {
+            return InstanceFactory.getInstance(KEY_FILE_NAME);
+        }
+    }
+
+    @Provides
+    @Singleton
+    public Options options() {
+        Options options = new Options();
+
+        options.addOption(null, SOURCE, true, "Operate on a additional source");
+        options.addOption("f", FORCE, false, "Force running command regardless of validation errors");
+        options.addOption(null, CONFIG_DATA, true, "Configuration data");
+        options.addOption("d", DEBUG, false, "Enable verbose debugging");
+        options.addOption(null, DEVELOPER_MODE, false, "Developer mode");
+        options.addOption(null, BIND_ADDRESS, true, "Specify the address to bind UI webserver to (Default localhost)");
+        options.addOption(null, NO_DELETE_REBUILD, false, "Rebuild repository without performing any deletes");
+        options.addOption("h", HUMAN_READABLE, false, "Display human readable sizes");
+        options.addOption("R", RECURSIVE, false, "Process restore or list operation recursively");
+        options.addOption(null, FULL_PATH, false, "Display full path");
+        options.addOption("o", OVER_WRITE, false, "Overwrite existing files when restoring");
+        options.addOption("t", TIMESTAMP, true, "Timestamp to use for restore operations");
+        options.addOption(null, INCLUDE_DELETED, false, "Include deleted files from repository");
+        options.addOption(null, LOG_FILE, true, "Log file location");
+        options.addOption(null, NO_LOG, false, "Don't write to a log file");
+        options.addOption("c", CONFIG, true, "Location for configuration file");
+        options.addOption("k", KEY, true, "Location for key file");
+        options.addOption(null, ENCRYPTION_KEY_DATA, true, "Encryption key data");
+        options.addOption(null, PRIVATE_KEY_SEED, true, "Private key passphrase");
+        options.addOption(null, ADDITIONAL_KEY, false, "Generate a new additional key for sharing instead of a new master key");
+
+        return options;
+    }
+
+    @Provides
+    @Singleton
+    public CommandLine commandLine(Options options) throws ParseException {
+        CommandLineParser parser = new DefaultParser();
+        CommandLine cl = parser.parse(options, argv);
+        return cl;
+    }
+
+    @Provides
+    @Named(DEBUG)
+    public boolean debug(CommandLine commandLine) throws ParseException {
+        return commandLine.hasOption(DEBUG);
     }
 
     @Provides
@@ -267,19 +279,6 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
-    @Provides
-    @Singleton
-    @Named(NEED_PRIVATE_KEY)
-    public boolean needPrivateKey(CommandLine commandLine) {
-        if (commandLine.getArgList().size() > 0) {
-            Class<? extends Command> commandClass = Command.findCommandClass(commandLine.getArgList().get(0));
-            if (commandClass != null) {
-                return Command.needPrivateKey(commandClass);
-            }
-        }
-        return false;
-    }
-
     @Named(CONFIG_FILE_LOCATION)
     @Singleton
     @Provides
@@ -309,18 +308,6 @@ public class CommandLineModule extends AbstractModule {
             return new File(defaultUserManifestLocation(), "config.json")
                     .getAbsolutePath();
         }
-    }
-
-    public static String getDefaultUserManifestLocation() {
-        File userDir = new File(System.getProperty("user.home"));
-        File configDir;
-        if (SystemUtils.IS_OS_WINDOWS) {
-            configDir = new File(userDir, "AppData\\Local\\UnderscoreBackup");
-        } else {
-            configDir = new File(userDir, ".underscoreBackup");
-        }
-        configDir.mkdirs();
-        return configDir.getAbsolutePath();
     }
 
     @Named(DEFAULT_USER_MANIFEST_LOCATION)
@@ -411,12 +398,18 @@ public class CommandLineModule extends AbstractModule {
             BackupConfiguration sourceConfig
                     = BACKUP_CONFIGURATION_READER.readValue(new File(configLocation));
             BackupDestination destination = configuration.getAdditionalSources().get(additionalSource);
-            BackupDestination manifestDestination = sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination());
+            BackupDestination manifestDestination;
+            if (sourceConfig.getManifest() != null && sourceConfig.getManifest().getDestination() != null) {
+                manifestDestination = sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination());
+            } else {
+                manifestDestination = null;
+            }
 
             // So this is a bit tricky. If the configuration for the manifest matches the URI and type we have then
             // replace the destination with what is defined in the backup configuration. Otherwise, add a new destination
             // with a generated name and make that the manifest location.
-            if (!Objects.equals(destination.getEndpointUri(), manifestDestination.getEndpointUri())
+            if (manifestDestination == null
+                    || !Objects.equals(destination.getEndpointUri(), manifestDestination.getEndpointUri())
                     || !Objects.equals(destination.getType(), manifestDestination.getType())) {
                 String manifestName = "manifest";
                 int i = 0;
@@ -434,28 +427,12 @@ public class CommandLineModule extends AbstractModule {
         return configuration;
     }
 
-
     @Provides
     @Singleton
-    @Named(PRIVATE_KEY_SEED)
-    public String privateKeySeed(CommandLine commandLine) {
-        if (!Strings.isNullOrEmpty(this.passphrase)) {
-            return passphrase;
-        }
-        if (commandLine.hasOption(PRIVATE_KEY_SEED))
-            return commandLine.getOptionValue(PRIVATE_KEY_SEED);
-        String seed = System.getenv("UNDERSCORE_BACKUP_SEED");
-        if (Strings.isNullOrEmpty(seed))
-            return "";
-        return seed;
-    }
-
-    @Provides
-    @Singleton
-    @Named(PUBLIC_KEY_DATA)
+    @Named(ENCRYPTION_KEY_DATA)
     public String publicKeyData(CommandLine commandLine) {
-        if (commandLine.hasOption(PUBLIC_KEY_DATA))
-            return commandLine.getOptionValue(PUBLIC_KEY_DATA);
+        if (commandLine.hasOption(ENCRYPTION_KEY_DATA))
+            return commandLine.getOptionValue(ENCRYPTION_KEY_DATA);
         return "";
     }
 
@@ -490,19 +467,11 @@ public class CommandLineModule extends AbstractModule {
     @Provides
     @Singleton
     @Named(KEY_FILE_NAME)
-    public String getKeyFileName(CommandLine commandLine,
-                                 @Named(PRIVATE_KEY_SEED) String privateKeySeed,
-                                 @Named(MANIFEST_LOCATION) String manifestLocation,
-                                 @Named(ADDITIONAL_SOURCE) String source)
+    public String getKeyFileName(CommandLine commandLine)
             throws ParseException {
-        String keyFile;
-        if (!Strings.isNullOrEmpty(source)) {
-            keyFile = Paths.get(manifestLocation, "sources", source, "key").toString();
-        } else {
-            keyFile = commandLine.getOptionValue(KEY);
-        }
+        String keyFile = commandLine.getOptionValue(KEY);
         if (Strings.isNullOrEmpty(keyFile)) {
-            if (!Strings.isNullOrEmpty(privateKeySeed))
+            if (commandLine.hasOption(PRIVATE_KEY_SEED))
                 return DEFAULT_KEY_FILES[0];
 
             for (String fileName : DEFAULT_KEY_FILES) {

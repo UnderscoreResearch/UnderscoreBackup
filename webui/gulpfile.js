@@ -1,8 +1,8 @@
-const gulp = require("gulp");
-const inlinesource = require("gulp-inline-source");
-const replace = require("gulp-replace");
-const del = require('del');
-const exec = require('child_process').exec;
+import gulp from "gulp";
+import inlinesource from "gulp-inline-source";
+import replace from "gulp-replace";
+import {deleteAsync} from "del";
+import {exec} from "child_process";
 
 gulp.task("index", () => {
     return gulp
@@ -40,15 +40,15 @@ gulp.task('copy-manifest', () => {
 gulp.task('package', gulp.parallel('index', 'copy-woff', 'copy-woff2', 'copy-ttf', 'copy-ico', 'copy-manifest'));
 
 gulp.task('delete-parcel-cache', () => {
-    return del('.parcel-cache/**', {force: true});
+    return deleteAsync('.parcel-cache/**', {force: true});
 });
 
 gulp.task('delete-resources', () => {
-    return del('../src/main/resources/web/**', {force: true});
+    return deleteAsync('../src/main/resources/web/**', {force: true});
 });
 
 gulp.task('delete-build', () => {
-    return del('build/**', {force: true});
+    return deleteAsync('build/**', {force: true});
 });
 
 gulp.task('clean', gulp.parallel('delete-parcel-cache', 'delete-build', 'delete-resources'));

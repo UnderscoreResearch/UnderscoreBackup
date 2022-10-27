@@ -56,6 +56,7 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private static final long SLEEP_DELAY_MS = 60 * 1000;
     private static final long SLEEP_RESUME_DELAY_MS = 5 * 60 * 1000;
+    private static RepositoryTrimmer.Statistics statistics;
     private final BackupConfiguration configuration;
     private final FileScanner scanner;
     private final MetadataRepository repository;
@@ -72,7 +73,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private boolean scheduledRestart;
     @Getter
     private boolean running;
-    private static RepositoryTrimmer.Statistics statistics;
 
     public ScannerSchedulerImpl(BackupConfiguration configuration,
                                 MetadataRepository repository,
@@ -88,6 +88,64 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         pendingSets = new boolean[configuration.getSets().size()];
 
         executor.scheduleAtFixedRate(this::detectSleep, SLEEP_DELAY_MS, SLEEP_DELAY_MS, TimeUnit.MILLISECONDS);
+    }
+
+    public static void updateOptimizeSchedule(MetadataRepository copyRepository,
+                                              String schedule) throws IOException {
+        if (schedule != null) {
+            Date date = getNextScheduleDate(schedule);
+            if (date != null) {
+                BackupPendingSet pendingSet = BackupPendingSet.builder()
+                        .setId("")
+                        .scheduledAt(date)
+                        .schedule(schedule)
+                        .build();
+                copyRepository.addPendingSets(pendingSet);
+            }
+        }
+    }
+
+    public static void updateTrimSchedule(MetadataRepository repository,
+                                          String schedule) throws IOException {
+        if (schedule != null) {
+            Date date = getNextScheduleDate(schedule);
+            if (date != null) {
+                BackupPendingSet pendingSet = BackupPendingSet.builder()
+                        .setId("=")
+                        .scheduledAt(date)
+                        .schedule(schedule)
+                        .build();
+                repository.addPendingSets(pendingSet);
+            }
+        } else {
+            repository.deletePendingSets("=");
+        }
+    }
+
+    private static Date getNextScheduleDate(String schedule) {
+        if (schedule != null) {
+            try {
+                CronParser parser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX));
+                Cron expression = parser.parse(schedule).validate();
+
+                ZonedDateTime now = ZonedDateTime.now();
+                ExecutionTime scheduler = ExecutionTime.forCron(expression);
+                Optional<ZonedDateTime> nextExecution = scheduler.nextExecution(now);
+                if (nextExecution.isPresent()) {
+                    Date date = Date.from(nextExecution.get().toInstant());
+
+                    if (date.getTime() - new Date().getTime() > 0) {
+                        return date;
+                    }
+                } else {
+                    log.warn("No new time to schedule");
+                }
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid cron expression, will not reschedule after initial run: {}",
+                        schedule, e);
+            }
+        }
+        return null;
     }
 
     private void detectSleep() {
@@ -197,6 +255,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
             }
         }
         running = false;
+        condition.signal();
         lock.unlock();
         stateLogger.reset();
     }
@@ -329,64 +388,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         }
     }
 
-    public static void updateOptimizeSchedule(MetadataRepository copyRepository,
-                                              String schedule) throws IOException {
-        if (schedule != null) {
-            Date date = getNextScheduleDate(schedule);
-            if (date != null) {
-                BackupPendingSet pendingSet = BackupPendingSet.builder()
-                        .setId("")
-                        .scheduledAt(date)
-                        .schedule(schedule)
-                        .build();
-                copyRepository.addPendingSets(pendingSet);
-            }
-        }
-    }
-
-    public static void updateTrimSchedule(MetadataRepository repository,
-                                          String schedule) throws IOException {
-        if (schedule != null) {
-            Date date = getNextScheduleDate(schedule);
-            if (date != null) {
-                BackupPendingSet pendingSet = BackupPendingSet.builder()
-                        .setId("=")
-                        .scheduledAt(date)
-                        .schedule(schedule)
-                        .build();
-                repository.addPendingSets(pendingSet);
-            }
-        } else {
-            repository.deletePendingSets("=");
-        }
-    }
-
-    private static Date getNextScheduleDate(String schedule) {
-        if (schedule != null) {
-            try {
-                CronParser parser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX));
-                Cron expression = parser.parse(schedule).validate();
-
-                ZonedDateTime now = ZonedDateTime.now();
-                ExecutionTime scheduler = ExecutionTime.forCron(expression);
-                Optional<ZonedDateTime> nextExecution = scheduler.nextExecution(now);
-                if (nextExecution.isPresent()) {
-                    Date date = Date.from(nextExecution.get().toInstant());
-
-                    if (date.getTime() - new Date().getTime() > 0) {
-                        return date;
-                    }
-                } else {
-                    log.warn("No new time to schedule");
-                }
-            } catch (IllegalArgumentException e) {
-                log.error("Invalid cron expression, will not reschedule after initial run: {}",
-                        schedule, e);
-            }
-        }
-        return null;
-    }
-
     private void scheduleNext(BackupSet set, int index) {
         Date date = getNextScheduleDate(set.getSchedule());
         if (date != null) {
@@ -442,10 +443,32 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     public void shutdown() {
         lock.lock();
         shutdown = true;
-        executor.shutdownNow();
-        scanner.shutdown();
-        condition.signal();
-        lock.unlock();
+        try {
+            executor.shutdownNow();
+            scanner.shutdown();
+            condition.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void waitForCompletion() {
+        lock.lock();
+        try {
+            if (!shutdown) {
+                throw new IllegalStateException();
+            }
+            while (isRunning()) {
+                try {
+                    condition.await();
+                } catch (InterruptedException e) {
+                    log.warn("Failed to wait", e);
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override

@@ -179,7 +179,7 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
             <div style={{width: "100%"}}>
             </div>
             <div>
-                <Fab size={"small"} color={"primary"} onClick={() => addItem()}>
+                <Fab id="new-item" size={"small"} color={"primary"} onClick={() => addItem()}>
                     <AddIcon/>
                 </Fab>
             </div>

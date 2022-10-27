@@ -18,20 +18,6 @@ public class StatusLine {
     private Long totalValue;
     private String valueString;
 
-    public String getReporter() {
-        if (reporter != null) {
-            int lastIndex = reporter.lastIndexOf('.');
-            if (lastIndex >= 0)
-                return reporter.substring(lastIndex + 1);
-            return reporter;
-        }
-        return reporterClass.getSimpleName();
-    }
-
-    public void setReporter(String name) {
-        throw new UnsupportedOperationException();
-    }
-
     public StatusLine(Class reporter, String code, String message) {
         this.reporterClass = reporter;
         this.code = code;
@@ -67,6 +53,20 @@ public class StatusLine {
         this.value = value;
         this.totalValue = totalValue;
         this.valueString = valueString;
+    }
+
+    public String getReporter() {
+        if (reporter != null) {
+            int lastIndex = reporter.lastIndexOf('.');
+            if (lastIndex >= 0)
+                return reporter.substring(lastIndex + 1);
+            return reporter;
+        }
+        return reporterClass.getSimpleName();
+    }
+
+    public void setReporter(String name) {
+        throw new UnsupportedOperationException();
     }
 
     public String getValueString() {

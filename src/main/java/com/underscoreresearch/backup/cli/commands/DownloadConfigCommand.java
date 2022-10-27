@@ -3,8 +3,6 @@ package com.underscoreresearch.backup.cli.commands;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setReadOnlyFilePermissions;
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.downloadKeyData;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.PRIVATE_KEY_SEED;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,6 +18,8 @@ import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.PassphraseReader;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
+import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @CommandPlugin(value = "download-config", description = "Download config from manifest destination",
@@ -27,11 +27,21 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 @Slf4j
 public class DownloadConfigCommand extends Command {
 
+    public static void storeKeyData(String key, String source) throws ParseException, IOException {
+        byte[] keyData = downloadKeyData(key, source);
+        File keyFile = new File(CommandLineModule.getKeyFileName(source));
+        keyFile.getParentFile().mkdirs();
+        try (FileOutputStream outputStream = new FileOutputStream(keyFile)) {
+            outputStream.write(keyData);
+        }
+        setReadOnlyFilePermissions(keyFile);
+    }
+
     @Override
     public void executeCommand(CommandLine commandLine) throws Exception {
         try {
             String source = InstanceFactory.getAdditionalSource();
-            String key = InstanceFactory.getInstance(PRIVATE_KEY_SEED);
+            String key = EncryptionModule.getPassphrase();
             if (Strings.isNullOrEmpty(key))
                 key = PassphraseReader.readPassphrase("Enter passphrase for private key: ");
             if (key == null) {
@@ -39,10 +49,11 @@ public class DownloadConfigCommand extends Command {
             }
             storeKeyData(key, source);
 
-            InstanceFactory.reloadConfiguration(key, source);
-            String config = downloadRemoteConfiguration(source);
+            InstanceFactory.reloadConfiguration(source);
+            String config = downloadRemoteConfiguration(source, key);
             if (source == null) {
                 ConfigurationPost.updateConfiguration(config, false, false);
+
                 log.info("Successfully downloaded and replaced the configuration file");
             } else {
                 ConfigurationPost.updateSourceConfiguration(config, false);
@@ -51,15 +62,5 @@ public class DownloadConfigCommand extends Command {
         } catch (Exception exc) {
             log.error("Failed to download and replace config", exc);
         }
-    }
-
-    public static void storeKeyData(String key, String source) throws ParseException, IOException {
-        byte[] keyData = downloadKeyData(key, source);
-        File keyFile = new File(InstanceFactory.getInstance(KEY_FILE_NAME));
-        keyFile.getParentFile().mkdirs();
-        try (FileOutputStream outputStream = new FileOutputStream(keyFile)) {
-            outputStream.write(keyData);
-        }
-        setReadOnlyFilePermissions(keyFile);
     }
 }

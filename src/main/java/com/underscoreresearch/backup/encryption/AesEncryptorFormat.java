@@ -14,26 +14,17 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
 
-import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 @Slf4j
 public abstract class AesEncryptorFormat {
-    protected static final int PUBLIC_KEY_SIZE = 32;
-    protected static final String KEY_ALGORITHM = "AES";
     public static final String PUBLIC_KEY = "p";
     public static final String KEY_DATA = "k";
-
-    @Getter(AccessLevel.PROTECTED)
-    private final PublicKeyEncrypion key;
+    protected static final int PUBLIC_KEY_SIZE = 32;
+    protected static final String KEY_ALGORITHM = "AES";
     private static SecureRandom random = new SecureRandom();
-
-    public AesEncryptorFormat(PublicKeyEncrypion key) {
-        this.key = key;
-    }
 
     protected abstract String getKeyAlgorithm();
 
@@ -51,13 +42,15 @@ public abstract class AesEncryptorFormat {
 
     protected abstract AlgorithmParameterSpec createAlgorithmParameterSpec(byte[] iv);
 
-    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data) {
+    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key) {
         byte[] iv = new byte[getIvSize()];
         synchronized (random) {
             random.nextBytes(iv);
         }
-        PublicKeyEncrypion privateKey = PublicKeyEncrypion.generateKeys();
-        byte[] combinedKey = PublicKeyEncrypion.combinedSecret(privateKey, key);
+        EncryptionKey privateKey = EncryptionKey.generateKeys();
+        byte[] combinedKey = EncryptionKey.combinedSecret(privateKey.getPrivateKey(null), key);
+
+        applyAdditionalStorageKeyData(combinedKey, storage, privateKey);
 
         SecretKeySpec secretKeySpec = new SecretKeySpec(combinedKey, KEY_ALGORITHM);
         try {
@@ -92,12 +85,12 @@ public abstract class AesEncryptorFormat {
         }
     }
 
-    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset) {
+    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset, EncryptionKey.PrivateKey key) {
         byte[] iv = new byte[getIvSize()];
 
         System.arraycopy(encryptedData, offset, iv, 0, getIvSize());
 
-        PublicKeyEncrypion publicKey = new PublicKeyEncrypion();
+        EncryptionKey publicKey = new EncryptionKey();
 
         if (storage != null && storage.getProperties() != null && storage.getProperties().containsKey(PUBLIC_KEY)) {
             publicKey.setPublicKey(storage.getProperties().get(PUBLIC_KEY));
@@ -111,7 +104,7 @@ public abstract class AesEncryptorFormat {
             throw new IllegalStateException("Missing private key for decryption");
         }
 
-        byte[] encryptionKey = PublicKeyEncrypion.combinedSecret(key, publicKey);
+        byte[] encryptionKey = EncryptionKey.combinedSecret(key, publicKey);
         encryptionKey = applyKeyData(storage, encryptionKey);
 
         SecretKeySpec secretKeySpec = new SecretKeySpec(encryptionKey, KEY_ALGORITHM);
@@ -133,5 +126,16 @@ public abstract class AesEncryptorFormat {
         System.arraycopy(encryptedData, getIvSize() + offset, publicKeyBytes, 0, PUBLIC_KEY_SIZE);
 
         storage.addProperty(PUBLIC_KEY, Hash.encodeBytes(publicKeyBytes));
+    }
+
+    public void applyAdditionalStorageKeyData(byte[] encryptionKey, BackupBlockStorage storage, EncryptionKey privateKey) {
+        if (storage != null && storage.hasAdditionalStorageProperties()) {
+            storage.getAdditionalStorageProperties().entrySet().forEach(entry -> {
+                byte[] combinedKey = EncryptionKey.combinedSecret(privateKey.getPrivateKey(null), entry.getKey());
+                byte[] keyData = AesEncryptor.applyKeyData(encryptionKey, combinedKey);
+                entry.getValue().put(KEY_DATA, Hash.encodeBytes(keyData));
+                entry.getValue().put(PUBLIC_KEY, privateKey.getPublicKey());
+            });
+        }
     }
 }

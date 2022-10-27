@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
 import java.io.IOException;
 import java.net.HttpURLConnection;
 
@@ -12,44 +14,38 @@ import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.rq.RqPrint;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Slf4j
 public class PrivateKeyRequest {
-    private String passphrase;
-
-    private static ObjectReader READER = new ObjectMapper()
+    private static ObjectReader READER = MAPPER
             .readerFor(PrivateKeyRequest.class);
+    private String passphrase;
 
     public static String decodePrivateKeyRequest(Request req) throws IOException {
         String request = new RqPrint(req).printBody();
-        PrivateKeyRequest configuration = READER.readValue(request);
-        if (Strings.isNullOrEmpty(configuration.getPassphrase())) {
+        PrivateKeyRequest ret = READER.readValue(request);
+        if (Strings.isNullOrEmpty(ret.getPassphrase())) {
             throw new HttpException(
                     HttpURLConnection.HTTP_BAD_REQUEST,
                     "Missing required parameter passphrase"
             );
         }
-        return configuration.getPassphrase();
+        return ret.getPassphrase();
     }
 
     public static boolean validatePassphrase(String passphrase) {
-        PublicKeyEncrypion publicKeyEncrypion = InstanceFactory.getInstance(PublicKeyEncrypion.class);
+        EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
 
         try {
-            PublicKeyEncrypion ret = PublicKeyEncrypion.generateKeyWithPassphrase(passphrase, publicKeyEncrypion);
-            if (publicKeyEncrypion.getPublicKey().equals(ret.getPublicKey())) {
-                return true;
-            } else {
-                return false;
-            }
+            encryptionKey.getPrivateKey(passphrase);
+            return true;
         } catch (Exception exc) {
             log.warn("Failed to validate key", exc);
             return false;

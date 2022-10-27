@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -14,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.facets.fork.FkRegex;
 import org.takes.facets.fork.TkFork;
 import org.takes.http.BkBasic;
@@ -25,12 +26,16 @@ import org.takes.rs.RsRedirect;
 import org.takes.rs.RsText;
 import org.takes.tk.TkWrap;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 @Slf4j
 public class AuthEndpointGet extends JsonWrap {
+
+    private static ObjectWriter WRITER = MAPPER.writerFor(EndpointResponse.class);
+
+    public AuthEndpointGet(InetAddress address, URI baseApi) {
+        super(new Implementation(address, baseApi));
+    }
 
     @AllArgsConstructor
     @Data
@@ -38,16 +43,10 @@ public class AuthEndpointGet extends JsonWrap {
         private String endpoint;
     }
 
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
-            .writerFor(EndpointResponse.class);
-
-    public AuthEndpointGet(InetAddress address, URI baseApi) {
-        super(new Implementation(address, baseApi));
-    }
-
     private static class Implementation extends BaseImplementation {
         private static final TemporalAmount MAX_OPEN_DURATION = Duration.ofMinutes(10);
+        private static String existingAddress;
+        private static Instant lastRequested;
         private final InetAddress address;
         private final URI baseApi;
 
@@ -55,9 +54,6 @@ public class AuthEndpointGet extends JsonWrap {
             this.address = address;
             this.baseApi = baseApi;
         }
-
-        private static String existingAddress;
-        private static Instant lastRequested;
 
         @Override
         public Response actualAct(Request req) throws Exception {

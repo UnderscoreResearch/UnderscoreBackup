@@ -479,7 +479,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
             ...rowProps.style,
             width: "100%",
             display: "flex"
-        }}>
+        }} className={"treeRow"}>
             <div style={{width: (16 * Math.max(0, item.level - (props.hideRoot ? 1 : 0))) + "px"}}/>
             {(!props.hideRoot || state.items.length == 1) &&
                 <div style={{width: "48px"}}>

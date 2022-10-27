@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifes
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -15,11 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -28,37 +28,13 @@ import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @CommandPlugin(value = "rebuild-repository", description = "Rebuild repository metadata from logs",
         readonlyRepository = false, supportSource = true)
 @Slf4j
 public class RebuildRepositoryCommand extends Command {
-    private static final ObjectReader READER = new ObjectMapper().readerFor(BackupConfiguration.class);
-
-    @Override
-    public void executeCommand(CommandLine commandLine) throws Exception {
-        if (InstanceFactory.getAdditionalSource() == null) {
-            try {
-                String config = downloadRemoteConfiguration(null);
-                if (!config.equals(InstanceFactory.getInstance(CONFIG_DATA))) {
-                    throw new IOException("Configuration file does not match. Use -f flag to continue or use download-config command to replace");
-                }
-            } catch (Exception exc) {
-                if (commandLine.hasOption(FORCE)) {
-                    log.info("Overriding error validating configuration file");
-                } else {
-                    log.error(exc.getMessage());
-                    System.exit(1);
-                }
-            }
-        }
-
-        rebuildFromLog(false);
-    }
-
-    public static String downloadRemoteConfiguration(String source) throws IOException {
+    public static String downloadRemoteConfiguration(String source, String passphrase) throws IOException {
         BackupDestination destination = getManifestDestination(source);
         if (destination == null) {
             throw new IOException("Could not find destination for configuration");
@@ -66,11 +42,12 @@ public class RebuildRepositoryCommand extends Command {
         IOProvider provider = IOProviderFactory.getProvider(destination);
         byte[] data = provider.download("configuration.json");
         try {
-            READER.readValue(data);
+            BACKUP_CONFIGURATION_READER.readValue(data);
             return new String(data, StandardCharsets.UTF_8);
         } catch (IOException exc) {
             Encryptor encryptor = EncryptorFactory.getEncryptor(destination.getEncryption());
-            try (ByteArrayInputStream stream = new ByteArrayInputStream(encryptor.decodeBlock(null, data))) {
+            try (ByteArrayInputStream stream = new ByteArrayInputStream(encryptor.decodeBlock(null, data,
+                    InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(passphrase)))) {
                 try (GZIPInputStream gzipInputStream = new GZIPInputStream(stream)) {
                     return new String(IOUtils.readAllBytes(gzipInputStream), StandardCharsets.UTF_8);
                 }
@@ -91,7 +68,7 @@ public class RebuildRepositoryCommand extends Command {
         }
     }
 
-    public static void rebuildFromLog(boolean async) {
+    public static void rebuildFromLog(String passphrase, boolean async) {
         log.info("Rebuilding repository from logs");
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         if (InstanceFactory.getAdditionalSource() == null) {
@@ -108,7 +85,7 @@ public class RebuildRepositoryCommand extends Command {
 
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         if (async) {
-            Thread thread = new Thread(() -> executeRebuildLog(manifestManager, logConsumer, repository),
+            Thread thread = new Thread(() -> executeRebuildLog(manifestManager, logConsumer, repository, passphrase),
                     "LogRebuild");
             InstanceFactory.addOrderedCleanupHook(() -> {
                 try {
@@ -133,16 +110,17 @@ public class RebuildRepositoryCommand extends Command {
                 }
             } while (!manifestManager.isBusy() && thread.isAlive());
         } else {
-            executeRebuildLog(manifestManager, logConsumer, repository);
+            executeRebuildLog(manifestManager, logConsumer, repository, passphrase);
         }
     }
 
     private static void executeRebuildLog(ManifestManager manifestManager,
                                           LogConsumer logConsumer,
-                                          MetadataRepository repository) {
+                                          MetadataRepository repository,
+                                          String passphrase) {
         try {
             repository.open(false);
-            manifestManager.replayLog(logConsumer);
+            manifestManager.replayLog(logConsumer, passphrase);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
@@ -152,5 +130,26 @@ public class RebuildRepositoryCommand extends Command {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    @Override
+    public void executeCommand(CommandLine commandLine) throws Exception {
+        if (InstanceFactory.getAdditionalSource() == null) {
+            try {
+                String config = downloadRemoteConfiguration(null, getPassphrase());
+                if (!config.equals(InstanceFactory.getInstance(CONFIG_DATA))) {
+                    throw new IOException("Configuration file does not match. Use -f flag to continue or use download-config command to replace");
+                }
+            } catch (Exception exc) {
+                if (commandLine.hasOption(FORCE)) {
+                    log.info("Overriding error validating configuration file");
+                } else {
+                    log.error(exc.getMessage());
+                    System.exit(1);
+                }
+            }
+        }
+
+        rebuildFromLog(getPassphrase(), false);
     }
 }

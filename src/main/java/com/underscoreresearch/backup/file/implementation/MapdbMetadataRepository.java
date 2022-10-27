@@ -1,5 +1,21 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_ADDITIONAL_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_ADDITIONAL_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_PART_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_PART_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PARTIAL_FILE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PARTIAL_FILE_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PENDING_SET_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PENDING_SET_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -36,7 +52,6 @@ import org.mapdb.Serializer;
 import org.mapdb.serializer.SerializerArrayTuple;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
@@ -47,6 +62,7 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
@@ -56,97 +72,22 @@ import com.underscoreresearch.backup.utils.AccessLock;
 
 @Slf4j
 public class MapdbMetadataRepository implements MetadataRepository {
-    private static final ObjectReader BACKUP_FILE_READER;
-    private static final ObjectWriter BACKUP_FILE_WRITER;
-    private static final ObjectReader BACKUP_BLOCK_READER;
-    private static final ObjectWriter BACKUP_BLOCK_WRITER;
-    private static final ObjectReader BACKUP_PART_READER;
-    private static final ObjectWriter BACKUP_PART_WRITER;
-    private static final ObjectReader BACKUP_ACTIVE_READER;
-    private static final ObjectWriter BACKUP_ACTIVE_WRITER;
-    private static final ObjectReader BACKUP_DIRECTORY_READER;
-    private static final ObjectWriter BACKUP_DIRECTORY_WRITER;
-    private static final ObjectReader BACKUP_PENDING_SET_READER;
-    private static final ObjectWriter BACKUP_PENDING_SET_WRITER;
-    private static final ObjectReader BACKUP_PARTIAL_FILE_READER;
-    private static final ObjectWriter BACKUP_PARTIAL_FILE_WRITER;
-    private static final ObjectReader REPOSITORY_INFO_READER;
-    private static final ObjectWriter REPOSITORY_INFO_WRITER;
+    private static final ObjectReader BACKUP_DIRECTORY_FILES_READER
+            = MAPPER.readerFor(new TypeReference<NavigableSet<String>>() {
+    });
+    private static final ObjectWriter BACKUP_DIRECTORY_FILES_WRITER
+            = MAPPER.writerFor(new TypeReference<Set<String>>() {
+    });
+    private static final ObjectReader REPOSITORY_INFO_READER
+            = MAPPER.readerFor(MapdbMetadataRepository.RepositoryInfo.class);
+    private static final ObjectWriter REPOSITORY_INFO_WRITER
+            = MAPPER.writerFor(MapdbMetadataRepository.RepositoryInfo.class);
 
     private static final String REQUEST_LOCK_FILE = "request.lock";
     private static final String LOCK_FILE = "access.lock";
 
     private static final int INITIAL_VERSION = 0;
     private static final int CURRENT_VERSION = 1;
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    private static class RepositoryInfo {
-        private int version;
-        private String lastSyncedLogEntry;
-    }
-
-    private class MapDbRepositoryLock extends CloseableLock {
-        public MapDbRepositoryLock() {
-            synchronized (MapdbMetadataRepository.this.explicitRequestLock) {
-                MapdbMetadataRepository.this.explicitRequested = true;
-                try {
-                    MapdbMetadataRepository.this.explicitLock.lock();
-                } finally {
-                    MapdbMetadataRepository.this.explicitRequested = false;
-                }
-            }
-        }
-
-        @Override
-        public void close() {
-            MapdbMetadataRepository.this.explicitLock.unlock();
-        }
-
-        @Override
-        public boolean requested() {
-            return MapdbMetadataRepository.this.explicitRequested;
-        }
-    }
-
-    private class MapDbOpenLock extends MapDbRepositoryLock {
-        public MapDbOpenLock() {
-            super();
-            MapdbMetadataRepository.this.openLock.lock();
-        }
-
-        @Override
-        public void close() {
-            MapdbMetadataRepository.this.openLock.unlock();
-            super.close();
-        }
-    }
-
-    static {
-        ObjectMapper mapper = new ObjectMapper();
-
-        BACKUP_FILE_READER = mapper.readerFor(BackupFile.class);
-        BACKUP_FILE_WRITER = mapper.writerFor(BackupFile.class);
-        BACKUP_BLOCK_READER = mapper.readerFor(BackupBlock.class);
-        BACKUP_BLOCK_WRITER = mapper.writerFor(BackupBlock.class);
-        BACKUP_PART_READER = mapper.readerFor(BackupFilePart.class);
-        BACKUP_PART_WRITER = mapper.writerFor(BackupFilePart.class);
-        BACKUP_ACTIVE_READER = mapper.readerFor(BackupActivePath.class);
-        BACKUP_ACTIVE_WRITER = mapper.writerFor(BackupActivePath.class);
-        BACKUP_DIRECTORY_READER = mapper.readerFor(new TypeReference<NavigableSet<String>>() {
-        });
-        BACKUP_DIRECTORY_WRITER = mapper.writerFor(new TypeReference<Set<String>>() {
-        });
-        BACKUP_PENDING_SET_READER = mapper.readerFor(BackupPendingSet.class);
-        BACKUP_PENDING_SET_WRITER = mapper.writerFor(BackupPendingSet.class);
-        BACKUP_PARTIAL_FILE_READER = mapper.readerFor(BackupPartialFile.class);
-        BACKUP_PARTIAL_FILE_WRITER = mapper.writerFor(BackupPartialFile.class);
-        REPOSITORY_INFO_READER = mapper.readerFor(RepositoryInfo.class);
-        REPOSITORY_INFO_WRITER = mapper.writerFor(RepositoryInfo.class);
-    }
-
     private static final String FILE_STORE = "files.db";
     private static final String BLOCK_STORE = "blocks.db";
     private static final String PARTS_STORE = "parts.db";
@@ -154,15 +95,14 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static final String ACTIVE_PATH_STORE = "paths.db";
     private static final String PENDING_SET_STORE = "pendingset.db";
     private static final String PARTIAL_FILE_STORE = "partialfiles.db";
+    private static final String ADDITIONAL_BLOCK_STORE = "additionalblocks.db";
     private static final String INFO_STORE = "info.json";
-
+    private static Map<String, MapdbMetadataRepository> openRepositories = new HashMap<>();
     private final String dataPath;
     private final boolean replayOnly;
     private boolean open;
     private boolean readOnly;
-
     private RepositoryInfo repositoryInfo;
-
     private DB blockDb;
     private DB fileDb;
     private DB directoryDb;
@@ -170,124 +110,21 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private DB activePathDb;
     private DB pendingSetDb;
     private DB partialFileDb;
-
+    private DB additionalBlockDb;
     private AccessLock fileLock;
-
     private HTreeMap<String, byte[]> blockMap;
+    private TreeOrSink additionalBlockMap;
     private TreeOrSink fileMap;
     private TreeOrSink directoryMap;
     private TreeOrSink partsMap;
     private TreeOrSink activePathMap;
     private HTreeMap<String, byte[]> pendingSetMap;
     private HTreeMap<String, byte[]> partialFileMap;
-
-    public static class TreeOrSink {
-        private BTreeMap<Object[], byte[]> tree;
-        private DB.TreeMapSink<Object[], byte[]> sink;
-        private Object[] lastKey;
-
-        public TreeOrSink(BTreeMap<Object[], byte[]> tree) {
-            this.tree = tree;
-        }
-
-        public TreeOrSink(DB.TreeMapSink<Object[], byte[]> sink) {
-            this.sink = sink;
-        }
-
-        private void closeSink() {
-            if (sink != null) {
-                tree = sink.create();
-                sink = null;
-                lastKey = null;
-            }
-        }
-
-        public void put(Object[] key, byte[] val) {
-            if (tree != null) {
-                tree.put(key, val);
-            } else {
-                if (lastKey != null) {
-                    if (compareKeys(key, lastKey) <= 0) {
-                        closeSink();
-                        put(key, val);
-                        return;
-                    }
-                }
-                sink.put(key, val);
-                lastKey = key;
-            }
-        }
-
-        @SuppressWarnings("unchecked")
-        private static int compareKeys(Object[] key1, Object[] key2) {
-            for (int i = 0; i < key1.length; i++) {
-                int compare = ((Comparable) key1[i]).compareTo(key2[i]);
-                if (compare != 0) {
-                    return compare;
-                }
-            }
-            return 0;
-        }
-
-        public void close() {
-            if (tree == null) {
-                closeSink();
-                tree.getStore().commit();
-            }
-            tree.close();
-        }
-
-        public NavigableMap<Object[], byte[]> prefixSubMap(Object[] objects) {
-            if (tree == null) {
-                closeSink();
-            }
-            return tree.prefixSubMap(objects);
-        }
-
-        public NavigableMap<Object[], byte[]> descendingMap() {
-            if (tree == null) {
-                closeSink();
-            }
-            return tree.descendingMap();
-        }
-
-        public NavigableMap<Object[], byte[]> ascendingMap() {
-            if (tree == null) {
-                closeSink();
-            }
-            return tree;
-        }
-
-        public byte[] remove(Object[] objects) {
-            if (tree == null) {
-                closeSink();
-            }
-            return tree.remove(objects);
-        }
-
-        public boolean containsKey(Object[] objects) {
-            if (tree == null) {
-                closeSink();
-            }
-            return tree.containsKey(objects);
-        }
-
-        public long size() {
-            if (tree == null) {
-                closeSink();
-            }
-            return tree.size();
-        }
-    }
-
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
-
     private Object explicitRequestLock = new Object();
     private boolean explicitRequested = false;
     private ReentrantLock explicitLock = new ReentrantLock();
     private ReentrantLock openLock = new ReentrantLock();
-
-    private static Map<String, MapdbMetadataRepository> openRepositories = new HashMap<>();
 
     public MapdbMetadataRepository(String dataPath, boolean replayOnly) throws IOException {
         this.dataPath = dataPath;
@@ -305,6 +142,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 activePathDb.commit();
                 pendingSetDb.commit();
                 partialFileDb.commit();
+                additionalBlockDb.commit();
             }
         } finally {
             openLock.unlock();
@@ -366,8 +204,12 @@ public class MapdbMetadataRepository implements MetadataRepository {
         activePathDb = createDb(readOnly, ACTIVE_PATH_STORE);
         pendingSetDb = createDb(readOnly, PENDING_SET_STORE);
         partialFileDb = createDb(readOnly, PARTIAL_FILE_STORE);
+        additionalBlockDb = createDb(readOnly, ADDITIONAL_BLOCK_STORE);
 
         blockMap = openHashMap(blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
+        additionalBlockMap = openTreeMap(additionalBlockDb, additionalBlockDb.treeMap(ADDITIONAL_BLOCK_STORE)
+                .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
+                .valueSerializer(Serializer.BYTE_ARRAY));
         fileMap = openTreeMap(fileDb, fileDb.treeMap(FILE_STORE)
                 .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
                 .valueSerializer(Serializer.BYTE_ARRAY));
@@ -514,6 +356,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         partsMap.close();
         pendingSetMap.close();
         partialFileMap.close();
+        additionalBlockMap.close();
 
         blockDb.close();
         fileDb.close();
@@ -522,6 +365,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         activePathDb.close();
         pendingSetDb.close();
         partialFileDb.close();
+        additionalBlockDb.close();
     }
 
     @Override
@@ -642,7 +486,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         return map.entrySet().stream().map((entry) -> {
             try {
                 return new BackupDirectory((String) entry.getKey()[0], (Long) entry.getKey()[1],
-                        decodeData(BACKUP_DIRECTORY_READER, entry.getValue()));
+                        decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
             } catch (IOException e) {
                 log.error("Invalid directory " + entry.getKey()[0], e);
                 return new BackupDirectory();
@@ -696,7 +540,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private BackupFilePart decodePath(Map.Entry<Object[], byte[]> entry) throws IOException {
-        BackupFilePart readValue = decodeData(BACKUP_PART_READER, entry.getValue());
+        BackupFilePart readValue = decodeData(BACKUP_FILE_PART_READER, entry.getValue());
         readValue.setPartHash((String) entry.getKey()[0]);
         readValue.setBlockHash((String) entry.getKey()[1]);
         return readValue;
@@ -752,7 +596,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 }
                 directories.add(new BackupDirectory(path,
                         (Long) entry.getKey()[1],
-                        decodeData(BACKUP_DIRECTORY_READER, entry.getValue())));
+                        decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue())));
             }
             return directories;
         }
@@ -768,7 +612,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             if (query.size() > 0) {
                 Map.Entry<Object[], byte[]> entry = query.lastEntry();
                 return new BackupDirectory(path, (Long) entry.getKey()[1],
-                        decodeData(BACKUP_DIRECTORY_READER, entry.getValue()));
+                        decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
             }
             return null;
         }
@@ -794,7 +638,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
                         for (BackupFilePart part : location.getParts()) {
                             if (part.getPartHash() != null) {
                                 partsMap.put(new Object[]{part.getPartHash(), part.getBlockHash()},
-                                        encodeData(BACKUP_PART_WRITER, strippedCopy(part)));
+                                        encodeData(BACKUP_FILE_PART_WRITER, strippedCopy(part)));
                             }
                         }
                     }
@@ -848,7 +692,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             ensureOpen();
 
             directoryMap.put(new Object[]{directory.getPath(), directory.getAdded()},
-                    encodeData(BACKUP_DIRECTORY_WRITER, directory.getFiles()));
+                    encodeData(BACKUP_DIRECTORY_FILES_WRITER, directory.getFiles()));
         }
     }
 
@@ -898,7 +742,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
                 ensureOpen();
 
-                activePathMap.put(new Object[]{setId, path}, encodeData(BACKUP_ACTIVE_WRITER, pendingFiles));
+                activePathMap.put(new Object[]{setId, path}, encodeData(BACKUP_ACTIVE_PATH_WRITER, pendingFiles));
             }
         }
     }
@@ -1001,7 +845,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
             TreeMap<String, BackupActivePath> ret = new TreeMap<>();
             for (Map.Entry<Object[], byte[]> entry : readMap.entrySet()) {
-                BackupActivePath activePath = decodeData(BACKUP_ACTIVE_READER, entry.getValue());
+                BackupActivePath activePath = decodeData(BACKUP_ACTIVE_PATH_READER, entry.getValue());
                 String path = (String) entry.getKey()[1];
                 activePath.setParentPath(path);
                 activePath.setSetIds(Lists.newArrayList((String) entry.getKey()[0]));
@@ -1080,6 +924,204 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
                 openAllDataFiles(false);
             }
+        }
+    }
+
+    private BackupBlockAdditional stripCopy(BackupBlockAdditional block) {
+        return BackupBlockAdditional.builder().used(block.isUsed()).properties(block.getProperties()).build();
+    }
+
+    @Override
+    public void addAdditionalBlock(BackupBlockAdditional block) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            additionalBlockMap.put(new Object[]{block.getPublicKey(), block.getHash()},
+                    encodeData(BACKUP_BLOCK_ADDITIONAL_WRITER, stripCopy(block)));
+        }
+    }
+
+    @Override
+    public BackupBlockAdditional additionalBlock(String publicKey, String blockHash) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            byte[] data = additionalBlockMap.get(new Object[]{publicKey, blockHash});
+            if (data != null) {
+                BackupBlockAdditional block = decodeData(BACKUP_BLOCK_ADDITIONAL_READER, data);
+                block.setHash(blockHash);
+                block.setPublicKey(publicKey);
+                return block;
+            }
+            return null;
+        }
+    }
+
+    @Override
+    public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            if (blockHash != null) {
+                additionalBlockMap.remove(new Object[]{publicKey, blockHash});
+            } else {
+                Map<Object[], byte[]> query = additionalBlockMap.prefixSubMap(new Object[]{publicKey});
+                for (Object[] key : query.keySet())
+                    additionalBlockMap.remove(key);
+            }
+        }
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class RepositoryInfo {
+        private int version;
+        private String lastSyncedLogEntry;
+    }
+
+    public static class TreeOrSink {
+        private BTreeMap<Object[], byte[]> tree;
+        private DB.TreeMapSink<Object[], byte[]> sink;
+        private Object[] lastKey;
+
+        public TreeOrSink(BTreeMap<Object[], byte[]> tree) {
+            this.tree = tree;
+        }
+
+        public TreeOrSink(DB.TreeMapSink<Object[], byte[]> sink) {
+            this.sink = sink;
+        }
+
+        @SuppressWarnings("unchecked")
+        private static int compareKeys(Object[] key1, Object[] key2) {
+            for (int i = 0; i < key1.length; i++) {
+                int compare = ((Comparable) key1[i]).compareTo(key2[i]);
+                if (compare != 0) {
+                    return compare;
+                }
+            }
+            return 0;
+        }
+
+        private void closeSink() {
+            if (sink != null) {
+                tree = sink.create();
+                sink = null;
+                lastKey = null;
+            }
+        }
+
+        public void put(Object[] key, byte[] val) {
+            if (tree != null) {
+                tree.put(key, val);
+            } else {
+                if (lastKey != null) {
+                    if (compareKeys(key, lastKey) <= 0) {
+                        closeSink();
+                        put(key, val);
+                        return;
+                    }
+                }
+                sink.put(key, val);
+                lastKey = key;
+            }
+        }
+
+        public void close() {
+            if (tree == null) {
+                closeSink();
+                tree.getStore().commit();
+            }
+            tree.close();
+        }
+
+        public NavigableMap<Object[], byte[]> prefixSubMap(Object[] objects) {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.prefixSubMap(objects);
+        }
+
+        public NavigableMap<Object[], byte[]> descendingMap() {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.descendingMap();
+        }
+
+        public NavigableMap<Object[], byte[]> ascendingMap() {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree;
+        }
+
+        public byte[] remove(Object[] objects) {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.remove(objects);
+        }
+
+        public boolean containsKey(Object[] objects) {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.containsKey(objects);
+        }
+
+        public byte[] get(Object[] objects) {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.get(objects);
+        }
+
+        public long size() {
+            if (tree == null) {
+                closeSink();
+            }
+            return tree.size();
+        }
+    }
+
+    private class MapDbRepositoryLock extends CloseableLock {
+        public MapDbRepositoryLock() {
+            if (!MapdbMetadataRepository.this.explicitLock.tryLock()) {
+                synchronized (MapdbMetadataRepository.this.explicitRequestLock) {
+                    MapdbMetadataRepository.this.explicitRequested = true;
+                    try {
+                        MapdbMetadataRepository.this.explicitLock.lock();
+                    } finally {
+                        MapdbMetadataRepository.this.explicitRequested = false;
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void close() {
+            MapdbMetadataRepository.this.explicitLock.unlock();
+        }
+
+        @Override
+        public boolean requested() {
+            return MapdbMetadataRepository.this.explicitRequested;
+        }
+    }
+
+    private class MapDbOpenLock extends MapDbRepositoryLock {
+        public MapDbOpenLock() {
+            super();
+            MapdbMetadataRepository.this.openLock.lock();
+        }
+
+        @Override
+        public void close() {
+            MapdbMetadataRepository.this.openLock.unlock();
+            super.close();
         }
     }
 }

@@ -4,7 +4,6 @@ plugins {
     id 'java'
     id 'application'
     id 'distribution'
-    id 'edu.sc.seis.launch4j' version '2.5.3'
     id 'org.beryx.runtime' version '1.12.7'
 }
 
@@ -14,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '1.1.0'
+version '1.2.0pre1'
 
 sourceCompatibility = 17
 targetCompatibility = 17
@@ -39,7 +38,7 @@ task createProperties(dependsOn: processResources) {
     doLast {
         new File("$buildDir/resources/main/version.properties").withWriter { w ->
             Properties p = new Properties()
-            p['version'] = project.version.toString()
+            p['version'] = rootProject.version.toString()
             p.store w, null
         }
     }
@@ -66,8 +65,20 @@ runtime {
                'java.instrument',
                'jdk.crypto.ec']
     jpackage {
+        appVersion = "${rootProject.version}".replaceAll('(pre|rc)\\d+$', "")
         installerName = 'underscorebackup'
-        installerType = System.getenv().get("INSTALLER_TYPE")
+        if (project.properties['installer_type']) {
+            if (project.property("installer_type").equals("win-console")) {
+                installerType = "exe"
+                imageOptions = ["--icon", "${rootProject.projectDir}/windows/application.ico", "--win-console"]
+            } else if (project.property("installer_type").equals("win-gui")) {
+                installerType = "exe"
+                imageName = "underscorebackup-gui"
+                imageOptions = ["--icon", "${rootProject.projectDir}/windows/application.ico", "--arguments", "interactive"]
+            } else {
+                installerType = project.property("installer_type")
+            }
+        }
     }
 }
 
@@ -81,41 +92,27 @@ task installerDef(type: Copy) {
     from("${rootProject.projectDir}/windows/innosetup.iss")
     rename("innosetup.iss", "innosetup-expanded.iss")
     expand([
-            applicationVersion: "${version}"
+            applicationVersion: "${rootProject.version}"
     ])
     into("${rootProject.projectDir}/windows")
 }
 
-task copyIniFile(type:Copy) {
-    dependsOn(installerDef)
-    from layout.projectDirectory.dir("windows/underscorebackup.l4j.ini")
-    into layout.buildDirectory.dir("launch4j")
-}
+task installerImage(type:Exec) {
+    workingDir "${rootProject.projectDir}"
+        commandLine 'cmd', '/c',
+                'gradlew.bat jpackageImage -Pinstaller_type=win-console ' +
+                        ' && ( rmdir /s /q build\\installerimage || ver > nul )' +
+                        ' && mkdir build\\installerimage' +
+                        ' && move /Y build\\jpackage\\underscorebackup\\app build\\installerimage' +
+                        ' && move /Y build\\jpackage\\underscorebackup\\runtime build\\installerimage' +
+                        ' && move /Y build\\jpackage\\underscorebackup\\README.md build\\installerimage' +
+                        ' && move /Y build\\jpackage\\underscorebackup\\underscorebackup.exe build\\installerimage' +
+                        ' && gradlew.bat jpackageImage -Pinstaller_type=win-gui' +
+                        ' && copy build\\jpackage\\underscorebackup-gui\\underscorebackup-gui.exe build\\installerimage' +
+                        ' && copy build\\jpackage\\underscorebackup-gui\\app\\underscorebackup-gui.cfg build\\installerimage\\app'
+    }
 
-launch4j {
-    priority = "idle"
-    jreMinVersion = 11
-    bundledJrePath = "..\\jre"
-    bundledJre64Bit = true
-    jvmOptions = ["-Dstartup.directory=\"%OLDPWD%\""]
-    jreRuntimeBits = "64"
-    mainClassName = 'com.underscoreresearch.backup.cli.Main'
-    icon = "${rootProject.projectDir}/windows/application.ico"
-}
-
-task consoleexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
-    dependsOn(copyIniFile)
-    outfile = "underscorebackup.exe"
-    headerType = "console"
-}
-
-task guiexe(type: edu.sc.seis.launch4j.tasks.Launch4jLibraryTask) {
-    cmdLine = "interactive"
-    outfile = "underscorebackup-gui.exe"
-    headerType = "gui"
-}
-
-task installer(dependsOn: [jre, guiexe, consoleexe, installerDef], type:Exec) {
+task installer(dependsOn: [installerImage, installerDef], type:Exec) {
     workingDir "${rootProject.projectDir}/windows"
     executable 'C:\\Program Files (x86)\\Inno Setup 6\\iscc.exe'
     args "innosetup-expanded.iss"
@@ -137,17 +134,6 @@ task webui(dependsOn: [webuiinstall], type:Exec) {
     commandLine 'npm', "run", "build"
 }
 
-task integrationTest(type:Exec) {
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        dependsOn consoleexe
-        workingDir "${rootProject.projectDir}"
-        commandLine "perl", "integrationtests\\testsuite.pl", "$buildDir\\integrationtests", "$buildDir\\launch4j\\underscorebackup.exe", "${rootProject.projectDir}\\webui"
-    } else {
-        dependsOn distTar
-        commandLine "${rootProject.projectDir}/integrationtests/executetests.sh", "$buildDir/distributions/${project.name}-${project.version}.tar", "${rootProject.projectDir}/webui"
-    }
-}
-
 repositories {
     mavenCentral()
 }
@@ -166,27 +152,23 @@ distributions {
 }
 
 tasks.jpackageImage.doLast {
-    copy {
-        from "scripts"
-        include "underscorebackup.service"
-        include "startbackupservice.sh"
-        into "build/jpackage/$project.name/bin"
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        copy {
+            from "."
+            include "README.md"
+            into "build/jpackage/${rootProject.name}/"
+        }
     }
 
-    copy {
-        from "."
-        include "README.md"
-        into "build/jpackage/$project.name/bin"
-    }
 }
 
 
 dependencies {
 
     implementation (
-            'com.dropbox.core:dropbox-core-sdk:5.3.0',
+            'com.dropbox.core:dropbox-core-sdk:5.4.4',
             'com.cronutils:cron-utils:9.2.0',
-            'com.fasterxml.jackson.core:jackson-databind:2.13.4',
+            'com.fasterxml.jackson.core:jackson-databind:2.13.4.2',
             'com.google.guava:guava:31.1-jre',
             'com.google.inject:guice:5.1.0',
             'com.hierynomus:smbj:0.11.5',
@@ -201,9 +183,9 @@ dependencies {
             'org.mapdb:mapdb:3.0.8',
             'org.projectlombok:lombok:1.18.24',
             'org.reflections:reflections:0.10.2',
-            'org.slf4j:slf4j-api:2.0.0',
+            'org.slf4j:slf4j-api:2.0.3',
             'org.takes:takes:1.24.4',
-            'software.amazon.awssdk:s3control:2.17.271'
+            'software.amazon.awssdk:s3control:2.18.1'
     )
 
     testImplementation (
@@ -227,13 +209,13 @@ test {
 task installerPkg(dependsOn: ["runtime"], type:Exec) {
     workingDir "${rootProject.projectDir}"
     executable 'osx/createinstaller.sh'
-    args "${project.version}"
+    args "${rootProject.version}"
 }
 
 task uninstallerPkg(type:Exec) {
     workingDir "${rootProject.projectDir}"
     executable 'osx/createuninstaller.sh'
-    args "${project.version}"
+    args "${rootProject.version}"
 }
 
 task allDist() {
@@ -250,7 +232,19 @@ task installers(type:Exec) {
         commandLine './gradlew', "installerPkg"
     } else {
         workingDir "${rootProject.projectDir}"
-        commandLine 'bash', '-c', 'INSTALLER_TYPE=deb ./gradlew jpackage && mv build/jpackage/*.deb build/distributions && INSTALLER_TYPE=rpm ./gradlew jpackage && mv build/jpackage/*.rpm build/distributions'
+        environment "VERSION", "${rootProject.version}"
+        commandLine 'bash', '-c', "linux/builddeb.sh && linux/buildrpm.sh"
+    }
+}
+
+task integrationTest(type:Exec) {
+    dependsOn installers
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        workingDir "${rootProject.projectDir}"
+        commandLine "perl", "integrationtests\\testsuite.pl", "$buildDir\\integrationtests", "$buildDir\\installerimage\\underscorebackup.exe", "${rootProject.projectDir}\\webui"
+    } else {
+        dependsOn distTar
+        commandLine "${rootProject.projectDir}/integrationtests/executetests.sh", "$buildDir/distributions/${rootProject.name}-${rootProject.version}.tar", "${rootProject.projectDir}/webui"
     }
 }
 

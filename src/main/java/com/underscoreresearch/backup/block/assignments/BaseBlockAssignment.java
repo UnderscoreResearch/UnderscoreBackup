@@ -20,21 +20,6 @@ import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
 public abstract class BaseBlockAssignment implements FileBlockAssignment, StatusLogger {
-    @Getter
-    private static class Progress {
-        private BackupPartialFile partialFile;
-        private Instant started;
-        private long initialCompleted;
-
-        public Progress(BackupPartialFile partialFile) {
-            this.partialFile = partialFile;
-            this.started = Instant.now();
-            if (partialFile.getParts() != null && partialFile.getParts().size() > 0) {
-                initialCompleted = partialFile.getParts().get(partialFile.getParts().size() - 1).getPosition();
-            }
-        }
-    }
-
     private List<Progress> backupPartialFiles = new ArrayList<>();
 
     @Override
@@ -99,4 +84,19 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Status
 
     abstract protected boolean internalAssignBlocks(BackupSet set, BackupPartialFile file,
                                                     BackupBlockCompletion completionFuture);
+
+    @Getter
+    private static class Progress {
+        private BackupPartialFile partialFile;
+        private Instant started;
+        private long initialCompleted;
+
+        public Progress(BackupPartialFile partialFile) {
+            this.partialFile = partialFile;
+            this.started = Instant.now();
+            if (partialFile.getParts() != null && partialFile.getParts().size() > 0) {
+                initialCompleted = partialFile.getParts().get(partialFile.getParts().size() - 1).getPosition();
+            }
+        }
+    }
 }

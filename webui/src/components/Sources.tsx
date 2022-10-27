@@ -32,13 +32,13 @@ function Source(props: {
 }) {
     return <Destination id={props.id}
                         destination={props.destination}
-                        typeLabel={"Source Manifest Type"}
+                        typeLabel={"Source Manifest Destination Type"}
                         manifestDestination={true}
                         sourceDestination={true}
                         destinationUpdated={props.destinationUpdated}
     >
         <DividerWithText>Name</DividerWithText>
-        <div style={{marginLeft: "8px", marginRight: "-8px", marginTop: "8px"}}>
+        <div style={{marginLeft: "8px", marginRight: "0px", marginTop: "8px"}}>
             <TextField label="Source Name" variant="outlined"
                        required={true}
                        fullWidth={true}

@@ -15,17 +15,6 @@ public class Hash {
         hasher = Hashing.sha256().newHasher();
     }
 
-    public void addBytes(byte[] bytes) {
-        hasher.putBytes(bytes);
-    }
-
-    public String getHash() {
-        if (hash == null) {
-            hash = encodeBytes(hasher.hash().asBytes());
-        }
-        return hash;
-    }
-
     public static String hash(byte[] buffer) {
         Hash hash = new Hash();
         hash.addBytes(buffer);
@@ -38,5 +27,16 @@ public class Hash {
 
     public static byte[] decodeBytes(String data) {
         return BaseEncoding.base32().decode(data);
+    }
+
+    public void addBytes(byte[] bytes) {
+        hasher.putBytes(bytes);
+    }
+
+    public String getHash() {
+        if (hash == null) {
+            hash = encodeBytes(hasher.hash().asBytes());
+        }
+        return hash;
     }
 }

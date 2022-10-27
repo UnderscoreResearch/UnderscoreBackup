@@ -23,15 +23,6 @@ public class BackupFilter {
     private BackupFilterType type;
     private List<BackupFilter> children;
 
-    public void setPaths(List<String> paths) {
-        this.paths = paths.stream().map(path -> {
-            if (path.endsWith(PathNormalizer.PATH_SEPARATOR))
-                return path.substring(0, path.length() - PathNormalizer.PATH_SEPARATOR.length());
-            else
-                return path;
-        }).collect(Collectors.toList());
-    }
-
     @JsonCreator
     public BackupFilter(
             @JsonProperty("paths") List<String> paths,
@@ -40,6 +31,15 @@ public class BackupFilter {
         setPaths(paths);
         this.type = type;
         this.children = children;
+    }
+
+    public void setPaths(List<String> paths) {
+        this.paths = paths.stream().map(path -> {
+            if (path.endsWith(PathNormalizer.PATH_SEPARATOR))
+                return path.substring(0, path.length() - PathNormalizer.PATH_SEPARATOR.length());
+            else
+                return path;
+        }).collect(Collectors.toList());
     }
 
     public String fileMatch(String file) {
@@ -74,12 +74,14 @@ public class BackupFilter {
     }
 
     public boolean includeMatchedFile(final String path, final String file) {
-        if (file.length() == path.length()) {
+        String pathWithoutSeparator = withoutFinalSeparator(path);
+
+        if (withoutFinalSeparator(file).length() == pathWithoutSeparator.length()) {
             return shouldInclude();
         }
 
-        int subLength = path.length() + PathNormalizer.PATH_SEPARATOR.length();
-        final String subPath = file.substring(Math.min(file.length(), subLength));
+        final String subPath = file.substring(Math.min(file.length(),
+                pathWithoutSeparator.length() + PathNormalizer.PATH_SEPARATOR.length()));
 
         if (children != null) {
             for (BackupFilter filter : children) {
@@ -94,11 +96,10 @@ public class BackupFilter {
     }
 
     public boolean includeMatchedDirectory(String path, String file) {
-        if (file.length() == path.length()) {
-            return shouldInclude();
-        }
-
-        final String subPath = file.substring(path.length() + PathNormalizer.PATH_SEPARATOR.length());
+        String pathWithoutSeparator = withoutFinalSeparator(path);
+        String fileWithoutSeparator = withoutFinalSeparator(file);
+        final String subPath = file.substring(Math.min(file.length(),
+                pathWithoutSeparator.length() + PathNormalizer.PATH_SEPARATOR.length()));
 
         if (children != null) {
             if (subPath.length() == 0) {
@@ -107,10 +108,16 @@ public class BackupFilter {
             for (BackupFilter filter : children) {
                 String filterPath = filter.directoryMatch(subPath);
                 if (filterPath != null) {
-                    return true;
+                    return filter.includeMatchedDirectory(filterPath, subPath);
                 }
             }
         }
+
+        if (pathWithoutSeparator.length() > fileWithoutSeparator.length())
+            return true;
+
+        if (fileWithoutSeparator.length() == pathWithoutSeparator.length())
+            return shouldInclude();
 
         return shouldInclude();
     }

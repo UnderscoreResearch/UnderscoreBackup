@@ -24,6 +24,7 @@ public class BackupConfiguration {
     private BackupGlobalLimits limits;
     private BackupRetention missingRetention;
     private Map<String, BackupDestination> additionalSources;
+    private Map<String, BackupShare> shares;
 
     @JsonIgnore
     public int getProperty(String name, int defaultValue) {

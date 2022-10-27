@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.hamcrest.core.Is;
@@ -20,8 +21,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupCompletion;
@@ -33,10 +36,22 @@ import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
 
 class FileBlockUploaderImplTest {
+    static {
+        try {
+            InstanceFactory.initialize(new String[]{"--no-log", "--passphrase", "test", "--config-data",
+                            new ObjectMapper().writeValueAsString(createConfiguration()), "--encryption-key-data",
+                            "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}"},
+                    null);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private MetadataRepository repository;
     private UploadScheduler scheduler;
     private BackupConfiguration configuration;
     private FileBlockUploaderImpl fileBlockUploader;
+    private ManifestManager manifestManager;
     private BackupDestination destination1;
     private BackupDestination destination2;
     private BackupSet set;
@@ -54,17 +69,6 @@ class FileBlockUploaderImplTest {
                         "dest1", BackupDestination.builder().encryption("AES256").errorCorrection("RS").build(),
                         "dest2", BackupDestination.builder().encryption("NONE").errorCorrection("NONE").build()))
                 .build();
-    }
-
-    static {
-        try {
-            InstanceFactory.initialize(new String[]{"--no-log", "--passphrase", "test", "--config-data",
-                            new ObjectMapper().writeValueAsString(createConfiguration()), "--public-key-data",
-                            "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}"},
-                    null, null);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @BeforeEach
@@ -104,7 +108,11 @@ class FileBlockUploaderImplTest {
         destination2 = configuration.getDestinations().get("dest2");
         set = configuration.getSets().get(0);
 
-        fileBlockUploader = new FileBlockUploaderImpl(configuration, repository, scheduler);
+        manifestManager = Mockito.mock(ManifestManager.class);
+        Mockito.when(manifestManager.getActivatedShares()).thenReturn(new HashMap<>());
+
+        fileBlockUploader = new FileBlockUploaderImpl(configuration, repository, scheduler, manifestManager,
+                EncryptionKey.generateKeys().publicOnly());
     }
 
     @Test

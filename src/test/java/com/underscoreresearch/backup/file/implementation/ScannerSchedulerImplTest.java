@@ -32,36 +32,6 @@ class ScannerSchedulerImplTest {
     private RepositoryTrimmer trimmer;
     private MetadataRepository repository;
 
-    private static class FileScannerTest implements FileScanner {
-        private Object lock = new Object();
-        private boolean result;
-
-        @Override
-        public boolean startScanning(BackupSet backupSet) throws IOException {
-            synchronized (lock) {
-                log.info("Started scanning {}", backupSet.getId());
-                result = true;
-                try {
-                    lock.wait(1500);
-                } catch (InterruptedException e) {
-                }
-            }
-            log.info("Completed scanning {}: {}", backupSet.getId(), result);
-            return result;
-        }
-
-        public void logStatus() {
-        }
-
-        @Override
-        public void shutdown() {
-            synchronized (lock) {
-                result = false;
-                lock.notify();
-            }
-        }
-    }
-
     @BeforeEach
     public void setup() throws ParseException {
         scanner = Mockito.spy(new FileScannerTest());
@@ -101,5 +71,35 @@ class ScannerSchedulerImplTest {
 
         Mockito.verify(scanner).startScanning(set2);
         Mockito.verify(scanner, Mockito.times(2)).shutdown();
+    }
+
+    private static class FileScannerTest implements FileScanner {
+        private Object lock = new Object();
+        private boolean result;
+
+        @Override
+        public boolean startScanning(BackupSet backupSet) throws IOException {
+            synchronized (lock) {
+                log.info("Started scanning {}", backupSet.getId());
+                result = true;
+                try {
+                    lock.wait(1500);
+                } catch (InterruptedException e) {
+                }
+            }
+            log.info("Completed scanning {}: {}", backupSet.getId(), result);
+            return result;
+        }
+
+        public void logStatus() {
+        }
+
+        @Override
+        public void shutdown() {
+            synchronized (lock) {
+                result = false;
+                lock.notify();
+            }
+        }
     }
 }

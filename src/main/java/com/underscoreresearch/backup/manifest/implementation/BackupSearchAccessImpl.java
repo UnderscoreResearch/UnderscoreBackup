@@ -26,13 +26,25 @@ import com.underscoreresearch.backup.model.BackupFile;
 
 @RequiredArgsConstructor
 public class BackupSearchAccessImpl implements BackupSearchAccess {
-    public static class InterruptedSearch extends RuntimeException {
-    }
-
     private final MetadataRepository repository;
     private final BackupContentsAccess contentsAccess;
     private final Long timestamp;
     private final boolean includeDeleted;
+    private LoadingCache<String, Set<String>> directoryCache = CacheBuilder
+            .newBuilder()
+            .maximumSize(50)
+            .build(new CacheLoader<>() {
+                @Override
+                public Set<String> load(String key) throws Exception {
+                    List<BackupFile> directory = contentsAccess.directoryFiles(key);
+                    if (directory == null) {
+                        return new HashSet<>();
+                    }
+                    Set<String> ret = directory.stream()
+                            .map(t -> t.getPath()).collect(Collectors.toSet());
+                    return ret;
+                }
+            });
 
     @Override
     public CloseableLock acquireLock() {
@@ -70,22 +82,6 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
                 .map(files -> findSearchFile(files))
                 .filter(file -> file != null);
     }
-
-    private LoadingCache<String, Set<String>> directoryCache = CacheBuilder
-            .newBuilder()
-            .maximumSize(50)
-            .build(new CacheLoader<>() {
-                @Override
-                public Set<String> load(String key) throws Exception {
-                    List<BackupFile> directory = contentsAccess.directoryFiles(key);
-                    if (directory == null) {
-                        return new HashSet<>();
-                    }
-                    Set<String> ret = directory.stream()
-                            .map(t -> t.getPath()).collect(Collectors.toSet());
-                    return ret;
-                }
-            });
 
     private BackupFile findSearchFile(List<BackupFile> files) {
         BackupFile file = null;
@@ -126,5 +122,8 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
         } while (ind > 0);
 
         return false;
+    }
+
+    public static class InterruptedSearch extends RuntimeException {
     }
 }

@@ -44,9 +44,6 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 @RequiredArgsConstructor
 @Slf4j
 public class FileScannerImpl implements FileScanner, StatusLogger {
-    private TreeMap<String, BackupActivePath> pendingPaths;
-    private ReentrantLock lock = new ReentrantLock();
-    private Condition pendingDirectoriesUpdated = lock.newCondition();
     private final MetadataRepository repository;
     private final FileConsumer consumer;
     private final FileSystemAccess filesystem;
@@ -55,6 +52,9 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     private final AtomicInteger outstandingFiles = new AtomicInteger();
     private final AtomicLong completedFiles = new AtomicLong();
     private final AtomicLong completedSize = new AtomicLong();
+    private TreeMap<String, BackupActivePath> pendingPaths;
+    private ReentrantLock lock = new ReentrantLock();
+    private Condition pendingDirectoriesUpdated = lock.newCondition();
     private boolean shutdown;
     private Stopwatch duration;
 

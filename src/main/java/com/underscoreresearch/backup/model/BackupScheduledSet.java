@@ -21,6 +21,12 @@ public class BackupScheduledSet {
     private String schedule;
     private long scheduledMillis;
 
+    public BackupScheduledSet(String setId, String schedule, Date scheduledAt) {
+        this.setId = setId;
+        this.schedule = schedule;
+        this.scheduledMillis = scheduledAt.getTime();
+    }
+
     @JsonIgnore
     public Date getScheduledAt() {
         return new Date(scheduledMillis);
@@ -29,11 +35,5 @@ public class BackupScheduledSet {
     @JsonIgnore
     public void setScheduledAt(Date scheduledAt) {
         scheduledAt.getTime();
-    }
-
-    public BackupScheduledSet(String setId, String schedule, Date scheduledAt) {
-        this.setId = setId;
-        this.schedule = schedule;
-        this.scheduledMillis = scheduledAt.getTime();
     }
 }

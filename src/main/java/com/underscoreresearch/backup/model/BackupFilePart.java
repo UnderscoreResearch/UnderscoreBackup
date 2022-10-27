@@ -23,11 +23,23 @@ public class BackupFilePart {
     @JsonProperty("o")
     private Long offset;
 
+    @JsonProperty("blockHash")
+    @Deprecated
+    public String getLegacyBlockHash() {
+        return null;
+    }
+
     // Everything below here is for backwards compatibility of JSON format
     @JsonProperty("blockHash")
     @Deprecated
     public void setLegacyBlockHash(String blockHash) {
         this.blockHash = blockHash;
+    }
+
+    @JsonProperty("partHash")
+    @Deprecated
+    public String getLegacyPartHash() {
+        return null;
     }
 
     @JsonProperty("partHash")
@@ -38,25 +50,13 @@ public class BackupFilePart {
 
     @JsonProperty("blockIndex")
     @Deprecated
-    public void setLegacyBlockIndex(Integer blockIndex) {
-        this.blockIndex = blockIndex;
-    }
-
-    @JsonProperty("blockHash")
-    @Deprecated
-    public String getLegacyBlockHash() {
-        return null;
-    }
-
-    @JsonProperty("partHash")
-    @Deprecated
-    public String getLegacyPartHash() {
+    public Integer getLegacyBlockIndex() {
         return null;
     }
 
     @JsonProperty("blockIndex")
     @Deprecated
-    public Integer getLegacyBlockIndex() {
-        return null;
+    public void setLegacyBlockIndex(Integer blockIndex) {
+        this.blockIndex = blockIndex;
     }
 }

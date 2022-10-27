@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.CONF
 import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
 
@@ -13,38 +14,16 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
 public class ResetDelete extends JsonWrap {
-    @Data
-    @AllArgsConstructor
-    public static class KeyResponse {
-        private Boolean specified;
-    }
-
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .writerFor(KeyResponse.class);
+    private static ObjectWriter WRITER = MAPPER.writerFor(KeyResponse.class);
 
     public ResetDelete() {
         super(new Implementation());
-    }
-
-    private static class Implementation extends BaseImplementation {
-        @Override
-        public Response actualAct(Request req) throws Exception {
-            executeShielded(() -> new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION)).delete());
-            executeShielded(() -> new File(InstanceFactory.getInstance(KEY_FILE_NAME)).delete());
-
-            executeShielded(() -> InstanceFactory.reloadConfiguration(null, null));
-            executeShielded(() -> deleteContents(new File(InstanceFactory.getInstance(MANIFEST_LOCATION))));
-
-            return messageJson(200, "Ok");
-        }
     }
 
     public static void executeShielded(Runnable task) {
@@ -65,6 +44,25 @@ public class ResetDelete extends JsonWrap {
                     child.delete();
                 }
             }
+        }
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class KeyResponse {
+        private Boolean specified;
+    }
+
+    private static class Implementation extends BaseImplementation {
+        @Override
+        public Response actualAct(Request req) throws Exception {
+            executeShielded(() -> new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION)).delete());
+            executeShielded(() -> new File(InstanceFactory.getInstance(KEY_FILE_NAME)).delete());
+
+            executeShielded(() -> InstanceFactory.reloadConfiguration(null, null));
+            executeShielded(() -> deleteContents(new File(InstanceFactory.getInstance(MANIFEST_LOCATION))));
+
+            return messageJson(200, "Ok");
         }
     }
 }

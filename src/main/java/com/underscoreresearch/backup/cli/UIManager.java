@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -14,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.SystemUtils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.cli.web.WebServer;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
@@ -67,7 +68,8 @@ public class UIManager {
             exitItem.addActionListener((e) -> {
                 try {
                     ConfigurationPost.updateConfiguration(
-                            new ObjectMapper().writeValueAsString(InstanceFactory.getInstance(BackupConfiguration.class)), true, false);
+                            BACKUP_CONFIGURATION_WRITER
+                                    .writeValueAsString(InstanceFactory.getInstance(BackupConfiguration.class)), true, false);
                     InstanceFactory.reloadConfiguration(null, null);
                 } catch (IOException ex) {
                     log.error("Failed to pause backup", ex);

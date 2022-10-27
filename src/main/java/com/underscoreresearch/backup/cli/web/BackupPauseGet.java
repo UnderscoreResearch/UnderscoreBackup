@@ -1,26 +1,18 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class BackupPauseGet extends JsonWrap {
-    private static final ObjectReader READER = new ObjectMapper()
-            .readerFor(BackupConfiguration.class);
-    private static final ObjectWriter WRITER = new ObjectMapper()
-            .writerFor(BackupConfiguration.class);
-
     public BackupPauseGet() {
         super(new Implementation());
     }
@@ -28,7 +20,8 @@ public class BackupPauseGet extends JsonWrap {
     private static class Implementation extends BaseImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String config = WRITER.writeValueAsString(InstanceFactory.getInstance(BackupConfiguration.class));
+            String config = BACKUP_CONFIGURATION_WRITER
+                    .writeValueAsString(InstanceFactory.getInstance(BackupConfiguration.class));
             try {
                 updateConfiguration(config, true, false);
                 InstanceFactory.reloadConfiguration(null, null);

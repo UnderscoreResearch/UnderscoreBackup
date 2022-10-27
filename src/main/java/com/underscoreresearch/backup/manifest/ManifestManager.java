@@ -1,29 +1,28 @@
 package com.underscoreresearch.backup.manifest;
 
 import java.io.IOException;
+import java.util.Map;
 
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.MetadataRepository;
 
-public interface ManifestManager {
-    void addLogEntry(String type, String jsonDefinition);
+public interface ManifestManager extends BaseManifestManager {
 
-    void replayLog(LogConsumer consumer) throws IOException;
-
-    void flushLog() throws IOException;
+    void replayLog(LogConsumer consumer, String passphrase) throws IOException;
 
     void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException;
 
-    void initialize(LogConsumer logConsumer, boolean immediate) throws IOException;
-
     void setDisabledFlushing(boolean disabledFlushing);
-
-    void validateIdentity();
 
     BackupContentsAccess backupContents(Long timestamp, boolean includeDeleted) throws IOException;
 
     BackupSearchAccess backupSearch(Long timestamp, boolean includeDeleted) throws IOException;
 
-    void shutdown() throws IOException;
+    void activateShares(LogConsumer repository, EncryptionKey.PrivateKey privateKey) throws IOException;
 
     boolean isBusy();
+
+    void updateKeyData(EncryptionKey key) throws IOException;
+
+    Map<String, ShareManifestManager> getActivatedShares();
 }

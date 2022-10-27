@@ -27,6 +27,7 @@ import com.google.inject.name.Named;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.BlockFormatFactory;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
@@ -45,17 +46,86 @@ public class RepositoryBackfiller {
     private final MetadataRepository repository;
     private final ManifestManager manifestManager;
     private final BlockDownloader blockDownloader;
+    private final EncryptionKey encryptionKey;
     private final int maximumConcurrency;
 
     @Inject
     public RepositoryBackfiller(final MetadataRepository repository,
                                 final ManifestManager manifestManager,
                                 final BlockDownloader blockDownloader,
+                                final EncryptionKey encryptionKey,
                                 @Named(DOWNLOAD_THREADS) final int maximumConcurrency) {
         this.repository = repository;
         this.manifestManager = manifestManager;
         this.blockDownloader = blockDownloader;
         this.maximumConcurrency = maximumConcurrency;
+        this.encryptionKey = encryptionKey;
+    }
+
+    public void executeBackfill(String passphrase) throws IOException {
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        AtomicLong lastDuration = new AtomicLong(0);
+        long blockCount = repository.getBlockCount();
+        long fileCount = repository.getFileCount();
+
+        File tempFile = File.createTempFile("block", ".db");
+
+        manifestManager.setDisabledFlushing(true);
+        try {
+            tempFile.delete();
+
+            try (DB usedBlockDb = DBMaker
+                    .fileDB(tempFile)
+                    .fileMmapEnableIfSupported()
+                    .fileDeleteAfterClose()
+                    .make()) {
+                HTreeMap<String, Long> knownSizes = usedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
+                        Serializer.LONG).createOrOpen();
+
+                BackfillDownloader backfillDownloader = new BackfillDownloader(knownSizes);
+
+                try (CloseableLock ignore = repository.acquireLock()) {
+                    log.info("Backfilling file block offsets");
+                    repository.allFiles(true).forEach(file -> {
+                        backfillDownloader.addInferredBlockSizes(file);
+                    });
+                    repository.allFiles(true).forEach(file -> {
+                        backfillDownloader.backfillFilePartOffsets(file, passphrase);
+                        long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
+                        if (currentMinute != lastDuration.get()) {
+                            log.info("Processed {} / {} files, updated {} files so far (Last file {})",
+                                    readableNumber(backfillDownloader.getProcessed().get()),
+                                    readableNumber(fileCount),
+                                    readableNumber(backfillDownloader.getCompletedFiles().get()),
+                                    PathNormalizer.physicalPath(file.getPath()));
+                            lastDuration.set(currentMinute);
+                        }
+                    });
+
+                    log.info("Backfilling encryption to block storage");
+                    backfillDownloader.getProcessed().set(0L);
+
+                    repository.allBlocks().forEach(block -> {
+                        backfillDownloader.backfillStorage(block);
+                        long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
+                        if (currentMinute != lastDuration.get()) {
+                            log.info("Processed {} / {} blocks, fixed {} blocks so far",
+                                    readableNumber(backfillDownloader.getProcessed().get()),
+                                    readableNumber(blockCount),
+                                    readableNumber(backfillDownloader.getCompletedBlocks().get()));
+                            lastDuration.set(currentMinute);
+                        }
+                    });
+
+                    backfillDownloader.waitForCompletion();
+                }
+                log.info("Updated {} blocks", backfillDownloader.getCompletedBlocks().get());
+                log.info("Updated {} files", backfillDownloader.getCompletedFiles().get());
+            }
+        } finally {
+            tempFile.delete();
+            manifestManager.setDisabledFlushing(false);
+        }
     }
 
     public class BackfillDownloader extends SchedulerImpl {
@@ -98,7 +168,7 @@ public class RepositoryBackfiller {
             }
         }
 
-        public void backfillFilePartOffsets(BackupFile file) {
+        public void backfillFilePartOffsets(BackupFile file, String passphrase) {
             processed.incrementAndGet();
             if (file.getLocations() != null) {
                 for (BackupLocation location : file.getLocations()) {
@@ -107,7 +177,7 @@ public class RepositoryBackfiller {
                             // This code relies on the lsat block never being a super block
                             if ((location.getParts().get(i).getOffset() == null)
                                     || incompleteSuperblock(location.getParts().get(i - 1).getBlockHash())) {
-                                processOffsetBackfill(file);
+                                processOffsetBackfill(file, passphrase);
                                 postPending();
                                 return;
                             }
@@ -132,7 +202,7 @@ public class RepositoryBackfiller {
             return false;
         }
 
-        private void processOffsetBackfill(BackupFile file) {
+        private void processOffsetBackfill(BackupFile file, String passphrase) {
             for (BackupLocation location : file.getLocations()) {
                 if (location.getParts().size() > 1) {
                     for (int i = 0; i < location.getParts().size() - 1; i++) {
@@ -145,7 +215,7 @@ public class RepositoryBackfiller {
                                 List<BackupBlock> blocks = BackupBlock.expandBlock(part.getBlockHash(), repository);
                                 for (BackupBlock block : blocks) {
                                     if (blockSizes.get(block.getHash()) == null) {
-                                        schedule(() -> downloadPartBlock(part, block));
+                                        schedule(() -> downloadPartBlock(part, block, passphrase));
                                     }
                                 }
                             } catch (IOException e) {
@@ -160,7 +230,7 @@ public class RepositoryBackfiller {
             }
         }
 
-        private void downloadPartBlock(BackupFilePart part, BackupBlock block) {
+        private void downloadPartBlock(BackupFilePart part, BackupBlock block, String passphrase) {
             boolean updateBlock = false;
             for (BackupBlockStorage storage : block.getStorage()) {
                 try {
@@ -173,7 +243,7 @@ public class RepositoryBackfiller {
 
                     FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
                     blockSizes.put(block.getHash(), extractor.blockSize(part,
-                            encryptor.decodeBlock(storage, data)));
+                            encryptor.decodeBlock(storage, data, encryptionKey.getPrivateKey(passphrase))));
 
                     break;
                 } catch (IOException e) {
@@ -307,72 +377,6 @@ public class RepositoryBackfiller {
                     }
                 }
             }
-        }
-    }
-
-    public void executeBackfill() throws IOException {
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        AtomicLong lastDuration = new AtomicLong(0);
-        long blockCount = repository.getBlockCount();
-        long fileCount = repository.getFileCount();
-
-        File tempFile = File.createTempFile("block", ".db");
-
-        manifestManager.setDisabledFlushing(true);
-        try {
-            tempFile.delete();
-
-            try (DB usedBlockDb = DBMaker
-                    .fileDB(tempFile)
-                    .fileMmapEnableIfSupported()
-                    .fileDeleteAfterClose()
-                    .make()) {
-                HTreeMap<String, Long> knownSizes = usedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
-                        Serializer.LONG).createOrOpen();
-
-                BackfillDownloader backfillDownloader = new BackfillDownloader(knownSizes);
-
-                try (CloseableLock ignore = repository.acquireLock()) {
-                    log.info("Backfilling file block offsets");
-                    repository.allFiles(true).forEach(file -> {
-                        backfillDownloader.addInferredBlockSizes(file);
-                    });
-                    repository.allFiles(true).forEach(file -> {
-                        backfillDownloader.backfillFilePartOffsets(file);
-                        long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
-                        if (currentMinute != lastDuration.get()) {
-                            log.info("Processed {} / {} files, updated {} files so far (Last file {})",
-                                    readableNumber(backfillDownloader.getProcessed().get()),
-                                    readableNumber(fileCount),
-                                    readableNumber(backfillDownloader.getCompletedFiles().get()),
-                                    PathNormalizer.physicalPath(file.getPath()));
-                            lastDuration.set(currentMinute);
-                        }
-                    });
-
-                    log.info("Backfilling encryption to block storage");
-                    backfillDownloader.getProcessed().set(0L);
-
-                    repository.allBlocks().forEach(block -> {
-                        backfillDownloader.backfillStorage(block);
-                        long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
-                        if (currentMinute != lastDuration.get()) {
-                            log.info("Processed {} / {} blocks, fixed {} blocks so far",
-                                    readableNumber(backfillDownloader.getProcessed().get()),
-                                    readableNumber(blockCount),
-                                    readableNumber(backfillDownloader.getCompletedBlocks().get()));
-                            lastDuration.set(currentMinute);
-                        }
-                    });
-
-                    backfillDownloader.waitForCompletion();
-                }
-                log.info("Updated {} blocks", backfillDownloader.getCompletedBlocks().get());
-                log.info("Updated {} files", backfillDownloader.getCompletedFiles().get());
-            }
-        } finally {
-            tempFile.delete();
-            manifestManager.setDisabledFlushing(false);
         }
     }
 }

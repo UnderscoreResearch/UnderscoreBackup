@@ -7,24 +7,18 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.net.HttpURLConnection;
 import java.util.List;
-import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.misc.Href;
 import org.takes.rq.RqHref;
 import org.takes.rs.RsWithBody;
 import org.takes.rs.RsWithType;
 import org.takes.tk.TkWrap;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -33,10 +27,6 @@ import com.underscoreresearch.backup.model.BackupFile;
 
 @Slf4j
 public class BackupDownloadPost extends TkWrap {
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
-            .writerFor(new TypeReference<Set<BackupFile>>() {
-            });
 
     public BackupDownloadPost(String base) {
         super(new Implementation(base));
@@ -78,16 +68,16 @@ public class BackupDownloadPost extends TkWrap {
 
                 for (BackupFile file : files) {
                     if (file.getAdded().equals(timestamp)) {
-                        InstanceFactory.reloadConfiguration(passphrase, InstanceFactory.getAdditionalSource());
+                        InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource());
 
                         DownloadScheduler scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
                         File tempfile = File.createTempFile("temp", null);
-                        scheduler.scheduleDownload(file, tempfile.getAbsolutePath());
+                        scheduler.scheduleDownload(file, tempfile.getAbsolutePath(), passphrase);
                         scheduler.waitForCompletion();
                         tempfile.deleteOnExit();
                         new Thread(() -> {
                             try {
-                                InstanceFactory.reloadConfiguration(null,
+                                InstanceFactory.reloadConfiguration(
                                         InstanceFactory.getAdditionalSource(),
                                         () -> InteractiveCommand.startBackupIfAvailable());
                             } catch (Exception e) {

@@ -12,7 +12,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BackupDirectory {
     private String path;

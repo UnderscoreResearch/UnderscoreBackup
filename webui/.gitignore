@@ -9,7 +9,6 @@
 /build
 /dist
 .parcel-cache
-package-lock.json
 
 # IDEs and editors
 /.idea

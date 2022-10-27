@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.commands;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -19,24 +20,9 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.utils.StateLogger;
 
 @CommandPlugin(value = "backup", description = "Run backup operation continuously",
-        needPrivateKey = false, readonlyRepository = false)
+        needPrivateKey = false, readonlyRepository = false, preferNice = true)
 @Slf4j
 public class BackupCommand extends SimpleCommand {
-    public void executeCommand() throws Exception {
-        MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
-        repository.getPendingSets().stream()
-                .filter(pendingSet -> pendingSet.getScheduledAt() == null && !pendingSet.getSetId().equals("") && !pendingSet.getSetId().equals("="))
-                .forEach(pendingSet -> {
-                    try {
-                        repository.deletePendingSets(pendingSet.getSetId());
-                    } catch (IOException e) {
-                        log.error("Failed to remove completed non recurring backup set", e);
-                    }
-                });
-
-        executeBackup(false);
-    }
-
     public static void executeBackup(boolean asynchronous) throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         ScannerScheduler scheduler = InstanceFactory.getInstance(ScannerScheduler.class);
@@ -53,17 +39,16 @@ public class BackupCommand extends SimpleCommand {
             return;
         }
 
-        IOUtils.waitForInternet(() -> {
-            manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), false);
-            return null;
-        });
+        AtomicBoolean started = new AtomicBoolean(false);
 
         InstanceFactory.addOrderedCleanupHook(() -> {
+            started.set(false);
             debug(() -> log.debug("Backup shutdown initiated"));
 
             InstanceFactory.shutdown();
             scheduler.shutdown();
             uploadScheduler.shutdown();
+            scheduler.waitForCompletion();
             InstanceFactory.getInstance(StateLogger.class).reset();
 
             synchronized (scheduler) {
@@ -80,20 +65,45 @@ public class BackupCommand extends SimpleCommand {
         });
 
         if (asynchronous) {
-            Thread thread = new Thread(() -> executeScheduler(scheduler), "ScannerScheduler");
+            Thread thread = new Thread(() -> executeScheduler(started, scheduler, manifestManager), "ScannerScheduler");
             thread.start();
-            do {
+            while (!started.get() && thread.isAlive()) {
                 Thread.sleep(1);
-            } while (!scheduler.isRunning() && thread.isAlive());
+            }
         } else {
-            executeScheduler(scheduler);
+            executeScheduler(started, scheduler, manifestManager);
         }
     }
 
-    private static void executeScheduler(ScannerScheduler scheduler) {
-        synchronized (scheduler) {
-            scheduler.start();
-            debug(() -> log.debug("Backup scheduler shutdown"));
+    private static void executeScheduler(AtomicBoolean started, ScannerScheduler scheduler, ManifestManager manifestManager) {
+        try {
+            started.set(true);
+            IOUtils.waitForInternet(() -> {
+                manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
+                return null;
+            });
+
+            if (started.get()) {
+                scheduler.start();
+                debug(() -> log.debug("Backup scheduler shutdown"));
+            }
+        } catch (Exception e) {
+            log.error("Failed to initialize manifest", e);
         }
+    }
+
+    public void executeCommand() throws Exception {
+        MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+        repository.getPendingSets().stream()
+                .filter(pendingSet -> pendingSet.getScheduledAt() == null && !pendingSet.getSetId().equals("") && !pendingSet.getSetId().equals("="))
+                .forEach(pendingSet -> {
+                    try {
+                        repository.deletePendingSets(pendingSet.getSetId());
+                    } catch (IOException e) {
+                        log.error("Failed to remove completed non recurring backup set", e);
+                    }
+                });
+
+        executeBackup(false);
     }
 }

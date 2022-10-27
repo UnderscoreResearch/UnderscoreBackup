@@ -5,7 +5,9 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -19,10 +21,12 @@ import org.mapdb.Serializer;
 
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -38,25 +42,37 @@ public class BlockRefresher extends SchedulerImpl {
     private final AtomicLong refreshedBlocks = new AtomicLong();
     private final AtomicLong uploadedSize = new AtomicLong();
     private final long maximumRefreshed;
+    private final ManifestManager manifestManager;
 
     private DB processedBlockDb;
     private HTreeMap<String, Boolean> processedBlockMap;
+    private Set<String> activatedShares;
 
     public BlockRefresher(int maximumConcurrency,
                           BlockDownloader blockDownloader,
                           UploadScheduler uploadScheduler,
                           BackupConfiguration configuration,
-                          MetadataRepository repository) {
+                          MetadataRepository repository,
+                          ManifestManager manifestManager) {
         super(maximumConcurrency);
         this.blockDownloader = blockDownloader;
         this.uploadScheduler = uploadScheduler;
         this.configuration = configuration;
         this.repository = repository;
+        this.manifestManager = manifestManager;
 
         maximumRefreshed = configuration.getProperty("maximumRefreshedBytes", Long.MAX_VALUE);
     }
 
     public synchronized boolean refreshStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
+        if (activatedShares == null) {
+            synchronized (this) {
+                if (activatedShares == null) {
+                    activatedShares = manifestManager.getActivatedShares().keySet();
+                }
+            }
+        }
+
         if (processedBlockMap == null) {
             File tempFile = File.createTempFile("block", ".db");
 
@@ -86,8 +102,16 @@ public class BlockRefresher extends SchedulerImpl {
                 for (BackupBlockStorage storage : storages) {
                     try {
                         BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
-                        List<byte[]> partData = ErrorCorrectorFactory.encodeBlocks(destination.getErrorCorrection(), storage,
-                                blockDownloader.downloadEncryptedBlockStorage(block, storage));
+
+                        if (configuration.getShares() != null) {
+                            for (String key : configuration.getShares().keySet())
+                                if (activatedShares.contains(key)) {
+                                    storage.getAdditionalStorageProperties().put(EncryptionKey.createWithPublicKey(key),
+                                            new HashMap<>());
+                                }
+                        }
+                        List<byte[]> partData = ErrorCorrectorFactory.encodeBlocks(destination.getErrorCorrection(),
+                                storage, blockDownloader.downloadEncryptedBlockStorage(block, storage));
                         partData.forEach(part -> uploadedSize.addAndGet(part.length));
 
                         String[] parts = new String[partData.size()];

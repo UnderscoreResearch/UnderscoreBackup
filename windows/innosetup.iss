@@ -24,22 +24,27 @@ Compression=lzma
 SolidCompression=yes
 
 [Run]
-Filename: "{app}\\bin\\underscorebackup-gui.exe"; Flags: shellexec runasoriginaluser
+Filename: "{app}\\underscorebackup-gui.exe"; Flags: shellexec runasoriginaluser
 
 [Files]
-Source: "..\\build\\launch4j\\underscorebackup.exe"; DestDir: "{app}\\bin"; Flags: ignoreversion
-Source: "..\\build\\launch4j\\underscorebackup-gui.exe"; DestDir: "{app}\\bin"; Flags: ignoreversion
-Source: "..\\build\\launch4j\\lib\\*"; DestDir: "{app}\\bin\\lib"; Flags: ignoreversion
-Source: "..\\build\\jre\\*"; DestDir: "{app}\\jre"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "underscorebackup.l4j.ini"; DestDir: "{app}\\bin"; Flags: onlyifdoesntexist
-Source: "underscorebackup-gui.l4j.ini"; DestDir: "{app}\\bin"; Flags: onlyifdoesntexist
+Source: "..\\build\\installerimage\\underscorebackup.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\\build\\installerimage\\underscorebackup-gui.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\\build\\installerimage\\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\\build\\installerimage\\app\\*"; DestDir: "{app}\\app"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\\build\\installerimage\\runtime\\*"; DestDir: "{app}\\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+Type: filesandordirs; Name: {app}\\app
+Type: filesandordirs; Name: {app}\\bin
+Type: filesandordirs; Name: {app}\\lib
+Type: filesandordirs; Name: {app}\\runtime
 
 [icons]
-Name: "{commonstartup}\\Underscore Backup"; Filename: "{app}\\bin\\underscorebackup-gui.exe";
-Name: "{commonprograms}\\Underscore Backup"; Filename: "{app}\\bin\\underscorebackup-gui.exe";
+Name: "{commonstartup}\\Underscore Backup"; Filename: "{app}\\underscorebackup-gui.exe";
+Name: "{commonprograms}\\Underscore Backup"; Filename: "{app}\\underscorebackup-gui.exe";
 
 [Registry]
-Root: "HKLM"; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}\\bin" ; Check: NeedsAddPath('{app}\\bin')
+Root: "HKLM"; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}" ; Check: NeedsAddPath('{app}')
 
 [Code]
 
@@ -108,5 +113,6 @@ begin
   if CurUninstallStep = usUninstall then
   begin
     RemovePath(ExpandConstant('{app}\\bin'));
+    RemovePath(ExpandConstant('{app}'));
   end;
 end;

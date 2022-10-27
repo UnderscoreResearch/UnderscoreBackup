@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
@@ -92,4 +93,10 @@ public interface MetadataRepository {
     String lastSyncedLogFile() throws IOException;
 
     void setLastSyncedLogFile(String entry) throws IOException;
+
+    void addAdditionalBlock(BackupBlockAdditional block) throws IOException;
+
+    BackupBlockAdditional additionalBlock(String publicKey, String blockHash) throws IOException;
+
+    void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException;
 }

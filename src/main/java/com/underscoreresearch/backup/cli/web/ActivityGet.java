@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,30 +16,27 @@ import org.takes.misc.Href;
 import org.takes.rq.RqHref;
 import org.takes.rs.RsText;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.inject.ProvisionException;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.PublicKeyEncrypion;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 
 @Slf4j
 public class ActivityGet extends JsonWrap {
 
-    @AllArgsConstructor
-    @Data
-    public static class StatusResponse {
-        private List<StatusLine> status;
-    }
-
-    private static ObjectWriter WRITER = new ObjectMapper()
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
+    private static ObjectWriter WRITER = MAPPER
             .writerFor(StatusResponse.class);
 
     public ActivityGet() {
         super(new Implementation());
+    }
+
+    @AllArgsConstructor
+    @Data
+    public static class StatusResponse {
+        private List<StatusLine> status;
     }
 
     private static class Implementation implements Take {
@@ -61,7 +60,7 @@ public class ActivityGet extends JsonWrap {
 
         private boolean hasKey() {
             try {
-                InstanceFactory.getInstance(PublicKeyEncrypion.class);
+                InstanceFactory.getInstance(EncryptionKey.class);
                 return true;
             } catch (ProvisionException exc) {
                 return false;

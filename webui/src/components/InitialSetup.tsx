@@ -43,13 +43,11 @@ export default function InitialSetup(props: InitialSetupProps) {
             }
             const config = {
                 ...props.currentConfig,
-                ...{
-                    destinations: {
-                        "d0": val as BackupDestination
-                    },
-                    manifest: manifest
-                }
-            }
+                destinations: {
+                    "d0": val as BackupDestination
+                },
+                manifest: manifest
+            };
 
             props.configUpdated(true, config);
         } else {

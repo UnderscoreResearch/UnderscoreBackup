@@ -58,7 +58,7 @@ public class RestoreCommand extends Command {
             destination = commandLine.getArgList().get(commandLine.getArgList().size() - 1);
             paths = commandLine.getArgList().subList(1, commandLine.getArgList().size() - 1);
         }
-        
+
         if (destination == null || (paths.size() == 1 && destination.equals(paths.get(0)))) {
             if (!commandLine.hasOption(FORCE))
                 throw new ParseException("Must use -f option to restore over original location");
@@ -68,7 +68,7 @@ public class RestoreCommand extends Command {
 
         if (destination != null && !isNullFile(destination)) {
             destination = PathNormalizer.normalizePath(destination);
-            if (destination.endsWith(PATH_SEPARATOR) && ! destination.equals(ROOT))
+            if (destination.endsWith(PATH_SEPARATOR) && !destination.equals(ROOT))
                 destination = destination.substring(0, destination.length() - 1);
         }
 
@@ -92,7 +92,7 @@ public class RestoreCommand extends Command {
 
         List<BackupSetRoot> roots = paths.stream().map(file -> BackupSetRoot.builder().path(PathNormalizer.normalizePath(file)).build())
                 .collect(Collectors.toList());
-        new RestoreExecutor(contents).restorePaths(roots, destination,
+        new RestoreExecutor(contents, getPassphrase()).restorePaths(roots, destination,
                 commandLine.hasOption(RECURSIVE), commandLine.hasOption(OVER_WRITE));
     }
 }

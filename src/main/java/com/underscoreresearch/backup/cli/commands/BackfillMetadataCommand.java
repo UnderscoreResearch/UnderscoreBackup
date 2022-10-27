@@ -9,7 +9,7 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
 @CommandPlugin(value = "backfill-metadata", description = "Go through and backfill metadata that might be missing",
-        needPrivateKey = true, needConfiguration = true, readonlyRepository = false)
+        readonlyRepository = false)
 @Slf4j
 public class BackfillMetadataCommand extends SimpleCommand {
 
@@ -19,7 +19,7 @@ public class BackfillMetadataCommand extends SimpleCommand {
         manifestManager.validateIdentity();
 
         RepositoryBackfiller backfiller = InstanceFactory.getInstance(RepositoryBackfiller.class);
-        backfiller.executeBackfill();
+        backfiller.executeBackfill(getPassphrase());
 
         repository.flushLogging();
         manifestManager.shutdown();

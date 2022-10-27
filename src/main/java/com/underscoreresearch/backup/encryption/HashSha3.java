@@ -20,6 +20,12 @@ public class HashSha3 {
         }
     }
 
+    public static String hash(byte[] buffer) {
+        HashSha3 hash = new HashSha3();
+        hash.addBytes(buffer);
+        return hash.getHash();
+    }
+
     public void addBytes(byte[] bytes) {
         hasher.update(bytes);
     }
@@ -33,11 +39,5 @@ public class HashSha3 {
 
     public String getHash() {
         return encodeBytes(getHashBytes());
-    }
-
-    public static String hash(byte[] buffer) {
-        HashSha3 hash = new HashSha3();
-        hash.addBytes(buffer);
-        return hash.getHash();
     }
 }

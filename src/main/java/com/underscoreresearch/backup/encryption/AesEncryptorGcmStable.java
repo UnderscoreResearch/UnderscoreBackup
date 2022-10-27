@@ -8,7 +8,6 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
-import javax.inject.Inject;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -22,12 +21,8 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
     public static final byte PADDED_GCM_STABLE = 4;
     public static final byte NON_PADDED_GCM_STABLE = 3;
 
-    @Inject
-    public AesEncryptorGcmStable(PublicKeyEncrypion key) {
-        super(key);
-    }
-
-    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data) {
+    @Override
+    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key) {
         if (storage == null) {
             throw new IllegalArgumentException();
         }
@@ -36,9 +31,9 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         // However, we never ever use the same key to encrypt more than one message so it should be sage.
         byte[] iv = new byte[getIvSize()];
 
-        PublicKeyEncrypion privateKey = PublicKeyEncrypion.generateKeys();
+        EncryptionKey privateKey = EncryptionKey.generateKeys();
         storage.addProperty(PUBLIC_KEY, privateKey.getPublicKey());
-        byte[] combinedKey = PublicKeyEncrypion.combinedSecret(privateKey, getKey());
+        byte[] combinedKey = EncryptionKey.combinedSecret(privateKey.getPrivateKey(null), key);
 
         HashSha3 hashSha3 = new HashSha3();
         hashSha3.addBytes(data);
@@ -46,6 +41,8 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
 
         byte[] keyData = AesEncryptor.applyKeyData(encryptionKey, combinedKey);
         storage.addProperty(KEY_DATA, Hash.encodeBytes(keyData));
+
+        applyAdditionalStorageKeyData(encryptionKey, storage, privateKey);
 
         SecretKeySpec secretKeySpec = new SecretKeySpec(encryptionKey, KEY_ALGORITHM);
         try {
@@ -71,21 +68,21 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         }
     }
 
-    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset) {
+    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset, EncryptionKey.PrivateKey key) {
         if (storage == null) {
             throw new IllegalArgumentException();
         }
         byte[] iv = new byte[getIvSize()];
 
-        PublicKeyEncrypion publicKey = new PublicKeyEncrypion();
+        EncryptionKey publicKey = new EncryptionKey();
 
         publicKey.setPublicKey(storage.getProperties().get(PUBLIC_KEY));
 
-        if (getKey().getPrivateKey() == null) {
+        if (key.getPrivateKey() == null) {
             throw new IllegalStateException("Missing private key for decryption");
         }
 
-        byte[] encryptionKey = PublicKeyEncrypion.combinedSecret(getKey(), publicKey);
+        byte[] encryptionKey = EncryptionKey.combinedSecret(key, publicKey);
         encryptionKey = applyKeyData(storage, encryptionKey);
 
         SecretKeySpec secretKeySpec = new SecretKeySpec(encryptionKey, KEY_ALGORITHM);

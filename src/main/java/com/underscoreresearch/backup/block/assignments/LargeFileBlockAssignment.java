@@ -211,8 +211,8 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
     protected abstract String getFormat();
 
     @Override
-    public byte[] extractPart(BackupFilePart file, BackupBlock block) throws IOException {
-        return extractPart(file, blockDownloader.downloadBlock(block.getHash()));
+    public byte[] extractPart(BackupFilePart file, BackupBlock block, String passphrase) throws IOException {
+        return extractPart(file, blockDownloader.downloadBlock(block.getHash(), passphrase));
     }
 
     protected abstract byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException;
