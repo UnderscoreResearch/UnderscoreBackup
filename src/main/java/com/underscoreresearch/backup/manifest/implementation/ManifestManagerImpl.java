@@ -186,8 +186,6 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
         if (consumer.lastSyncedLogFile() != null) {
             log.info("Continuing rebuild from after file {}", getLogConsumer().lastSyncedLogFile());
-        } else {
-            log.info("Started log replay");
         }
 
         try {
@@ -650,7 +648,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                 for (ShareManifestManager others : activeShares.values())
                     others.shutdown();
             }
-            while(operation != null) {
+            while (operation != null) {
                 try {
                     getLock().wait();
                 } catch (InterruptedException e) {

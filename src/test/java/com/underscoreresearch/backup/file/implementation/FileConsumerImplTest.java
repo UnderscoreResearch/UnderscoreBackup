@@ -35,7 +35,7 @@ class FileConsumerImplTest {
     public void setup() {
         repository = Mockito.mock(MetadataRepository.class);
         set = new BackupSet();
-        file = new BackupFile();
+        file = BackupFile.builder().path("/").build();
 
         firstAssignment = Mockito.mock(FileBlockAssignment.class);
         secondAssignment = Mockito.mock(FileBlockAssignment.class);

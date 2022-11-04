@@ -142,6 +142,13 @@ public class UIManager {
 
     public static synchronized void displayInfoMessage(String message) {
         if (rateLimit()) {
+            if (InstanceFactory.hasConfiguration(true)) {
+                BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+                if (config.getManifest() != null && config.getManifest().getHideNotifications() != null
+                        && config.getManifest().getHideNotifications()) {
+                    return;
+                }
+            }
             if (SystemUtils.IS_OS_MAC_OSX) {
                 writeOsxNotification("notification", message);
             } else if (trayIcon != null) {

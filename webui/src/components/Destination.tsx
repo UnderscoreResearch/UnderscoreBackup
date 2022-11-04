@@ -4,7 +4,9 @@ import {Fragment} from "react";
 import {
     Autocomplete,
     Button,
+    Checkbox,
     FormControl,
+    FormControlLabel,
     Grid,
     InputLabel,
     MenuItem,
@@ -859,6 +861,230 @@ export function IDriveDestination(props: DestinationProps) {
     });
 }
 
+function NNTPDestination(props: DestinationProps) {
+    function defaultNntpPort(url: string): number {
+        if (url.startsWith("nntps"))
+            return 563;
+        return 119;
+    }
+
+    function parseNntpUrl(uri: string): {
+        protocol: string,
+        hostname: string,
+        port: number,
+        defaultPort: boolean
+    } {
+        if (uri) {
+            const ret = /^(nntps?)\:\/\/([^\/\:]*)(?:\:(\d+))?/.exec(uri);
+            if (ret) {
+                return {
+                    protocol: ret[1] ? ret[1] : "",
+                    hostname: ret[2] ? ret[2] : "",
+                    defaultPort: !ret[3],
+                    port: ret[3] ? parseInt(ret[3]) : defaultNntpPort(ret[1])
+                }
+            }
+        }
+        return {
+            protocol: "nntps",
+            hostname: "",
+            defaultPort: true,
+            port: defaultNntpPort("nntps")
+        }
+    }
+
+    interface NNTPState {
+        protocol: string,
+        hostname: string,
+        defaultPort: boolean,
+        port: number,
+        principal: string,
+        credential: string,
+        from: string,
+        groups: string,
+        organization: string,
+        encryption: string,
+        errorCorrection: string,
+        maxRetention: BackupTimespan | undefined,
+        limits: BackupLimits | undefined
+    }
+
+    const parsedUrl = parseNntpUrl(props.destination.endpointUri);
+
+    const [state, setState] = React.useState<NNTPState>({
+        protocol: parsedUrl.protocol,
+        hostname: parsedUrl.hostname,
+        defaultPort: parsedUrl.defaultPort,
+        port: parsedUrl.port,
+        maxRetention: props.destination.maxRetention,
+        principal: props.destination.principal ? props.destination.principal : "",
+        credential: props.destination.credential ? props.destination.credential : "",
+        from: props.destination.properties ? props.destination.properties.from : "",
+        groups: props.destination.properties ? props.destination.properties.groups : "",
+        organization: props.destination.properties ? props.destination.properties.organization : "",
+        encryption: (props.destination.encryption ? props.destination.encryption : "AES256") as string,
+        errorCorrection: (props.destination.errorCorrection ? props.destination.errorCorrection : "NONE") as string,
+        limits: props.destination.limits
+    });
+
+    function updateState(newState: NNTPState) {
+        if (props.destinationUpdated) {
+            const valid = (newState.protocol && newState.hostname && (newState.defaultPort || newState.port)) as boolean;
+
+            const properties = {} as PropertyMap;
+            if (newState.organization) {
+                properties["organization"] = newState.organization;
+            }
+            if (newState.from) {
+                properties["from"] = newState.from;
+            }
+            if (newState.groups) {
+                properties["groups"] = newState.groups;
+            }
+
+            let uri = newState.protocol + "://" + newState.hostname;
+            if (!newState.defaultPort) {
+                uri += ":" + newState.port;
+            }
+
+            props.destinationUpdated(valid, {
+                type: "NNTP",
+                endpointUri: uri,
+                principal: newState.principal,
+                credential: newState.credential,
+                encryption: newState.encryption,
+                maxRetention: newState.maxRetention,
+                errorCorrection: newState.errorCorrection,
+                properties: properties,
+                limits: newState.limits
+            });
+        }
+
+        setState(newState);
+    }
+
+    return <Grid container spacing={2}>
+        <Grid item xs={12}>
+            <div style={{display: "flex", alignContent: "center"}}>
+                <FormControl style={{margin: "8px", width: "12em"}}>
+                    <InputLabel id="protocol-label">Protocol</InputLabel>
+                    <Select
+                        labelId="protocol-label"
+                        value={state.protocol}
+                        label="Protocol"
+                        onChange={(e) => updateState({
+                            ...state,
+                            protocol: e.target.value,
+                            port: state.defaultPort ? defaultNntpPort(e.target.value) : state.port
+                        })}
+                    >
+                        <MenuItem value={"nntp"}>NNTP</MenuItem>
+                        <MenuItem value={"nntps"}>NNTPS</MenuItem>
+                    </Select>
+                </FormControl>
+                <TextField label="Hostname" variant="outlined"
+                           required={true}
+                           fullWidth={true}
+                           value={state.hostname}
+                           error={!state.hostname}
+                           onChange={(e) => updateState({
+                               ...state,
+                               hostname: e.target.value
+                           })}/>
+                <FormControlLabel control={<Checkbox
+                    checked={state.defaultPort}
+                    onChange={(e) => updateState({
+                        ...state,
+                        defaultPort: e.target.checked
+                    })}
+                />} style={{whiteSpace: "nowrap"}} label={"Default Port"}/>
+                <TextField label="Port" variant="outlined"
+                           disabled={state.defaultPort}
+                           type={"number"}
+                           value={state.port}
+                           onChange={(e) => updateState({
+                               ...state,
+                               port: parseInt(e.target.value.toString())
+                           })}/>
+            </div>
+        </Grid>
+        <Grid item xs={12}>
+            <DividerWithText>Authentication</DividerWithText>
+        </Grid>
+        <Grid item xs={12}>
+            <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                <TextField label="Username" variant="outlined"
+                           required={true}
+                           fullWidth={true}
+                           value={state.principal}
+                           error={!state.principal}
+                           onChange={(e) => updateState({
+                               ...state,
+                               principal: e.target.value
+                           })}/>
+            </div>
+        </Grid>
+        <Grid item xs={12}>
+            <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                <TextField label="Password" variant="outlined"
+                           required={true}
+                           fullWidth={true}
+                           value={state.credential}
+                           error={!state.credential}
+                           type="password"
+                           onChange={(e) => updateState({
+                               ...state,
+                               credential: e.target.value
+                           })}/>
+            </div>
+        </Grid>
+        <Grid item xs={12}>
+            <DividerWithText>Usenet options</DividerWithText>
+        </Grid>
+        <Grid item xs={12}>
+            <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                <TextField label="From" variant="outlined"
+                           fullWidth={true}
+                           value={state.from}
+                           type="email"
+                           onChange={(e) => updateState({
+                               ...state,
+                               from: e.target.value
+                           })}/>
+            </div>
+        </Grid>
+        <Grid item xs={12}>
+            <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                <TextField label="Groups" variant="outlined"
+                           fullWidth={true}
+                           value={state.groups}
+                           onChange={(e) => updateState({
+                               ...state,
+                               groups: e.target.value
+                           })}/>
+            </div>
+        </Grid>
+        <Grid item xs={12}>
+            <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                <TextField label="Organization" variant="outlined"
+                           fullWidth={true}
+                           value={state.organization}
+                           onChange={(e) => updateState({
+                               ...state,
+                               organization: e.target.value
+                           })}/>
+            </div>
+        </Grid>
+        <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
+                          shareDestination={props.shareDestination}
+                          state={state} onChange={(newSate => updateState({
+            ...state,
+            ...newSate
+        }))}/>
+    </Grid>
+}
+
 export default function Destination(props: DestinationProps) {
 
     const [state, setState] = React.useState(() => {
@@ -886,6 +1112,9 @@ export default function Destination(props: DestinationProps) {
                     break;
                 case "DROPBOX":
                     defaultType = 6;
+                    break;
+                case "NNTP":
+                    defaultType = 7;
                     break;
             }
 
@@ -960,6 +1189,9 @@ export default function Destination(props: DestinationProps) {
                 <MenuItem value="4" id={"typeWasabi"}>Wasabi Cloud Storage</MenuItem>
                 <MenuItem value="5" id={"typeIDrive"}>iDrive E2</MenuItem>
                 <MenuItem value="6" id={"typeDropbox"}>Dropbox</MenuItem>
+                {
+                    !props.manifestDestination && <MenuItem value="7" id={"typeNntp"}>NNTP</MenuItem>
+                }
             </Select>
         </div>
 
@@ -997,6 +1229,7 @@ export default function Destination(props: DestinationProps) {
                 children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(2, valid, dest)}/>
         </TabPanel>
+
         <TabPanel value={state.type} index={3}>
             <BackblazeDestination
                 manifestDestination={props.manifestDestination}
@@ -1037,6 +1270,20 @@ export default function Destination(props: DestinationProps) {
                 children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(6, valid, dest)}/>
         </TabPanel>
+
+        {
+            !props.manifestDestination &&
+            <TabPanel value={state.type} index={7}>
+                <NNTPDestination
+                    manifestDestination={props.manifestDestination}
+                    sourceDestination={props.sourceDestination}
+                    shareDestination={props.shareDestination}
+                    destination={getTabState(7).destination}
+                    id={props.id}
+                    children={props.children}
+                    destinationUpdated={(valid, dest) => destinationUpdated(7, valid, dest)}/>
+            </TabPanel>
+        }
         {props.postElement}
     </Paper>
 }

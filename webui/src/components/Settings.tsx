@@ -253,6 +253,20 @@ export default function Settings(props: SettingsProps) {
             <Grid container spacing={2}>
                 <Grid item xs={12}>
                     <FormControlLabel control={<Checkbox
+                        checked={state.manifest.hideNotifications}
+                        onChange={(e) => updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                hideNotifications: e.target.checked
+                            }
+                        })}
+                    />} label="Hide UI notifications"/>
+                </Grid>
+            </Grid>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <FormControlLabel control={<Checkbox
                         checked={state.manifest.pauseOnBattery || state.manifest.pauseOnBattery === undefined}
                         onChange={(e) => updateState({
                             ...state,

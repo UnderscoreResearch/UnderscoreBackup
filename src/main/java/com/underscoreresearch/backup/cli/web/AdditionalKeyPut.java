@@ -6,7 +6,6 @@ import lombok.Data;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -34,9 +33,9 @@ public class AdditionalKeyPut extends JsonWrap {
         }
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public synchronized Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             AdditionalPrivateKeyRequest request = AdditionalPrivateKeyRequest.decodePrivateKeyRequest(req);
 
             EncryptionKey.PrivateKey masterKey;

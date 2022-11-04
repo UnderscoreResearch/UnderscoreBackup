@@ -11,7 +11,6 @@ import lombok.Data;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.Take;
 import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -31,9 +30,9 @@ public class AdditionalKeysPost extends JsonWrap {
         private List<AdditionalKeyPut.ExternalEncryptionKey> keys;
     }
 
-    private static class Implementation implements Take {
+    private static class Implementation extends BaseImplementation {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response actualAct(Request req) throws Exception {
             String password = PrivateKeyRequest.decodePrivateKeyRequest(req);
 
             EncryptionKey.PrivateKey masterKey;

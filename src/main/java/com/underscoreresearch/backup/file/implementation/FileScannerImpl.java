@@ -9,6 +9,8 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -24,18 +26,25 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActiveFile;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupActiveStatus;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupSetDestinations;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
@@ -44,11 +53,13 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 @RequiredArgsConstructor
 @Slf4j
 public class FileScannerImpl implements FileScanner, StatusLogger {
+
     private final MetadataRepository repository;
     private final FileConsumer consumer;
     private final FileSystemAccess filesystem;
     private final MachineState machineState;
     private final boolean debug;
+    private final String manifestLocation;
     private final AtomicInteger outstandingFiles = new AtomicInteger();
     private final AtomicLong completedFiles = new AtomicLong();
     private final AtomicLong completedSize = new AtomicLong();
@@ -70,11 +81,16 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         }
         lastPath = Duration.ZERO;
 
-        pendingPaths = stripExcludedPendingPaths(backupSet, repository.getActivePaths(backupSet.getId()));
+        TreeMap<String, BackupActivePath> originalActivePaths = repository.getActivePaths(backupSet.getId());
+        pendingPaths = stripExcludedPendingPaths(backupSet, originalActivePaths);
+
+        boolean needStorageValidation = BackupSetDestinations.needStorageValidation(
+                manifestLocation, backupSet, originalActivePaths.size() == 0);
 
         if (pendingPaths.size() > 0) {
             debug(() -> log.debug("Resuming paths from {}", String.join("; ",
-                    pendingPaths.keySet())));
+                    pendingPaths.keySet().stream().map(t -> PathNormalizer.physicalPath(t))
+                            .collect(Collectors.toList()))));
         }
 
         if (!registerBackupRoots(backupSet)) {
@@ -86,7 +102,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
 
         for (BackupSetRoot root : backupSet.getRoots()) {
             if (!shutdown && pendingPaths.containsKey(root.getNormalizedPath()))
-                processPath(backupSet, root.getNormalizedPath());
+                processPath(backupSet, root.getNormalizedPath(), needStorageValidation);
         }
 
         consumer.flushAssignments();
@@ -94,8 +110,8 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         debug(() -> log.debug("File scanner shutting down"));
         while (processedPendingPaths().size() > 0 && !shutdown) {
             try {
-                debug(() -> log.debug("Waiting for active paths: " + String.join(";",
-                        processedPendingPaths().keySet())));
+                debug(() -> log.debug("Waiting for active paths: " + formatPathList(processedPendingPaths()
+                        .keySet())));
                 pendingDirectoriesUpdated.await();
             } catch (InterruptedException e) {
                 log.error("Failed to wait for completion", e);
@@ -111,16 +127,21 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
 
             TreeMap<String, BackupActivePath> remainingPaths = repository.getActivePaths(backupSet.getId());
             if (remainingPaths.size() > 0) {
-                log.error("Completed with following active paths: " + String.join("; ",
-                        remainingPaths.keySet()));
+                log.error("Completed with following active paths: " + formatPathList(remainingPaths.keySet()));
                 for (Map.Entry<String, BackupActivePath> entry : remainingPaths.entrySet()) {
                     repository.popActivePath(backupSet.getId(), entry.getKey());
                 }
             }
+            BackupSetDestinations.completedStorageValidation(manifestLocation, backupSet);
         }
         lock.unlock();
 
         return !shutdown;
+    }
+
+    private String formatPathList(Collection<String> keySet) {
+        return String.join(", ",
+                keySet.stream().map(t -> PathNormalizer.physicalPath(t)).collect(Collectors.toList()));
     }
 
     private boolean registerBackupRoots(BackupSet backupSet) {
@@ -185,7 +206,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         return ret;
     }
 
-    private BackupActiveStatus processPath(BackupSet set, String currentPath) throws IOException {
+    private BackupActiveStatus processPath(BackupSet set, String currentPath, boolean needStorageValidation) throws IOException {
         BackupActivePath pendingFiles = pendingPaths.get(currentPath);
         pendingFiles.getFiles().forEach(file -> {
             if (BackupActiveStatus.INCOMPLETE.equals(file.getStatus()))
@@ -199,7 +220,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
 
         if (duration != null && (lastPath == null || lastPath.toMinutes() != duration.elapsed().toMinutes())) {
             lastPath = duration.elapsed();
-            log.info("Started processing {}", currentPath);
+            log.info("Started processing {}", PathNormalizer.physicalPath(currentPath));
         }
 
         Set<BackupFile> directoryFiles = filesystem.directoryFiles(currentPath);
@@ -210,14 +231,19 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                 return BackupActiveStatus.INCOMPLETE;
             }
 
-            machineState.waitForPower();
+            lock.unlock();
+            try {
+                machineState.waitForPower();
+            } finally {
+                lock.lock();
+            }
 
             if (pendingFiles.unprocessedFile(file.getPath())) {
                 if (file.isDirectory()) {
                     if (set.includeDirectory(file.getPath())) {
                         BackupActiveStatus status;
                         if (addPendingPath(set, file.getPath())) {
-                            status = processPath(set, file.getPath());
+                            status = processPath(set, file.getPath(), needStorageValidation);
                         } else {
                             status = BackupActiveStatus.EXCLUDED;
                         }
@@ -237,7 +263,8 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
 
                         if (existingFile == null
                                 || !existingFile.getLastChanged().equals(file.getLastChanged())
-                                || !existingFile.getLength().equals(file.getLength())) {
+                                || !existingFile.getLength().equals(file.getLength())
+                                || (needStorageValidation && invalidStorage(existingFile, set))) {
                             lock.unlock();
                             log.info("Backing up {} ({})", file.getPath(), readableSize(file.getLength()));
                             outstandingFiles.incrementAndGet();
@@ -286,6 +313,44 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         } else {
             return BackupActiveStatus.EXCLUDED;
         }
+    }
+
+    private boolean invalidStorage(BackupFile existingFile, BackupSet set) {
+        if (existingFile.getLength() != 0) {
+            for (BackupLocation location : existingFile.getLocations()) {
+                for (BackupFilePart part : location.getParts()) {
+                    try {
+                        List<BackupBlock> blocks;
+                        if (BackupBlock.isSuperBlock(part.getBlockHash())) {
+                            blocks = BackupBlock.expandBlock(part.getBlockHash(), repository);
+                        } else {
+                            BackupBlock block = repository.block(part.getBlockHash());
+                            if (block == null) {
+                                return true;
+                            }
+                            blocks = Lists.newArrayList(block);
+                        }
+
+                        for (BackupBlock block : blocks) {
+                            HashSet<String> destinations = Sets.newHashSet(set.getDestinations());
+
+                            for (BackupBlockStorage storage : block.getStorage()) {
+                                destinations.remove(storage.getDestination());
+                            }
+
+                            if (destinations.size() > 0) {
+                                log.warn("Missing destinations for existing {}", existingFile.getPath());
+                                return true;
+                            }
+                        }
+                    } catch (IOException e) {
+                        log.error("Failed to get block for existing file {}", existingFile.getPath(), e);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     public void shutdown() {
@@ -343,7 +408,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                     log.error("Failed to record completing " + currentPath, e);
                 }
                 pendingPaths.remove(currentPath);
-                debug(() -> log.debug("Completed processing {}", currentPath));
+                debug(() -> log.debug("Completed processing {}", PathNormalizer.physicalPath(currentPath)));
                 String parent = BackupActivePath.findParent(currentPath);
                 if (parent != null) {
                     BackupActivePath parentActive = pendingPaths.get(parent);

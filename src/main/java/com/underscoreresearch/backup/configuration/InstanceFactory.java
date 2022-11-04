@@ -42,7 +42,7 @@ public abstract class InstanceFactory {
         return reflections;
     }
 
-    public static boolean hasConfiguration(boolean readOnly) {
+    public static synchronized boolean hasConfiguration(boolean readOnly) {
         try {
             BackupConfiguration config = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
             if (cachedConfig == config) {

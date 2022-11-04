@@ -13,18 +13,18 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import {
     BackupConfiguration,
-    BackupState,
     BackupDestination,
     BackupSet,
     BackupSetRoot,
     BackupShare,
+    BackupState,
     DestinationMap,
     GetActiveShares,
     GetActivity,
     GetConfiguration,
-    GetState,
     GetDestinationFiles,
     GetEncryptionKey,
+    GetState,
     PostActivateShares,
     PostConfiguration,
     PostRemoteRestore,
@@ -183,7 +183,7 @@ interface DisplayState {
     cancelAction?: () => void
 }
 
-function createDefaultDisplayState() : DisplayState {
+function createDefaultDisplayState(): DisplayState {
     return {
         statusTitle: "Loading",
         acceptEnabled: false,
@@ -265,7 +265,7 @@ export default function MainApp() {
         }
     }
 
-    async function fetchConfig(ignoreState?: boolean) : Promise<MainAppState> {
+    async function fetchConfig(ignoreState?: boolean): Promise<MainAppState> {
         var newState = {} as MainAppState;
         newState.initialLoad = false;
         const newConfig = await GetConfiguration();
@@ -317,7 +317,7 @@ export default function MainApp() {
         }
     }
 
-    async function fetchActivity() : Promise<ActivityState> {
+    async function fetchActivity(): Promise<ActivityState> {
         const ret: ActivityState = {};
         const activity = await GetActivity(false);
         if (activity === undefined) {
@@ -345,6 +345,16 @@ export default function MainApp() {
         });
         if (await PostConfiguration(currentState.currentConfiguration)) {
             const newConfig = await fetchConfig();
+
+            if (newConfig.selectedSource &&
+                currentState.validatedPassphrase &&
+                currentState.passphrase &&
+                currentState.backendState &&
+                !currentState.backendState.validDestinations &&
+                newConfig.backendState &&
+                newConfig.backendState.validDestinations) {
+                await PostSelectSource(newConfig.selectedSource, currentState.passphrase);
+            }
             const activity = await fetchActivity();
             setState((oldState) => ({
                 ...oldState,
@@ -649,7 +659,7 @@ export default function MainApp() {
         }
     }
 
-    function calculateInitialDisplayState(ret : DisplayState) {
+    function calculateInitialDisplayState(ret: DisplayState) {
         if (Object.keys(state.originalConfiguration.destinations).length > 0) {
             ret.cancelAction = () => setState({
                 ...state,
@@ -708,7 +718,8 @@ export default function MainApp() {
                     };
                 }
             } else {
-                ret.acceptAction = () => {};
+                ret.acceptAction = () => {
+                };
             }
         } else {
             ret.acceptAction = () => applyConfig();
@@ -723,7 +734,7 @@ export default function MainApp() {
 
     const configNotChanged = lodashObject.isEqual(state.originalConfiguration, state.currentConfiguration);
 
-    function restoreStatus(ret : DisplayState, status: string) {
+    function restoreStatus(ret: DisplayState, status: string) {
         busyStatus(ret, status);
 
         ret.acceptAction = () => applyConfig();
@@ -792,7 +803,7 @@ export default function MainApp() {
         }
     }
 
-    function wrongPageDisplayState(ret : DisplayState) {
+    function wrongPageDisplayState(ret: DisplayState) {
         if (state.navigateState == state.navigatedState) {
             setState({
                 ...state,
@@ -816,7 +827,7 @@ export default function MainApp() {
                     loading: true
                 });
 
-                let response = await GetEncryptionKey(passphrase);;
+                let response = await GetEncryptionKey(passphrase);
 
                 if (response) {
                     setState((oldState) => ({
@@ -838,7 +849,7 @@ export default function MainApp() {
         }
     }
 
-    function calculateDisplayState() : DisplayState {
+    function calculateDisplayState(): DisplayState {
 
         const ret = createDefaultDisplayState();
 
@@ -876,7 +887,7 @@ export default function MainApp() {
             return calculateInitialDisplayState(ret);
         }
 
-        let currentPage : string;
+        let currentPage: string;
         if (location.href.endsWith("/")) {
             currentPage = "status";
         } else {
@@ -1110,7 +1121,7 @@ export default function MainApp() {
                     <Box sx={{flexGrow: 1, display: {xs: 'none', md: 'flex'}}}>
                     </Box>
 
-                    {displayState.cancelAction &&
+                    {displayState.cancelAction && !displayState.navigation.loading &&
                         <Box sx={{flexGrow: 0, marginRight: "2em"}}>
                             <Button sx={{my: 2, color: 'white', display: 'block'}}
                                     id={"cancelButton"}
@@ -1121,7 +1132,7 @@ export default function MainApp() {
                         </Box>
                     }
 
-                    {displayState.acceptAction &&
+                    {displayState.acceptAction && !displayState.navigation.loading &&
                         <Box sx={{flexGrow: 0}}>
                             <Button sx={{my: 2, color: 'white', display: 'block'}}
                                     variant="contained"

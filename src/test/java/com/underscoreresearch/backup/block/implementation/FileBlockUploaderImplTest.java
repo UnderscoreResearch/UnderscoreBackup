@@ -17,7 +17,6 @@ import org.mockito.Mockito;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -64,7 +63,7 @@ class FileBlockUploaderImplTest {
         set.setDestinations(Lists.newArrayList("dest2"));
 
         return BackupConfiguration.builder()
-                .sets(ImmutableList.of(set))
+                .sets(Lists.newArrayList(set))
                 .destinations(ImmutableMap.of(
                         "dest1", BackupDestination.builder().encryption("AES256").errorCorrection("RS").build(),
                         "dest2", BackupDestination.builder().encryption("NONE").errorCorrection("NONE").build()))
@@ -298,6 +297,10 @@ class FileBlockUploaderImplTest {
 
     @Test
     public void existingBlockPartialWrongType() throws IOException {
+        configuration.getSets().add(BackupSet.builder().destinations(Lists.newArrayList("dest1")).build());
+        fileBlockUploader = new FileBlockUploaderImpl(configuration, repository, scheduler, manifestManager,
+                EncryptionKey.generateKeys().publicOnly());
+
         Mockito.when(repository.block("hash")).thenReturn(BackupBlock.builder()
                 .format("GZIP")
                 .storage(Lists.newArrayList(BackupBlockStorage.builder()
@@ -330,5 +333,41 @@ class FileBlockUploaderImplTest {
         assertThat(success.get(), Is.is(true));
         Mockito.verify(repository).addBlock(any());
         Mockito.verify(scheduler, Mockito.times(21)).scheduleUpload(any(), any(), anyInt(), any(), any());
+    }
+
+    @Test
+    public void existingBlockPartialWrongTypeUnused() throws IOException {
+        Mockito.when(repository.block("hash")).thenReturn(BackupBlock.builder()
+                .format("GZIP")
+                .storage(Lists.newArrayList(BackupBlockStorage.builder()
+                        .destination("dest1")
+                        .build()))
+                .build());
+        set.setDestinations(Lists.newArrayList("dest2"));
+
+        AtomicBoolean success = new AtomicBoolean();
+        synchronized (success) {
+            BackupCompletion completion = new BackupCompletion() {
+                @Override
+                public void completed(boolean val) {
+                    synchronized (success) {
+                        success.set(val);
+                        success.notify();
+                    }
+                }
+            };
+            fileBlockUploader.uploadBlock(set, new BackupData(new byte[100]), "hash", "RAW", completion);
+            if (!success.get()) {
+                try {
+                    success.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        assertThat(success.get(), Is.is(true));
+        Mockito.verify(repository).addBlock(any());
+        Mockito.verify(scheduler, Mockito.times(1)).scheduleUpload(any(), any(), anyInt(), any(), any());
     }
 }

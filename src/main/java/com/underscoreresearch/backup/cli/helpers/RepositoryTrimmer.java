@@ -39,6 +39,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
@@ -172,7 +173,7 @@ public class RepositoryTrimmer implements StatusLogger {
             for (String setId : paths.getValue().getSetIds()) {
                 if (!configuration.getSets().stream().anyMatch(t -> t.getId().equals(setId))) {
                     log.warn("Removing active path {} from non existing set {}",
-                            paths.getKey(), setId);
+                            PathNormalizer.physicalPath(paths.getKey()), setId);
                     metadataRepository.popActivePath(setId, paths.getKey());
                 } else {
                     anyFound = true;
