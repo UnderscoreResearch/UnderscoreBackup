@@ -20,9 +20,9 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import FileTreeView, {formatLastChange, formatSize, pathName} from "./FileTreeView"
 import {
-    BackupDefaults,
     BackupFile,
     BackupSetRoot,
+    BackupState,
     DownloadBackupFile,
     GetBackupFiles,
     GetBackupVersions,
@@ -54,7 +54,7 @@ export interface RestoreProps {
     defaultDestination: string,
     destination?: string,
     overwrite: boolean,
-    defaults: BackupDefaults,
+    state: BackupState,
     roots: BackupSetRoot[],
     sources: string[],
     source: string,
@@ -130,7 +130,7 @@ export default function Restore(props: RestoreProps) {
     }
 
     async function fetchTooltipContents(path: string): Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
-        => React.ReactFragment) | undefined> {
+        => JSX.Element) | undefined> {
         const files = await GetBackupVersions(path);
         if (files) {
             return function (anchor: HTMLElement, open: boolean, handleClose: () => void) {
@@ -323,7 +323,7 @@ export default function Restore(props: RestoreProps) {
                     }}
                 />
                 <FileTreeView roots={state.roots}
-                              defaults={props.defaults}
+                              state={props.state}
                               hideRoot={!!state.showingSearch}
                               rootName={state.showingSearch ? "Not found" : ""}
                               rootNameProcessing={state.showingSearch ? "Searching..." : ""}
@@ -350,7 +350,7 @@ export default function Restore(props: RestoreProps) {
                         } else {
                             updateState({
                                 ...state,
-                                destination: props.defaults.defaultRestoreFolder
+                                destination: props.state.defaultRestoreFolder
                             });
                         }
                     }}/>} label="Original location" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
@@ -359,7 +359,7 @@ export default function Restore(props: RestoreProps) {
                                fullWidth={true}
                                disabled={!state.destination || state.destination === "-" || state.destination === "="}
                                defaultValue={state.destination && state.destination !== "-" && state.destination !== "="
-                                   ? state.destination : props.defaults.defaultRestoreFolder}
+                                   ? state.destination : props.state.defaultRestoreFolder}
                                onBlur={(e) => updateState({
                                    ...state,
                                    destination: e.target.value
@@ -387,7 +387,7 @@ export default function Restore(props: RestoreProps) {
                             } else {
                                 updateState({
                                     ...state,
-                                    destination: props.defaults.defaultRestoreFolder
+                                    destination: props.state.defaultRestoreFolder
                                 });
                             }
                         }}/>} label="Only verify backup" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>

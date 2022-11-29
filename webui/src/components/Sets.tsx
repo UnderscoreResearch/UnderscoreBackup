@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BackupDefaults, BackupSet} from "../api";
+import {BackupSet, BackupState} from "../api";
 import {EditableList} from "./EditableList";
 import SetConfig from "./SetConfig";
 import {DestinationProp} from "./Destinations";
@@ -7,7 +7,7 @@ import {DestinationProp} from "./Destinations";
 export interface SetsProps {
     sets: BackupSet[],
     allowReset: boolean,
-    defaults: BackupDefaults,
+    state: BackupState,
     destinations: DestinationProp[],
     configurationUpdated: (valid: boolean, destinations: BackupSet[]) => void
 }
@@ -34,11 +34,11 @@ export default function Sets(props: SetsProps) {
     }
 
     function createEmptySet(): SetState {
-        const useState = props.sets.length > 0 ? state[0].set : props.defaults.set;
+        const useState = props.sets.length > 0 ? state[0].set : props.state.defaultSet;
         return {
             set: {
                 id: findNewId(),
-                destinations: props.defaults.set.destinations,
+                destinations: props.state.defaultSet.destinations,
                 roots: [],
                 exclusions: useState.exclusions,
                 retention: useState.retention,
@@ -49,7 +49,7 @@ export default function Sets(props: SetsProps) {
     }
 
     function sendUpdate(newState: SetState[]) {
-        const ids: string[] = newState.map(t => t.set.id);
+        const ids: string[] = newState.map(t => t.set.id.toLowerCase());
         // @ts-ignore
         const deduped = [...new Set(ids)];
 
@@ -75,7 +75,7 @@ export default function Sets(props: SetsProps) {
             return <SetConfig set={item.set}
                               destinations={props.destinations}
                               allowReset={props.allowReset}
-                              defaults={props.defaults}
+                              state={props.state}
                               setUpdated={(valid, set) => {
                                   itemUpdated({valid: valid, set: set});
                               }}/>

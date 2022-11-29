@@ -2,11 +2,11 @@ import * as React from "react";
 import {Fragment, useEffect, useState} from "react";
 import {
     AdditionalKey,
-    BackupDefaults,
     BackupDestination,
     BackupFileSpecification,
     BackupSetRoot,
     BackupShare,
+    BackupState,
     GetBackupFiles,
     PostAdditionalEncryptionKeys,
     PutAdditionalEncryptionKey
@@ -58,7 +58,7 @@ export interface ShareProps {
 
 export interface SharesProps {
     shares: ShareProps[],
-    defaults: BackupDefaults,
+    state: BackupState,
     passphrase?: string,
     activeShares?: string[],
     onSubmit: () => void,
@@ -89,7 +89,7 @@ function Share(props: {
     encryptionKey: string,
     share: BackupShare,
     additionalKeys: AdditionalKey[],
-    defaults: BackupDefaults,
+    state: BackupState,
     addNewKey: (privateKey?: string) => Promise<AdditionalKey | undefined>,
     exists: boolean,
     shareUpdated: (valid: boolean, key: string, val: BackupShare) => void
@@ -98,7 +98,7 @@ function Share(props: {
         return {
             share: {
                 ...props.share,
-                contents: expandRoots(props.share.contents, props.defaults) as BackupFileSpecification
+                contents: expandRoots(props.share.contents, props.state) as BackupFileSpecification
             },
             encryptionKey: props.encryptionKey,
             destinationValid: true,
@@ -228,7 +228,7 @@ function Share(props: {
     const postElement = <Fragment>
         <DividerWithText>Included Contents</DividerWithText>
         <FileTreeView roots={state.share.contents.roots}
-                      defaults={props.defaults}
+                      state={props.state}
                       fileFetcher={(path) => fetchContents(path)}
                       stateValue={""}
                       onChange={updateSelection}/>
@@ -436,7 +436,7 @@ export default function Shares(props: SharesProps) {
                           exists={item.exists}
                           encryptionKey={item.encryptionKey}
                           additionalKeys={state.additionalKeys ? state.additionalKeys : []}
-                          defaults={props.defaults}
+                          state={props.state}
                           addNewKey={addNewKey}
                           shareUpdated={(valid, encryptionKey, share) => {
                               itemUpdated({

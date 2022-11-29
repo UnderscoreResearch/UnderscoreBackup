@@ -97,8 +97,10 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public FileScannerImpl fileScanner(MetadataRepository repository, FileConsumer fileConsumer,
-                                       FileSystemAccess access, MachineState machineState, @Named(DEBUG) boolean debug) {
-        return new FileScannerImpl(repository, fileConsumer, access, machineState, debug);
+                                       FileSystemAccess access, MachineState machineState, @Named(DEBUG) boolean debug,
+                                       @Named(MANIFEST_LOCATION) String manifestLocation) {
+        // Validate destinations is turned on either by using the --force command line or through the manifest option.
+        return new FileScannerImpl(repository, fileConsumer, access, machineState, debug, manifestLocation);
     }
 
     @Singleton

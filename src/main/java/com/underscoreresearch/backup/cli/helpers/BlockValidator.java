@@ -21,6 +21,7 @@ import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
@@ -60,7 +61,7 @@ public class BlockValidator implements StatusLogger {
                 processedSteps.incrementAndGet();
                 if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                     lastHeartbeat = stopwatch.elapsed();
-                    log.info("Processing path {}", file.getPath());
+                    log.info("Processing path {}", PathNormalizer.physicalPath(file.getPath()));
                 }
 
                 if (file.getLocations() != null) {
@@ -87,16 +88,18 @@ public class BlockValidator implements StatusLogger {
                     try {
                         if (validCollections.size() != file.getLocations().size()) {
                             if (validCollections.size() == 0) {
-                                log.error("Storage for {} does no longer exist", file.getPath());
+                                log.error("Storage for {} does no longer exist",
+                                        PathNormalizer.physicalPath(file.getPath()));
                                 repository.deleteFile(file);
                             } else {
-                                log.warn("At least one location for {} no longer exists", file.getPath());
+                                log.warn("At least one location for {} no longer exists",
+                                        PathNormalizer.physicalPath(file.getPath()));
                                 file.setLocations(validCollections);
                                 repository.addFile(file);
                             }
                         }
                     } catch (IOException e) {
-                        log.error("Failed to delete missing file {}", file.getPath());
+                        log.error("Failed to delete missing file {}", PathNormalizer.physicalPath(file.getPath()));
                     }
                 }
             });

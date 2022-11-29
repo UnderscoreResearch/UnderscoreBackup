@@ -5,8 +5,13 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,17 +19,20 @@ import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupFileSelection;
 import com.underscoreresearch.backup.model.BackupManifest;
 import com.underscoreresearch.backup.model.BackupRetention;
 import com.underscoreresearch.backup.model.BackupRetentionAdditional;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
+import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.model.BackupTimespan;
 
 @Slf4j
@@ -32,11 +40,63 @@ public class ConfigurationValidator {
     private static final String DEFAULT_ENCRYPTION = "AES256";
     private static final String DEFAULT_ERROR_CORRECTION = "NONE";
     private static final int DEFAULT_UNSYNCED_SIZE = 8 * 1024 * 1024;
+    private static final Pattern INVALID_CHARACTERS = Pattern.compile("[\\/\\:\\\\]");
 
     public static void validateConfiguration(BackupConfiguration configuration, boolean readOnly, boolean source) {
         validateSets(configuration, source);
         validateDestinations(configuration);
+        validateSources(configuration);
+        validateShares(configuration);
         validateManifest(configuration, readOnly, source);
+    }
+
+    private static void validateShares(BackupConfiguration configuration) {
+        if (configuration.getShares() != null) {
+            validateUniqueness("Shares ", configuration.getAdditionalSources().keySet());
+            for (Map.Entry<String, BackupShare> entry : configuration.getShares().entrySet()) {
+                validateDestination(entry.getValue().getName(), entry.getValue().getDestination());
+                if (!entry.getValue().getDestination().getErrorCorrection().equals(DEFAULT_ERROR_CORRECTION)) {
+                    throw new IllegalArgumentException("Share " + entry.getValue().getName() +
+                            " destination must not use error correction");
+                }
+                if (invalidFilenameValue(entry.getValue().getName())) {
+                    throw new IllegalArgumentException("Share has missing or invalid name");
+                }
+                try {
+                    if (entry.getKey().length() != 52)
+                        throw new IllegalArgumentException();
+                    Hash.decodeBytes(entry.getKey());
+                } catch (IllegalArgumentException exc) {
+                    throw new IllegalArgumentException("Invalid public key " + entry.getKey()
+                            + " for share " + entry.getValue().getName());
+                }
+                validateContents("Share contents " + entry.getValue().getName(), entry.getValue().getContents());
+            }
+        }
+    }
+
+    private static void validateSources(BackupConfiguration configuration) {
+        if (configuration.getAdditionalSources() != null) {
+            validateUniqueness("Additional sources ", configuration.getAdditionalSources().keySet());
+            for (Map.Entry<String, BackupDestination> entry : configuration.getAdditionalSources().entrySet()) {
+                validateDestination(entry.getKey(), entry.getValue());
+                if (!entry.getValue().getErrorCorrection().equals(DEFAULT_ERROR_CORRECTION)) {
+                    throw new IllegalArgumentException("Additional source " + entry.getKey() +
+                            " destination must not use error correction");
+                }
+                if (invalidFilenameValue(entry.getKey())) {
+                    throw new IllegalArgumentException("Additional source " + entry.getKey() + " has missing or invalid name");
+                }
+            }
+        }
+    }
+
+    private static void validateUniqueness(String type, Collection<String> keySet) {
+        Set<String> checkSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        checkSet.addAll(keySet);
+        if (checkSet.size() != keySet.size()) {
+            throw new IllegalArgumentException(type + " does not have case insensitively unique names");
+        }
     }
 
     private static void validateManifest(BackupConfiguration configuration, boolean readOnly, boolean source) {
@@ -70,7 +130,7 @@ public class ConfigurationValidator {
             throw new IllegalArgumentException("Encryption for destination used by metadata ust not require storage");
         }
 
-        if (!destination.getErrorCorrection().equals("NONE")) {
+        if (!destination.getErrorCorrection().equals(DEFAULT_ERROR_CORRECTION)) {
             throw new IllegalArgumentException("Manifest destination must not use error correction");
         }
 
@@ -116,25 +176,31 @@ public class ConfigurationValidator {
         }
 
         for (Map.Entry<String, BackupDestination> entry : configuration.getDestinations().entrySet()) {
-            BackupDestination destination = entry.getValue();
-            if (destination.getErrorCorrection() == null) {
-                debug(() -> log.debug("Error correction missing on " + entry.getKey() + " defaulting to "
-                        + DEFAULT_ERROR_CORRECTION));
-                destination.setErrorCorrection(DEFAULT_ERROR_CORRECTION);
-            } else if (!ErrorCorrectorFactory.hasCorrector(destination.getErrorCorrection())) {
-                throw new IllegalArgumentException("Invalid error corrector " + destination.getErrorCorrection());
-            }
-            if (destination.getEncryption() == null) {
-                destination.setEncryption(DEFAULT_ENCRYPTION);
-                debug(() -> log.debug("Encryption missing on " + entry.getKey() + " defaulting to "
-                        + DEFAULT_ENCRYPTION));
-            } else if (!EncryptorFactory.hasEncryptor(destination.getEncryption())) {
-                throw new IllegalArgumentException("Invalid encryptor " + destination.getErrorCorrection());
-            }
+            validateDestination(entry.getKey(), entry.getValue());
+        }
+    }
 
-            if (!IOProviderFactory.hasProvider(entry.getValue())) {
-                throw new IllegalArgumentException("Unsupported backup destination type " + entry.getKey());
-            }
+    private static void validateDestination(String name, BackupDestination destination) {
+        if (destination == null) {
+            throw new IllegalArgumentException("Missing destination for " + name);
+        }
+        if (destination.getErrorCorrection() == null) {
+            debug(() -> log.debug("Error correction missing on " + name + " defaulting to "
+                    + DEFAULT_ERROR_CORRECTION));
+            destination.setErrorCorrection(DEFAULT_ERROR_CORRECTION);
+        } else if (!ErrorCorrectorFactory.hasCorrector(destination.getErrorCorrection())) {
+            throw new IllegalArgumentException("Invalid error corrector " + destination.getErrorCorrection());
+        }
+        if (destination.getEncryption() == null) {
+            destination.setEncryption(DEFAULT_ENCRYPTION);
+            debug(() -> log.debug("Encryption missing on " + name + " defaulting to "
+                    + DEFAULT_ENCRYPTION));
+        } else if (!EncryptorFactory.hasEncryptor(destination.getEncryption())) {
+            throw new IllegalArgumentException("Invalid encryptor " + destination.getErrorCorrection());
+        }
+
+        if (!IOProviderFactory.hasProvider(destination)) {
+            throw new IllegalArgumentException("Unsupported backup destination type " + name);
         }
     }
 
@@ -142,10 +208,16 @@ public class ConfigurationValidator {
         if (configuration.getSets() == null) {
             configuration.setSets(new ArrayList<>());
         }
+        validateUniqueness("Sets ", configuration.getSets().stream().map(t -> t.getId())
+                .collect(Collectors.toList()));
         HashSet<String> existingSetIds = new HashSet<>();
         for (BackupSet backupSet : configuration.getSets()) {
             if (Strings.isNullOrEmpty(backupSet.getId())) {
                 throw new IllegalArgumentException("Backup set missing id");
+            }
+
+            if (invalidFilenameValue(backupSet.getId())) {
+                throw new IllegalArgumentException("Invalid backup set ID");
             }
 
             if (!existingSetIds.add(backupSet.getId())) {
@@ -197,35 +269,47 @@ public class ConfigurationValidator {
                 }
             }
 
-            if (backupSet.getRoots() == null || backupSet.getRoots().size() == 0) {
-                throw new IllegalArgumentException("Backup set " + backupSet.getId() + " does not have a single root defined");
-            }
-
-
-            for (BackupSetRoot root : backupSet.getRoots()) {
-                if (Strings.isNullOrEmpty(root.getPath())) {
-                    throw new IllegalArgumentException("Backup set " + backupSet.getId() + "missing root");
-                }
-
-                File file = new File(root.getPath());
-                if (file.exists()) {
-                    try {
-                        String rootFile = file.toPath().toRealPath().toString();
-                        String existingRoot = file.toPath().toString();
-                        if (!existingRoot.equals(rootFile)) {
-                            log.warn("Backup set root " + existingRoot + " changed to " + rootFile);
-                            root.setNormalizedPath(PathNormalizer.normalizePath(rootFile));
-                        }
-                    } catch (IOException e) {
-                        throw new IllegalArgumentException("Can't access root " + root.getPath() + " of backup set");
-                    }
-                }
-            }
+            validateContents("Backup set " + backupSet.getId(), backupSet);
 
             if (Strings.isNullOrEmpty(backupSet.getSchedule()) && !source) {
                 debug(() -> log.debug("Backup set " + backupSet.getId()
                         + " is missing a schedule so will only be scanned once on startup"));
             }
         }
+    }
+
+    private static void validateContents(String name, BackupFileSelection backupSet) {
+        if (backupSet == null)
+            throw new IllegalArgumentException(name + " missing definition");
+        if (backupSet.getRoots() == null || backupSet.getRoots().size() == 0) {
+            throw new IllegalArgumentException(name + " does not have a single root defined");
+        }
+
+        for (BackupSetRoot root : backupSet.getRoots()) {
+            if (Strings.isNullOrEmpty(root.getPath())) {
+                throw new IllegalArgumentException(name + " missing root path");
+            }
+
+            File file = new File(root.getPath());
+            if (file.exists()) {
+                try {
+                    String rootFile = file.toPath().toRealPath().toString();
+                    String existingRoot = file.toPath().toString();
+                    if (!existingRoot.equals(rootFile)) {
+                        log.warn(name + " root " + existingRoot + " changed to " + rootFile);
+                        root.setNormalizedPath(PathNormalizer.normalizePath(rootFile));
+                    }
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(name + " can't access root " + root.getPath());
+                }
+            }
+        }
+    }
+
+    private static boolean invalidFilenameValue(String val) {
+        return val == null ||
+                val.equals(".") ||
+                val.equals("..") ||
+                INVALID_CHARACTERS.matcher(val).find();
     }
 }

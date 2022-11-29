@@ -74,6 +74,8 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 public class ManifestManagerImpl extends BaseManifestManagerImpl implements ManifestManager, StatusLogger {
     private final String source;
     private Map<String, ShareManifestManager> activeShares;
+
+    private Object operationLock = new Object();
     private String operation;
     private AtomicLong totalFiles;
     private AtomicLong totalOperations;
@@ -186,8 +188,6 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
         if (consumer.lastSyncedLogFile() != null) {
             log.info("Continuing rebuild from after file {}", getLogConsumer().lastSyncedLogFile());
-        } else {
-            log.info("Started log replay");
         }
 
         try {
@@ -472,8 +472,10 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
     private void startOperation(String operation) {
         log.info(operation);
-        this.operation = operation;
-        operationDuration = Stopwatch.createStarted();
+        synchronized (operationLock) {
+            this.operation = operation;
+            operationDuration = Stopwatch.createStarted();
+        }
     }
 
     public boolean isBusy() {
@@ -623,12 +625,14 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
     @Override
     public void resetStatus() {
         synchronized (getLock()) {
-            operation = null;
-            totalFiles = null;
-            processedFiles = null;
-            processedOperations = null;
-            operationDuration = null;
-            getLock().notifyAll();
+            synchronized (operationLock) {
+                operation = null;
+                totalFiles = null;
+                processedFiles = null;
+                processedOperations = null;
+                operationDuration = null;
+                getLock().notifyAll();
+            }
         }
     }
 
@@ -650,7 +654,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                 for (ShareManifestManager others : activeShares.values())
                     others.shutdown();
             }
-            while(operation != null) {
+            while (operation != null) {
                 try {
                     getLock().wait();
                 } catch (InterruptedException e) {
@@ -671,38 +675,40 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         if (!Strings.isNullOrEmpty(source)) {
             ret.add(new StatusLine(getClass(), "SOURCE", "Browsing source", null, source));
         }
-        if (operation != null) {
-            String code = operation.toUpperCase().replace(" ", "_");
-            if (processedFiles != null && totalFiles != null) {
-                ret.add(new StatusLine(getClass(), code + "_PROCESSED_FILES", operation + " processed files",
-                        processedFiles.get(), totalFiles.get(),
-                        readableNumber(processedFiles.get()) + " / " + readableNumber(totalFiles.get())));
-            }
-            if (processedOperations != null) {
-                if (totalOperations != null) {
-                    if (operationDuration != null) {
-                        ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
-                                processedOperations.get(), totalOperations.get(),
-                                readableNumber(processedOperations.get()) + " / " + readableNumber(totalOperations.get())
-                                        + readableEta(processedOperations.get(), totalOperations.get(),
-                                        operationDuration.elapsed())));
+        synchronized (operationLock) {
+            if (operation != null) {
+                String code = operation.toUpperCase().replace(" ", "_");
+                if (processedFiles != null && totalFiles != null) {
+                    ret.add(new StatusLine(getClass(), code + "_PROCESSED_FILES", operation + " processed files",
+                            processedFiles.get(), totalFiles.get(),
+                            readableNumber(processedFiles.get()) + " / " + readableNumber(totalFiles.get())));
+                }
+                if (processedOperations != null) {
+                    if (totalOperations != null) {
+                        if (operationDuration != null) {
+                            ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
+                                    processedOperations.get(), totalOperations.get(),
+                                    readableNumber(processedOperations.get()) + " / " + readableNumber(totalOperations.get())
+                                            + readableEta(processedOperations.get(), totalOperations.get(),
+                                            operationDuration.elapsed())));
+                        } else {
+                            ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
+                                    processedOperations.get(), totalOperations.get(),
+                                    readableNumber(processedOperations.get()) + " / " + readableNumber(totalOperations.get())));
+                        }
                     } else {
                         ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
-                                processedOperations.get(), totalOperations.get(),
-                                readableNumber(processedOperations.get()) + " / " + readableNumber(totalOperations.get())));
+                                processedOperations.get()));
                     }
-                } else {
-                    ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", operation + " processed operations",
-                            processedOperations.get()));
                 }
-            }
 
-            if (processedOperations != null && operationDuration != null) {
-                int elapsedMilliseconds = (int) operationDuration.elapsed(TimeUnit.MILLISECONDS);
-                if (elapsedMilliseconds > 0) {
-                    long throughput = 1000 * processedOperations.get() / elapsedMilliseconds;
-                    ret.add(new StatusLine(getClass(), code + "_THROUGHPUT", operation + " throughput",
-                            throughput, readableNumber(throughput) + " operations/s"));
+                if (processedOperations != null && operationDuration != null) {
+                    int elapsedMilliseconds = (int) operationDuration.elapsed(TimeUnit.MILLISECONDS);
+                    if (elapsedMilliseconds > 0) {
+                        long throughput = 1000 * processedOperations.get() / elapsedMilliseconds;
+                        ret.add(new StatusLine(getClass(), code + "_THROUGHPUT", operation + " throughput",
+                                throughput, readableNumber(throughput) + " operations/s"));
+                    }
                 }
             }
         }

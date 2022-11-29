@@ -13,12 +13,12 @@ it('backup', function () {
     cy.get('#typeLocalDirectory').click();
     cy.get('#localFileText').clear();
     cy.get('#localFileText').type(backupLocationRaw);
-    cy.get('#acceptButton').click();
+    cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get('#passphraseFirst').clear();
     cy.get('#passphraseFirst').type('1234');
     cy.get('#passphraseSecond').clear();
     cy.get('#passphraseSecond').type('1234');
-    cy.get('#acceptButton').click();
+    cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
 
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageSettings > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
@@ -26,27 +26,27 @@ it('backup', function () {
     cy.get('#configurationTextField')
         .clear({force: true})
         .type('{\n' +
-        '  "sets": [{\n' +
-        '    "id": "home", "destinations": ["d0"],\n' +
-        '    "roots": [{"path": "' + integrationData + '" }]\n' +
-        '  }],\n' +
-        '  "destinations": {\n' +
-        '    "d0": {\n' +
-        '      "type": "FILE", "encryption": "AES256", "errorCorrection": "NONE",\n' +
-        '      "endpointUri": "' + backupLocation + '"\n' +
-        '    }\n' +
-        '  },\n' +
-        '  "manifest": {\n' +
-        '    "destination": "d0", "pauseOnBattery": false,\n' +
-        '    "localLocation": "' + integrationDirectory + '"\n' +
-        '  },\n' +
-        '  "properties": { "largeBlockAssignment.maximumSize": "262144" }\n' +
-        '}', {force: true, parseSpecialCharSequences: false})
+            '  "sets": [{\n' +
+            '    "id": "home", "destinations": ["d0"],\n' +
+            '    "roots": [{"path": "' + integrationData + '" }]\n' +
+            '  }],\n' +
+            '  "destinations": {\n' +
+            '    "d0": {\n' +
+            '      "type": "FILE", "encryption": "AES256", "errorCorrection": "NONE",\n' +
+            '      "endpointUri": "' + backupLocation + '"\n' +
+            '    }\n' +
+            '  },\n' +
+            '  "manifest": {\n' +
+            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true,\n' +
+            '    "localLocation": "' + integrationDirectory + '"\n' +
+            '  },\n' +
+            '  "properties": { "largeBlockAssignment.maximumSize": "262144" }\n' +
+            '}', {force: true, parseSpecialCharSequences: false})
         .blur({force: true});
     cy.get("#submitConfigChange").click();
-    cy.get('#acceptButton').contains("Save").click();
+    cy.get('#acceptButton').contains("Save").should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#acceptButton').should('not.be.disabled').contains("Start Backup").click();
+    cy.get('#acceptButton').contains("Start Backup").should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageStatus > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('#currentProgress').contains("Backup In Progress");

@@ -43,9 +43,11 @@ class FileScannerImplTest {
     private FileScannerImpl scanner;
     private List<String> backedUp;
     private boolean delayedBackup;
+    private File manifestLocation;
 
     @BeforeEach
     public void setup() throws IOException {
+        manifestLocation = Files.createTempDirectory("manifest").toFile();
         tempDir = Files.createTempDirectory("test").toFile();
         repository = new LoggingMetadataRepository(new MapdbMetadataRepository(tempDir.getPath(), false),
                 Mockito.mock(ManifestManager.class), false);
@@ -62,6 +64,7 @@ class FileScannerImplTest {
                         ))
                         .build()))
                 .id("s1")
+                .destinations(Lists.newArrayList("do"))
                 .exclusions(Lists.newArrayList(
                         "\\.iml$",
                         "~$",
@@ -72,7 +75,8 @@ class FileScannerImplTest {
         consumer = new Consumer();
         delayedBackup = false;
 
-        scanner = new FileScannerImpl(repository, consumer, access, new MachineState(true), true);
+        scanner = new FileScannerImpl(repository, consumer, access, new MachineState(true), true,
+                manifestLocation.getAbsolutePath());
     }
 
     private void backupFileSubmit(BackupFile file, BackupCompletion completionPromise) {
@@ -118,11 +122,19 @@ class FileScannerImplTest {
 
     @AfterEach
     public void teardown() throws IOException {
-        repository.close();
+        deleteDir(tempDir);
+        deleteDir(manifestLocation);
+    }
+
+    private void deleteDir(File tempDir) {
         String[] entries = tempDir.list();
         for (String s : entries) {
             File currentFile = new File(tempDir.getPath(), s);
-            currentFile.delete();
+            if (currentFile.isDirectory()) {
+                deleteDir(currentFile);
+            } else {
+                currentFile.delete();
+            }
         }
         tempDir.delete();
     }

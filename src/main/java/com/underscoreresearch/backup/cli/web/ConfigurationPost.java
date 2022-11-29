@@ -39,6 +39,9 @@ import com.underscoreresearch.backup.model.BackupShare;
 @Slf4j
 public class ConfigurationPost extends JsonWrap {
 
+    private static BackupConfiguration cachedValidDestinationConfig;
+    private static boolean cachedValidDestinationResult;
+
     public ConfigurationPost() {
         super(new Implementation());
     }
@@ -75,12 +78,10 @@ public class ConfigurationPost extends JsonWrap {
         return configuration;
     }
 
-    private static BackupConfiguration cachedValidDestinationConfig;
-    private static boolean cachedValidDestinationResult;
-
     /**
      * This method will check if the configuration destinations are valid. If not exceptions will be thrown indicating
      * the error.
+     *
      * @param configuration Configuration.
      * @throws IOException Errors found.
      */
@@ -113,6 +114,7 @@ public class ConfigurationPost extends JsonWrap {
     /**
      * Check if a destination is valid. Will just return true or false and not throw any exceptions. This
      * method will also cache the results
+     *
      * @param sourceConfig Configuration
      * @return True if the destinations are valid.
      */

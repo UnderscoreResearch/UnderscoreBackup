@@ -59,6 +59,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -435,7 +436,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             try {
                 return decodeFile(entry);
             } catch (IOException e) {
-                log.error("Invalid file " + entry.getKey()[0], e);
+                log.error("Invalid file {}", PathNormalizer.physicalPath((String) entry.getKey()[0]), e);
                 return BackupFile.builder().build();
             }
         }).filter(t -> t.getPath() != null);

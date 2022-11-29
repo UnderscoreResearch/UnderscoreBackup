@@ -282,7 +282,8 @@ public class RepositoryBackfiller {
                         try {
                             repository.addFile(file);
                             completedFiles.incrementAndGet();
-                            debug(() -> log.debug("Updated file {} with block offsets", file.getPath()));
+                            debug(() -> log.debug("Updated file {} with block offsets",
+                                    PathNormalizer.physicalPath(file.getPath())));
                         } catch (IOException e) {
                             log.error("Failed to save update to file {}", file.getPath());
                         }

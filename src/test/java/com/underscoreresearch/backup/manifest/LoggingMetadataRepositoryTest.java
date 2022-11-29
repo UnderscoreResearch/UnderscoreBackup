@@ -148,7 +148,7 @@ class LoggingMetadataRepositoryTest {
         BackupActivePath path = new BackupActivePath("path", Sets.newHashSet());
         loggingMetadataRepository.pushActivePath("s1", "path", path);
         Mockito.verify(manifestManager, Mockito.never()).addLogEntry(anyString(), anyString());
-        Thread.sleep(1000);
+        Thread.sleep(2000);
         Mockito.verify(repository).pushActivePath("s1", "path", new BackupActivePath());
         Mockito.verify(manifestManager, Mockito.times(2)).addLogEntry(anyString(), anyString());
         Mockito.verify(manifestManager).addLogEntry(anyString(),

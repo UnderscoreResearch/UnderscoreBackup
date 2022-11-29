@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.underscoreresearch.backup.block.FileBlockAssignment;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupCompletion;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupSet;
@@ -33,14 +34,14 @@ public class FileConsumerImpl implements FileConsumer {
                         file.setLocations(locations);
                         saveFile(file, completionPromise);
                     } else {
-                        log.warn("Failed backing up {}", file.getPath());
+                        log.warn("Failed backing up {}", PathNormalizer.physicalPath(file.getPath()));
                         completionPromise.completed(false);
                     }
                 })) {
                     return;
                 }
             }
-            log.error("No block assigned would touch file {}", file.getPath());
+            log.error("No block assignment could handle file {}", PathNormalizer.physicalPath(file.getPath()));
             completionPromise.completed(false);
         }
     }
@@ -54,7 +55,7 @@ public class FileConsumerImpl implements FileConsumer {
 
     private void saveFile(BackupFile file, BackupCompletion completionPromise) {
         try {
-            debug(() -> log.debug("Completed file {}", file.getPath()));
+            debug(() -> log.debug("Completed file {}", PathNormalizer.physicalPath(file.getPath())));
             file.setAdded(Instant.now().toEpochMilli());
             repository.addFile(file);
             completionPromise.completed(true);

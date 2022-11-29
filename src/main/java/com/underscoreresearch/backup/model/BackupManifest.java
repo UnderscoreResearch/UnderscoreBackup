@@ -22,6 +22,7 @@ public class BackupManifest {
     private String configPassword;
     private Boolean interactiveBackup;
     private Boolean pauseOnBattery;
+    private Boolean hideNotifications;
 
     private String trimSchedule;
     private String optimizeSchedule;
