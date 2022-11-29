@@ -151,7 +151,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
 
                         if (offset != source.getLength()) {
                             throw new IOException(String.format("Expected file %s to be of size %s but was actually %s",
-                                    source.getPath(), source.getLength(), offset));
+                                    PathNormalizer.physicalPath(source.getPath()), source.getLength(), offset));
                         }
                     }
                     break;

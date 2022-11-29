@@ -328,6 +328,7 @@ $shareDefinition
   "manifest": {
     "destination": "d0",
     "pauseOnBattery": false,
+    "hideNotifications": true,
     "localLocation": "$escapedRoot"
   }
 }

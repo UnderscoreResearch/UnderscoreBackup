@@ -26,6 +26,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Stopwatch;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.utils.StatusLine;
@@ -126,18 +127,18 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
         schedule(() -> {
             try {
                 if (file.getLength() == null) {
-                    log.warn("File {} had undefined length", file.getPath());
+                    log.warn("File {} had undefined length", PathNormalizer.physicalPath(file.getPath()));
                     file.setLength(0L);
                 }
-                log.info("Restoring " + file.getPath() + " to " + destination
-                        + " (" + readableSize(file.getLength()) + ")");
+                log.info("Restoring {} to {} ({})", PathNormalizer.physicalPath(file.getPath()),
+                        destination, readableSize(file.getLength()));
                 fileDownloader.downloadFile(file, destination, passphrase);
                 debug(() -> log.debug("Restored " + file.getPath()));
                 totalSize.addAndGet(file.getLength());
                 totalCount.incrementAndGet();
             } catch (Exception e) {
                 if (!isShutdown()) {
-                    log.error("Failed to restore file " + file.getPath(), e);
+                    log.error("Failed to restore file {}", PathNormalizer.physicalPath(file.getPath()), e);
                     failedCount.incrementAndGet();
                 }
             }

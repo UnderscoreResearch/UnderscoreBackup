@@ -5,7 +5,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import {Checkbox, CircularProgress, FormControlLabel, Tooltip} from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import {ChevronRight, KeyboardArrowDown, Menu} from "@mui/icons-material";
-import {BackupDefaults, BackupFile, BackupFilter, BackupSetRoot} from "../api";
+import {BackupFile, BackupFilter, BackupSetRoot, BackupState} from "../api";
 import './FileTreeView.css'
 
 export function formatSize(size?: number): string {
@@ -63,13 +63,13 @@ export interface SetTreeViewProps {
     roots: BackupSetRoot[],
     fileFetcher: (node: string) => Promise<BackupFile[] | undefined>,
     stateValue: string,
-    defaults: BackupDefaults,
+    state: BackupState,
     hideRoot?: boolean,
     rootName?: string,
     rootNameProcessing?: string,
     onChange: (roots: BackupSetRoot[]) => void,
     onFileDetailPopup?: (path: string) => Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
-        => React.ReactFragment) | undefined>
+        => JSX.Element) | undefined>
 }
 
 interface MatchedFilter {
@@ -194,7 +194,7 @@ function createFilters(remainingPath: string, checked: boolean, filters?: Backup
     return newFilters
 }
 
-function physicalRoots(roots: BackupSetRoot[], defaults: BackupDefaults): BackupSetRoot[] {
+function physicalRoots(roots: BackupSetRoot[], defaults: BackupState): BackupSetRoot[] {
     return roots.map((root) => {
         let physicalPath;
         if (root.path !== "/") {
@@ -209,7 +209,7 @@ function physicalRoots(roots: BackupSetRoot[], defaults: BackupDefaults): Backup
     })
 }
 
-function normalizeRoots(roots: BackupSetRoot[], defaults: BackupDefaults): BackupSetRoot[] {
+function normalizeRoots(roots: BackupSetRoot[], defaults: BackupState): BackupSetRoot[] {
     return roots.map((root) => {
         let normalizedPath = root.path.replaceAll(defaults.pathSeparator, "/");
         return {
@@ -232,7 +232,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
                 size: "",
                 added: ""
             }],
-            roots: normalizeRoots(props.roots, props.defaults),
+            roots: normalizeRoots(props.roots, props.state),
             stateValue: props.stateValue
         }
     }
@@ -241,7 +241,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
 
     function updateState(newState: SetTreeViewState) {
         setState(newState);
-        props.onChange(physicalRoots(newState.roots, props.defaults));
+        props.onChange(physicalRoots(newState.roots, props.state));
     }
 
     if (state.stateValue !== props.stateValue) {
@@ -334,8 +334,9 @@ export default function FileTreeView(props: SetTreeViewProps) {
 
         const [open, setOpen] = React.useState(false);
         const [anchor, setAnchor] = React.useState(null as HTMLElement | null);
-        const [tooltipContents, setTooltipContents] = React.useState(undefined as ((anchor: HTMLElement, open: boolean, handleClose: () => void)
-            => React.ReactFragment) | undefined);
+        const [tooltipContents, setTooltipContents] = React.useState(
+            () => undefined as ((anchor: HTMLElement, open: boolean, handleClose: () => void)
+                => JSX.Element) | undefined);
 
         function handleClick(e: React.MouseEvent<HTMLAnchorElement> | React.MouseEvent<HTMLButtonElement>) {
             if (!open) {
@@ -361,7 +362,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
         }
 
         function formatPath(path: string) {
-            return path.replaceAll("/", props.defaults.pathSeparator);
+            return path.replaceAll("/", props.state.pathSeparator);
         }
 
         function name() {
@@ -413,7 +414,8 @@ export default function FileTreeView(props: SetTreeViewProps) {
                                                                      onClick={(e) => handleClick(e)}>
                                                          <Menu/>
                                                          </IconButton>
-                                                         {tooltipContents && tooltipContents(anchor, open, handleClosePopup)}
+                                                         {tooltipContents && anchor
+                                                             && tooltipContents(anchor, open, handleClosePopup)}
                                                      </span>
                                                      :
                                                      <span style={{width: "40px"}}/>

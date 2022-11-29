@@ -160,10 +160,12 @@ public class WebServer {
 
                                     createFiletypePath("css", "text/css"),
                                     createFiletypePath("html", "text/html"),
-                                    createFiletypePath("js", "text/html"),
+                                    createFiletypePath("js", "text/javascript"),
                                     createFiletypePath("woff", "font/woff"),
                                     createFiletypePath("woff2", "font/woff2"),
                                     createFiletypePath("ttf", "font/ttf"),
+                                    createFiletypePath("ico", "image/x-icon"),
+                                    createFiletypePath("webmanifest", "application/manifest+json"),
 
                                     new FkRegex("/favicon.+\\.ico",
                                             new TkFork(

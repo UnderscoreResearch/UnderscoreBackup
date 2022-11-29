@@ -40,6 +40,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
     private final AtomicLong totalBlocks = new AtomicLong();
     private final ManifestManager manifestManager;
     private final EncryptionKey key;
+    private final Set<String> usedDestinations;
     private Set<String> activatedShares;
 
     public FileBlockUploaderImpl(BackupConfiguration configuration, MetadataRepository repository,
@@ -49,6 +50,11 @@ public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
         this.repository = repository;
         this.uploadScheduler = uploadScheduler;
         this.manifestManager = manifestManager;
+
+        usedDestinations = new HashSet<>();
+        for (BackupSet set : configuration.getSets()) {
+            usedDestinations.addAll(set.getDestinations());
+        }
         this.key = key;
     }
 
@@ -93,6 +99,9 @@ public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
                         } else {
                             existingBlock.getStorage().stream().forEach(t -> neededDestinations.add(t.getDestination()));
                         }
+
+                        // Only keep destinations that are used by any sets in the configuration.
+                        neededDestinations.retainAll(usedDestinations);
                     } else {
                         completionFuture.completed(true);
                         return;

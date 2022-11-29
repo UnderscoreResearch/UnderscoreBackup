@@ -21,6 +21,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockCompletion;
 import com.underscoreresearch.backup.model.BackupCompletion;
@@ -62,7 +63,8 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 }
 
                 if (start > 0) {
-                    log.info("Resuming a backup {} from {}", backupPartialFile.getFile().getPath(), readableSize(start));
+                    log.info("Resuming a backup {} from {}",
+                            PathNormalizer.physicalPath(backupPartialFile.getFile().getPath()), readableSize(start));
                 }
             }
         } catch (IOException e) {
@@ -89,7 +91,8 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 try {
                     length = access.readData(file.getPath(), buffer, start, size);
                 } catch (IOException exc) {
-                    log.warn("Failed to read file {}: {}", file.getPath(), exc.getMessage());
+                    log.warn("Failed to read file {}: {}", PathNormalizer.physicalPath(file.getPath()),
+                            exc.getMessage());
                     completionFuture.completed(null);
                     return true;
                 }
@@ -101,7 +104,8 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                         .build();
 
                 if (length != size) {
-                    log.warn("Only read {} when expected {} for {}", readableSize(length), readableSize(size), file.getPath());
+                    log.warn("Only read {} when expected {} for {}", readableSize(length), readableSize(size),
+                            PathNormalizer.physicalPath(file.getPath()));
                     locationRef.set(null);
                     completionFuture.completed(null);
                     return true;
@@ -159,7 +163,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                     }
                 }
             } catch (Exception e) {
-                log.error("Failed to create block for " + file.getPath(), e);
+                log.error("Failed to create block for {}", PathNormalizer.physicalPath(file.getPath()), e);
                 locationRef.set(null);
                 completionFuture.completed(null);
                 return true;

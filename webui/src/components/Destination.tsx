@@ -395,11 +395,13 @@ function DropboxDestination(props: DestinationProps) {
 
     async function fetchAccessToken(codeVerified: string, code: string) {
         let redirectUri = await GetAuthEndpoint();
+        // @ts-ignore
         const dbxAuth = new Dropbox.DropboxAuth({
             clientId: DROPBOX_CLIENT_ID,
         });
         dbxAuth.setCodeVerifier(codeVerifier);
         dbxAuth.getAccessTokenFromCode(redirectUri, code)
+            // @ts-ignore
             .then((response) => {
                 updateState({
                     ...state,
@@ -407,6 +409,7 @@ function DropboxDestination(props: DestinationProps) {
                     refreshToken: response.result.refresh_token
                 });
             })
+            // @ts-ignore
             .catch((error) => {
                 console.error(error)
             });
@@ -422,11 +425,13 @@ function DropboxDestination(props: DestinationProps) {
 
     async function dropboxAuthenticateAsync() {
         let redirectUri = await GetAuthEndpoint();
+        // @ts-ignore
         const dbxAuth = new Dropbox.DropboxAuth({
             clientId: DROPBOX_CLIENT_ID,
         });
 
         dbxAuth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', undefined, undefined, true)
+            // @ts-ignore
             .then(authUrl => {
                 temporaryStorage.clear();
                 temporaryStorage.setItem("codeVerifier", dbxAuth.codeVerifier);
@@ -434,6 +439,7 @@ function DropboxDestination(props: DestinationProps) {
                 temporaryStorage.setItem("destinationId", props.id);
                 window.location.href = authUrl;
             })
+            // @ts-ignore
             .catch((error) => console.error(error));
     }
 

@@ -62,10 +62,10 @@ export default function CustomSelect(props: CustomSelectProps) {
     )
     const localeJSON = JSON.stringify(locale)
     const renderTag = useCallback(
-        (props) => {
+        (props: any) => {
             const value = props
 
-            if (!value || Number(value[0]) === NaN) {
+            if (!value) {
                 return <></>
             }
 

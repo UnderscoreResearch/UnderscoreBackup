@@ -13,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '1.2.0pre1'
+version '1.2.0rc1'
 
 sourceCompatibility = 17
 targetCompatibility = 17
@@ -97,28 +97,28 @@ task installerDef(type: Copy) {
     into("${rootProject.projectDir}/windows")
 }
 
-task installerImage(type:Exec) {
+task installerImage(type: Exec) {
     workingDir "${rootProject.projectDir}"
-        commandLine 'cmd', '/c',
-                'gradlew.bat jpackageImage -Pinstaller_type=win-console ' +
-                        ' && ( rmdir /s /q build\\installerimage || ver > nul )' +
-                        ' && mkdir build\\installerimage' +
-                        ' && move /Y build\\jpackage\\underscorebackup\\app build\\installerimage' +
-                        ' && move /Y build\\jpackage\\underscorebackup\\runtime build\\installerimage' +
-                        ' && move /Y build\\jpackage\\underscorebackup\\README.md build\\installerimage' +
-                        ' && move /Y build\\jpackage\\underscorebackup\\underscorebackup.exe build\\installerimage' +
-                        ' && gradlew.bat jpackageImage -Pinstaller_type=win-gui' +
-                        ' && copy build\\jpackage\\underscorebackup-gui\\underscorebackup-gui.exe build\\installerimage' +
-                        ' && copy build\\jpackage\\underscorebackup-gui\\app\\underscorebackup-gui.cfg build\\installerimage\\app'
-    }
+    commandLine 'cmd', '/c',
+            'gradlew.bat jpackageImage -Pinstaller_type=win-console ' +
+                    ' && ( rmdir /s /q build\\installerimage || ver > nul )' +
+                    ' && mkdir build\\installerimage' +
+                    ' && move /Y build\\jpackage\\underscorebackup\\app build\\installerimage' +
+                    ' && move /Y build\\jpackage\\underscorebackup\\runtime build\\installerimage' +
+                    ' && move /Y build\\jpackage\\underscorebackup\\README.md build\\installerimage' +
+                    ' && move /Y build\\jpackage\\underscorebackup\\underscorebackup.exe build\\installerimage' +
+                    ' && gradlew.bat jpackageImage -Pinstaller_type=win-gui' +
+                    ' && copy build\\jpackage\\underscorebackup-gui\\underscorebackup-gui.exe build\\installerimage' +
+                    ' && copy build\\jpackage\\underscorebackup-gui\\app\\underscorebackup-gui.cfg build\\installerimage\\app'
+}
 
-task installer(dependsOn: [installerImage, installerDef], type:Exec) {
+task installer(dependsOn: [installerImage, installerDef], type: Exec) {
     workingDir "${rootProject.projectDir}/windows"
     executable 'C:\\Program Files (x86)\\Inno Setup 6\\iscc.exe'
     args "innosetup-expanded.iss"
 }
 
-task webuiinstall(type:Exec) {
+task webuiinstall(type: Exec) {
     onlyIf {
         !new File("src/main/resources/web/index.html").exists()
     }
@@ -126,7 +126,7 @@ task webuiinstall(type:Exec) {
     commandLine 'npm', "install"
 }
 
-task webui(dependsOn: [webuiinstall], type:Exec) {
+task webui(dependsOn: [webuiinstall], type: Exec) {
     onlyIf {
         !new File("src/main/resources/web/index.html").exists()
     }
@@ -165,10 +165,10 @@ tasks.jpackageImage.doLast {
 
 dependencies {
 
-    implementation (
+    implementation(
             'com.dropbox.core:dropbox-core-sdk:5.4.4',
             'com.cronutils:cron-utils:9.2.0',
-            'com.fasterxml.jackson.core:jackson-databind:2.13.4.2',
+            'com.fasterxml.jackson.core:jackson-databind:2.14.0',
             'com.google.guava:guava:31.1-jre',
             'com.google.inject:guice:5.1.0',
             'com.hierynomus:smbj:0.11.5',
@@ -183,18 +183,18 @@ dependencies {
             'org.mapdb:mapdb:3.0.8',
             'org.projectlombok:lombok:1.18.24',
             'org.reflections:reflections:0.10.2',
-            'org.slf4j:slf4j-api:2.0.3',
+            'org.slf4j:slf4j-api:2.0.4',
             'org.takes:takes:1.24.4',
-            'software.amazon.awssdk:s3control:2.18.1'
+            'software.amazon.awssdk:s3control:2.18.21'
     )
 
-    testImplementation (
+    testImplementation(
             'org.hamcrest:hamcrest:2.2',
             'org.junit.jupiter:junit-jupiter:5.9.0',
             'org.mockito:mockito-junit-jupiter:4.8.0'
     )
 
-    testRuntimeOnly (
+    testRuntimeOnly(
             'org.junit.jupiter:junit-jupiter-engine:5.9.0'
     )
 
@@ -206,13 +206,13 @@ test {
     useJUnitPlatform()
 }
 
-task installerPkg(dependsOn: ["runtime"], type:Exec) {
+task installerPkg(dependsOn: ["runtime"], type: Exec) {
     workingDir "${rootProject.projectDir}"
     executable 'osx/createinstaller.sh'
     args "${rootProject.version}"
 }
 
-task uninstallerPkg(type:Exec) {
+task uninstallerPkg(type: Exec) {
     workingDir "${rootProject.projectDir}"
     executable 'osx/createuninstaller.sh'
     args "${rootProject.version}"
@@ -222,7 +222,7 @@ task allDist() {
     dependsOn distZip, distTar
 }
 
-task installers(type:Exec) {
+task installers(type: Exec) {
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         workingDir "${rootProject.projectDir}"
         commandLine 'gradlew.bat', "installer"
@@ -237,7 +237,7 @@ task installers(type:Exec) {
     }
 }
 
-task integrationTest(type:Exec) {
+task integrationTest(type: Exec) {
     dependsOn installers
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         workingDir "${rootProject.projectDir}"

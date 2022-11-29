@@ -64,7 +64,7 @@ export default function Sources(props: SourcesProps) {
     });
 
     function sendUpdate(newState: SourceState[]) {
-        const ids: string[] = newState.map(t => t.name ? t.name : t.id);
+        const ids: string[] = newState.map(t => t.name ? t.name.toLowerCase() : t.id.toLowerCase());
         // @ts-ignore
         const deduped = [...new Set(ids)];
         props.configurationUpdated(

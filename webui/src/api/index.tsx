@@ -73,6 +73,7 @@ export interface BackupManifest {
     localLocation?: string,
     maximumUnsyncedSize?: number,
     maximumUnsyncedSeconds?: number
+    hideNotifications?: boolean,
     optimizeSchedule?: string,
     pauseOnBattery?: boolean,
     trimSchedule?: string,

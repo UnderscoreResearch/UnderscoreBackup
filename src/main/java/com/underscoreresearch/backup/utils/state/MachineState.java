@@ -11,7 +11,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 @Slf4j
 @RequiredArgsConstructor
 public class MachineState {
-    private static final Duration MINIMUM_WAIT = Duration.ofSeconds(30);
+    private static final Duration MINIMUM_WAIT = Duration.ofSeconds(2);
     private final boolean pauseOnBattery;
 
     private boolean loggedOnBattery;

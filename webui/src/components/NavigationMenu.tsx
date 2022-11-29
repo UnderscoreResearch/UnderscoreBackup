@@ -67,33 +67,37 @@ export default function NavigationMenu(props: NavigationProps) {
             </ListItemIcon>
             <ListItemText primary="Backup Sets"/>
         </MyListItemButton>
-        <MyListItemButton page="destinations" disabled={!props.destinations || props.unresponsive || props.loading} id="pageDestinations">
+        <MyListItemButton page="destinations" disabled={!props.destinations || props.unresponsive || props.loading}
+                          id="pageDestinations">
             <ListItemIcon>
                 <CloudUpload/>
             </ListItemIcon>
             <ListItemText primary="Destinations"/>
         </MyListItemButton>
-        <MyListItemButton page="settings"  disabled={!props.settings || props.unresponsive || props.loading} id="pageSettings">
+        <MyListItemButton page="settings" disabled={!props.settings || props.unresponsive || props.loading}
+                          id="pageSettings">
             <ListItemIcon>
                 <Settings/>
             </ListItemIcon>
             <ListItemText primary="Settings"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="sources" disabled={!props.sources || props.unresponsive || props.loading} id="pageSources">
+        <MyListItemButton page="sources" disabled={!props.sources || props.unresponsive || props.loading}
+                          id="pageSources">
             <ListItemIcon>
                 <AutoAwesomeMotion/>
             </ListItemIcon>
             <ListItemText primary="Other Sources"/>
         </MyListItemButton>
-        <MyListItemButton page="share"  disabled={!props.share || props.unresponsive || props.loading} id="pageShare">
+        <MyListItemButton page="share" disabled={!props.share || props.unresponsive || props.loading} id="pageShare">
             <ListItemIcon>
                 <Share/>
             </ListItemIcon>
             <ListItemText primary="Shares"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="restore"  disabled={!props.restore || props.unresponsive || props.loading} id="pageRestore">
+        <MyListItemButton page="restore" disabled={!props.restore || props.unresponsive || props.loading}
+                          id="pageRestore">
             <ListItemIcon>
                 <CloudDownload/>
             </ListItemIcon>

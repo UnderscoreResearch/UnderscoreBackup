@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BackupDefaults, BackupSet, BackupSetRoot, GetLocalFiles, PostRestartSets} from "../api";
+import {BackupSet, BackupSetRoot, BackupState, GetLocalFiles, PostRestartSets} from "../api";
 import FileTreeView from './FileTreeView'
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import Cron from "../3rdparty/react-js-cron-mui";
@@ -21,7 +21,7 @@ export interface SetProps {
     set: BackupSet,
     allowReset: boolean,
     destinations: DestinationProp[],
-    defaults: BackupDefaults,
+    state: BackupState,
     setUpdated: (valid: boolean, val: BackupSet) => void
 }
 
@@ -59,7 +59,7 @@ export default function SetConfig(props: SetProps) {
     const [state, setState] = React.useState(() => {
         return {
             tab: 0,
-            set: expandRoots(props.set, props.defaults) as BackupSet
+            set: expandRoots(props.set, props.state) as BackupSet
         } as SetState
     });
 
@@ -128,7 +128,7 @@ export default function SetConfig(props: SetProps) {
         <TabPanel value={state.tab} index={0}>
             <FileTreeView
                 fileFetcher={GetLocalFiles}
-                defaults={props.defaults}
+                state={props.state}
                 roots={state.set.roots}
                 stateValue={""}
                 onChange={fileSelectionChanged}

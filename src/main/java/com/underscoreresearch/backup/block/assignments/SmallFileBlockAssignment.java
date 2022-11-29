@@ -30,6 +30,7 @@ import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockCompletion;
 import com.underscoreresearch.backup.model.BackupCompletion;
@@ -80,7 +81,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
                     log.warn("Only read {} when expected {} for {}",
                             readableSize(length),
                             readableSize(file.getLength()),
-                            file.getPath());
+                            PathNormalizer.physicalPath(file.getPath()));
                     completionFuture.completed(null);
                     return true;
                 }

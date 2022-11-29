@@ -134,7 +134,7 @@ public class SourceSelectPost extends JsonWrap {
                 try {
                     validateDestinations(sourceConfig);
                 } catch (Exception exc) {
-                    return messageJson(406, "Destinations in source are missing");
+                    return messageJson(406, "Destinations in source are missing credentials");
                 }
                 String rebuildPassword = password;
                 InstanceFactory.reloadConfiguration(source,
