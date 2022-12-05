@@ -14,7 +14,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @AllArgsConstructor
 public class BackupManifest {
     private String destination;
-    private String localLocation;
     private Integer maximumUnsyncedSize;
     private Integer maximumUnsyncedSeconds;
 
@@ -23,7 +22,12 @@ public class BackupManifest {
     private Boolean interactiveBackup;
     private Boolean pauseOnBattery;
     private Boolean hideNotifications;
+    private BackupTimespan scheduleRandomize;
 
     private String trimSchedule;
     private String optimizeSchedule;
+
+    private void setLocalLocation(String str) {
+        // Intentional Nop
+    }
 }

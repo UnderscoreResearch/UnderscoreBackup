@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -393,9 +394,10 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         if (date != null) {
             if (date.getTime() - new Date().getTime() > 0) {
                 long dateTime = date.getTime();
-                int randomizeSchedule = configuration.getProperty("randomizeScheduleSeconds", 0);
-                if (randomizeSchedule > 0) {
-                    dateTime += random.nextInt(randomizeSchedule) * 1000L;
+                if (configuration.getManifest().getScheduleRandomize() != null) {
+                    dateTime += random.nextLong(
+                            Instant.now().toEpochMilli() -
+                                    configuration.getManifest().getScheduleRandomize().toEpochMilli());
                 }
                 scheduleNextAt(set, index, new Date(dateTime));
             }

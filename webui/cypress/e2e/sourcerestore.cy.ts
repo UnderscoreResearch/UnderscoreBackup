@@ -38,8 +38,7 @@ it('sourcerestore', function () {
             '    }\n' +
             '  },\n' +
             '  "manifest": {\n' +
-            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true,\n' +
-            '    "localLocation": "' + integrationDirectory + '"\n' +
+            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true\n' +
             '  }\n' +
             '}', {force: true, parseSpecialCharSequences: false})
         .blur({force: true});

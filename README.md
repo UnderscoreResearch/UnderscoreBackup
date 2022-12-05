@@ -212,8 +212,6 @@ the following keys.
 Contains information of how the backup repository is managed.
 
 * **destination** - What destination to use for storing the log of the repository.
-* **localLocation** - Where the local location of the repository cache should be located. If not specified defaults
-  to `C:\UndersoreBackup\` on Windows and `/var/cache/underscorebackup` everywhere else.
 * **maximumUnsyncedSize** - Maximum size of the change log to keep locally before uploading to destination.
 * **maximumUnsyncedSeconds** - Maximum time that changes are kept locally before they are forced to be uploaded to
   backup destination.
@@ -224,6 +222,9 @@ Contains information of how the backup repository is managed.
   storage.
 * **configUsername** - Username required to log into the config web interface.
 * **configPassword** - Password required to log into the config web interface.
+* **scheduleRandomize** - Amount of time to randomly add to any schedule time to jitter the start of next scheduled run.
+    * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
+    * **duration** - How many of units for the timespan.
 
 ## Global limits
 
@@ -250,8 +251,6 @@ currently existing property keys used.
   existing backup.
 * **noneErrorCorrection.maximumFileSize** - Maximum part size for none error correction. Defaults to 16384kb.
 * **maximumRefreshedBytes** - Maximum amount of bytes to refresh because of destination retention setting per run.
-* **randomizeScheduleSeconds** - Number of seconds to jitter any scheduled times. Will always be past the scheduled
-  time.
 * **crossSourceDedupe** - Allow data to be deduped across multiple hosts. Affects how the keys to AES encryption are
   handled.
 

@@ -3,7 +3,7 @@ import {
     BackupConfiguration,
     BackupGlobalLimits,
     BackupManifest,
-    BackupRetention,
+    BackupRetention, BackupTimespan,
     DeleteReset,
     PostChangeEncryptionKey,
     PropertyMap
@@ -32,6 +32,7 @@ import {DisplayMessage} from "../App";
 import Box from "@mui/material/Box";
 import Retention from "./Retention";
 import Typography from "@mui/material/Typography";
+import Timespan from "./Timespan";
 
 export interface SettingsProps {
     config: BackupConfiguration,
@@ -340,6 +341,17 @@ export default function Settings(props: SettingsProps) {
                           clearButton={false}/>
                 </Grid>
             </Grid>
+            <div style={{marginLeft: "-8px"}}>
+                <Timespan onChange={(newVal) => {
+                    updateState({
+                        ...state,
+                        manifest: {
+                            ...state.manifest,
+                            scheduleRandomize: newVal
+                        }
+                    })
+                }} timespan={state.manifest.scheduleRandomize} title={"Randomize start of schedules"} requireTime={true}/>
+            </div>
         </Paper>
         <Paper sx={{p: 2}}>
             <DividerWithText>Custom properties</DividerWithText>

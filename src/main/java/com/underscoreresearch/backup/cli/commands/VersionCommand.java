@@ -11,14 +11,16 @@ import com.underscoreresearch.backup.cli.CommandPlugin;
 @CommandPlugin(value = "version", description = "Display version of application",
         needPrivateKey = false, needConfiguration = false)
 public class VersionCommand extends SimpleCommand {
+    private static String version;
+    private static String edition;
+
     public static String getVersion() {
-
-
         Properties prop = new Properties();
         try {
             prop.load(VersionCommand.class.getClassLoader().getResourceAsStream("version.properties"));
 
-            String version = prop.getProperty("version");
+            if (version == null)
+                version = prop.getProperty("version");
             if (version != null) {
                 return version;
             }
@@ -29,7 +31,26 @@ public class VersionCommand extends SimpleCommand {
         return "DEVELOPMENT";
     }
 
+    public static String getEdition() {
+
+
+        Properties prop = new Properties();
+        try {
+            prop.load(VersionCommand.class.getClassLoader().getResourceAsStream("version.properties"));
+
+            if (edition == null)
+                edition = prop.getProperty("edition");
+            if (edition != null) {
+                return edition;
+            }
+        } catch (IOException exc) {
+            log.warn("Failed to read edition", exc);
+        }
+
+        return "DEVELOPMENT";
+    }
+
     public void executeCommand() {
-        System.out.println("Version " + getVersion());
+        System.out.println("Version " + getVersion() + getEdition());
     }
 }

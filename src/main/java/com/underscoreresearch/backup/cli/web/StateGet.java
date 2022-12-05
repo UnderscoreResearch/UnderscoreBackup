@@ -139,7 +139,7 @@ public class StateGet extends JsonWrap {
 
                 return new RsText(WRITER.writeValueAsString(StateResponse.builder()
                         .defaultSet(set)
-                        .version(VersionCommand.getVersion())
+                        .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                         .validDestinations(validDestinations)
                         .source(InstanceFactory.getAdditionalSource())
                         .pathSeparator(File.separator)

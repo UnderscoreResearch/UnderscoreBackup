@@ -33,6 +33,7 @@ import com.underscoreresearch.backup.model.BackupRetentionAdditional;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupShare;
+import com.underscoreresearch.backup.model.BackupTimeUnit;
 import com.underscoreresearch.backup.model.BackupTimespan;
 
 @Slf4j
@@ -112,6 +113,14 @@ public class ConfigurationValidator {
             throw new IllegalArgumentException("Missing manifest section from configuration file");
         }
 
+        int randomizeScheduleSeconds = configuration.getProperty("randomizeScheduleSeconds", 0);
+        if (randomizeScheduleSeconds > 0 && configuration.getManifest().getScheduleRandomize() == null) {
+            log.info("Moved randomizeScheduleSeconds property to manifest property");
+            configuration.getManifest().setScheduleRandomize(
+                    BackupTimespan.builder().unit(BackupTimeUnit.SECONDS).duration(randomizeScheduleSeconds).build());
+            configuration.getProperties().remove("randomizeScheduleSeconds");
+        }
+
         if (manifest.getDestination() == null) {
             throw new IllegalArgumentException("Missing manifest destination name");
         }
@@ -134,10 +143,7 @@ public class ConfigurationValidator {
             throw new IllegalArgumentException("Manifest destination must not use error correction");
         }
 
-        String local = manifest.getLocalLocation();
-        if (Strings.isNullOrEmpty(local)) {
-            local = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
-        }
+        String local = InstanceFactory.getInstance(CommandLineModule.DEFAULT_MANIFEST_LOCATION);
 
         File file = new File(local);
         if (!file.isDirectory()) {
