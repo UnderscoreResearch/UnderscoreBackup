@@ -70,10 +70,10 @@ public class CommandLineModule extends AbstractModule {
     public static final String URL_LOCATION = "URL_LOCATION";
     public static final String IDENTITY_LOCATION = "IDENTITY_LOCATION";
     public static final String INSTALLATION_IDENTITY = "INSTALLATION_IDENTITY";
+    public static final String MANIFEST_LOCATION = "manifest-location";
     public static final String NO_DELETE_REBUILD = "no-delete-rebuild";
     public static final String DEFAULT_USER_MANIFEST_LOCATION = "DEFAULT_USER_MANIFEST_LOCATION";
     public static final String DEFAULT_MANIFEST_LOCATION = "DEFAULT_MANIFEST_LOCATION";
-    public static final String MANIFEST_LOCATION = "MANIFEST_LOCATION";
     public static final String ADDITIONAL_SOURCE = "ADDITIONAL_SOURCE";
     public static final String SOURCE_CONFIG = "SOURCE_CONFIG";
     public static final String SOURCE_CONFIG_LOCATION = "SOURCE_CONFIG_LOCATION";
@@ -152,6 +152,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption(null, LOG_FILE, true, "Log file location");
         options.addOption(null, NO_LOG, false, "Don't write to a log file");
         options.addOption("c", CONFIG, true, "Location for configuration file");
+        options.addOption("m", MANIFEST_LOCATION, true, "Local manifest location");
         options.addOption("k", KEY, true, "Location for key file");
         options.addOption(null, ENCRYPTION_KEY_DATA, true, "Encryption key data");
         options.addOption(null, PRIVATE_KEY_SEED, true, "Private key passphrase");
@@ -197,11 +198,10 @@ public class CommandLineModule extends AbstractModule {
     @Provides
     @Singleton
     @Named(MANIFEST_LOCATION)
-    public String getManifestLocation(BackupConfiguration configuration,
+    public String getManifestLocation(CommandLine commandLine,
                                       @Named(DEFAULT_MANIFEST_LOCATION) String defaultLocation) {
-        if (configuration.getManifest() != null
-                && !Strings.isNullOrEmpty(configuration.getManifest().getLocalLocation())) {
-            return configuration.getManifest().getLocalLocation();
+        if (commandLine.hasOption(MANIFEST_LOCATION)) {
+            return commandLine.getOptionValue(MANIFEST_LOCATION);
         }
         return defaultLocation;
     }

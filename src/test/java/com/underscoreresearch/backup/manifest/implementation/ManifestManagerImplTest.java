@@ -110,7 +110,6 @@ class ManifestManagerImplTest {
                         .maximumUnsyncedSize(100)
                         .maximumUnsyncedSeconds(1)
                         .pauseOnBattery(false)
-                        .localLocation(tempDir.getPath())
                         .build())
                 .build();
 
@@ -125,6 +124,7 @@ class ManifestManagerImplTest {
     private void initializeFactory() throws JsonProcessingException {
         InstanceFactory.initialize(new String[]{"--no-log", "--passphrase", "test", "--config-data",
                 new ObjectMapper().writeValueAsString(configuration),
+                "-m", tempDir.getPath(),
                 "--encryption-key-data", PUBLIC_KEY_DATA}, null);
 
         publickKey = InstanceFactory.getInstance(EncryptionKey.class);

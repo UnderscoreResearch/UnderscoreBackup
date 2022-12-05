@@ -70,13 +70,13 @@ export interface BackupLimits {
 
 export interface BackupManifest {
     destination: string,
-    localLocation?: string,
     maximumUnsyncedSize?: number,
     maximumUnsyncedSeconds?: number
     hideNotifications?: boolean,
     optimizeSchedule?: string,
     pauseOnBattery?: boolean,
     trimSchedule?: string,
+    scheduleRandomize?: BackupTimespan,
     configUser?: string
     configPassword?: string
     interactiveBackup?: boolean

@@ -13,6 +13,7 @@ AppPublisher=Underscore Research
 AppPublisherURL=http://www.github.com/UnderscoreResearch/UnderscoreBackup
 AppSupportURL=http://www.github.com/UnderscoreResearch/UnderscoreBackup
 AppUpdatesURL=http://www.github.com/UnderscoreResearch/UnderscoreBackup
+CloseApplications=no
 ArchitecturesInstallIn64BitMode = x64
 DefaultDirName={commonpf}\\Underscore Backup
 DefaultGroupName=Underscore Backup
@@ -27,8 +28,10 @@ SolidCompression=yes
 Filename: "{app}\\underscorebackup-gui.exe"; Flags: shellexec runasoriginaluser
 
 [Files]
-Source: "..\\build\\installerimage\\underscorebackup.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\\build\\installerimage\\underscorebackup-gui.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\\build\\installerimage\\underscorebackup.exe"; DestDir: "{app}"; Flags: ignoreversion; \\
+    BeforeInstall: TaskKill('underscorebackup.exe')
+Source: "..\\build\\installerimage\\underscorebackup-gui.exe"; DestDir: "{app}"; Flags: ignoreversion; \\
+    BeforeInstall: TaskKill('underscorebackup-gui.exe')
 Source: "..\\build\\installerimage\\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\\build\\installerimage\\app\\*"; DestDir: "{app}\\app"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\\build\\installerimage\\runtime\\*"; DestDir: "{app}\\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -115,4 +118,12 @@ begin
     RemovePath(ExpandConstant('{app}\\bin'));
     RemovePath(ExpandConstant('{app}'));
   end;
+end;
+
+procedure TaskKill(FileName: String);
+var
+  ResultCode: Integer;
+begin
+    Exec('taskkill.exe', '/f /im ' + '"' + FileName + '"', '', SW_HIDE,
+     ewWaitUntilTerminated, ResultCode);
 end;

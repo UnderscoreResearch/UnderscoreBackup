@@ -178,6 +178,7 @@ sub executeUnderscoreBackupParameters {
         $underscoreBackup,
         "-k", $keyFile,
         "-c", $configFile,
+        "-m", $root,
         "--log-file", $logFile,
         "-f", "-R", "-d"
     )
@@ -328,8 +329,7 @@ $shareDefinition
   "manifest": {
     "destination": "d0",
     "pauseOnBattery": false,
-    "hideNotifications": true,
-    "localLocation": "$escapedRoot"
+    "hideNotifications": true
   }
 }
 __EOF__
