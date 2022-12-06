@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,6 +53,7 @@ import org.mapdb.Serializer;
 import org.mapdb.serializer.SerializerArrayTuple;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
@@ -60,6 +62,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -758,10 +761,24 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private <T> T decodeData(ObjectReader reader, byte[] data) throws IOException {
-        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
-            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
-                return reader.readValue(gzipInputStream);
+        try {
+            try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
+                try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                    return reader.readValue(gzipInputStream);
+                }
             }
+        } catch (JsonMappingException exc) {
+            try {
+                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
+                    try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                        byte[] plaintextData = IOUtils.readAllBytes(gzipInputStream);
+                        log.error("Failed decoding: {}", new String(plaintextData, StandardCharsets.UTF_8));
+                    }
+                }
+            } catch (Exception decodeTest2) {
+                log.error("Failed to decode string for supposed JSON object", decodeTest2);
+            }
+            throw exc;
         }
     }
 
