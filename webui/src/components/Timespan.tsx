@@ -24,7 +24,7 @@ function calculateUnit(props: DurationProps) {
             return "IMMEDIATE";
         }
     }
-    return props.requireTime ? "MONTH" : "IMMEDIATE";
+    return props.requireTime ? "MONTHS" : "IMMEDIATE";
 }
 
 export default function Timespan(props: DurationProps) {

@@ -26,7 +26,13 @@ export default function InitialSetup(props: InitialSetupProps) {
     const [state, setState] = React.useState({
         passphrase: "",
         passphraseConfirm: "",
-        manifest: props.currentConfig && props.currentConfig.manifest ? props.currentConfig.manifest : {destination: "do"}
+        manifest: props.currentConfig && props.currentConfig.manifest ? props.currentConfig.manifest : {
+            destination: "do",
+            scheduleRandomize: {
+                duration: 1,
+                unit: "HOURS"
+            }
+        }
     } as InitialSetupState)
 
     function configurationUpdate(valid: boolean, val?: BackupDestination) {
