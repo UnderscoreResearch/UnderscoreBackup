@@ -53,7 +53,7 @@ public class ConfigurationValidator {
 
     private static void validateShares(BackupConfiguration configuration) {
         if (configuration.getShares() != null) {
-            validateUniqueness("Shares ", configuration.getAdditionalSources().keySet());
+            validateUniqueness("Shares ", configuration.getShares().keySet());
             for (Map.Entry<String, BackupShare> entry : configuration.getShares().entrySet()) {
                 validateDestination(entry.getValue().getName(), entry.getValue().getDestination());
                 if (!entry.getValue().getDestination().getErrorCorrection().equals(DEFAULT_ERROR_CORRECTION)) {

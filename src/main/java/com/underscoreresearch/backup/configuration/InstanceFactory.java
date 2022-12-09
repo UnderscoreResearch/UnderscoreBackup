@@ -31,6 +31,7 @@ public abstract class InstanceFactory {
     private static List<Runnable> shutdownHooks = new ArrayList<>();
     private static BackupConfiguration cachedConfig;
     private static boolean cachedHasConfig;
+    private static Object configReload = new Object();
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -71,14 +72,16 @@ public abstract class InstanceFactory {
     }
 
     public static void initialize(String[] argv, String source) {
-        initialArguments = argv;
-        shutdown = false;
-        initialize(Guice.createInjector(
-                new CommandLineModule(argv, source),
-                new EncryptionModule(),
-                new ErrorCorrectionModule(),
-                new BackupModule(),
-                new RestoreModule()));
+        synchronized (configReload) {
+            initialArguments = argv;
+            initialize(Guice.createInjector(
+                    new CommandLineModule(argv, source),
+                    new EncryptionModule(),
+                    new ErrorCorrectionModule(),
+                    new BackupModule(),
+                    new RestoreModule()));
+            shutdown = false;
+        }
     }
 
     public static void reloadConfiguration(String source) {
@@ -140,11 +143,15 @@ public abstract class InstanceFactory {
     }
 
     private static void initialize(Injector injector) {
-        defaultFactory = new DefaultFactory(injector);
+        synchronized (configReload) {
+            defaultFactory = new DefaultFactory(injector);
+        }
     }
 
     public static <T> T getInstance(Class<T> tClass) {
-        return getFactory(tClass).instance(tClass);
+        synchronized (configReload) {
+            return getFactory(tClass).instance(tClass);
+        }
     }
 
     public static boolean isShutdown() {
@@ -152,23 +159,29 @@ public abstract class InstanceFactory {
     }
 
     public static void shutdown() {
-        InstanceFactory.shutdown = true;
+        shutdown = true;
     }
 
     public static <T> T getInstance(String name, Class<T> tClass) {
-        return getFactory(tClass).instance(name, tClass);
+        synchronized (configReload) {
+            return getFactory(tClass).instance(name, tClass);
+        }
     }
 
     public static <T> InstanceFactory getFactory(Class<T> tClass) {
-        PluginFactory ret = tClass.getAnnotation(PluginFactory.class);
-        if (ret != null && ret.factory() != null) {
-            return defaultFactory.instance(ret.factory());
+        synchronized (configReload) {
+            PluginFactory ret = tClass.getAnnotation(PluginFactory.class);
+            if (ret != null && ret.factory() != null) {
+                return defaultFactory.instance(ret.factory());
+            }
+            return defaultFactory;
         }
-        return defaultFactory;
     }
 
     public static String getInstance(String name) {
-        return defaultFactory.instance(name, String.class);
+        synchronized (configReload) {
+            return defaultFactory.instance(name, String.class);
+        }
     }
 
     protected abstract <T> T instance(Class<T> tClass);
@@ -181,12 +194,16 @@ public abstract class InstanceFactory {
 
         @Override
         protected <T> T instance(Class<T> tClass) {
-            return injector.getInstance(tClass);
+            synchronized (configReload) {
+                return injector.getInstance(tClass);
+            }
         }
 
         @Override
         protected <T> T instance(String name, Class<T> tClass) {
-            return injector.getInstance(Key.get(tClass, Names.named(name)));
+            synchronized (configReload) {
+                return injector.getInstance(Key.get(tClass, Names.named(name)));
+            }
         }
     }
 }

@@ -44,7 +44,7 @@ import Sets from "./components/Sets";
 import {Backdrop, Button, CircularProgress} from "@mui/material";
 import InitialSetup from "./components/InitialSetup";
 import Restore, {RestorePropsChange} from "./components/Restore";
-import lodashObject from 'lodash';
+import { deepEqual } from 'fast-equals';
 import Sources, {SourceProps} from "./components/Sources";
 import Shares, {ShareProps} from "./components/Shares";
 
@@ -129,7 +129,48 @@ interface MainAppState {
     navigateDestination: string
 }
 
+interface ActivityState {
+    unresponsive?: boolean,
+    activity?: StatusLine[],
+    activatedShares?: string[]
+}
+
 var lastActivityState: ActivityState = {};
+var activityUpdated : ((newValue : ActivityState) => void) | undefined;
+
+async function fetchActivityInternal(): Promise<ActivityState> {
+    const ret: ActivityState = {};
+    const activity = await GetActivity(false);
+    if (activity === undefined) {
+        ret.unresponsive = true;
+    } else {
+        ret.activity = activity;
+        ret.unresponsive = false;
+    }
+    if (location.href.endsWith("/share")) {
+        const shares = await GetActiveShares();
+        if (shares && shares.activeShares) {
+            ret.activatedShares = shares.activeShares;
+        }
+    }
+    return ret;
+}
+
+async function fetchActivity(): Promise<ActivityState> {
+    const ret = await fetchActivityInternal();
+    lastActivityState = ret;
+    return lastActivityState;
+}
+
+async function updateActivity() {
+    const newActivity = await fetchActivityInternal();
+
+    if (!deepEqual(newActivity, lastActivityState)) {
+        lastActivityState = newActivity;
+        if (activityUpdated)
+            activityUpdated(lastActivityState);
+    }
+}
 
 function defaultState(): MainAppState {
     const roots: BackupSetRoot[] = [];
@@ -144,14 +185,14 @@ function defaultState(): MainAppState {
         }
     }
 
-    const activity: StatusLine[] = [];
+    const activity: StatusLine[] = lastActivityState.activity ? lastActivityState.activity : [];
 
     return {
         open: true,
         rebuildAvailable: false,
         hasKey: false,
         loading: true,
-        unresponsive: false,
+        unresponsive: lastActivityState.unresponsive ? lastActivityState.unresponsive : false,
         initialLoad: true,
         originalConfiguration: defaultConfig(),
         currentConfiguration: defaultConfig(),
@@ -168,7 +209,8 @@ function defaultState(): MainAppState {
         activity: activity,
         navigateState: 1,
         navigatedState: 1,
-        navigateDestination: ""
+        navigateDestination: "",
+        activatedShares: lastActivityState.activatedShares
     };
 }
 
@@ -220,12 +262,6 @@ function busyStatus(ret: DisplayState, statusTitle: string) {
     };
 };
 
-interface ActivityState {
-    unresponsive?: boolean,
-    activity?: StatusLine[],
-    activatedShares?: string[]
-}
-
 export default function MainApp() {
     const [state, setState] = React.useState(() => defaultState());
 
@@ -265,10 +301,10 @@ export default function MainApp() {
         }
     }
 
-    async function fetchConfig(ignoreState?: boolean): Promise<MainAppState> {
+    async function fetchConfig(knownConfig? : BackupConfiguration, ignoreState?: boolean): Promise<MainAppState> {
         var newState = {} as MainAppState;
         newState.initialLoad = false;
-        const newConfig = await GetConfiguration();
+        const newConfig = knownConfig ? JSON.parse(JSON.stringify(knownConfig)) : await GetConfiguration();
         try {
             if (newConfig !== undefined) {
                 var newRebuildAvailable = false;
@@ -317,24 +353,6 @@ export default function MainApp() {
         }
     }
 
-    async function fetchActivity(): Promise<ActivityState> {
-        const ret: ActivityState = {};
-        const activity = await GetActivity(false);
-        if (activity === undefined) {
-            ret.unresponsive = true;
-        } else {
-            ret.activity = activity;
-            ret.unresponsive = false;
-        }
-        if (location.href.endsWith("/share")) {
-            const shares = await GetActiveShares();
-            if (shares && shares.activeShares !== state.activatedShares) {
-                ret.activatedShares = shares.activeShares;
-            }
-        }
-        return ret;
-    }
-
     async function applyConfig(newState?: MainAppState) {
         var currentState = newState !== undefined ? newState : state;
         setState((oldState) => {
@@ -344,7 +362,7 @@ export default function MainApp() {
             }
         });
         if (await PostConfiguration(currentState.currentConfiguration)) {
-            const newConfig = await fetchConfig();
+            const newConfig = await fetchConfig(currentState.currentConfiguration);
 
             if (newConfig.selectedSource &&
                 currentState.validatedPassphrase &&
@@ -550,20 +568,18 @@ export default function MainApp() {
 
         method();
 
-        const updateActivity = async () => {
-            const newActivity = await fetchActivity();
-
-            if (!lodashObject.isEqual(newActivity, lastActivityState)) {
-                lastActivityState = newActivity;
-                setState((oldState) => ({
-                    ...oldState,
-                    ...newActivity
-                }));
-            }
+        activityUpdated = (newActivity : ActivityState) => {
+            setState((oldState) => ({
+                ...oldState,
+                ...newActivity
+            }));
         }
 
         const timer = setInterval(updateActivity, 2000);
-        return () => clearInterval(timer);
+        return () => {
+            activityUpdated = undefined;
+            clearInterval(timer);
+        }
     }, []);
 
     async function unselectSource() {
@@ -591,7 +607,7 @@ export default function MainApp() {
             if (keys.length !== shares.length) {
                 return true;
             }
-            return !lodashObject.isEqual(keys.sort(), shares.sort());
+            return !deepEqual(keys.sort(), shares.sort());
         }
 
         return false;
@@ -732,7 +748,7 @@ export default function MainApp() {
         return ret;
     }
 
-    const configNotChanged = lodashObject.isEqual(state.originalConfiguration, state.currentConfiguration);
+    const configNotChanged = deepEqual(state.originalConfiguration, state.currentConfiguration);
 
     function restoreStatus(ret: DisplayState, status: string) {
         busyStatus(ret, status);
@@ -785,7 +801,7 @@ export default function MainApp() {
                         }
                     }
 
-                    const newConfig = await fetchConfig(true);
+                    const newConfig = await fetchConfig(undefined, true);
                     const activity = await fetchActivity();
 
                     setState((oldState) => ({

@@ -4,6 +4,7 @@ import {LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContaine
 import LogTable from "./LogTable";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import './Status.css'
+import {deepEqual} from "fast-equals";
 
 export interface StatusProps {
     status: StatusLine[]
@@ -45,25 +46,41 @@ function StatusRow(row: StatusLine) {
     </React.Fragment>;
 }
 
+var lastStatus: StatusLine[] = [];
+var statusUpdated : ((newValue : StatusLine[]) => void) | undefined;
+
+
+async function updateLogs() {
+    const logs = await GetActivity(true);
+
+    if (logs && !deepEqual(lastStatus, logs)) {
+        lastStatus = logs;
+        if (statusUpdated)
+            statusUpdated(lastStatus);
+    }
+}
+
+
 export default function Status(props: StatusProps) {
     const [state, setState] = React.useState({
-        logs: []
+        logs: lastStatus
     } as StatusState);
 
-    async function fetchLogs() {
-        const logs = await GetActivity(true);
-        setState((oldState) => {
-            return {
-                ...oldState,
-                logs: logs
-            } as StatusState
-        });
-    }
-
     React.useEffect(() => {
-        const timer = setInterval(fetchLogs, 5000);
-        fetchLogs();
-        return () => clearInterval(timer);
+        if (state.logs.length == 0) {
+            updateLogs();
+        }
+
+        statusUpdated = (logs) => setState((oldState) => ({
+            ...oldState,
+            logs: logs
+        }));
+
+        const timer = setInterval(updateLogs, 5000);
+        return () => {
+            statusUpdated = undefined;
+            clearInterval(timer);
+        };
     }, []);
 
     const items = [...props.status];
