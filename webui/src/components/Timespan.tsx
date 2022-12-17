@@ -7,7 +7,8 @@ export interface DurationProps {
     timespan?: BackupTimespan,
     onChange: (timespan?: BackupTimespan) => void,
     requireTime?: boolean,
-    title: string
+    title: string,
+    disabled?: boolean
 }
 
 interface DurationState {
@@ -52,10 +53,12 @@ export default function Timespan(props: DurationProps) {
 
     const pluralS = state.duration == 1 ? "" : "s";
 
+    // noinspection TypeScriptValidateTypes
     return <div style={{display: "flex", alignItems: "center", marginLeft: "8px"}}>
         <Typography>{props.title}</Typography>
         {state.unit !== "FOREVER" && state.unit !== "IMMEDIATE" &&
-            <TextField variant="standard"
+            <TextField disabled={props.disabled}
+                       variant="standard"
                        defaultValue={state.duration}
                        inputProps={{min: 1, style: {textAlign: "right"}}}
                        style={{width: "80px"}}
@@ -65,7 +68,7 @@ export default function Timespan(props: DurationProps) {
                            unit: state.unit
                        })}/>
         }
-        <Select style={{minWidth: "10em", margin: "4px"}} value={state.unit} onChange={(e) => updateState({
+        <Select style={{minWidth: "10em", margin: "4px"}} disabled={props.disabled} value={state.unit} onChange={(e) => updateState({
             duration: state.duration,
             unit: e.target.value
         })}>

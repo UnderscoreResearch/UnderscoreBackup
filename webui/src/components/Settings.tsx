@@ -50,7 +50,8 @@ interface SettingsState {
     configData: string,
     limits: BackupGlobalLimits,
     missingRetention?: BackupRetention,
-    properties?: PropertyMap
+    properties?: PropertyMap,
+    hasRandomizedSchedule: boolean
 }
 
 function createInitialState(config: BackupConfiguration): SettingsState {
@@ -62,6 +63,7 @@ function createInitialState(config: BackupConfiguration): SettingsState {
         passphrase: "",
         passphraseConfirm: "",
         oldPassphrase: "",
+        hasRandomizedSchedule: !!config.manifest.scheduleRandomize,
         properties: config.properties,
         missingRetention: config.missingRetention,
         configData: JSON.stringify(config, null, 2),
@@ -73,15 +75,29 @@ export default function Settings(props: SettingsProps) {
     const [state, setState] = React.useState(createInitialState(props.config));
 
     function updateState(newState: SettingsState) {
-        setState(newState);
+
+        const newManifest = {
+            ...newState.manifest,
+            scheduleRandomize: newState.hasRandomizedSchedule ?
+                (newState.manifest.scheduleRandomize ?
+                    newState.manifest.scheduleRandomize :
+                    { duration: 1, unit: "HOURS" }) :
+                undefined
+        }
 
         const sendState = {
             ...props.config,
             properties: newState.properties,
             missingRetention: newState.missingRetention,
             limits: newState.limits,
-            manifest: newState.manifest
+            manifest: newManifest
         } as BackupConfiguration;
+
+
+        setState({
+            ...newState,
+            configData: JSON.stringify(sendState, undefined, 2)
+        });
 
         if (sendState.properties && Object.keys(sendState.properties).length == 0)
             sendState.properties = undefined;
@@ -342,15 +358,26 @@ export default function Settings(props: SettingsProps) {
                 </Grid>
             </Grid>
             <div style={{marginLeft: "-8px"}}>
-                <Timespan onChange={(newVal) => {
-                    updateState({
-                        ...state,
-                        manifest: {
-                            ...state.manifest,
-                            scheduleRandomize: newVal
-                        }
-                    })
-                }} timespan={state.manifest.scheduleRandomize} title={"Randomize start of schedules"} requireTime={true}/>
+                <div style={{ display: "flex"}}>
+                    <Checkbox
+                        checked={state.hasRandomizedSchedule}
+                        onChange={(e) => {
+                            updateState({
+                                ...state,
+                                hasRandomizedSchedule: e.target.checked
+                            })
+                        }}
+                    />
+                    <Timespan disabled={!state.hasRandomizedSchedule} onChange={(newVal) => {
+                        updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                scheduleRandomize: newVal
+                            }
+                        })
+                    }} timespan={state.manifest.scheduleRandomize ? state.manifest.scheduleRandomize: { unit: "HOURS", duration: 1} } title={"Randomize start of schedules"} requireTime={true}/>
+                </div>
             </div>
         </Paper>
         <Paper sx={{p: 2}}>
