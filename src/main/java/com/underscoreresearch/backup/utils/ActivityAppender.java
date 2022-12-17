@@ -50,6 +50,10 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
         return APPENDERS.get(name);
     }
 
+    public static synchronized void resetLogging() {
+        APPENDERS.forEach((a, b) -> b.resetStatus());
+    }
+
     @Override
     public boolean temporal() {
         return true;

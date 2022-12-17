@@ -17,6 +17,7 @@ import org.takes.Response;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.utils.ActivityAppender;
 
 @Slf4j
 public class ResetDelete extends JsonWrap {
@@ -61,6 +62,8 @@ public class ResetDelete extends JsonWrap {
 
             executeShielded(() -> InstanceFactory.reloadConfiguration(null, null));
             executeShielded(() -> deleteContents(new File(InstanceFactory.getInstance(MANIFEST_LOCATION))));
+
+            ActivityAppender.resetLogging();
 
             return messageJson(200, "Ok");
         }

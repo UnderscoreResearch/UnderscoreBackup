@@ -1036,6 +1036,14 @@ export default function MainApp() {
 
     let contents;
 
+    function getUsedDestinations() {
+        const alldestinations = [state.currentConfiguration.manifest.destination];
+        state.currentConfiguration.sets.forEach(set =>
+            set.destinations.forEach(destination => alldestinations.push(destination)))
+        // @ts-ignore
+        return [...new Set(alldestinations)];
+    }
+
     if (displayState.navigation.unresponsive) {
         contents = <div/>
     } else if (displayState.navigation.firstTime) {
@@ -1064,7 +1072,7 @@ export default function MainApp() {
                                                     onSubmit={applyChanges}
                                                     onChange={updateRestore}/>}/>
             <Route path="destinations" element={<Destinations destinations={getDestinationList()}
-                                                              dontDelete={[state.currentConfiguration.manifest.destination]}
+                                                              dontDelete={getUsedDestinations()}
                                                               configurationUpdated={updateDestinations}/>}/>
             <Route path="sources" element={<Sources sources={getSourcesList()}
                                                     configurationUpdated={updateSources}/>}/>
