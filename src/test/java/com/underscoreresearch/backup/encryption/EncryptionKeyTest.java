@@ -1,13 +1,19 @@
 package com.underscoreresearch.backup.encryption;
 
+import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.io.IOException;
+
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 
 class EncryptionKeyTest {
     @Test
@@ -24,7 +30,7 @@ class EncryptionKeyTest {
     }
 
     @Test
-    public void testChangedPassphrase() {
+    public void testChangedPassphrase() throws JsonProcessingException {
         EncryptionKey seeded1 = EncryptionKey.generateKeyWithPassphrase("seed");
         EncryptionKey seeded2 = EncryptionKey.changeEncryptionPassphrase("seed",
                 "another",
@@ -33,6 +39,34 @@ class EncryptionKeyTest {
 
         assertThat(seeded1.getPrivateKey("seed").getDisplayPrivateKey(),
                 Is.is(seeded2.getPrivateKey("another").getDisplayPrivateKey()));
+
+        String publicOnlyKey = ENCRYPTION_KEY_WRITER.writeValueAsString(seeded2.publicOnly());
+        EncryptionKey rebuilt = ENCRYPTION_KEY_READER.readValue(publicOnlyKey);
+        assertThat(seeded1.getPrivateKey("seed").getDisplayPrivateKey(),
+                Is.is(rebuilt.getPrivateKey("another").getDisplayPrivateKey()));
+    }
+
+    @Test
+    public void testAdditionalKey() throws IOException {
+        EncryptionKey seeded1 = EncryptionKey.generateKeyWithPassphrase("seed");
+        EncryptionKey additionalKey = EncryptionKey.generateKeys();
+        seeded1.getPrivateKey("seed").getAdditionalKeyManager().addNewKey(additionalKey, Mockito.mock(ManifestManager.class));
+
+        EncryptionKey seeded2 = EncryptionKey.changeEncryptionPassphrase("seed",
+                "another",
+                seeded1
+        );
+
+
+        String publicOnlyKey = ENCRYPTION_KEY_WRITER.writeValueAsString(seeded2.publicOnly());
+        EncryptionKey rebuilt = ENCRYPTION_KEY_READER.readValue(publicOnlyKey);
+
+        String seeded1Private = seeded1.getPrivateKey("seed").getAdditionalKeyManager().findMatchingPrivateKey(additionalKey).getPrivateKey(null).getDisplayPrivateKey();
+        String seeded2Private = seeded2.getPrivateKey("another").getAdditionalKeyManager().findMatchingPrivateKey(additionalKey).getPrivateKey(null).getDisplayPrivateKey();
+        String rebuildPrivate = rebuilt.getPrivateKey("another").getAdditionalKeyManager().findMatchingPrivateKey(additionalKey).getPrivateKey(null).getDisplayPrivateKey();
+
+        assertThat(seeded1Private, Is.is(seeded2Private));
+        assertThat(seeded1Private, Is.is(rebuildPrivate));
     }
 
     @Test
