@@ -181,11 +181,6 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
                     requestLock.release();
                 } else {
-                    scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1,
-                            new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
-                    scheduledThreadPoolExecutor.scheduleAtFixedRate(this::commit, 30, 30, TimeUnit.SECONDS);
-                    scheduledThreadPoolExecutor.scheduleAtFixedRate(this::checkAccessRequest, 1, 1, TimeUnit.SECONDS);
-
                     fileLock = new AccessLock(Paths.get(dataPath, LOCK_FILE).toString());
                     if (!fileLock.tryLock(true)) {
                         log.info("Waiting for repository access from other process");
@@ -199,6 +194,15 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private void openAllDataFiles(boolean readOnly) throws IOException {
+        if (!readOnly) {
+            if (scheduledThreadPoolExecutor == null) {
+                scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1,
+                        new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
+                scheduledThreadPoolExecutor.scheduleAtFixedRate(this::commit, 30, 30, TimeUnit.SECONDS);
+                scheduledThreadPoolExecutor.scheduleAtFixedRate(this::checkAccessRequest, 1, 1, TimeUnit.SECONDS);
+            }
+        }
+
         readRepositoryInfo(readOnly);
 
         blockDb = createDb(readOnly, BLOCK_STORE);

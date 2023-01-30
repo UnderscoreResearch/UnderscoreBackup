@@ -14,10 +14,12 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
+import com.hierynomus.mssmb2.SMBApiException;
 import com.hierynomus.smbj.SMBClient;
 import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.common.SMBRuntimeException;
@@ -102,7 +104,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
     }
 
     private String physicalPath(String prefix) {
-        String ret = prefix.replace("/", "\\");
+        String ret = prefix.replaceAll("/", "\\");
         if (ret.startsWith("\\"))
             return ret.substring(1);
         return ret;
@@ -121,7 +123,6 @@ public class SMBIOProvider implements IOIndex, Closeable {
         String physicalKey = physicalPath(key);
         String parent = parentPath(physicalKey);
         createParent(root + parent);
-
 
         try {
             try (File file = getShare().openFile(root + physicalKey,
@@ -176,6 +177,16 @@ public class SMBIOProvider implements IOIndex, Closeable {
         try {
             if (getShare().fileExists(root + physicalKey)) {
                 getShare().rm(root + physicalKey);
+            }
+
+            String parent = parentPath(physicalKey);
+            while(!Strings.isNullOrEmpty(parent)) {
+                try {
+                    getShare().rmdir(root + parent, false);
+                    parent = parentPath(physicalKey);
+                } catch (SMBApiException exc) {
+                    break;
+                }
             }
         } catch (SMBRuntimeException exc) {
             throw new IOException("Failed to delete file", exc);
