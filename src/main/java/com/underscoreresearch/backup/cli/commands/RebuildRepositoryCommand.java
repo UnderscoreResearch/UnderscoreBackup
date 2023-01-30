@@ -28,6 +28,7 @@ import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @CommandPlugin(value = "rebuild-repository", description = "Rebuild repository metadata from logs",
@@ -137,7 +138,7 @@ public class RebuildRepositoryCommand extends Command {
         if (InstanceFactory.getAdditionalSource() == null) {
             try {
                 String config = downloadRemoteConfiguration(null, getPassphrase());
-                if (!config.equals(InstanceFactory.getInstance(CONFIG_DATA))) {
+                if (configChanged(BACKUP_CONFIGURATION_READER.readValue(config))) {
                     throw new IOException("Configuration file does not match. Use -f flag to continue or use download-config command to replace");
                 }
             } catch (Exception exc) {
@@ -151,5 +152,13 @@ public class RebuildRepositoryCommand extends Command {
         }
 
         rebuildFromLog(getPassphrase(), false);
+    }
+
+    public static boolean configChanged(BackupConfiguration newConfig) {
+        BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
+        if (configuration.getManifest() != null && newConfig.getManifest() != null) {
+            newConfig.getManifest().setInteractiveBackup(configuration.getManifest().getInteractiveBackup());
+        }
+        return !configuration.equals(newConfig);
     }
 }
