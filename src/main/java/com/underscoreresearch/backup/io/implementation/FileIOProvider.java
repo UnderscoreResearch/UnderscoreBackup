@@ -79,6 +79,16 @@ public class FileIOProvider implements IOIndex {
         if (file.exists() && !file.delete()) {
             throw new IOException("Failed to delete " + file);
         }
+
+        File parent = file.getParentFile();
+        File root = new File(this.root);
+        while (parent != null && !parent.equals(root) && parent.exists() && parent.list().length == 0) {
+            if (!parent.delete()) {
+                log.warn("Failed to delete directory {}", parent);
+                return;
+            }
+            parent = parent.getParentFile();
+        }
     }
 
     @Override

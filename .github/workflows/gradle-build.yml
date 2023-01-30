@@ -17,9 +17,10 @@ jobs:
     strategy:
       matrix:
         os:
-          - windows-latest
+          - windows-x64
           - ubuntu-latest
           - macos-latest
+          - macos-arm
     runs-on: ${{ matrix.os }}
 
     steps:
