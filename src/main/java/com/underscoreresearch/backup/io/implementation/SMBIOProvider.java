@@ -104,7 +104,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
     }
 
     private String physicalPath(String prefix) {
-        String ret = prefix.replaceAll("/", "\\");
+        String ret = prefix.replace("/", "\\");
         if (ret.startsWith("\\"))
             return ret.substring(1);
         return ret;

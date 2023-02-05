@@ -359,9 +359,23 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
             for (int i = 0; i < configuration.getSets().size(); i++) {
                 BackupSet set = configuration.getSets().get(i);
                 BackupPendingSet pendingSet = pendingScheduled.remove(set.getId());
-                if (pendingSet != null
-                        && Objects.equals(pendingSet.getSchedule(), set.getSchedule())
-                        && (pendingSet.getScheduledAt() == null || pendingSet.getScheduledAt().after(new Date()))) {
+
+                if (pendingSet != null && !Objects.equals(pendingSet.getSchedule(), set.getSchedule())) {
+                    if (!Strings.isNullOrEmpty(set.getSchedule())) {
+                        Date date = getNextScheduleDate(set.getSchedule());
+                        pendingSet.setScheduledAt(date);
+
+                        try {
+                            repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
+                        } catch (IOException e) {
+                            log.error("Failed to update pending set {}", set.getId());
+                        }
+                    } else {
+                        pendingSet = null;
+                    }
+                }
+
+                if (pendingSet != null && (pendingSet.getScheduledAt() == null || pendingSet.getScheduledAt().after(new Date()))) {
                     if (pendingSet.getScheduledAt() != null) {
                         hasSchedules = true;
                         scheduleNextAt(set, i, pendingSet.getScheduledAt());
