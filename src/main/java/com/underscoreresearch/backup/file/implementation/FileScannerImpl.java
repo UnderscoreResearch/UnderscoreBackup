@@ -259,7 +259,13 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                     updateActivePath(set, currentPath, false);
                 } else {
                     if (set.includeFile(file.getPath())) {
-                        BackupFile existingFile = repository.lastFile(file.getPath());
+                        BackupFile existingFile;
+                        try {
+                            existingFile = repository.lastFile(file.getPath());
+                        } catch (IOException e) {
+                            log.error("Failed to read metadata about file for {}. Backing up again to be sure. Consider doing rebuild-repository.", file.getPath(), e);
+                            existingFile = null;
+                        }
 
                         anyIncluded = true;
 

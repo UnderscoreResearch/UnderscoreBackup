@@ -395,13 +395,18 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private BackupFile decodeFile(Map.Entry<Object[], byte[]> entry) throws IOException {
-        BackupFile readValue = decodeData(BACKUP_FILE_READER, entry.getValue());
-        readValue.setPath((String) entry.getKey()[0]);
-        readValue.setAdded((Long) entry.getKey()[1]);
-        if (readValue.getLastChanged() == null)
-            readValue.setLastChanged(readValue.getAdded());
+        try {
+            BackupFile readValue = decodeData(BACKUP_FILE_READER, entry.getValue());
+            readValue.setPath((String) entry.getKey()[0]);
+            readValue.setAdded((Long) entry.getKey()[1]);
+            if (readValue.getLastChanged() == null)
+                readValue.setLastChanged(readValue.getAdded());
 
-        return readValue;
+            return readValue;
+        } catch (Exception exc) {
+            throw new IOException(String.format("Failed to decode file %s:%s", entry.getKey()[0], entry.getKey()[1]),
+                    exc);
+        }
     }
 
     @Override
@@ -443,7 +448,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             try {
                 return decodeFile(entry);
             } catch (IOException e) {
-                log.error("Invalid file {}", PathNormalizer.physicalPath((String) entry.getKey()[0]), e);
+                log.error("Invalid file {}:{}", PathNormalizer.physicalPath((String) entry.getKey()[0]), entry.getKey()[1], e);
                 return BackupFile.builder().build();
             }
         }).filter(t -> t.getPath() != null);
@@ -473,7 +478,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             try {
                 return decodePath(entry);
             } catch (IOException e) {
-                log.error("Invalid block " + entry.getKey(), e);
+                log.error("Invalid filePart {}:{}", entry.getKey()[0], entry.getKey()[1], e);
                 return BackupFilePart.builder().build();
             }
         }).filter(t -> t.getPartHash() != null);
@@ -496,7 +501,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 return new BackupDirectory((String) entry.getKey()[0], (Long) entry.getKey()[1],
                         decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
             } catch (IOException e) {
-                log.error("Invalid directory " + entry.getKey()[0], e);
+                log.error("Invalid directory {}:{}", entry.getKey()[0], entry.getKey()[1], e);
                 return new BackupDirectory();
             }
         });
@@ -548,10 +553,14 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private BackupFilePart decodePath(Map.Entry<Object[], byte[]> entry) throws IOException {
-        BackupFilePart readValue = decodeData(BACKUP_FILE_PART_READER, entry.getValue());
-        readValue.setPartHash((String) entry.getKey()[0]);
-        readValue.setBlockHash((String) entry.getKey()[1]);
-        return readValue;
+        try {
+            BackupFilePart readValue = decodeData(BACKUP_FILE_PART_READER, entry.getValue());
+            readValue.setPartHash((String) entry.getKey()[0]);
+            readValue.setBlockHash((String) entry.getKey()[1]);
+            return readValue;
+        } catch (IOException e) {
+            throw new IOException(String.format("Invalid path %s:%s", entry.getKey()[0], entry.getKey()[1]), e);
+        }
     }
 
     @Override
@@ -585,9 +594,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private BackupBlock decodeBlock(String hash, byte[] data) throws IOException {
-        BackupBlock block = decodeData(BACKUP_BLOCK_READER, data);
-        block.setHash(hash);
-        return block;
+        try {
+            BackupBlock block = decodeData(BACKUP_BLOCK_READER, data);
+            block.setHash(hash);
+            return block;
+        } catch (IOException e) {
+            throw new IOException(String.format("Invalid block %s", hash), e);
+        }
     }
 
     @Override
@@ -602,11 +615,20 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 if (directories == null) {
                     directories = new ArrayList<>();
                 }
-                directories.add(new BackupDirectory(path,
-                        (Long) entry.getKey()[1],
-                        decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue())));
+
+                directories.add(decodeDirectory(entry));
             }
             return directories;
+        }
+    }
+
+    private BackupDirectory decodeDirectory(Map.Entry<Object[], byte[]> entry) throws IOException {
+        try {
+            return new BackupDirectory((String) entry.getKey()[0],
+                    (Long) entry.getKey()[1],
+                    decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
+        } catch (IOException e) {
+            throw new IOException(String.format("Invalid directory %s:%s", entry.getKey()[0], entry.getKey()[1]), e);
         }
     }
 
@@ -619,8 +641,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     directoryMap.prefixSubMap(new Object[]{path});
             if (query.size() > 0) {
                 Map.Entry<Object[], byte[]> entry = query.lastEntry();
-                return new BackupDirectory(path, (Long) entry.getKey()[1],
-                        decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
+                return decodeDirectory(entry);
             }
             return null;
         }
@@ -846,7 +867,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
             byte[] data = partialFileMap.get(file.getFile().getPath());
             if (data != null) {
-                BackupPartialFile ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
+                BackupPartialFile ret;
+                try {
+                    ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
+                } catch (IOException exc) {
+                    log.error("Invalid partialFile {} reprocessing entire file", file.getFile().getPath(), exc);
+                    return null;
+                }
                 if (Objects.equals(ret.getFile().getLength(), file.getFile().getLength())
                         && Objects.equals(ret.getFile().getLastChanged(), file.getFile().getLastChanged())) {
                     return ret;
@@ -867,17 +894,22 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
             TreeMap<String, BackupActivePath> ret = new TreeMap<>();
             for (Map.Entry<Object[], byte[]> entry : readMap.entrySet()) {
-                BackupActivePath activePath = decodeData(BACKUP_ACTIVE_PATH_READER, entry.getValue());
-                String path = (String) entry.getKey()[1];
-                activePath.setParentPath(path);
-                activePath.setSetIds(Lists.newArrayList((String) entry.getKey()[0]));
+                try {
+                    BackupActivePath activePath = decodeData(BACKUP_ACTIVE_PATH_READER, entry.getValue());
+                    String path = (String) entry.getKey()[1];
+                    activePath.setParentPath(path);
+                    activePath.setSetIds(Lists.newArrayList((String) entry.getKey()[0]));
 
-                BackupActivePath existingActive = ret.get(path);
-                if (existingActive != null) {
-                    activePath.mergeChanges(existingActive);
+                    BackupActivePath existingActive = ret.get(path);
+                    if (existingActive != null) {
+                        activePath.mergeChanges(existingActive);
+                    }
+
+                    ret.put(path, activePath);
+                } catch (IOException exc) {
+                    log.error("Invalid activePath {} for set {}. Skipping during this run.", entry.getKey()[1], entry.getKey()[0],
+                            exc);
                 }
-
-                ret.put(path, activePath);
             }
             return ret;
         }
@@ -970,10 +1002,14 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
             byte[] data = additionalBlockMap.get(new Object[]{publicKey, blockHash});
             if (data != null) {
-                BackupBlockAdditional block = decodeData(BACKUP_BLOCK_ADDITIONAL_READER, data);
-                block.setHash(blockHash);
-                block.setPublicKey(publicKey);
-                return block;
+                try {
+                    BackupBlockAdditional block = decodeData(BACKUP_BLOCK_ADDITIONAL_READER, data);
+                    block.setHash(blockHash);
+                    block.setPublicKey(publicKey);
+                    return block;
+                } catch (IOException exc) {
+                    throw new IOException(String.format("Invalid additionalBlock %s:%s", publicKey, blockHash), exc);
+                }
             }
             return null;
         }
