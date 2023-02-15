@@ -37,10 +37,10 @@ import com.underscoreresearch.backup.model.BackupUploadCompletion;
 class FileBlockUploaderImplTest {
     static {
         try {
-            InstanceFactory.initialize(new String[]{"--no-log", "--passphrase", "test", "--config-data",
+            InstanceFactory.initialize(new String[]{"--no-log", "--password", "test", "--config-data",
                             new ObjectMapper().writeValueAsString(createConfiguration()), "--encryption-key-data",
                             "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}"},
-                    null);
+                    null, null);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

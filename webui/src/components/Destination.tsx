@@ -1,9 +1,11 @@
 import Paper from "@mui/material/Paper";
 import * as React from "react";
-import {Fragment} from "react";
+import {Fragment, useEffect} from "react";
 import {
     Autocomplete,
     Button,
+    CircularProgress,
+    Divider,
     FormControl,
     Grid,
     InputLabel,
@@ -13,13 +15,14 @@ import {
     TextField
 } from "@mui/material";
 import Box from "@mui/material/Box";
-import {BackupDestination, BackupLimits, BackupTimespan, GetAuthEndpoint, PropertyMap} from "../api";
+import {BackupDestination, BackupLimits, BackupState, BackupTimespan, createAuthEndpoint, PropertyMap} from "../api";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import SpeedLimit from "./SpeedLimit";
 import Timespan from "./Timespan";
+import ServiceAuthentication from "./ServiceAuthentication";
+import {getBestRegion} from "../api/service";
 
 const DROPBOX_CLIENT_ID = 'tlt1aw0jc8wlcox';
-const temporaryStorage = window.sessionStorage;
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -31,11 +34,12 @@ export interface DestinationProps {
     id: string,
     destination: BackupDestination,
     typeLabel?: string,
+    backendState: BackupState,
     destinationUpdated: (valid: boolean, val: BackupDestination) => void,
     manifestDestination?: boolean,
     sourceDestination?: boolean,
     shareDestination?: boolean,
-    children?: JSX.Element[]
+    children?: React.ReactNode
     postElement?: JSX.Element
 }
 
@@ -186,7 +190,7 @@ function SharedProperties(props: {
         <Grid item xs={12}>
             <DividerWithText>Storage options</DividerWithText>
         </Grid>
-        <Grid item xs={6}>
+        <Grid item md={6} xs={12}>
             <FormControl fullWidth={true} style={{margin: "8px"}}>
                 <InputLabel id="encryption-id-label">Encryption</InputLabel>
                 <Select
@@ -207,7 +211,7 @@ function SharedProperties(props: {
             </FormControl>
         </Grid>
         {!props.manifestDestination &&
-            <Grid item xs={6}>
+            <Grid item md={6} xs={12}>
                 <FormControl fullWidth={true} style={{margin: "8px"}}>
                     <InputLabel id="errorcorrection-id-label">Error Correction</InputLabel>
                     <Select
@@ -232,7 +236,7 @@ function SharedProperties(props: {
             <DividerWithText>Limits</DividerWithText>
         </Grid>
         {!props.sourceDestination &&
-            <Grid item xs={6}>
+            <Grid item md={6} xs={12}>
                 <SpeedLimit
                     speed={state.limits.maximumUploadBytesPerSecond}
                     onChange={(newSpeed) => {
@@ -249,7 +253,7 @@ function SharedProperties(props: {
             </Grid>
         }
         {!props.shareDestination &&
-            <Grid item xs={6}>
+            <Grid item md={6} xs={12}>
                 <SpeedLimit
                     speed={state.limits.maximumDownloadBytesPerSecond}
                     onChange={(newSpeed) => {
@@ -303,7 +307,7 @@ function LocalFileDestination(props: DestinationProps) {
         limits: BackupLimits | undefined
     }) {
         if (props.destinationUpdated) {
-            props.destinationUpdated(!(!newState.endpointUri), {
+            props.destinationUpdated(!!newState.endpointUri, {
                 type: "FILE",
                 endpointUri: newState.endpointUri,
                 encryption: newState.encryption,
@@ -315,29 +319,33 @@ function LocalFileDestination(props: DestinationProps) {
         setState(newState);
     }
 
-    return <Grid container spacing={2}>
-        <Grid item xs={12}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Local Directory" variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           id={"localFileText"}
-                           value={state.endpointUri}
-                           error={!state.endpointUri}
-                           onChange={(e) => updateState({
-                               ...state,
-                               endpointUri: e.target.value
-                           })}/>
-            </div>
+    return <>
+        <DividerWithText>Location</DividerWithText>
+
+        <Grid container spacing={2}>
+            <Grid item xs={12}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label="Local Directory" variant="outlined"
+                               required={true}
+                               fullWidth={true}
+                               id={"localFileText"}
+                               value={state.endpointUri}
+                               error={!state.endpointUri}
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   endpointUri: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <SharedProperties manifestDestination={props.manifestDestination}
+                              sourceDestination={props.sourceDestination}
+                              shareDestination={props.shareDestination}
+                              state={state} onChange={(newSate => updateState({
+                ...state,
+                ...newSate
+            }))}/>
         </Grid>
-        <SharedProperties manifestDestination={props.manifestDestination}
-                          sourceDestination={props.sourceDestination}
-                          shareDestination={props.shareDestination}
-                          state={state} onChange={(newSate => updateState({
-            ...state,
-            ...newSate
-        }))}/>
-    </Grid>;
+    </>;
 }
 
 function loadDropbox(callback: () => void) {
@@ -394,7 +402,7 @@ function DropboxDestination(props: DestinationProps) {
     }
 
     async function fetchAccessToken(codeVerified: string, code: string) {
-        let redirectUri = await GetAuthEndpoint();
+        let redirectUri = await createAuthEndpoint();
         // @ts-ignore
         const dbxAuth = new Dropbox.DropboxAuth({
             clientId: DROPBOX_CLIENT_ID,
@@ -415,16 +423,16 @@ function DropboxDestination(props: DestinationProps) {
             });
     }
 
-    let codeVerifier = temporaryStorage.getItem("codeVerifier") as string;
+    let codeVerifier = window.sessionStorage.getItem("codeVerifier") as string;
     let codeLocation = window.location.href.indexOf("code=");
     if (codeVerifier && codeLocation) {
         let code = decodeURIComponent(window.location.href.substring(codeLocation + 5));
         loadDropbox(() => fetchAccessToken(codeVerifier, code))
-        temporaryStorage.clear();
+        window.sessionStorage.clear();
     }
 
     async function dropboxAuthenticateAsync() {
-        let redirectUri = await GetAuthEndpoint();
+        let redirectUri = await createAuthEndpoint();
         // @ts-ignore
         const dbxAuth = new Dropbox.DropboxAuth({
             clientId: DROPBOX_CLIENT_ID,
@@ -433,10 +441,10 @@ function DropboxDestination(props: DestinationProps) {
         dbxAuth.getAuthenticationUrl(redirectUri, undefined, 'code', 'offline', undefined, undefined, true)
             // @ts-ignore
             .then(authUrl => {
-                temporaryStorage.clear();
-                temporaryStorage.setItem("codeVerifier", dbxAuth.codeVerifier);
-                temporaryStorage.setItem("destination", JSON.stringify(lastDestination));
-                temporaryStorage.setItem("destinationId", props.id);
+                window.sessionStorage.clear();
+                window.sessionStorage.setItem("codeVerifier", dbxAuth.codeVerifier);
+                window.sessionStorage.setItem("destination", JSON.stringify(lastDestination));
+                window.sessionStorage.setItem("destinationId", props.id);
                 window.location.href = authUrl;
             })
             // @ts-ignore
@@ -447,35 +455,163 @@ function DropboxDestination(props: DestinationProps) {
         loadDropbox(() => dropboxAuthenticateAsync());
     }
 
-    return <Grid container spacing={2}>
-        <Grid item xs={12}>
-            {state.accessToken ?
-                <Button variant="contained" style={{margin: "auto", display: "block", marginTop: "8px"}}
-                        onClick={launchDropboxAuthentication}>Re Authorize</Button>
-                :
-                <Button variant="contained" style={{margin: "auto", display: "block", marginTop: "8px"}}
-                        onClick={launchDropboxAuthentication}>Authorize</Button>
-            }
+    return <>
+        <DividerWithText>Authorization</DividerWithText>
+
+        <Grid container spacing={2}>
+            <Grid item xs={12}>
+                {state.accessToken ?
+                    <Button variant="contained" style={{margin: "auto", display: "block", marginTop: "8px"}}
+                            onClick={launchDropboxAuthentication}>Re Authorize</Button>
+                    :
+                    <Button variant="contained" style={{margin: "auto", display: "block", marginTop: "8px"}}
+                            onClick={launchDropboxAuthentication}>Authorize</Button>
+                }
+            </Grid>
+            <Grid item xs={12}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label="Subfolder" variant="outlined"
+                               fullWidth={true}
+                               value={state.endpointUri}
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   endpointUri: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <SharedProperties manifestDestination={props.manifestDestination}
+                              sourceDestination={props.sourceDestination}
+                              shareDestination={props.shareDestination}
+                              state={state} onChange={(newSate => updateState({
+                ...state,
+                ...newSate
+            }))}/>
         </Grid>
-        <Grid item xs={12}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Subfolder" variant="outlined"
-                           fullWidth={true}
-                           value={state.endpointUri}
-                           onChange={(e) => updateState({
-                               ...state,
-                               endpointUri: e.target.value
-                           })}/>
-            </div>
-        </Grid>
-        <SharedProperties manifestDestination={props.manifestDestination}
-                          sourceDestination={props.sourceDestination}
-                          shareDestination={props.shareDestination}
-                          state={state} onChange={(newSate => updateState({
+    </>;
+}
+
+function UnderscoreBackupDestination(props: DestinationProps) {
+    const [state, setState] = React.useState({
+        region: props.destination.endpointUri ? props.destination.endpointUri : "",
+        maxRetention: props.destination.maxRetention,
+        encryption: props.destination.encryption ? props.destination.encryption : "AES256",
+        errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
+        autoDetecting: false,
+        limits: props.destination.limits
+    });
+
+    let lastDestination = props.destination;
+    lastDestination.type = "UB";
+
+    function updateState(newState: {
+        region: string,
+        encryption: string,
+        maxRetention: BackupTimespan | undefined,
+        errorCorrection: string,
+        limits: BackupLimits | undefined,
+        autoDetecting: boolean
+    }) {
+        if (props.destinationUpdated) {
+            lastDestination = {
+                type: "UB",
+                endpointUri: newState.region,
+                encryption: newState.encryption,
+                maxRetention: newState.maxRetention,
+                errorCorrection: newState.errorCorrection,
+                limits: newState.limits
+            };
+
+            const valid = !!newState.region && props.backendState.activeSubscription;
+
+            props.destinationUpdated(valid, lastDestination);
+        }
+        setState((oldState) => ({
+            ...oldState,
+            ...newState
+        }));
+    }
+
+    useEffect(() => {
+        if (state.region === "") {
+            autoDetectRegion();
+        }
+    }, [])
+
+    async function autoDetectRegion() {
+        setState({
             ...state,
-            ...newSate
-        }))}/>
-    </Grid>;
+            autoDetecting: true
+        });
+
+        let data = await getBestRegion();
+        if (data) {
+            updateState({
+                ...state,
+                region: data as string,
+                autoDetecting: false
+            });
+        } else {
+            setState((oldState) => ({
+                ...oldState,
+                autoDetecting: false
+            }));
+        }
+    }
+
+    return <>
+        {!props.backendState.activeSubscription &&
+            <>
+                <DividerWithText>Account</DividerWithText>
+
+                <Grid container spacing={2} alignContent={"center"}>
+                    <ServiceAuthentication backendState={props.backendState} needSubscription={true} includeSkip={false}
+                                           updatedToken={() => {
+                                           }}/>
+                </Grid>
+            </>
+        }
+        <DividerWithText>Location</DividerWithText>
+        <Grid container spacing={2}>
+            <Grid item md={9} xs={12} style={{marginBottom: "8px", marginTop: "8px"}}>
+                <Select style={{marginLeft: "8px"}}
+                        fullWidth={true}
+                        value={state.region}
+                        label="Region"
+                        onChange={(event: SelectChangeEvent) => {
+                            const newState = {
+                                ...state,
+                                region: event.target.value as string,
+                            }
+                            updateState(newState);
+                        }}>
+                    <MenuItem value={"-"}>Select Region</MenuItem>
+                    <Divider/>
+                    <MenuItem value={"us-west"}>North America (Oregon)</MenuItem>
+                    <MenuItem value={"eu-central"}>Europe (Frankfurt)</MenuItem>
+                    <MenuItem value={"ap-southeast"}>Asia (Singapore)</MenuItem>
+                </Select>
+            </Grid>
+            <Grid item md={3} xs={12}>
+                <div style={{height: "100%", width: "100%", display: "flex", alignItems: "center"}}>
+                    <Button disabled={state.autoDetecting} fullWidth={true} variant={"contained"}
+                            onClick={() => autoDetectRegion()}>
+                        {
+                            state.autoDetecting ?
+                                <CircularProgress size={"24px"}/> :
+                                <>Autodetect</>
+                        }
+                    </Button>
+                </div>
+            </Grid>
+            <SharedProperties manifestDestination={props.manifestDestination}
+                              sourceDestination={props.sourceDestination}
+                              shareDestination={props.shareDestination}
+                              state={state} onChange={(newSate => updateState({
+                ...state,
+                ...newSate
+            }))}/>
+        </Grid>
+    </>;
 }
 
 function WindowsShareDestination(props: DestinationProps) {
@@ -522,69 +658,73 @@ function WindowsShareDestination(props: DestinationProps) {
         setState(newState);
     }
 
-    return <Grid container spacing={2}>
-        <Grid item xs={12}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Share Path" variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           value={state.endpointUri}
-                           error={!state.endpointUri}
-                           onChange={(e) => updateState({
-                               ...state,
-                               endpointUri: e.target.value
-                           })}/>
-            </div>
+    return <>
+        <DividerWithText>Location</DividerWithText>
+
+        <Grid container spacing={2}>
+            <Grid item xs={12}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label="Share Path" variant="outlined"
+                               required={true}
+                               fullWidth={true}
+                               value={state.endpointUri}
+                               error={!state.endpointUri}
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   endpointUri: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <Grid item xs={12}>
+                <DividerWithText>Authentication</DividerWithText>
+            </Grid>
+            <Grid item xs={12}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label="Username" variant="outlined"
+                               required={true}
+                               fullWidth={true}
+                               value={state.username}
+                               error={!state.username}
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   username: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <Grid item xs={12}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label="Password" variant="outlined"
+                               required={true}
+                               fullWidth={true}
+                               value={state.password}
+                               error={!state.password}
+                               type="password"
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   password: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <Grid item xs={12}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label="Domain" variant="outlined"
+                               fullWidth={true}
+                               value={state.domain}
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   domain: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <SharedProperties manifestDestination={props.manifestDestination}
+                              sourceDestination={props.sourceDestination}
+                              shareDestination={props.shareDestination}
+                              state={state} onChange={(newSate => updateState({
+                ...state,
+                ...newSate
+            }))}/>
         </Grid>
-        <Grid item xs={12}>
-            <DividerWithText>Authentication</DividerWithText>
-        </Grid>
-        <Grid item xs={12}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Username" variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           value={state.username}
-                           error={!state.username}
-                           onChange={(e) => updateState({
-                               ...state,
-                               username: e.target.value
-                           })}/>
-            </div>
-        </Grid>
-        <Grid item xs={12}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Password" variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           value={state.password}
-                           error={!state.password}
-                           type="password"
-                           onChange={(e) => updateState({
-                               ...state,
-                               password: e.target.value
-                           })}/>
-            </div>
-        </Grid>
-        <Grid item xs={12}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Domain" variant="outlined"
-                           fullWidth={true}
-                           value={state.domain}
-                           onChange={(e) => updateState({
-                               ...state,
-                               domain: e.target.value
-                           })}/>
-            </div>
-        </Grid>
-        <SharedProperties manifestDestination={props.manifestDestination}
-                          sourceDestination={props.sourceDestination}
-                          shareDestination={props.shareDestination}
-                          state={state} onChange={(newSate => updateState({
-            ...state,
-            ...newSate
-        }))}/>
-    </Grid>
+    </>
 }
 
 function BaseS3Destination(props: S3DestinationProps) {
@@ -609,116 +749,121 @@ function BaseS3Destination(props: S3DestinationProps) {
         }
     }
 
-    return <Grid container spacing={2}>
-        <Grid item xs={5}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Bucket" variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           value={state.bucket}
-                           error={!state.bucket}
-                           onChange={(e) => updateState({
-                               ...state,
-                               bucket: e.target.value
-                           })}/>
-            </div>
-        </Grid>
-        <Grid item xs={5}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Prefix" variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           value={state.prefix}
-                           error={!state.prefix}
-                           onChange={(e) => updateState({
-                               ...state,
-                               prefix: e.target.value
-                           })}/>
-            </div>
-        </Grid>
-        <Grid item xs={2}>
-            <div style={{height: "100%", width: "100%", display: "flex", alignItems: "center"}}>
-                <Button fullWidth={true} onClick={e => window.open(props.console)}>Console</Button>
-            </div>
-        </Grid>
-        <Grid item xs={12}>
-            <DividerWithText>Authentication</DividerWithText>
-        </Grid>
-        <Grid item xs={12}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label={props.accessKeyLabel} variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           value={state.accessKeyId}
-                           error={!state.accessKeyId}
-                           onChange={(e) => updateState({
-                               ...state,
-                               accessKeyId: e.target.value
-                           })}/>
-            </div>
-        </Grid>
-        <Grid item xs={12}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label={props.secretKeyLabel} variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           value={state.secretAccessKey}
-                           error={!state.secretAccessKey}
-                           type="password"
-                           onChange={(e) => updateState({
-                               ...state,
-                               secretAccessKey: e.target.value
-                           })}/>
-            </div>
-        </Grid>
-        <Grid item xs={12}>
-            <DividerWithText>Endpoint</DividerWithText>
-        </Grid>
-        {
-            props.regionList &&
-            <Grid item xs={12}>
+    return <>
+        <DividerWithText>Location</DividerWithText>
+
+        <Grid container spacing={2}>
+            <Grid item xs={5}>
                 <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                    <Autocomplete
-                        disablePortal
-                        options={s3Regions}
-                        value={state.region}
-                        onInputChange={(event, newInputVale) => {
-                            updateRegion(newInputVale)
-                        }
-                        }
-                        renderInput={(params) =>
-                            <TextField {...params} label="region" variant="outlined"
-                                       required={true}
-                                       fullWidth={true}
-                                       error={!state.region}/>}
-                    />
-                </div>
-            </Grid>
-        }
-        {
-            state.apiEndpoint !== undefined &&
-            <Grid item xs={12}>
-                <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                    <TextField label={props.regionList ? "Alternate API Endpoint" : "API Endpoint"} variant="outlined"
-                               required={!props.regionList}
+                    <TextField label="Bucket" variant="outlined"
+                               required={true}
                                fullWidth={true}
-                               value={state.apiEndpoint}
-                               error={!state.apiEndpoint && !props.regionList}
+                               value={state.bucket}
+                               error={!state.bucket}
                                onChange={(e) => updateState({
                                    ...state,
-                                   apiEndpoint: e.target.value
+                                   bucket: e.target.value
                                })}/>
                 </div>
             </Grid>
-        }
-        <SharedProperties manifestDestination={props.manifestDestination}
-                          sourceDestination={props.sourceDestination}
-                          shareDestination={props.shareDestination}
-                          state={state} onChange={(newSate => updateState({
-            ...state,
-            ...newSate
-        }))}/>
-    </Grid>
+            <Grid item xs={5}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label="Prefix" variant="outlined"
+                               required={true}
+                               fullWidth={true}
+                               value={state.prefix}
+                               error={!state.prefix}
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   prefix: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <Grid item xs={2}>
+                <div style={{height: "100%", width: "100%", display: "flex", alignItems: "center"}}>
+                    <Button fullWidth={true} onClick={e => window.open(props.console)}>Console</Button>
+                </div>
+            </Grid>
+            <Grid item xs={12}>
+                <DividerWithText>Authentication</DividerWithText>
+            </Grid>
+            <Grid item xs={12}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label={props.accessKeyLabel} variant="outlined"
+                               required={true}
+                               fullWidth={true}
+                               value={state.accessKeyId}
+                               error={!state.accessKeyId}
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   accessKeyId: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <Grid item xs={12}>
+                <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                    <TextField label={props.secretKeyLabel} variant="outlined"
+                               required={true}
+                               fullWidth={true}
+                               value={state.secretAccessKey}
+                               error={!state.secretAccessKey}
+                               type="password"
+                               onChange={(e) => updateState({
+                                   ...state,
+                                   secretAccessKey: e.target.value
+                               })}/>
+                </div>
+            </Grid>
+            <Grid item xs={12}>
+                <DividerWithText>Endpoint</DividerWithText>
+            </Grid>
+            {
+                props.regionList &&
+                <Grid item xs={12}>
+                    <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                        <Autocomplete
+                            disablePortal
+                            options={s3Regions}
+                            value={state.region}
+                            onInputChange={(event, newInputVale) => {
+                                updateRegion(newInputVale)
+                            }
+                            }
+                            renderInput={(params) =>
+                                <TextField {...params} label="region" variant="outlined"
+                                           required={true}
+                                           fullWidth={true}
+                                           error={!state.region}/>}
+                        />
+                    </div>
+                </Grid>
+            }
+            {
+                state.apiEndpoint !== undefined &&
+                <Grid item xs={12}>
+                    <div style={{marginLeft: "0px", marginRight: "8px"}}>
+                        <TextField label={props.regionList ? "Alternate API Endpoint" : "API Endpoint"}
+                                   variant="outlined"
+                                   required={!props.regionList}
+                                   fullWidth={true}
+                                   value={state.apiEndpoint}
+                                   error={!state.apiEndpoint && !props.regionList}
+                                   onChange={(e) => updateState({
+                                       ...state,
+                                       apiEndpoint: e.target.value
+                                   })}/>
+                    </div>
+                </Grid>
+            }
+            <SharedProperties manifestDestination={props.manifestDestination}
+                              sourceDestination={props.sourceDestination}
+                              shareDestination={props.shareDestination}
+                              state={state} onChange={(newSate => updateState({
+                ...state,
+                ...newSate
+            }))}/>
+        </Grid>
+    </>
 }
 
 function expandProtocolIfMissing(endpoint: string): string {
@@ -873,35 +1018,49 @@ export default function Destination(props: DestinationProps) {
         var destination = props.destination;
 
         var defaultType = 0;
+        let valid: boolean = false;
         if (destination !== undefined) {
             switch (destination.type) {
-                case "SMB":
+                case "UB":
+                    defaultType = 0;
+                    valid = !!destination.endpointUri && props.backendState.activeSubscription
+                    break;
+                case "FILE":
                     defaultType = 1;
+                    valid = !!destination.endpointUri;
+                    break;
+                case "SMB":
+                    defaultType = 2;
+                    valid = !!(destination.endpointUri && destination.principal && destination.credential);
                     break;
                 case "S3":
                     const apiEndpoint = destination.properties && destination.properties["apiEndpoint"] ? destination.properties["apiEndpoint"] : "";
+                    valid = !!(destination.endpointUri && destination.principal && destination.credential && destination.properties && (destination.properties["region"] || destination.properties["apiEndpoint"]));
                     if (apiEndpoint.endsWith(".backblazeb2.com")) {
-                        defaultType = 3;
-                    } else if (apiEndpoint.endsWith(".wasabisys.com")) {
                         defaultType = 4;
-                    } else if (apiEndpoint.match(/\.idrivee2-\d\.com$/)) {
+                    } else if (apiEndpoint.endsWith(".wasabisys.com")) {
                         defaultType = 5;
+                    } else if (apiEndpoint.match(/\.idrivee2-\d\.com$/)) {
+                        defaultType = 6;
                     } else {
-                        defaultType = 2;
+                        defaultType = 3;
                     }
                     break;
                 case "DROPBOX":
-                    defaultType = 6;
+                    valid = !!(destination.principal && destination.credential);
+                    defaultType = 7;
                     break;
             }
 
             destinationByTab.set(defaultType, {
                 destination: destination,
-                valid: true
+                valid: valid
             });
         }
         return {
             type: defaultType,
+            activeDestination: destination,
+            activeValid: valid,
             destinationsByTab: destinationByTab
         }
     });
@@ -924,32 +1083,47 @@ export default function Destination(props: DestinationProps) {
         });
     };
 
+    function getDefaultTabState(): TabState {
+        return {
+            valid: false,
+            destination: {
+                type: "",
+                endpointUri: ""
+            }
+        }
+    }
+
     function getTabState(index: number): TabState {
         const ret = state.destinationsByTab.get(index);
         if (!ret) {
-            return {
-                valid: false,
-                destination: {
-                    type: "",
-                    endpointUri: ""
-                }
-            }
+            return getDefaultTabState();
         }
         return ret;
     }
 
     function destinationUpdated(type: number, valid: boolean, dest: BackupDestination) {
-        var newState = {
-            destinationsByTab: new Map<number, TabState>(state.destinationsByTab),
-            type: state.type
-        };
-        newState.destinationsByTab.set(type, {
-            destination: dest,
-            valid: valid
+        setState((oldState) => {
+            const newMap = new Map<number, TabState>(oldState.destinationsByTab);
+            newMap.set(type, {
+                destination: dest,
+                valid: valid
+            });
+            let activeTab = newMap.get(oldState.type) as TabState | undefined;
+            if (!activeTab)
+                activeTab = getDefaultTabState();
+
+            return {
+                ...oldState,
+                destinationsByTab: newMap,
+                activeDestination: activeTab.destination,
+                activeValid: activeTab.valid
+            }
         });
-        setState(newState);
-        props.destinationUpdated(valid, dest);
     }
+
+    useEffect(() => {
+        props.destinationUpdated(state.activeValid, state.activeDestination);
+    }, [state.activeDestination, state.activeValid]);
 
     return <Paper sx={{p: 2}}>
         {props.children}
@@ -959,20 +1133,20 @@ export default function Destination(props: DestinationProps) {
             <Select id="selectType" fullWidth={true} value={state.type}
                     style={{marginLeft: "8px", marginRight: "0px", marginTop: "4px"}}
                     onChange={e => handleChange(undefined, parseInt(e.target.value.toString()))}>
-                <MenuItem value="0" id={"typeLocalDirectory"}>Local Directory</MenuItem>
-                <MenuItem value="1" id={"typeWindowsShare"}>Windows Share</MenuItem>
-                <MenuItem value="2" id={"typeS3"}>Amazon S3</MenuItem>
-                <MenuItem value="3" id={"typeBackblaze"}>Backblaze B2 Cloud Storage</MenuItem>
-                <MenuItem value="4" id={"typeWasabi"}>Wasabi Cloud Storage</MenuItem>
-                <MenuItem value="5" id={"typeIDrive"}>iDrive E2</MenuItem>
-                <MenuItem value="6" id={"typeDropbox"}>Dropbox</MenuItem>
+                <MenuItem value="0" id={"typeUnderscoreBackup"}>Underscore Backup Service</MenuItem>
+                <MenuItem value="1" id={"typeLocalDirectory"}>Local Directory</MenuItem>
+                <MenuItem value="2" id={"typeWindowsShare"}>Windows Share</MenuItem>
+                <MenuItem value="3" id={"typeS3"}>Amazon S3</MenuItem>
+                <MenuItem value="4" id={"typeBackblaze"}>Backblaze B2 Cloud Storage</MenuItem>
+                <MenuItem value="5" id={"typeWasabi"}>Wasabi Cloud Storage</MenuItem>
+                <MenuItem value="6" id={"typeIDrive"}>iDrive E2</MenuItem>
+                <MenuItem value="7" id={"typeDropbox"}>Dropbox</MenuItem>
             </Select>
         </div>
 
-        <DividerWithText>Location</DividerWithText>
-
         <TabPanel value={state.type} index={0}>
-            <LocalFileDestination
+            <UnderscoreBackupDestination
+                backendState={props.backendState}
                 manifestDestination={props.manifestDestination}
                 sourceDestination={props.sourceDestination}
                 shareDestination={props.shareDestination}
@@ -983,7 +1157,8 @@ export default function Destination(props: DestinationProps) {
         </TabPanel>
 
         <TabPanel value={state.type} index={1}>
-            <WindowsShareDestination
+            <LocalFileDestination
+                backendState={props.backendState}
                 manifestDestination={props.manifestDestination}
                 sourceDestination={props.sourceDestination}
                 shareDestination={props.shareDestination}
@@ -994,7 +1169,8 @@ export default function Destination(props: DestinationProps) {
         </TabPanel>
 
         <TabPanel value={state.type} index={2}>
-            <S3Destination
+            <WindowsShareDestination
+                backendState={props.backendState}
                 manifestDestination={props.manifestDestination}
                 sourceDestination={props.sourceDestination}
                 shareDestination={props.shareDestination}
@@ -1003,8 +1179,10 @@ export default function Destination(props: DestinationProps) {
                 children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(2, valid, dest)}/>
         </TabPanel>
+
         <TabPanel value={state.type} index={3}>
-            <BackblazeDestination
+            <S3Destination
+                backendState={props.backendState}
                 manifestDestination={props.manifestDestination}
                 sourceDestination={props.sourceDestination}
                 shareDestination={props.shareDestination}
@@ -1014,7 +1192,8 @@ export default function Destination(props: DestinationProps) {
                 destinationUpdated={(valid, dest) => destinationUpdated(3, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={4}>
-            <WasabiDestination
+            <BackblazeDestination
+                backendState={props.backendState}
                 manifestDestination={props.manifestDestination}
                 sourceDestination={props.sourceDestination}
                 shareDestination={props.shareDestination}
@@ -1024,7 +1203,8 @@ export default function Destination(props: DestinationProps) {
                 destinationUpdated={(valid, dest) => destinationUpdated(4, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={5}>
-            <IDriveDestination
+            <WasabiDestination
+                backendState={props.backendState}
                 manifestDestination={props.manifestDestination}
                 sourceDestination={props.sourceDestination}
                 shareDestination={props.shareDestination}
@@ -1034,7 +1214,8 @@ export default function Destination(props: DestinationProps) {
                 destinationUpdated={(valid, dest) => destinationUpdated(5, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={6}>
-            <DropboxDestination
+            <IDriveDestination
+                backendState={props.backendState}
                 manifestDestination={props.manifestDestination}
                 sourceDestination={props.sourceDestination}
                 shareDestination={props.shareDestination}
@@ -1042,6 +1223,17 @@ export default function Destination(props: DestinationProps) {
                 id={props.id}
                 children={props.children}
                 destinationUpdated={(valid, dest) => destinationUpdated(6, valid, dest)}/>
+        </TabPanel>
+        <TabPanel value={state.type} index={7}>
+            <DropboxDestination
+                backendState={props.backendState}
+                manifestDestination={props.manifestDestination}
+                sourceDestination={props.sourceDestination}
+                shareDestination={props.shareDestination}
+                destination={getTabState(7).destination}
+                id={props.id}
+                children={props.children}
+                destinationUpdated={(valid, dest) => destinationUpdated(7, valid, dest)}/>
         </TabPanel>
         {props.postElement}
     </Paper>

@@ -23,7 +23,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import com.underscoreresearch.backup.cli.PassphraseReader;
+import com.underscoreresearch.backup.cli.PasswordReader;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.io.IOUtils;
 
@@ -59,11 +59,11 @@ public class EncryptionModule extends AbstractModule {
         }
     }
 
-    public static String getPassphrase() throws IOException {
+    public static String getPassword() throws IOException {
         CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
         String key;
         if (!commandLine.hasOption(PRIVATE_KEY_SEED)) {
-            key = PassphraseReader.readPassphrase("Enter passphrase for private key: ");
+            key = PasswordReader.readPassword("Enter password for private key: ");
             if (key == null) {
                 System.exit(1);
             }

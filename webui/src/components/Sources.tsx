@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BackupDestination} from '../api';
+import {BackupDestination, BackupState} from '../api';
 import Destination from './Destination';
 import {EditableList} from './EditableList';
 import {Alert, Stack, TextField} from "@mui/material";
@@ -21,16 +21,19 @@ export interface SourceProps {
 
 export interface SourcesProps {
     sources: SourceProps[],
+    backendState: BackupState,
     configurationUpdated: (valid: boolean, destinations: SourceProps[]) => void
 }
 
 function Source(props: {
     id: string, destination: BackupDestination,
+    backendState: BackupState,
     destinationUpdated: (valid: boolean, val: BackupDestination) => void;
     exists: boolean,
     name: string, nameUpdated: (name: string) => void
 }) {
     return <Destination id={props.id}
+                        backendState={props.backendState}
                         destination={props.destination}
                         typeLabel={"Source Manifest Destination Type"}
                         manifestDestination={true}
@@ -119,6 +122,7 @@ export default function Sources(props: SourcesProps) {
                                    ...item,
                                    name: name
                                })}
+                               backendState={props.backendState}
                                id={item.id}
                                destination={item.destination}
                                exists={item.exist}

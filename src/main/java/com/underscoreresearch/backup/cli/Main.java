@@ -59,7 +59,7 @@ public final class Main {
             }
         }
 
-        InstanceFactory.initialize(argv, null);
+        InstanceFactory.initialize(argv, null, null);
 
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
@@ -105,9 +105,9 @@ public final class Main {
 
                 if (commandDef.needPrivateKey()) {
                     EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
-                    String passphrase = EncryptionModule.getPassphrase();
-                    key.getPrivateKey(passphrase);
-                    commandInstance.setPassphrase(passphrase);
+                    String password = EncryptionModule.getPassword();
+                    key.getPrivateKey(password);
+                    commandInstance.setPassword(password);
                 }
 
                 scheduledThreadPoolExecutor.scheduleAtFixedRate(() -> {

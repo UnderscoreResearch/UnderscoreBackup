@@ -24,13 +24,13 @@ public class ActivateSharesPost extends JsonWrap {
         public Response actualAct(Request req) throws Exception {
             try {
                 String password = PrivateKeyRequest.decodePrivateKeyRequest(req);
-                if (!PrivateKeyRequest.validatePassphrase(password)) {
-                    return messageJson(403, "Invalid passphrase provided");
+                if (!PrivateKeyRequest.validatePassword(password)) {
+                    return messageJson(403, "Invalid password provided");
                 }
                 EncryptionKey.PrivateKey privateKey = InstanceFactory.getInstance(EncryptionKey.class)
                         .getPrivateKey(password);
 
-                InstanceFactory.reloadConfiguration(null, () -> {
+                InstanceFactory.reloadConfiguration(() -> {
                     ManifestManager manager = InstanceFactory.getInstance(ManifestManager.class);
                     InstanceFactory.addOrderedCleanupHook(() -> {
                         try {
@@ -48,7 +48,6 @@ public class ActivateSharesPost extends JsonWrap {
                             log.error("Failed to activate shares", e);
                         } finally {
                             InstanceFactory.reloadConfiguration(
-                                    null,
                                     () -> InteractiveCommand.startBackupIfAvailable());
                         }
                     }, "ActivatingShares");

@@ -1,10 +1,8 @@
 import * as React from "react";
-import {BackupDestination} from '../api';
+import {BackupDestination, BackupState} from '../api';
 import Destination from './Destination';
 import {EditableList} from './EditableList';
 import {Alert, Stack} from "@mui/material";
-
-const temporaryStorage = window.sessionStorage;
 
 interface DestinationState {
     valid: boolean,
@@ -19,15 +17,16 @@ export interface DestinationProp {
 
 export interface DestinationsProps {
     destinations: DestinationProp[],
-    dontDelete: string[]
+    dontDelete: string[],
+    backendState: BackupState,
     configurationUpdated: (valid: boolean, destinations: DestinationProp[]) => void
 }
 
 export default function Destinations(props: DestinationsProps) {
     const [state, setState] = React.useState(() => {
-        let destinationId: string | null = temporaryStorage.getItem("destinationId");
+        let destinationId: string | null = window.sessionStorage.getItem("destinationId");
         if (destinationId) {
-            const pendingDestination = JSON.parse(temporaryStorage.getItem("destination") as string);
+            const pendingDestination = JSON.parse(window.sessionStorage.getItem("destination") as string);
             for (let i = 0; i < props.destinations.length; i++) {
                 if (props.destinations[i].id === destinationId) {
                     props.destinations[i].destination = pendingDestination;
@@ -95,6 +94,7 @@ export default function Destinations(props: DestinationsProps) {
             items: state,
             createItem: (item, itemUpdated: (item: DestinationState) => void) => {
                 return <Destination id={item.id}
+                                    backendState={props.backendState}
                                     destination={item.destination}
                                     manifestDestination={props.dontDelete.includes(item.id)}
                                     destinationUpdated={(valid, destination) => {

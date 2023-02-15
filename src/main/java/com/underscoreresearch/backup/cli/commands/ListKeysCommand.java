@@ -20,7 +20,7 @@ public class ListKeysCommand extends Command {
 
         System.out.println("Public key (Used by sharer)                          Private key (Used by consumers of share)");
         System.out.println("---------------------------------------------------- -----------------------------------------------------");
-        for (EncryptionKey key : encryptionKey.getPrivateKey(getPassphrase()).getAdditionalKeyManager().getKeys()) {
+        for (EncryptionKey key : encryptionKey.getPrivateKey(getPassword()).getAdditionalKeyManager().getKeys()) {
             System.out.println(String.format("%s %s", key.getPublicKey(), key.getPrivateKey(null).getDisplayPrivateKey()));
         }
     }

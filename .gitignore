@@ -11,3 +11,4 @@ dependency-reduced-pom.xml
 src/main/resources/web
 webui/cypress/videos
 webui/cypress/screenshots
+*.xcuserstate

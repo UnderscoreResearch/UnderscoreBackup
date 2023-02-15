@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.encryption;
 
+import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
 import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.KEY_DATA;
 import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.PUBLIC_KEY;
 
@@ -37,9 +38,10 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
  * this format a block with the same contents will always be encrypted to exactly the same encryption payload allowing
  * for good deduplication of the data without jeopardizing the contents.
  */
-@EncryptorPlugin("AES256")
+@EncryptorPlugin(AES_ENCRYPTION)
 @Slf4j
 public class AesEncryptor implements Encryptor {
+    public static final String AES_ENCRYPTION = "AES256";
     private final AesEncryptorFormat defaultFormat;
     private final AesEncryptorFormat legacyFormat;
     private final AesEncryptorFormat stableFormat;

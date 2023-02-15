@@ -27,8 +27,8 @@ class AesEncryptorCbcTest {
 
     @BeforeEach
     public void setup() {
-        key = EncryptionKey.generateKeyWithPassphrase("Seed");
-        otherKey = EncryptionKey.generateKeyWithPassphrase("OtherSeed");
+        key = EncryptionKey.generateKeyWithPassword("Seed");
+        otherKey = EncryptionKey.generateKeyWithPassword("OtherSeed");
 
         encryptor = new AesEncryptorCbc();
         decryptor = new AesEncryptorCbc();

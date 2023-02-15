@@ -53,7 +53,7 @@ public class RestartSetsPost extends JsonWrap {
                         log.error("Failed to reset pending schedule for set {}", set);
                     }
                 });
-                InstanceFactory.reloadConfiguration(null,
+                InstanceFactory.reloadConfiguration(
                         () -> InteractiveCommand.startBackupIfAvailable());
                 return messageJson(200, "Updated configuration");
             } catch (Exception exc) {

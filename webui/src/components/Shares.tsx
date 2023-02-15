@@ -7,19 +7,21 @@ import {
     BackupSetRoot,
     BackupShare,
     BackupState,
-    GetBackupFiles,
-    PostAdditionalEncryptionKeys,
-    PutAdditionalEncryptionKey
+    createAdditionalEncryptionKey,
+    getBackupFiles,
+    listAdditionalEncryptionKeys
 } from '../api';
 import Destination from './Destination';
 import {EditableList} from './EditableList';
 import {
     Button,
+    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
     DialogTitle,
+    FormControlLabel,
     InputAdornment,
     Stack,
     TableHead,
@@ -58,12 +60,12 @@ export interface ShareProps {
 
 export interface SharesProps {
     shares: ShareProps[],
-    state: BackupState,
-    passphrase?: string,
+    backendState: BackupState,
+    password?: string,
     activeShares?: string[],
     onSubmit: () => void,
-    validatedPassphrase: boolean,
-    configurationUpdated: (valid: boolean, passphrase: string, shares: ShareProps[]) => void
+    validatedPassword: boolean,
+    configurationUpdated: (valid: boolean, password: string, shares: ShareProps[]) => void
 }
 
 function validKey(encryptionKey: string): boolean {
@@ -79,17 +81,18 @@ function validKey(encryptionKey: string): boolean {
     return encryptionKey.length == 52;
 }
 
-function validState(state: { share: BackupShare; encryptionKey: string; destinationValid: boolean }) {
+function validState(state: { share: BackupShare; encryptionKey: string; destinationValid: boolean, serviceSharing: boolean }): boolean {
     return state.destinationValid && !!state.share.name &&
+        (!state.serviceSharing || (!!state.share.targetEmail && state.share.targetEmail.indexOf("@") > 0)) &&
         validKey(state.encryptionKey) && state.share.contents.roots.length > 0;
 }
 
 function Share(props: {
     id: string,
     encryptionKey: string,
+    backendState: BackupState,
     share: BackupShare,
     additionalKeys: AdditionalKey[],
-    state: BackupState,
     addNewKey: (privateKey?: string) => Promise<AdditionalKey | undefined>,
     exists: boolean,
     shareUpdated: (valid: boolean, key: string, val: BackupShare) => void
@@ -98,18 +101,28 @@ function Share(props: {
         return {
             share: {
                 ...props.share,
-                contents: expandRoots(props.share.contents, props.state) as BackupFileSpecification
+                contents: expandRoots(props.share.contents, props.backendState) as BackupFileSpecification
             },
+            serviceSharing: (!!props.backendState.serviceSourceId) as boolean,
+            generatingKey: false,
             encryptionKey: props.encryptionKey,
             destinationValid: true,
             missingUpdate: 1
         }
     });
 
-    function updateState(newState: { share: BackupShare, encryptionKey: string, destinationValid: boolean, missingUpdate: number }) {
-        setState(newState);
+    function updateState(newState: { share: BackupShare, encryptionKey: string, destinationValid: boolean, missingUpdate: number, serviceSharing: boolean }) {
+        setState((oldState) => ({
+            ...newState,
+            generatingKey: oldState.generatingKey
+        }));
 
-        props.shareUpdated(validState(newState), newState.encryptionKey, newState.share);
+        const currentShare: BackupShare = {
+            ...newState.share,
+            targetEmail: newState.serviceSharing ? newState.share.targetEmail : undefined
+        }
+
+        props.shareUpdated(validState(newState), newState.encryptionKey, currentShare);
     }
 
     function destinationUpdated(valid: boolean, destination: BackupDestination) {
@@ -166,19 +179,26 @@ function Share(props: {
     }
 
     function fetchContents(path: string) {
-        return GetBackupFiles(path, true);
+        return getBackupFiles(path, true);
     }
 
     async function generateAndAssignKey() {
+        if (state.generatingKey) {
+            return;
+        }
+        setState((oldState) => ({...oldState, generatingKey: true}));
         const newKey = await props.addNewKey();
         if (newKey) {
             setState((oldState) => {
                 return {
                     ...oldState,
                     encryptionKey: newKey.publicKey,
-                    missingUpdate: oldState.missingUpdate + 1
+                    missingUpdate: oldState.missingUpdate + 1,
+                    generatingKey: false
                 }
             })
+        } else {
+            setState((oldState) => ({...oldState, generatingKey: false}));
         }
     }
 
@@ -228,7 +248,7 @@ function Share(props: {
     const postElement = <Fragment>
         <DividerWithText>Included Contents</DividerWithText>
         <FileTreeView roots={state.share.contents.roots}
-                      state={props.state}
+                      backendState={props.backendState}
                       fileFetcher={(path) => fetchContents(path)}
                       stateValue={""}
                       onChange={updateSelection}/>
@@ -237,7 +257,21 @@ function Share(props: {
                        exclusionsChanged={exclusionsChanged}/>
     </Fragment>
 
+    function updateTargetEmail(value: string) {
+        if (value && !state.encryptionKey) {
+            generateAndAssignKey();
+        }
+        updateState({
+            ...state,
+            share: {
+                ...state.share,
+                targetEmail: value
+            }
+        });
+    }
+
     return <Destination id={props.id}
+                        backendState={props.backendState}
                         destination={state.share.destination}
                         typeLabel={"Share Manifest Destination Type"}
                         manifestDestination={true}
@@ -256,55 +290,83 @@ function Share(props: {
                        onChange={(e) => updatedName(e.target.value)}
             />
         </div>
-        <DividerWithText>Encryption Key</DividerWithText>
-        <div style={{marginLeft: "8px", marginRight: "0px", marginTop: "8px", display: "flex"}}>
-            <div style={{width: "100%", marginRight: "8px"}}>
-                <TextField label={privateKey || props.exists ? "Public Key" : "Encryption Key"} variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           InputProps={{
-                               style: {fontFamily: 'Monospace'}
-                           }}
-                           value={state.encryptionKey ? state.encryptionKey : ""}
-                           disabled={props.exists}
-                           error={!state.encryptionKey}
-                           onChange={(e) => updateKey(e.target.value)}
-                />
-                {privateKey &&
-                    <TextField label="Private Key" variant="outlined"
-                               style={{marginTop: "8px"}}
-                               fullWidth={true}
-                               InputProps={{
-                                   style: {fontFamily: 'Monospace'},
-                                   endAdornment: (
-                                       <InputAdornment position={"end"}>
-                                           <IconButton onClick={() => {
-                                               navigator.clipboard.writeText(privateKey)
-                                           }}>
-                                               <ContentCopy/>
-                                           </IconButton>
-                                       </InputAdornment>
-                                   )
-                               }}
-                               value={privateKey}
-                               disabled={true}
-                    />
+        {(!!props.backendState.serviceSourceId) &&
+            <>
+                <DividerWithText>Service Sharing</DividerWithText>
+                <div style={{marginLeft: "8px", marginRight: "0px", marginBottom: "8px"}}>
+                    <FormControlLabel control={<Checkbox
+                        checked={state.serviceSharing}
+                        onChange={(e) => updateState({...state, serviceSharing: e.target.checked})}
+                    />} label="Share through Underscore Backup service"/>
+                </div>
+                {state.serviceSharing &&
+                    <div style={{marginLeft: "8px", marginRight: "0px", marginTop: "8px"}}>
+                        <TextField label="Recipient service account email address" variant="outlined"
+                                   id="recipient-email"
+                                   required={true}
+                                   fullWidth={true}
+                                   value={state.share.targetEmail}
+                                   error={!state.share.targetEmail}
+                                   onChange={(e) => updateTargetEmail(e.target.value)}
+                        />
+                    </div>
                 }
-            </div>
-            {!props.exists && !state.encryptionKey &&
-                <IconButton id="generate-key" aria-label="generate key" size="large"
-                            onClick={() => {
-                                generateAndAssignKey()
-                            }}>
-                    <AddCircle fontSize="inherit"/>
-                </IconButton>
-            }
-        </div>
-    </Destination>
+            </>
+        }
+        {(!props.backendState.serviceSourceId || !state.serviceSharing) &&
+            <>
+                <DividerWithText>Encryption Key</DividerWithText>
+                <div style={{marginLeft: "8px", marginRight: "0px", marginTop: "8px", display: "flex"}}>
+                    <div style={{width: "100%", marginRight: "8px"}}>
+                        <TextField label={privateKey || props.exists ? "Public Key" : "Encryption Key"}
+                                   variant="outlined"
+                                   required={true}
+                                   fullWidth={true}
+                                   InputProps={{
+                                       style: {fontFamily: 'Monospace'}
+                                   }}
+                                   value={state.encryptionKey ? state.encryptionKey : ""}
+                                   disabled={props.exists}
+                                   error={!state.encryptionKey}
+                                   onChange={(e) => updateKey(e.target.value)}
+                        />
+                        {privateKey &&
+                            <TextField label="Private Key" variant="outlined"
+                                       style={{marginTop: "8px"}}
+                                       fullWidth={true}
+                                       InputProps={{
+                                           style: {fontFamily: 'Monospace'},
+                                           endAdornment: (
+                                               <InputAdornment position={"end"}>
+                                                   <IconButton onClick={() => {
+                                                       navigator.clipboard.writeText(privateKey)
+                                                   }}>
+                                                       <ContentCopy/>
+                                                   </IconButton>
+                                               </InputAdornment>
+                                           )
+                                       }}
+                                       value={privateKey}
+                                       disabled={true}
+                            />
+                        }
+                    </div>
+                    {!props.exists && !state.encryptionKey &&
+                        <IconButton id="generate-key" aria-label="generate key" size="large"
+                                    onClick={() => {
+                                        generateAndAssignKey()
+                                    }}>
+                            <AddCircle fontSize="inherit"/>
+                        </IconButton>
+                    }
+                </div>
+            </>
+        }
+    </Destination>;
 }
 
 interface SharesState {
-    passphrase: string,
+    password: string,
     additionalKeys: AdditionalKey[] | undefined,
     shares: ShareState[],
     showKeys: boolean,
@@ -314,7 +376,7 @@ interface SharesState {
 export default function Shares(props: SharesProps) {
     const [state, setState] = React.useState(() => {
         return {
-            passphrase: props.passphrase ? props.passphrase : "",
+            password: props.password ? props.password : "",
             additionalKeys: undefined,
             showKeys: false,
             shares: props.shares.map(share => {
@@ -331,8 +393,8 @@ export default function Shares(props: SharesProps) {
         } as SharesState
     });
 
-    async function fetchAdditionalKeys(passphrase: string) {
-        const keys = await PostAdditionalEncryptionKeys(passphrase);
+    async function fetchAdditionalKeys(password: string) {
+        const keys = await listAdditionalEncryptionKeys(password);
         if (keys) {
             setState((oldState) => {
                 return {
@@ -344,10 +406,10 @@ export default function Shares(props: SharesProps) {
     }
 
     useEffect(() => {
-        if (props.validatedPassphrase && props.passphrase && state.additionalKeys === undefined) {
-            fetchAdditionalKeys(props.passphrase);
+        if (props.validatedPassword && props.password && state.additionalKeys === undefined) {
+            fetchAdditionalKeys(props.password);
         }
-    }, [props.passphrase, props.validatedPassphrase])
+    }, [props.password, props.validatedPassword])
 
     function updateState(newState: SharesState) {
         const ids: string[] = newState.shares.map(t => t.encryptionKey);
@@ -369,7 +431,7 @@ export default function Shares(props: SharesProps) {
         props.configurationUpdated(
             deduped.size == ids.length &&
             !newState.shares.some(item => !item.valid),
-            newState.passphrase ? newState.passphrase : "",
+            newState.password ? newState.password : "",
             shares
         );
     }
@@ -390,7 +452,7 @@ export default function Shares(props: SharesProps) {
     }
 
     async function addNewKey(privateKey?: string): Promise<AdditionalKey | undefined> {
-        const newKey = await PutAdditionalEncryptionKey(state.passphrase, privateKey);
+        const newKey = await createAdditionalEncryptionKey(state.password, privateKey);
         if (newKey && newKey.privateKey && newKey.publicKey) {
             setState((oldState) => {
                 let newKeys;
@@ -418,7 +480,7 @@ export default function Shares(props: SharesProps) {
                 share: {
                     name: "",
                     destination: {
-                        type: "FILE",
+                        type: !!props.backendState.serviceSourceId ? "UB" : "FILE",
                         endpointUri: ''
                     },
                     contents: {
@@ -436,7 +498,7 @@ export default function Shares(props: SharesProps) {
                           exists={item.exists}
                           encryptionKey={item.encryptionKey}
                           additionalKeys={state.additionalKeys ? state.additionalKeys : []}
-                          state={props.state}
+                          backendState={props.backendState}
                           addNewKey={addNewKey}
                           shareUpdated={(valid, encryptionKey, share) => {
                               itemUpdated({
@@ -452,14 +514,14 @@ export default function Shares(props: SharesProps) {
         }
     });
 
-    if (!props.passphrase || !props.validatedPassphrase) {
+    if (!props.password || !props.validatedPassword) {
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
                 p: 2
             }}>
                 <Typography variant="body1" component="div">
                     <p>
-                        To create or modify shares you must provide your backup passphrase.
+                        To create or modify shares you must provide your backup password.
                     </p>
                 </Typography>
                 <Box component="div"
@@ -467,12 +529,12 @@ export default function Shares(props: SharesProps) {
                          '& .MuiTextField-root': {m: 1},
                      }}
                      style={{marginTop: 4}}>
-                    <TextField label="Passphrase" variant="outlined"
+                    <TextField label="Password" variant="outlined"
                                fullWidth={true}
                                required={true}
-                               id={"restorePassphrase"}
-                               value={state.passphrase}
-                               error={!state.passphrase}
+                               id={"restorePassword"}
+                               value={state.password}
+                               error={!state.password}
                                type="password"
                                onKeyDown={(e) => {
                                    if (e.key === "Enter") {
@@ -482,7 +544,7 @@ export default function Shares(props: SharesProps) {
                                onChange={(e) => {
                                    const newState = {
                                        ...state,
-                                       passphrase: e.target.value
+                                       password: e.target.value
                                    };
                                    updateState(newState);
                                }}/>

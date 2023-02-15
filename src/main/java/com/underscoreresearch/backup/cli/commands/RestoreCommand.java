@@ -92,7 +92,7 @@ public class RestoreCommand extends Command {
 
         List<BackupSetRoot> roots = paths.stream().map(file -> BackupSetRoot.builder().path(PathNormalizer.normalizePath(file)).build())
                 .collect(Collectors.toList());
-        new RestoreExecutor(contents, getPassphrase()).restorePaths(roots, destination,
+        new RestoreExecutor(contents, getPassword()).restorePaths(roots, destination,
                 commandLine.hasOption(RECURSIVE), commandLine.hasOption(OVER_WRITE));
     }
 }

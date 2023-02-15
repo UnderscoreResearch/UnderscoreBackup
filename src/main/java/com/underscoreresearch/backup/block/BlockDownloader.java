@@ -6,7 +6,7 @@ import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 public interface BlockDownloader {
-    byte[] downloadBlock(String blockHash, String passphrase) throws IOException;
+    byte[] downloadBlock(String blockHash, String password) throws IOException;
 
     byte[] downloadEncryptedBlockStorage(BackupBlock block, BackupBlockStorage storage) throws IOException;
 

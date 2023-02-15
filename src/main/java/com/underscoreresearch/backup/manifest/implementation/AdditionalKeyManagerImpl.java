@@ -75,7 +75,9 @@ public class AdditionalKeyManagerImpl implements AdditionalKeyManager {
                         .getDisplayPrivateKey()).collect(Collectors.toList())),
                 privateKey.getParent())));
 
-        manifestManager.updateKeyData(privateKey.getParent());
+        if (manifestManager != null) {
+            manifestManager.updateKeyData(privateKey.getParent());
+        }
     }
 
     @Override

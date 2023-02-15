@@ -24,7 +24,7 @@ public class ActivateSharesCommand extends Command {
 
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
-                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(getPassphrase()));
+                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(getPassword()));
         repository.flushLogging();
         manifestManager.shutdown();
         repository.close();

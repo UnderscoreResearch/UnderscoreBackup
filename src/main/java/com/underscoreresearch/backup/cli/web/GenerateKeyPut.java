@@ -18,11 +18,11 @@ public class GenerateKeyPut extends JsonWrap {
     private static class Implementation extends BaseImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String passphrase = decodePrivateKeyRequest(req);
+            String password = decodePrivateKeyRequest(req);
             try {
                 GenerateKeyCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
-                        passphrase);
-                InstanceFactory.reloadConfiguration(null, null);
+                        password);
+                InstanceFactory.reloadConfiguration(null);
                 return messageJson(200, "Created new key configuration");
             } catch (Exception exc) {
                 return messageJson(400, exc.getMessage());

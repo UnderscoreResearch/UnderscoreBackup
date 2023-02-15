@@ -15,6 +15,7 @@ import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
@@ -29,6 +30,10 @@ public class SerializationUtils {
             .readerFor(BackupConfiguration.class);
     public static final ObjectWriter BACKUP_CONFIGURATION_WRITER = MAPPER
             .writerFor(BackupConfiguration.class);
+    public static final ObjectReader BACKUP_DESTINATION_READER = MAPPER
+            .readerFor(BackupDestination.class);
+    public static final ObjectWriter BACKUP_DESTINATION_WRITER = MAPPER
+            .writerFor(BackupDestination.class);
 
     public static final ObjectReader ENCRYPTION_KEY_READER = MAPPER
             .readerFor(EncryptionKey.class);

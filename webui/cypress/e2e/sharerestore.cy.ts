@@ -3,7 +3,7 @@ it('sharerestore', function () {
 
     cy.get('#pageShare > .MuiListItemText-root > .MuiTypography-root').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#restorePassphrase').clear().type('12345');
+    cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get('#new-item').click();
     cy.get('#share-name').clear().type('share');
@@ -22,7 +22,7 @@ it('sharerestore', function () {
     cy.get("#loading").should('not.be.visible');
     cy.get("#restoreSource").click();
     cy.get('ul > li[data-value="share"]').click()
-    cy.get('#restorePassphrase').clear().type('12345');
+    cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#currentProgress').contains("Browsing share Contents");
@@ -36,7 +36,7 @@ it('sharerestore', function () {
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get("#restoreSource").click();
     cy.get('ul > li[data-value="share"]').click()
-    cy.get('#restorePassphrase').clear().type('12345');
+    cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#currentProgress').contains("Browsing share Contents");

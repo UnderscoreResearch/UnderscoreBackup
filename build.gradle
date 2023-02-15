@@ -13,7 +13,9 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '1.2.0'
+version '2.0.0pre1'
+def edition = ''
+def archiveName = 'underscorebackup'
 
 sourceCompatibility = 17
 targetCompatibility = 17
@@ -39,7 +41,7 @@ task createProperties(dependsOn: processResources) {
         new File("$buildDir/resources/main/version.properties").withWriter { w ->
             Properties p = new Properties()
             p['version'] = rootProject.version.toString()
-            p['edition'] = ""
+            p['edition'] = edition
             p.store w, null
         }
     }
@@ -55,6 +57,7 @@ runtime {
                'java.sql',
                'java.desktop',
                'java.xml',
+               'java.net.http',
                'jdk.unsupported',
                'java.security.jgss',
                'java.rmi',
@@ -67,12 +70,13 @@ runtime {
                'jdk.crypto.ec']
     jpackage {
         appVersion = "${rootProject.version}".replaceAll('(pre|rc)\\d+$', "")
-        installerName = 'underscorebackup'
+        installerName = archiveName
         if (project.properties['installer_type']) {
-            if (project.property("installer_type").equals("win-console")) {
+            if (project.property("installer_type") == "win-console") {
                 installerType = "exe"
+                // jvmArgs = ["-Xmx256m", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"]
                 imageOptions = ["--icon", "${rootProject.projectDir}/windows/application.ico", "--win-console"]
-            } else if (project.property("installer_type").equals("win-gui")) {
+            } else if (project.property("installer_type") == "win-gui") {
                 installerType = "exe"
                 imageName = "underscorebackup-gui"
                 imageOptions = ["--icon", "${rootProject.projectDir}/windows/application.ico", "--arguments", "interactive"]
@@ -86,7 +90,100 @@ runtime {
 tasks.named("compileJava").get().dependsOn("webui")
 
 tasks.withType(JavaCompile) {
-    options.compilerArgs += ['-Xlint:unchecked']
+    options.compilerArgs += ['-Xlint:unchecked', '-Xlint:deprecation']
+}
+
+task webuiinstall(type: Exec) {
+    onlyIf {
+        !new File("src/main/resources/web/index.html").exists()
+    }
+    workingDir 'webui'
+    commandLine 'npm', "install"
+}
+
+task webui(dependsOn: [webuiinstall], type: Exec) {
+    onlyIf {
+        !new File("src/main/resources/web/index.html").exists()
+    }
+    workingDir 'webui'
+    commandLine 'npm', "run", "build"
+}
+
+repositories {
+    mavenCentral()
+}
+
+distributions {
+    main {
+        distributionBaseName = archiveName
+        contents {
+            from('.') {
+                include 'README.md'
+                include 'bin/*'
+                include 'scripts/*'
+            }
+        }
+    }
+}
+
+tasks.jpackageImage.doLast {
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        copy {
+            from "."
+            include "README.md"
+            into "build/jpackage/${rootProject.name}/"
+        }
+    }
+
+}
+
+
+dependencies {
+
+    implementation(
+            'com.cronutils:cron-utils:9.2.0',
+            'com.dropbox.core:dropbox-core-sdk:5.4.4',
+            'com.fasterxml.jackson.core:jackson-databind:2.14.0',
+            'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.0',
+            'com.google.guava:guava:31.1-jre',
+            'com.google.inject:guice:5.1.0',
+            'com.hierynomus:smbj:0.11.5',
+            'com.joestelmach:natty:0.13',
+            'commons-cli:commons-cli:1.5.0',
+            'commons-codec:commons-codec:1.15',
+            'de.mkammerer:argon2-jvm:2.11',
+            'io.swagger:swagger-annotations:1.6.8',
+            'javax.xml.bind:jaxb-api:2.3.1',
+            'org.apache.commons:commons-lang3:3.12.0',
+            'commons-net:commons-net:3.9.0',
+            'org.apache.logging.log4j:log4j-api:2.19.0',
+            'org.apache.logging.log4j:log4j-core:2.19.0',
+            'org.apache.logging.log4j:log4j-slf4j2-impl:2.19.0',
+            'org.mapdb:mapdb:3.0.9',
+            'org.openapitools:jackson-databind-nullable:0.2.4',
+            'org.projectlombok:lombok:1.18.24',
+            'org.reflections:reflections:0.10.2',
+            'org.slf4j:slf4j-api:2.0.5',
+            'org.takes:takes:1.24.4',
+            'software.amazon.awssdk:s3control:2.18.35'
+    )
+
+    testImplementation(
+            'org.hamcrest:hamcrest:2.2',
+            'org.junit.jupiter:junit-jupiter:5.9.0',
+            'org.mockito:mockito-junit-jupiter:4.10.0'
+    )
+
+    testRuntimeOnly(
+            'org.junit.jupiter:junit-jupiter-engine:5.9.0'
+    )
+
+    annotationProcessor 'org.projectlombok:lombok:1.18.24'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
+}
+
+test {
+    useJUnitPlatform()
 }
 
 task installerDef(type: Copy) {
@@ -113,98 +210,16 @@ task installerImage(type: Exec) {
                     ' && copy build\\jpackage\\underscorebackup-gui\\app\\underscorebackup-gui.cfg build\\installerimage\\app'
 }
 
-task installer(dependsOn: [installerImage, installerDef], type: Exec) {
+task installerWindows(dependsOn: [installerImage, installerDef], type: Exec) {
     workingDir "${rootProject.projectDir}/windows"
     executable 'C:\\Program Files (x86)\\Inno Setup 6\\iscc.exe'
     args "innosetup-expanded.iss"
 }
 
-task webuiinstall(type: Exec) {
-    onlyIf {
-        !new File("src/main/resources/web/index.html").exists()
-    }
-    workingDir 'webui'
-    commandLine 'npm', "install"
-}
-
-task webui(dependsOn: [webuiinstall], type: Exec) {
-    onlyIf {
-        !new File("src/main/resources/web/index.html").exists()
-    }
-    workingDir 'webui'
-    commandLine 'npm', "run", "build"
-}
-
-repositories {
-    mavenCentral()
-}
-
-distributions {
-    main {
-        distributionBaseName = 'underscorebackup'
-        contents {
-            from('.') {
-                include 'README.md'
-                include 'bin/*'
-                include 'scripts/*'
-            }
-        }
-    }
-}
-
-tasks.jpackageImage.doLast {
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        copy {
-            from "."
-            include "README.md"
-            into "build/jpackage/${rootProject.name}/"
-        }
-    }
-
-}
-
-
-dependencies {
-
-    implementation(
-            'com.dropbox.core:dropbox-core-sdk:5.4.4',
-            'com.cronutils:cron-utils:9.2.0',
-            'com.fasterxml.jackson.core:jackson-databind:2.14.0',
-            'com.google.guava:guava:31.1-jre',
-            'com.google.inject:guice:5.1.0',
-            'com.hierynomus:smbj:0.11.5',
-            'com.joestelmach:natty:0.13',
-            'commons-codec:commons-codec:1.15',
-            'commons-cli:commons-cli:1.5.0',
-            'javax.xml.bind:jaxb-api:2.3.1',
-            'org.apache.commons:commons-lang3:3.12.0',
-            'org.apache.logging.log4j:log4j-api:2.19.0',
-            'org.apache.logging.log4j:log4j-core:2.19.0',
-            'org.apache.logging.log4j:log4j-slf4j2-impl:2.19.0',
-            'org.mapdb:mapdb:3.0.8',
-            'org.projectlombok:lombok:1.18.24',
-            'org.reflections:reflections:0.10.2',
-            'org.slf4j:slf4j-api:2.0.4',
-            'org.takes:takes:1.24.4',
-            'software.amazon.awssdk:s3control:2.18.21'
-    )
-
-    testImplementation(
-            'org.hamcrest:hamcrest:2.2',
-            'org.junit.jupiter:junit-jupiter:5.9.0',
-            'org.mockito:mockito-junit-jupiter:4.8.0'
-    )
-
-    testRuntimeOnly(
-            'org.junit.jupiter:junit-jupiter-engine:5.9.0'
-    )
-
-    annotationProcessor 'org.projectlombok:lombok:1.18.24'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
-}
-
-test {
-    useJUnitPlatform()
+task installerLinux(type: Exec) {
+    workingDir "${rootProject.projectDir}"
+    environment "VERSION", "${rootProject.version}"
+    commandLine 'bash', '-c', "linux/builddeb.sh && linux/buildrpm.sh"
 }
 
 task installerPkg(dependsOn: ["runtime"], type: Exec) {
@@ -219,38 +234,36 @@ task uninstallerPkg(type: Exec) {
     args "${rootProject.version}"
 }
 
-task allDist() {
-    dependsOn distZip, distTar
+task installer {
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        dependsOn installerWindows
+    } else if (Os.isFamily(Os.FAMILY_MAC)) {
+        dependsOn uninstallerPkg, installerPkg
+    } else {
+        dependsOn installerLinux
+    }
 }
 
-task installers(type: Exec) {
+task allDist(type: Exec) {
+    dependsOn installer
+    workingDir "${rootProject.projectDir}"
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        workingDir "${rootProject.projectDir}"
-        commandLine 'gradlew.bat', "installer"
-    } else if (Os.isFamily(Os.FAMILY_MAC)) {
-        dependsOn uninstallerPkg
-        workingDir "${rootProject.projectDir}"
-        commandLine './gradlew', "installerPkg"
+        commandLine "gradlew.bat", "distTar", "distZip"
     } else {
-        workingDir "${rootProject.projectDir}"
-        environment "VERSION", "${rootProject.version}"
-        commandLine 'bash', '-c', "linux/builddeb.sh && linux/buildrpm.sh"
+        commandLine "./gradlew", "distTar", "distZip"
     }
 }
 
 task integrationTest(type: Exec) {
-    dependsOn installers
+    dependsOn allDist
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         workingDir "${rootProject.projectDir}"
         commandLine "perl", "integrationtests\\testsuite.pl", "$buildDir\\integrationtests", "$buildDir\\installerimage\\underscorebackup.exe", "${rootProject.projectDir}\\webui"
     } else {
-        dependsOn distTar
-        commandLine "${rootProject.projectDir}/integrationtests/executetests.sh", "$buildDir/distributions/${rootProject.name}-${rootProject.version}.tar", "${rootProject.projectDir}/webui"
+        commandLine "${rootProject.projectDir}/integrationtests/executetests.sh", "$buildDir/distributions/${archiveName}-${rootProject.version}.tar", "${rootProject.projectDir}/webui"
     }
 }
 
-allDist.finalizedBy(installers)
-
 task allDistTest {
-    dependsOn test, integrationTest, allDist
+    dependsOn integrationTest, test
 }

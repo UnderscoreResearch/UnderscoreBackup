@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli;
 
+import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
+import static com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector.NONE;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
@@ -38,8 +40,8 @@ import com.underscoreresearch.backup.model.BackupTimespan;
 
 @Slf4j
 public class ConfigurationValidator {
-    private static final String DEFAULT_ENCRYPTION = "AES256";
-    private static final String DEFAULT_ERROR_CORRECTION = "NONE";
+    private static final String DEFAULT_ENCRYPTION = AES_ENCRYPTION;
+    private static final String DEFAULT_ERROR_CORRECTION = NONE;
     private static final int DEFAULT_UNSYNCED_SIZE = 8 * 1024 * 1024;
     private static final Pattern INVALID_CHARACTERS = Pattern.compile("[\\/\\:\\\\]");
 
@@ -296,17 +298,19 @@ public class ConfigurationValidator {
                 throw new IllegalArgumentException(name + " missing root path");
             }
 
-            File file = new File(root.getPath());
-            if (file.exists()) {
-                try {
-                    String rootFile = file.toPath().toRealPath().toString();
-                    String existingRoot = file.toPath().toString();
-                    if (!existingRoot.equals(rootFile)) {
-                        log.warn(name + " root " + existingRoot + " changed to " + rootFile);
-                        root.setNormalizedPath(PathNormalizer.normalizePath(rootFile));
+            if (!root.getNormalizedPath().equals(PathNormalizer.ROOT)) {
+                File file = new File(root.getPath());
+                if (file.exists()) {
+                    try {
+                        String rootFile = file.toPath().toRealPath().toString();
+                        String existingRoot = file.toPath().toString();
+                        if (!existingRoot.equals(rootFile)) {
+                            log.warn(name + " root " + existingRoot + " changed to " + rootFile);
+                            root.setNormalizedPath(PathNormalizer.normalizePath(rootFile));
+                        }
+                    } catch (IOException e) {
+                        throw new IllegalArgumentException(name + " can't access root " + root.getPath());
                     }
-                } catch (IOException e) {
-                    throw new IllegalArgumentException(name + " can't access root " + root.getPath());
                 }
             }
         }

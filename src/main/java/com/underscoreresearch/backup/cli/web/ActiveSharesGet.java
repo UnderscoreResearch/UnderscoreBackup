@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,6 +18,7 @@ import org.takes.rs.RsText;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.ShareManifestManager;
 
 @Slf4j
 public class ActiveSharesGet extends JsonWrap {
@@ -30,6 +32,7 @@ public class ActiveSharesGet extends JsonWrap {
     @AllArgsConstructor
     private static class Shares {
         private List<String> activeShares;
+        private boolean shareEncryptionNeeded;
     }
 
     private static class Implementation implements Take {
@@ -38,10 +41,14 @@ public class ActiveSharesGet extends JsonWrap {
             try {
                 if (InstanceFactory.hasConfiguration(false)) {
                     ManifestManager manager = InstanceFactory.getInstance(ManifestManager.class);
-                    return new RsText(WRITER.writeValueAsString(new Shares(manager.getActivatedShares().keySet().stream()
-                            .sorted().toList())));
+                    Map<String, ShareManifestManager> activatedShares = manager.getActivatedShares();
+                    boolean needEncryption = activatedShares.values().stream().anyMatch(shareManager ->
+                            !shareManager.getActivatedShare().isUpdatedEncryption());
+                    Shares shares = new Shares(activatedShares.keySet().stream().sorted().toList(),
+                            needEncryption);
+                    return new RsText(WRITER.writeValueAsString(shares));
                 } else {
-                    return new RsText(WRITER.writeValueAsString(new Shares(new ArrayList<>())));
+                    return new RsText(WRITER.writeValueAsString(new Shares(new ArrayList<>(), false)));
                 }
             } catch (Exception exc) {
                 return messageJson(400, exc.getMessage());

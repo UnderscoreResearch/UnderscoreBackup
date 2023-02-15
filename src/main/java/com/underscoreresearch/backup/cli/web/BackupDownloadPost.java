@@ -56,7 +56,7 @@ public class BackupDownloadPost extends TkWrap {
                     );
                 }
 
-                String passphrase = decodePrivateKeyRequest(req);
+                String password = decodePrivateKeyRequest(req);
 
                 List<BackupFile> files = InstanceFactory.getInstance(MetadataRepository.class).file(path);
                 if (files == null) {
@@ -68,17 +68,18 @@ public class BackupDownloadPost extends TkWrap {
 
                 for (BackupFile file : files) {
                     if (file.getAdded().equals(timestamp)) {
-                        InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource());
+                        InstanceFactory.reloadConfigurationWithSource();
 
                         DownloadScheduler scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
                         File tempfile = File.createTempFile("temp", null);
-                        scheduler.scheduleDownload(file, tempfile.getAbsolutePath(), passphrase);
+                        scheduler.scheduleDownload(file, tempfile.getAbsolutePath(), password);
                         scheduler.waitForCompletion();
                         tempfile.deleteOnExit();
                         new Thread(() -> {
                             try {
                                 InstanceFactory.reloadConfiguration(
                                         InstanceFactory.getAdditionalSource(),
+                                        InstanceFactory.getAdditionalSourceName(),
                                         () -> InteractiveCommand.startBackupIfAvailable());
                             } catch (Exception e) {
                                 log.error("Failed to restart backup", e);

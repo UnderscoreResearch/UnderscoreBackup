@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
 import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
@@ -7,11 +8,13 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +41,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
+import com.google.common.io.BaseEncoding;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
@@ -57,6 +61,7 @@ import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.ShareActivateMetadataRepository;
 import com.underscoreresearch.backup.manifest.ShareManifestManager;
 import com.underscoreresearch.backup.model.BackupActivatedShare;
@@ -64,7 +69,10 @@ import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupShare;
+import com.underscoreresearch.backup.service.api.model.ShareResponse;
+import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.utils.AccessLock;
 import com.underscoreresearch.backup.utils.NonClosingInputStream;
 import com.underscoreresearch.backup.utils.StatusLine;
@@ -88,6 +96,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                                IOProvider provider,
                                Encryptor encryptor,
                                RateLimitController rateLimitController,
+                               ServiceManager serviceManager,
                                String installationIdentity,
                                String source,
                                boolean forceIdentity,
@@ -99,6 +108,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                 provider,
                 encryptor,
                 rateLimitController,
+                serviceManager,
                 installationIdentity,
                 forceIdentity,
                 publicKey);
@@ -135,6 +145,8 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                     true);
             processedFiles.incrementAndGet();
 
+            updateServiceSourceData(encryptionKey);
+
             List<File> files = existingLogFiles();
 
             if (files.size() > 0) {
@@ -164,6 +176,40 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         }
     }
 
+    public void updateServiceSourceData(EncryptionKey encryptionKey) throws IOException {
+        if (getServiceManager().getToken() != null
+                && getServiceManager().getSourceName() != null
+                && getServiceManager().getSourceId() != null) {
+            BackupDestination destination;
+            String destinationData;
+            try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
+                destination = getConfiguration().getDestinations().get(getConfiguration().getManifest().getDestination());
+                BACKUP_DESTINATION_WRITER.writeValue(stream, destination);
+                try (InputStream inputStream = new ByteArrayInputStream(stream.toByteArray())) {
+                    destinationData = BaseEncoding.base64Url().encode(encryptConfigData(inputStream)).replace("=", "");
+                }
+            }
+            String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.publicOnly());
+            ServiceManagerImpl.retry(() -> getServiceManager().getClient().updateSource(getServiceManager().getSourceId(),
+                    new SourceRequest()
+                            .identity(getInstallationIdentity())
+                            .name(getServiceManager().getSourceName())
+                            .destination(destinationData)
+                            .applicationUrl(getApplicationUrl())
+                            .encryptionMode(destination.getEncryption())
+                            .key(keyData)
+                            .sharingKey(encryptionKey.getSharingPublicKey())));
+        }
+    }
+
+    private String getApplicationUrl() {
+        try {
+            return getConfigurationUrl();
+        } catch (Exception exc) {
+            return null;
+        }
+    }
+
     public void validateIdentity() {
         if (Strings.isNullOrEmpty(source)) {
             super.validateIdentity();
@@ -176,12 +222,8 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         }
     }
 
-    public void uploadConfigData(String filename, byte[] data) throws IOException {
-        uploadConfigData(filename, new ByteArrayInputStream(data), true);
-    }
-
     @Override
-    public void replayLog(LogConsumer consumer, String passphrase) throws IOException {
+    public void replayLog(LogConsumer consumer, String password) throws IOException {
         storeIdentity();
 
         startOperation("Replay log");
@@ -192,40 +234,34 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
         try {
             IOIndex index = (IOIndex) getProvider();
-            List<String> days = getListOfLogFiles(consumer, index, LOG_ROOT, true);
+            List<String> files = index.availableLogs(consumer.lastSyncedLogFile());
 
-            totalFiles = new AtomicLong(days.size());
+            totalFiles = new AtomicLong(files.size());
             processedFiles = new AtomicLong(0L);
             processedOperations = new AtomicLong(0L);
 
-            for (String day : days) {
-                List<String> files = getListOfLogFiles(consumer, index, day, false);
+            for (String file : files) {
+                byte[] data = getProvider().download(file);
 
-                totalFiles.addAndGet(files.size());
-
-                for (String file : files) {
-                    byte[] data = getProvider().download(file);
-
-                    try {
-                        log.info("Processing log file {}", file);
-                        byte[] unencryptedData = getEncryptor().decodeBlock(null, data,
-                                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(passphrase));
-                        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(unencryptedData)) {
-                            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
-                                processLogInputStream(consumer, gzipInputStream);
-                            }
+                try {
+                    log.info("Processing log file {}", file);
+                    byte[] unencryptedData = getEncryptor().decodeBlock(null, data,
+                            InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(password));
+                    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(unencryptedData)) {
+                        try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                            processLogInputStream(consumer, gzipInputStream);
                         }
-                        consumer.setLastSyncedLogFile(file);
-                    } catch (Exception exc) {
-                        log.error("Failed to read log file " + file, exc);
                     }
-                    if (!Strings.isNullOrEmpty(source) && (isShutdown() || InstanceFactory.isShutdown())) {
-                        return;
-                    }
-                    processedFiles.incrementAndGet();
+                    consumer.setLastSyncedLogFile(file);
+                } catch (Exception exc) {
+                    log.error("Failed to read log file " + file, exc);
+                }
+                if (!Strings.isNullOrEmpty(source) && (isShutdown() || InstanceFactory.isShutdown())) {
+                    return;
                 }
                 processedFiles.incrementAndGet();
             }
+
             if (processedOperations.get() > 1000000L) {
                 log.info("Optimizing repository metadata (This could take a while)");
             } else {
@@ -280,21 +316,54 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                 }
             }
 
+            Map<String, ShareResponse> remainingServiceShares = new HashMap<>();
+
+            if (getServiceManager().getToken() != null && getServiceManager().getSourceId() != null) {
+                try {
+                    remainingServiceShares.putAll(getServiceManager().getSourceShares().stream()
+                            .collect(Collectors.toMap(ShareResponse::getShareId, (share) -> share)));
+                } catch (IOException e) {
+                    log.warn("Failed to check active shares from service", e);
+                }
+            }
+
+            existingShares = existingShares.entrySet().stream().filter((entry) -> {
+                if (!Strings.isNullOrEmpty(entry.getValue().getShare().getTargetEmail())) {
+                    if (!remainingServiceShares.containsKey(entry.getKey())) {
+                        log.warn("Removing share {} that no longer exist in service", entry.getValue().getShare().getName());
+                        return false;
+                    }
+                }
+                return true;
+            }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
             for (Map.Entry<String, BackupShare> entry : getConfiguration().getShares().entrySet()) {
                 BackupActivatedShare existingShare = existingShares.get(entry.getKey());
                 if (existingShare == null) {
                     log.warn("Encountered share {} that is not activated", entry.getValue().getName());
-                } else if (existingShare.getShare().equals(entry.getValue())) {
+                } else if (existingShare.getShare().equals(entry.getValue().activatedShare(getServiceManager().getSourceId(), entry.getKey()).getShare())) {
                     try {
                         ShareManifestManager manager = createShareManager(entry.getKey(), existingShare, true);
                         activeShares.put(entry.getKey(), manager);
                         manager.initialize(getLogConsumer(), true);
+                        remainingServiceShares.remove(entry.getKey());
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
                     existingShares.remove(entry.getKey());
                 }
             }
+
+            remainingServiceShares.values().forEach((share) -> {
+                if (!activeShares.containsKey(share.getShareId())) {
+                    log.info("Removing service share {} that no longer exist in configuration", share.getName());
+                    try {
+                        getServiceManager().deleteShare(share.getShareId());
+                    } catch (IOException e) {
+                        log.error("Failed to delete share {} from service", share.getName(), e);
+                    }
+                }
+            });
 
             if (existingShares.size() > 0 && getLogConsumer() instanceof MetadataRepository) {
                 startOperation("Deactivating shares");
@@ -320,6 +389,12 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                     log.info("Completed deleting shares");
                 }
             }
+
+            try {
+                updateShareEncryption(null);
+            } catch (IOException e) {
+                log.error("Failed to update share encryption", e);
+            }
         }
     }
 
@@ -332,6 +407,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                 IOProviderFactory.getProvider(share.getShare().getDestination()),
                 EncryptorFactory.getEncryptor(share.getShare().getDestination().getEncryption()),
                 getRateLimitController(),
+                getServiceManager(),
                 getInstallationIdentity() + publicKey,
                 isForceIdentity(),
                 EncryptionKey.createWithPublicKey(publicKey),
@@ -356,7 +432,6 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
         try (CloseableLock ignored = existingRepository.acquireLock()) {
             LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this, false);
-            copyRepository.clear();
 
             internalInitialize();
 
@@ -370,20 +445,20 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                     + activePaths.size()
                     + getConfiguration().getSets().size() + 1);
 
-            log.info("Processing files");
-            existingRepository.allFiles(true).forEach((file) -> {
-                processedOperations.incrementAndGet();
-                try {
-                    copyRepository.addFile(file);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
             log.info("Processing blocks");
             existingRepository.allBlocks().forEach((block) -> {
                 processedOperations.incrementAndGet();
                 try {
                     copyRepository.addBlock(block);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            log.info("Processing files");
+            existingRepository.allFiles(true).forEach((file) -> {
+                processedOperations.incrementAndGet();
+                try {
+                    copyRepository.addFile(file);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -468,6 +543,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         ENCRYPTION_KEY_WRITER.writeValue(new File(InstanceFactory.getInstance(CommandLineModule.KEY_FILE_NAME)),
                 publicKey);
         uploadKeyData(key);
+        updateServiceSourceData(key);
     }
 
     private void startOperation(String operation) {
@@ -503,9 +579,12 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
             for (Map.Entry<String, BackupShare> entry : getConfiguration().getShares().entrySet()) {
                 if (!activeShares.containsKey(entry.getKey())) {
                     pendingShareManagers.put(EncryptionKey.createWithPublicKey(entry.getKey()),
-                            createShareManager(entry.getKey(), BackupActivatedShare.builder().share(entry.getValue())
-                                    .usedDestinations(new HashSet<>()).build(), false));
+                            createShareManager(entry.getKey(), entry.getValue().activatedShare(getServiceManager().getSourceId(), entry.getKey()), false));
                     pendingShares.put(entry.getKey(), entry.getValue());
+                    if (getServiceManager().getToken() != null && getServiceManager().getSourceId() != null
+                            && !Strings.isNullOrEmpty(entry.getValue().getTargetEmail())) {
+                        getServiceManager().createShare(entry.getKey(), entry.getValue());
+                    }
                 }
             }
 
@@ -613,11 +692,23 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
                         activeShares.put(entry.getKey().getPublicKey(), entry.getValue());
                     }
+
                 } catch (CancellationException exc) {
                     log.warn("Cancelled share activation");
                 } finally {
                     resetStatus();
                 }
+            }
+        }
+
+        updateShareEncryption(privateKey);
+    }
+
+    @Override
+    public void updateShareEncryption(EncryptionKey.PrivateKey privateKey) throws IOException {
+        for (Map.Entry<String, ShareManifestManager> entry : activeShares.entrySet()) {
+            if (!Strings.isNullOrEmpty(entry.getValue().getActivatedShare().getShare().getTargetEmail())) {
+                entry.getValue().updateEncryptionKeys(privateKey);
             }
         }
     }
@@ -673,7 +764,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
     public List<StatusLine> status() {
         List<StatusLine> ret = new ArrayList<>();
         if (!Strings.isNullOrEmpty(source)) {
-            ret.add(new StatusLine(getClass(), "SOURCE", "Browsing source", null, source));
+            ret.add(new StatusLine(getClass(), "SOURCE", "Browsing source", null, InstanceFactory.getAdditionalSourceName()));
         }
         synchronized (operationLock) {
             if (operation != null) {

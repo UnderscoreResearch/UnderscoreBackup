@@ -9,7 +9,7 @@ import org.apache.commons.cli.CommandLine;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 public abstract class Command {
-    private String passphrase;
+    private String password;
 
     public static String args(Class<? extends Command> clz) {
         CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
@@ -68,12 +68,12 @@ public abstract class Command {
         return name(this.getClass());
     }
 
-    public String getPassphrase() {
-        return passphrase;
+    public String getPassword() {
+        return password;
     }
 
-    public void setPassphrase(String passphrase) {
-        this.passphrase = passphrase;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public boolean needPrivateKey() {

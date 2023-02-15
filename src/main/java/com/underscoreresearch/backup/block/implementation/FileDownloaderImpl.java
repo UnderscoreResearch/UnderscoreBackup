@@ -48,7 +48,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
     }
 
     @Override
-    public void downloadFile(BackupFile source, String destinationFile, String passphrase) throws IOException {
+    public void downloadFile(BackupFile source, String destinationFile, String password) throws IOException {
         Progress progress = new Progress(source.getLength());
         synchronized (activeFiles) {
             activeFiles.put(source.getPath(), progress);
@@ -99,7 +99,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                                     }
                                     FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
                                     try {
-                                        byte[] fileData = extractor.extractPart(part, block, passphrase);
+                                        byte[] fileData = extractor.extractPart(part, block, password);
                                         if (fileData == null) {
                                             throw new IOException("Failed to extra data for part of block " + block.getHash());
                                         }

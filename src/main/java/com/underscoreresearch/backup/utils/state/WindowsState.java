@@ -4,8 +4,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 
 @Slf4j
 public class WindowsState extends MachineState {
@@ -32,6 +36,15 @@ public class WindowsState extends MachineState {
         } catch (IOException ex) {
         }
         return false;
+    }
+
+    @Override
+    public ReleaseFileItem getDistribution(List<ReleaseFileItem> files) {
+        Optional<ReleaseFileItem> ret = files.stream().filter(file -> file.getName().endsWith(".exe")).findAny();
+        if (ret.isPresent()) {
+            return ret.get();
+        }
+        return null;
     }
 
     @Override

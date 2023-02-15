@@ -14,7 +14,7 @@ import org.apache.commons.cli.ParseException;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
-import com.underscoreresearch.backup.cli.PassphraseReader;
+import com.underscoreresearch.backup.cli.PasswordReader;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
@@ -26,7 +26,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
         needPrivateKey = false, needConfiguration = false)
 public class GenerateKeyCommand extends Command {
     public static String generateAndSaveNewKey(CommandLine commandLine, String firstTry) throws IOException {
-        EncryptionKey encryptionKey = EncryptionKey.generateKeyWithPassphrase(firstTry);
+        EncryptionKey encryptionKey = EncryptionKey.generateKeyWithPassword(firstTry);
 
         File keyFile = getDefaultEncryptionFileName(commandLine);
 
@@ -61,22 +61,22 @@ public class GenerateKeyCommand extends Command {
             firstTry = commandLine.getOptionValue(CommandLineModule.PRIVATE_KEY_SEED);
         } else {
             if (commandLine.hasOption(ADDITIONAL_KEY)) {
-                firstTry = PassphraseReader.readPassphrase("Enter passphrase for private key: ");
+                firstTry = PasswordReader.readPassword("Enter password for private key: ");
                 if (firstTry == null) {
                     System.exit(1);
                 }
             } else {
-                firstTry = PassphraseReader.readPassphrase("Please enter the passphrase for the private key: ");
+                firstTry = PasswordReader.readPassword("Please enter the password for the private key: ");
                 if (firstTry == null) {
                     System.exit(1);
                 }
                 String secondTry
-                        = PassphraseReader.readPassphrase("Reenter the passphrase for the private key: ");
+                        = PasswordReader.readPassword("Reenter the password for the private key: ");
                 if (secondTry == null) {
                     System.exit(1);
                 }
                 if (!firstTry.equals(secondTry)) {
-                    System.out.println("Passphrases do not match");
+                    System.out.println("Passwords do not match");
                     System.exit(1);
                 }
             }

@@ -11,28 +11,30 @@ import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import {marked} from 'marked';
+
 import {
+    activateShares,
     BackupConfiguration,
     BackupDestination,
     BackupSet,
     BackupSetRoot,
     BackupShare,
     BackupState,
+    createEncryptionKey,
     DestinationMap,
-    GetActiveShares,
-    GetActivity,
-    GetConfiguration,
-    GetDestinationFiles,
-    GetEncryptionKey,
-    GetState,
-    PostActivateShares,
-    PostConfiguration,
-    PostRemoteRestore,
-    PostRestartSets,
-    PostRestore,
-    PostSelectSource,
-    PutEncryptionKey,
+    getActivity,
+    getConfiguration,
+    getEncryptionKey,
+    getState,
+    initiateRestore,
+    listActiveShares,
+    postConfiguration,
+    rebuildAvailable,
+    restartSets,
+    selectSource,
     ShareMap,
+    startRemoteRestore,
     StatusLine
 } from './api';
 import NavigationMenu, {NavigationProps} from './components/NavigationMenu';
@@ -41,12 +43,25 @@ import {Route, Routes, useNavigate,} from "react-router-dom";
 import Status from "./components/Status";
 import Destinations, {DestinationProp} from "./components/Destinations";
 import Sets from "./components/Sets";
-import {Backdrop, Button, CircularProgress} from "@mui/material";
-import InitialSetup from "./components/InitialSetup";
+import {
+    Backdrop,
+    Button,
+    CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle, LinearProgress
+} from "@mui/material";
+import InitialSetup, {InitialPage} from "./components/InitialSetup";
 import Restore, {RestorePropsChange} from "./components/Restore";
-import { deepEqual } from 'fast-equals';
+import {deepEqual} from 'fast-equals';
 import Sources, {SourceProps} from "./components/Sources";
 import Shares, {ShareProps} from "./components/Shares";
+import AuthorizeAccept from "./components/AuthorizeAccept";
+import {invertedLogo, logo} from "./images";
+import {createSecret, SourceResponse, updateSource} from "./api/service";
+import base64url from "base64url";
 
 const drawerWidth: number = 240;
 
@@ -105,12 +120,15 @@ interface MainAppState {
     loading: boolean,
     unresponsive: boolean,
     initialLoad: boolean,
+    initialPage: InitialPage,
+    initialSource?: SourceResponse,
     originalConfiguration: BackupConfiguration,
     currentConfiguration: BackupConfiguration,
-    passphrase?: string,
-    validatedPassphrase: boolean,
+    password?: string,
+    validatedPassword: boolean,
     initialValid: boolean,
     activatedShares?: string[],
+    shareEncryptionNeeded: boolean,
     destinationsValid: boolean,
     setsValid: boolean,
     sharesValid: boolean,
@@ -122,11 +140,15 @@ interface MainAppState {
     restoreIncludeDeleted?: boolean,
     restoreOverwrite: boolean,
     selectedSource?: string,
+    selectedSourceName?: string,
+    secretRegion?: string,
     backendState?: BackupState,
     activity: StatusLine[],
     navigateState: number,
     navigatedState: number,
-    navigateDestination: string
+    navigateDestination: string,
+    showNewVersion: boolean,
+    slideAnimation: boolean
 }
 
 interface ActivityState {
@@ -136,11 +158,11 @@ interface ActivityState {
 }
 
 var lastActivityState: ActivityState = {};
-var activityUpdated : ((newValue : ActivityState) => void) | undefined;
+var activityUpdated: ((newValue: ActivityState) => void) | undefined;
 
 async function fetchActivityInternal(): Promise<ActivityState> {
     const ret: ActivityState = {};
-    const activity = await GetActivity(false);
+    const activity = await getActivity(false);
     if (activity === undefined) {
         ret.unresponsive = true;
     } else {
@@ -148,7 +170,7 @@ async function fetchActivityInternal(): Promise<ActivityState> {
         ret.unresponsive = false;
     }
     if (location.href.endsWith("/share")) {
-        const shares = await GetActiveShares();
+        const shares = await listActiveShares();
         if (shares && shares.activeShares) {
             ret.activatedShares = shares.activeShares;
         }
@@ -180,7 +202,11 @@ function defaultState(): MainAppState {
             destinations: {},
             sets: [],
             manifest: {
-                destination: ''
+                destination: '',
+                scheduleRandomize: {
+                    duration: 1,
+                    unit: "HOURS"
+                }
             }
         }
     }
@@ -188,12 +214,13 @@ function defaultState(): MainAppState {
     const activity: StatusLine[] = lastActivityState.activity ? lastActivityState.activity : [];
 
     return {
-        open: true,
+        open: window.localStorage.getItem("open") !== "false",
         rebuildAvailable: false,
         hasKey: false,
         loading: true,
         unresponsive: lastActivityState.unresponsive ? lastActivityState.unresponsive : false,
         initialLoad: true,
+        initialPage: "service",
         originalConfiguration: defaultConfig(),
         currentConfiguration: defaultConfig(),
         restoreRoots: roots,
@@ -204,13 +231,17 @@ function defaultState(): MainAppState {
         sourcesValid: true,
         setsValid: true,
         sharesValid: true,
-        passphrase: undefined,
-        validatedPassphrase: false,
+        secretRegion: undefined,
+        password: undefined,
+        validatedPassword: false,
         activity: activity,
         navigateState: 1,
         navigatedState: 1,
         navigateDestination: "",
-        activatedShares: lastActivityState.activatedShares
+        activatedShares: lastActivityState.activatedShares,
+        shareEncryptionNeeded: false,
+        showNewVersion: false,
+        slideAnimation: false
     };
 }
 
@@ -268,10 +299,19 @@ export default function MainApp() {
     const navigate = useNavigate();
 
     const toggleDrawer = () => {
+        window.localStorage.setItem("open", (!state.open).toString());
         setState({
             ...state,
-            open: !state.open
+            open: !state.open,
+            slideAnimation: true
         })
+
+        setTimeout(() => {
+            setState((oldState) => ({
+                ...oldState,
+                slideAnimation: false
+            }));
+        }, 300);
     };
 
     async function updateSelectedSource(state: MainAppState) {
@@ -279,13 +319,14 @@ export default function MainApp() {
             ...oldState,
             loading: true
         }));
-        const backendState = await GetState();
+        const backendState = await getState();
         if (backendState) {
             setState((oldState) => {
                 return {
                     ...oldState,
                     backendState: backendState,
                     selectedSource: backendState.source,
+                    selectedSourceName: backendState.sourceName,
                     destinationsValid: backendState.validDestinations && oldState.destinationsValid,
                     loading: false
                 }
@@ -301,32 +342,27 @@ export default function MainApp() {
         }
     }
 
-    async function fetchConfig(knownConfig? : BackupConfiguration, ignoreState?: boolean): Promise<MainAppState> {
+    async function fetchConfig(knownConfig?: BackupConfiguration, ignoreState?: boolean): Promise<MainAppState> {
         var newState = {} as MainAppState;
         newState.initialLoad = false;
-        const newConfig = knownConfig ? JSON.parse(JSON.stringify(knownConfig)) : await GetConfiguration();
+        newState.backendState = await getState();
+        const newConfig = knownConfig ? JSON.parse(JSON.stringify(knownConfig)) : await getConfiguration();
         try {
             if (newConfig !== undefined) {
                 var newRebuildAvailable = false;
                 if (Object.keys(newConfig.destinations).length > 0) {
-                    const hasKey = await GetEncryptionKey(ignoreState ? undefined : state.passphrase);
-                    if (hasKey && !ignoreState && state.passphrase) {
-                        newState.validatedPassphrase = true;
+                    const hasKey = await getEncryptionKey(ignoreState ? undefined : state.password);
+                    if (hasKey && !ignoreState && state.password) {
+                        newState.validatedPassword = true;
                     }
                     if (!hasKey && newConfig.manifest.destination) {
-                        const existingFiles = new Set<String>();
-                        const destinationFiles = await GetDestinationFiles("/", newConfig.manifest.destination);
-                        if (destinationFiles !== undefined) {
-                            destinationFiles.forEach((e) => existingFiles.add(e.path));
-                        }
-                        if (existingFiles.has("/configuration.json") && existingFiles.has("/publickey.json")) {
-                            newRebuildAvailable = true;
-                        }
+                        newRebuildAvailable = await rebuildAvailable(newConfig.manifest.destination);
                     } else {
                         newState.hasKey = true;
-                        const activeShares = await GetActiveShares();
+                        const activeShares = await listActiveShares();
                         if (activeShares) {
                             newState.activatedShares = activeShares.activeShares;
+                            newState.shareEncryptionNeeded = activeShares.shareEncryptionNeeded;
                         }
                     }
                 }
@@ -334,12 +370,13 @@ export default function MainApp() {
                 newState.currentConfiguration = JSON.parse(JSON.stringify(newConfig));
                 newState.rebuildAvailable = newRebuildAvailable;
                 newState.initialValid = true;
-                newState.backendState = await GetState();
                 if (newState.backendState) {
                     newState.selectedSource = newState.backendState.source;
+                    newState.selectedSourceName = newState.backendState.sourceName;
                     newState.destinationsValid = newState.backendState.validDestinations;
                 } else {
                     newState.selectedSource = undefined;
+                    newState.selectedSourceName = undefined;
                     newState.destinationsValid = false;
                 }
 
@@ -361,17 +398,17 @@ export default function MainApp() {
                 loading: true
             }
         });
-        if (await PostConfiguration(currentState.currentConfiguration)) {
+        if (await postConfiguration(currentState.currentConfiguration)) {
             const newConfig = await fetchConfig(currentState.currentConfiguration);
 
             if (newConfig.selectedSource &&
-                currentState.validatedPassphrase &&
-                currentState.passphrase &&
+                currentState.validatedPassword &&
+                currentState.password &&
                 currentState.backendState &&
                 !currentState.backendState.validDestinations &&
                 newConfig.backendState &&
                 newConfig.backendState.validDestinations) {
-                await PostSelectSource(newConfig.selectedSource, currentState.passphrase);
+                await selectSource(newConfig.selectedSource, currentState.password);
             }
             const activity = await fetchActivity();
             setState((oldState) => ({
@@ -388,24 +425,25 @@ export default function MainApp() {
         }
     }
 
-    function updateInitialConfig(valid: boolean, newConfig: BackupConfiguration, passphrase?: string) {
-        setState({
-            ...state,
+    function updateInitialConfig(valid: boolean, newConfig: BackupConfiguration, password?: string, secretRegion?: string) {
+        setState((oldState) => ({
+            ...oldState,
             initialValid: valid,
             currentConfiguration: newConfig,
-            passphrase: passphrase
-        })
+            password: password,
+            secretRegion: secretRegion
+        }));
     }
 
     function updateSets(valid: boolean, sets: BackupSet[]) {
-        setState({
-            ...state,
+        setState((oldState) => ({
+            ...oldState,
             currentConfiguration: {
-                ...(state.currentConfiguration),
+                ...(oldState.currentConfiguration),
                 sets: sets
             },
             setsValid: valid
-        });
+        }));
     }
 
     function updateDestinations(valid: boolean, destinations: DestinationProp[]) {
@@ -414,14 +452,14 @@ export default function MainApp() {
             newVal[item.id] = item.destination;
         })
 
-        setState({
-            ...state,
+        setState((oldState) => ({
+            ...oldState,
             currentConfiguration: {
-                ...state.currentConfiguration,
+                ...oldState.currentConfiguration,
                 destinations: newVal
             },
             destinationsValid: valid
-        });
+        }));
     }
 
     function updateSources(valid: boolean, sources: SourceProps[]) {
@@ -430,14 +468,14 @@ export default function MainApp() {
             newVal[item.id] = item.destination;
         })
 
-        setState({
-            ...state,
+        setState((oldState) => ({
+            ...oldState,
             currentConfiguration: {
-                ...state.currentConfiguration,
+                ...oldState.currentConfiguration,
                 additionalSources: newVal
             },
             sourcesValid: valid
-        });
+        }));
     }
 
     function getDestinationList(): DestinationProp[] {
@@ -492,32 +530,32 @@ export default function MainApp() {
     }
 
     function updateConfig(newConfig: BackupConfiguration): void {
-        setState({
-            ...state,
+        setState((oldState) => ({
+            ...oldState,
             currentConfiguration: newConfig
-        });
+        }));
     }
 
     function updateRestore(newState: RestorePropsChange): void {
-        setState({
-            ...state,
-            passphrase: newState.passphrase,
+        setState((oldState) => ({
+            ...oldState,
+            password: newState.password,
             restoreDestination: newState.destination,
             restoreRoots: newState.roots,
             restoreSource: newState.source,
             restoreTimestamp: newState.timestamp,
             restoreIncludeDeleted: newState.includeDeleted,
             restoreOverwrite: newState.overwrite
-        });
+        }));
     }
 
     async function startRestore() {
-        setState({
-            ...state,
+        setState((oldState) => ({
+            ...oldState,
             loading: true
-        });
-        await PostRestore({
-            passphrase: state.passphrase ? state.passphrase : "",
+        }));
+        await initiateRestore({
+            password: state.password ? state.password : "",
             destination: state.restoreDestination,
             files: state.restoreRoots,
             overwrite: state.restoreOverwrite,
@@ -568,7 +606,7 @@ export default function MainApp() {
 
         method();
 
-        activityUpdated = (newActivity : ActivityState) => {
+        activityUpdated = (newActivity: ActivityState) => {
             setState((oldState) => ({
                 ...oldState,
                 ...newActivity
@@ -587,13 +625,14 @@ export default function MainApp() {
             return {
                 ...oldState,
                 loading: true,
-                validatedPassphrase: false,
+                validatedPassword: false,
                 restoreSource: "",
                 selectedSource: undefined,
-                passphrase: undefined
+                selectedSourceName: undefined,
+                password: undefined
             }
         });
-        await PostSelectSource(
+        await selectSource(
             "-", undefined);
         location.reload();
     }
@@ -613,9 +652,20 @@ export default function MainApp() {
         return false;
     }
 
-    function changeBackup(start: boolean) {
+    async function changeBackup(start: boolean) {
         if (start && state.currentConfiguration.manifest.interactiveBackup) {
-            PostRestartSets();
+            setState((oldState) => ({
+                ...oldState,
+                loading: true
+            }));
+            try {
+                await restartSets();
+            } finally {
+                setState((oldState) => ({
+                    ...oldState,
+                    loading: false
+                }));
+            }
         } else {
             const newState = {
                 ...state,
@@ -632,67 +682,125 @@ export default function MainApp() {
         }
     }
 
-    async function activateShares(passphrase: string) {
+    async function activateSharesClicked(password: string) {
         setState((oldState) => {
             return {
                 ...oldState,
                 loading: true
             }
         })
-        await PostActivateShares(passphrase);
-        const newActivity = await fetchActivity();
-        setState((oldState) => ({
-            ...oldState,
-            ...newActivity,
-            loading: false,
-            navigateState: oldState.navigateState + 1,
-            navigateDestination: "status"
-        }));
+        try {
+            await activateShares(password);
+            const newActivity = await fetchActivity();
+            setState((oldState) => ({
+                ...oldState,
+                ...newActivity,
+                loading: false,
+                navigateState: oldState.navigateState + 1,
+                navigateDestination: "status"
+            }));
+        } finally {
+            setState((oldState) => ({
+                ...oldState,
+                loading: false
+            }));
+        }
     }
 
-    function updatedShares(valid: boolean, passphrase: string, shares: ShareProps[]) {
+    function updatedShares(valid: boolean, password: string, shares: ShareProps[]) {
         let newVal: ShareMap = {};
 
-        if (state.validatedPassphrase) {
+        if (state.validatedPassword) {
             shares.forEach((item) => {
                 newVal[item.id] = item.share;
             })
 
-            setState({
-                ...state,
+            setState((oldState) => ({
+                ...oldState,
                 sharesValid: valid,
-                passphrase: passphrase,
+                password: password,
                 currentConfiguration: {
-                    ...state.currentConfiguration,
+                    ...oldState.currentConfiguration,
                     shares: newVal
                 }
-            })
+            }))
         } else {
-            setState({
-                ...state,
-                passphrase: passphrase
-            })
+            setState((oldState) => ({
+                ...oldState,
+                password: password
+            }))
         }
     }
 
-    function calculateInitialDisplayState(ret: DisplayState) {
-        if (Object.keys(state.originalConfiguration.destinations).length > 0) {
-            ret.cancelAction = () => setState({
-                ...state,
-                originalConfiguration: {
-                    ...state.originalConfiguration,
-                    destinations: {}
-                }
-            });
-            ret.cancelButton = "Back";
-            ret.cancelEnabled = true;
-            if (state.passphrase) {
-                const passphrase = state.passphrase;
-                if (state.rebuildAvailable) {
-                    ret.acceptAction = () => {
-                        const method = async function () {
+    function calculateInitialDisplayState(ret: DisplayState, currentPage: string) {
+        ret.statusTitle = "Initial Setup"
+        ret.navigation.firstTime = true;
+        ret.navigation.loading = currentPage.startsWith("authorizeaccept") || state.loading
+        ret.acceptButton = "Next";
 
-                            if (await PostRemoteRestore(passphrase)) {
+        if (state.initialPage !== "service") {
+            let previousPage: InitialPage;
+            switch (state.initialPage) {
+                case "source":
+                    previousPage = "service";
+                    break;
+                case "destination":
+                    if (state.backendState?.serviceConnected)
+                        previousPage = "source";
+                    else
+                        previousPage = "service";
+                    break;
+                case "key":
+                    if (state.initialSource)
+                        previousPage = "source";
+                    else
+                        previousPage = "destination";
+                    break;
+            }
+            ret.cancelAction = () => {
+                setState((oldState) => ({
+                    ...oldState,
+                    initialPage: previousPage
+                }));
+            }
+            ret.cancelEnabled = true;
+            ret.cancelButton = "Back";
+        }
+        switch (state.initialPage) {
+            case "source":
+                if (state.backendState?.serviceSourceId) {
+                    ret.acceptEnabled = true;
+                    ret.acceptAction = () => setState((oldState) => ({
+                        ...oldState,
+                        initialPage: oldState.initialSource ? "key" : "destination"
+                    }));
+                } else {
+                    ret.acceptEnabled = false;
+                }
+                break;
+            case "destination":
+                ret.acceptAction = () => {
+                    applyConfig().then(() =>
+                        setState((oldState) => ({
+                            ...oldState,
+                            initialPage: "key"
+                        })));
+                }
+                ret.acceptEnabled = state.initialValid;
+                break;
+            case "key":
+                ret.acceptEnabled = state.initialValid && !!state.password;
+                if (state.password) {
+                    const password = state.password;
+                    if (state.initialSource) {
+                        const source = state.initialSource;
+                        ret.acceptAction = async () => {
+                            setState((oldState) => ({
+                                ...oldState,
+                                loading: true
+                            }));
+
+                            if (await updateSource(source.name, source.sourceId, state.password)) {
                                 const newConfig = await fetchConfig();
                                 setState((oldState) => ({
                                     ...oldState,
@@ -706,44 +814,60 @@ export default function MainApp() {
                                 }));
                             }
                         };
+                    } else if (state.rebuildAvailable) {
+                        ret.acceptAction = async () => {
+                            setState((oldState) => ({
+                                ...oldState,
+                                loading: true
+                            }));
 
-                        setState({
-                            ...state,
-                            loading: true
-                        });
+                            if (await startRemoteRestore(password)) {
+                                const newConfig = await fetchConfig();
+                                setState((oldState) => ({
+                                    ...oldState,
+                                    ...newConfig,
+                                    loading: false
+                                }));
+                            } else {
+                                setState((oldState) => ({
+                                    ...oldState,
+                                    loading: false
+                                }));
+                            }
+                        };
+                    } else {
+                        ret.acceptAction = async () => {
+                            setState((oldState) => ({
+                                ...state,
+                                loading: true
+                            }));
+                            if (await createEncryptionKey(password)) {
+                                if (state.secretRegion) {
+                                    await createSecret(state.password as string, state.secretRegion,
+                                        base64url.decode(window.localStorage.getItem("email") as string))
+                                }
 
-                        method();
-                    };
+                                const newConfig = await fetchConfig();
+                                setState((oldState) => ({
+                                    ...oldState,
+                                    ...newConfig,
+                                    navigateState: oldState.navigateState + 1,
+                                    navigateDestination: "sets",
+                                    loading: false
+                                }));
+                            } else {
+                                setState((oldState) => ({
+                                    ...oldState,
+                                    loading: false
+                                }));
+                            }
+                        };
+                    }
                 } else {
-                    ret.acceptAction = async () => {
-                        if (await PutEncryptionKey(passphrase)) {
-                            const newConfig = await fetchConfig();
-                            setState((oldState) => ({
-                                ...oldState,
-                                ...newConfig,
-                                navigateState: oldState.navigateState + 1,
-                                navigateDestination: "sets",
-                                loading: false
-                            }));
-                        } else {
-                            setState((oldState) => ({
-                                ...oldState,
-                                loading: false
-                            }));
-                        }
-                    };
+                    ret.acceptAction = () => {
+                    }
                 }
-            } else {
-                ret.acceptAction = () => {
-                };
-            }
-        } else {
-            ret.acceptAction = () => applyConfig();
         }
-        ret.acceptEnabled = state.initialValid;
-        ret.statusTitle = "Initial Setup"
-        ret.navigation.firstTime = true;
-        ret.acceptButton = "Next";
 
         return ret;
     }
@@ -759,16 +883,16 @@ export default function MainApp() {
     }
 
     function calculateRestoreDisplayState(ret: DisplayState, validConfig: boolean) {
-        if (state.validatedPassphrase) {
+        if (state.validatedPassword) {
             if (!ret.cancelAction) {
                 ret.cancelButton = "Back";
                 ret.cancelEnabled = true;
                 ret.cancelAction = () =>
-                    setState({
-                        ...state,
-                        validatedPassphrase: false,
+                    setState((oldstate) => ({
+                        ...oldstate,
+                        validatedPassword: false,
                         restoreSource: ""
-                    });
+                    }));
             }
 
             if (!ret.acceptAction) {
@@ -778,19 +902,19 @@ export default function MainApp() {
             }
         } else {
             if (!ret.acceptAction) {
-                const passphrase = state.passphrase ? state.passphrase : "";
+                const password = state.password ? state.password : "";
 
-                ret.acceptEnabled = validConfig && !!state.passphrase;
-                ret.acceptButton = "Validate Passphrase";
+                ret.acceptEnabled = validConfig && !!state.password;
+                ret.acceptButton = "Validate Password";
                 ret.acceptAction = async () => {
 
-                    setState({
-                        ...state,
+                    setState((oldState) => ({
+                        ...oldState,
                         loading: true
-                    });
+                    }));
 
-                    let response = await PostSelectSource(
-                        state.restoreSource ? state.restoreSource : "-", passphrase);
+                    let response = await selectSource(
+                        state.restoreSource ? state.restoreSource : "-", password);
 
                     var validDestination = true;
                     var redirect = "";
@@ -809,7 +933,7 @@ export default function MainApp() {
                         ...newConfig,
                         ...activity,
                         destinationsValid: validDestination,
-                        validatedPassphrase: !!response,
+                        validatedPassword: !!response,
                         navigateState: redirect ? oldState.navigateState + 1 : oldState.navigateState,
                         navigateDestination: redirect ? redirect : "",
                         loading: false
@@ -821,34 +945,42 @@ export default function MainApp() {
 
     function wrongPageDisplayState(ret: DisplayState) {
         if (state.navigateState == state.navigatedState) {
-            setState({
-                ...state,
-                navigateState: state.navigatedState + 1,
+            setState((oldState) => ({
+                ...oldState,
+                navigateState: oldState.navigatedState + 1,
                 navigateDestination: "status"
-            });
+            }));
         }
         ret.navigation.loading = true;
         return ret;
     }
 
+    async function updateToken(): Promise<void> {
+        const backendState = await getState();
+        setState((oldState) => ({
+            ...oldState,
+            backendState: backendState
+        }));
+    }
+
     function calculateShareDisplayState(ret: DisplayState, validConfig: boolean) {
-        const passphrase = state.passphrase ? state.passphrase : "";
-        if (!state.validatedPassphrase) {
-            ret.acceptEnabled = validConfig && !!state.passphrase;
-            ret.acceptButton = "Validate Passphrase";
+        const password = state.password ? state.password : "";
+        if (!state.validatedPassword) {
+            ret.acceptEnabled = validConfig && !!state.password;
+            ret.acceptButton = "Validate Password";
 
             ret.acceptAction = async () => {
-                setState({
-                    ...state,
+                setState((oldState) => ({
+                    ...oldState,
                     loading: true
-                });
+                }));
 
-                let response = await GetEncryptionKey(passphrase);
+                let response = await getEncryptionKey(password);
 
                 if (response) {
                     setState((oldState) => ({
                         ...oldState,
-                        validatedPassphrase: true,
+                        validatedPassword: true,
                         loading: false
                     }));
                 } else {
@@ -858,10 +990,10 @@ export default function MainApp() {
                     }));
                 }
             }
-        } else if (!ret.acceptAction && needActivation(state.activatedShares)) {
+        } else if (!ret.acceptAction && (needActivation(state.activatedShares) || state.shareEncryptionNeeded)) {
             ret.acceptButton = "Activate Shares";
             ret.acceptEnabled = true;
-            ret.acceptAction = () => activateShares(passphrase);
+            ret.acceptAction = () => activateSharesClicked(password);
         }
     }
 
@@ -872,7 +1004,7 @@ export default function MainApp() {
         if (!state.loading && state.activity) {
             const sourceActivity = state.activity.find(item => item.code == "SOURCE");
             if (state.selectedSource && sourceActivity) {
-                if (state.selectedSource && !state.loading && (!sourceActivity || sourceActivity.valueString !== state.selectedSource)) {
+                if (state.selectedSource && !state.loading && (!sourceActivity || sourceActivity.valueString !== state.selectedSourceName)) {
                     updateSelectedSource(state);
                     return ret;
                 }
@@ -899,15 +1031,15 @@ export default function MainApp() {
         const completedSetup = Object.keys(state.originalConfiguration.destinations).length > 0 && state.hasKey;
         const validConfig = state.initialValid && state.destinationsValid && state.setsValid && state.sharesValid && state.sourcesValid;
 
-        if (!completedSetup) {
-            return calculateInitialDisplayState(ret);
-        }
-
         let currentPage: string;
         if (location.href.endsWith("/")) {
             currentPage = "status";
         } else {
             currentPage = location.href.substring(location.href.lastIndexOf('/') + 1);
+        }
+
+        if (!completedSetup) {
+            return calculateInitialDisplayState(ret, currentPage);
         }
 
         ret.navigation = {
@@ -920,7 +1052,7 @@ export default function MainApp() {
             firstTime: false,
             destinations: true,
             share: true,
-            loading: state.loading
+            loading: state.loading || currentPage.startsWith("authorizeaccept")
         }
 
         if (!configNotChanged) {
@@ -958,7 +1090,7 @@ export default function MainApp() {
                             ret.navigation.share =
                                 ret.navigation.settings = false;
                     if (state.activity.some(item => item.code.startsWith("REPLAY_"))) {
-                        busyStatus(ret, `Syncing Contents From ${state.selectedSource}`);
+                        busyStatus(ret, `Syncing Contents From ${state.selectedSourceName}`);
                     } else {
                         if (!ret.cancelAction) {
                             ret.cancelButton = "Exit";
@@ -967,9 +1099,9 @@ export default function MainApp() {
                         }
 
                         if (state.activity.some(item => item.code.startsWith("RESTORE_"))) {
-                            restoreStatus(ret, `Restore From ${state.selectedSource} In Progress`);
+                            restoreStatus(ret, `Restore From ${state.selectedSourceName} In Progress`);
                         } else {
-                            ret.statusTitle = `Browsing ${state.selectedSource} Contents`;
+                            ret.statusTitle = `Browsing ${state.selectedSourceName} Contents`;
                         }
                     }
                 } else {
@@ -1036,33 +1168,61 @@ export default function MainApp() {
 
     let contents;
 
+    function initialPageChanged(page: InitialPage) {
+        setState((oldState) => ({
+            ...oldState,
+            initialPage: page
+        }));
+    }
+
     function getUsedDestinations() {
-        const alldestinations = [state.currentConfiguration.manifest.destination];
+        const allDestinations = [state.currentConfiguration.manifest.destination];
         state.currentConfiguration.sets.forEach(set =>
-            set.destinations.forEach(destination => alldestinations.push(destination)))
+            set.destinations.forEach(destination => allDestinations.push(destination)))
         // @ts-ignore
-        return [...new Set(alldestinations)];
+        return [...new Set(allDestinations)];
     }
 
     if (displayState.navigation.unresponsive) {
         contents = <div/>
     } else if (displayState.navigation.firstTime) {
-        contents = <InitialSetup
-            originalConfig={state.originalConfiguration}
-            currentConfig={state.currentConfiguration}
-            configUpdated={(valid, newConfig, passphrase) => updateInitialConfig(valid, newConfig, passphrase)}
-            rebuildAvailable={state.rebuildAvailable}/>
+        if (state.backendState) {
+            contents = <Routes>
+                <Route path="authorizeaccept" element={<AuthorizeAccept updatedToken={updateToken}/>}/>
+                <Route path="*" element={
+                    <InitialSetup
+                        page={state.initialPage}
+                        originalConfig={state.originalConfiguration}
+                        backendState={state.backendState}
+                        updatedToken={updateToken}
+                        initialSource={(source) => setState((oldState) => ({
+                            ...oldState,
+                            initialSource: source,
+                            initialPage: source ? "destination" : "key"
+                        }))}
+                        onPageChange={(page) => initialPageChanged(page)}
+                        currentConfig={state.currentConfiguration}
+                        configUpdated={(valid, newConfig, password, secretRegion) => updateInitialConfig(valid, newConfig, password, secretRegion)}
+                        rebuildAvailable={state.rebuildAvailable}/>
+                }/>
+            </Routes>
+        } else {
+            return <></>
+        }
     } else if (state.backendState) {
         contents = <Routes>
             <Route path="/" element={<Status status={state.activity}/>}/>
             <Route path="status" element={<Status status={state.activity}/>}/>
+            <Route path="authorizeaccept" element={<AuthorizeAccept updatedToken={updateToken}/>}/>
             <Route path="settings"
-                   element={<Settings config={state.currentConfiguration} onChange={updateConfig}/>}/>
-            <Route path="restore" element={<Restore passphrase={state.passphrase}
-                                                    validatedPassphrase={state.validatedPassphrase}
+                   element={<Settings config={state.currentConfiguration} backendState={state.backendState}
+                                      updatedToken={updateToken}
+                                      onChange={updateConfig}/>}/>
+            <Route path="restore" element={<Restore password={state.password}
+                                                    validatedPassword={state.validatedPassword}
                                                     destination={state.restoreDestination}
                                                     defaultDestination={state.backendState.defaultRestoreFolder}
-                                                    state={state.backendState}
+                                                    backendState={state.backendState}
                                                     roots={state.restoreRoots}
                                                     sources={state.originalConfiguration.additionalSources ? Object.keys(state.originalConfiguration.additionalSources) : []}
                                                     source={state.selectedSource ? state.selectedSource : state.restoreSource}
@@ -1072,19 +1232,21 @@ export default function MainApp() {
                                                     onSubmit={applyChanges}
                                                     onChange={updateRestore}/>}/>
             <Route path="destinations" element={<Destinations destinations={getDestinationList()}
+                                                              backendState={state.backendState}
                                                               dontDelete={getUsedDestinations()}
                                                               configurationUpdated={updateDestinations}/>}/>
             <Route path="sources" element={<Sources sources={getSourcesList()}
+                                                    backendState={state.backendState}
                                                     configurationUpdated={updateSources}/>}/>
             <Route path="share" element={<Shares shares={getSharesList()}
-                                                 passphrase={state.passphrase}
+                                                 password={state.password}
                                                  onSubmit={applyChanges}
                                                  activeShares={state.activatedShares}
-                                                 validatedPassphrase={state.validatedPassphrase}
-                                                 state={state.backendState}
+                                                 validatedPassword={state.validatedPassword}
+                                                 backendState={state.backendState}
                                                  configurationUpdated={updatedShares}/>}/>
             <Route path="sets" element={<Sets sets={state.currentConfiguration.sets}
-                                              state={state.backendState}
+                                              backendState={state.backendState}
                                               allowReset={configNotChanged && !!state.currentConfiguration.manifest.interactiveBackup}
                                               destinations={getDestinationList()}
                                               configurationUpdated={updateSets}/>
@@ -1108,6 +1270,9 @@ export default function MainApp() {
         <Box sx={{display: 'flex'}}>
             <CssBaseline/>
             <AppBar position="absolute" open={state.open}>
+                { displayState.statusTitle !== "Currently Inactive" && !displayState.navigation.firstTime && !state.loading &&
+                    <LinearProgress style={{position: "fixed", width: "100%", top: "0"}}/>
+                }
                 <Toolbar
                     sx={{
                         pr: '24px', // keep right padding when drawer closed
@@ -1125,6 +1290,8 @@ export default function MainApp() {
                     >
                         <MenuIcon/>
                     </IconButton>
+                    <Box style={{...(state.open && {display: 'none'})}} padding={0} margin={0} marginRight={1}
+                         component={"img"} src={invertedLogo} maxHeight={40}/>
                     <Typography
                         id={"currentProgress"}
                         component="h1"
@@ -1135,11 +1302,6 @@ export default function MainApp() {
                             flexGrow: 1
                         }}
                     >
-                                <span style={{
-                                    ...(state.open && {display: 'none'})
-                                }
-                                }>Underscore Backup -&nbsp;
-                                </span>
                         {displayState.statusTitle}
                     </Typography>
                     <Box sx={{flexGrow: 1, display: {xs: 'none', md: 'flex'}}}>
@@ -1179,15 +1341,7 @@ export default function MainApp() {
                         px: [1],
                     }}
                 >
-                    <Typography
-                        component="h1"
-                        variant="h6"
-                        color="inherit"
-                        noWrap
-                        sx={{flexGrow: 1}}
-                    >
-                        Underscore Backup
-                    </Typography>
+                    <Box component={"img"} src={logo} maxHeight={40}/>
                     <IconButton onClick={toggleDrawer}>
                         <ChevronLeftIcon/>
                     </IconButton>
@@ -1210,15 +1364,35 @@ export default function MainApp() {
 
                 }
 
-                <Slide direction="right" in={state.open}>
+                <Slide direction="right" in={state.open && !state.slideAnimation}>
                     <Typography
                         color="darkgray"
                         noWrap
                         fontSize={14}
-                        style={{position: "absolute", bottom: "8px", right: "8px", width: "220px", textAlign: "right"}}
+                        style={{
+                            position: "absolute",
+                            bottom: "8px",
+                            right: "8px",
+                            width: "220px",
+                            textAlign: "right"
+                        }}
                     >
+                        {state.backendState && state.backendState.newVersion &&
+                            <>
+                                <b style={{color: "black"}}>New version available now!</b>
+                                <br/>
+                                <br/>
+                                <Button variant={"contained"}
+                                        onClick={() => setState({...state, showNewVersion: true})}>
+                                    Get version {state.backendState.newVersion.version}
+                                </Button>
+                                <br/>
+                                <br/>
+                            </>
+                        }
                         {state.backendState &&
-                            <span>Version <span style={{fontWeight: "bold"}}>{state.backendState.version}</span></span>
+                            <span>Version <span
+                                style={{fontWeight: "bold"}}>{state.backendState.version}</span></span>
                         }
                     </Typography>
                 </Slide>
@@ -1262,6 +1436,33 @@ export default function MainApp() {
             >
                 <CircularProgress color="inherit" size={"10em"}/>
             </Backdrop>
+            {state.backendState && state.backendState.newVersion &&
+                <Dialog open={state.showNewVersion} onClose={() => setState({...state, showNewVersion: false})}>
+                    <DialogTitle>Version {state.backendState?.newVersion?.version}: {state.backendState?.newVersion?.name}</DialogTitle>
+                    <DialogContent dividers>
+                        <DialogContentText>
+                            Released {new Date(state.backendState?.newVersion?.releaseDate * 1000 as number).toLocaleString()}
+
+                            <div dangerouslySetInnerHTML={{
+                                __html:
+                                    marked(state.backendState?.newVersion?.body as string)
+                            }}/>
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button autoFocus={true} onClick={() => {
+                            window.open(state.backendState?.newVersion?.changeLog, '_blank')
+                        }}>Changelog</Button>
+                        <div style={{flex: '1 0 0'}}/>
+                        <Button onClick={() => setState({...state, showNewVersion: false})}>Cancel</Button>
+                        <Button variant={"contained"} autoFocus={true} onClick={() => {
+                            window.open(state.backendState?.newVersion?.download?.url, '_blank')
+                            setState({...state, showNewVersion: false});
+                        }}>Download
+                            ({Math.round((state.backendState?.newVersion?.download?.size as number) / 1024 / 1024)}mb)</Button>
+                    </DialogActions>
+                </Dialog>
+            }
         </Box>
     );
 }

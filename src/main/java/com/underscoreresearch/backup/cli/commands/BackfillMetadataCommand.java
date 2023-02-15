@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.helpers.RepositoryBackfiller;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
@@ -18,8 +19,14 @@ public class BackfillMetadataCommand extends SimpleCommand {
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.validateIdentity();
 
+        // Ensure we have a sharing public key and are using the current key algorithm
+        EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
+        key = EncryptionKey.changeEncryptionPassword(getPassword(), getPassword(), key);
+        key.getPrivateKey(getPassword()).populateSharingKey(null);
+        manifestManager.updateKeyData(key);
+
         RepositoryBackfiller backfiller = InstanceFactory.getInstance(RepositoryBackfiller.class);
-        backfiller.executeBackfill(getPassphrase());
+        backfiller.executeBackfill(getPassword());
 
         repository.flushLogging();
         manifestManager.shutdown();

@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,7 @@ import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupFilter;
 import com.underscoreresearch.backup.model.BackupFilterType;
@@ -36,6 +38,9 @@ import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupTimeUnit;
 import com.underscoreresearch.backup.model.BackupTimespan;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class StateGet extends JsonWrap {
@@ -46,6 +51,32 @@ public class StateGet extends JsonWrap {
     }
 
     @Data
+    private static class NewVersion {
+        private BigDecimal releaseDate;
+        private String name;
+        private String version;
+        private String body;
+        private String changeLog;
+        private ReleaseFileItem download;
+
+        private NewVersion(ReleaseResponse release) {
+            releaseDate = release.getReleaseDate();
+            name = release.getName();
+            version = release.getVersion();
+            body = release.getBody();
+            changeLog = release.getChangeLog();
+            download = InstanceFactory.getInstance(MachineState.class)
+                    .getDistribution(release.getFiles());
+        }
+
+        public static NewVersion fromRelease(ReleaseResponse release) {
+            if (release == null)
+                return null;
+            return new NewVersion(release);
+        }
+    }
+
+    @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
@@ -53,8 +84,13 @@ public class StateGet extends JsonWrap {
         private String pathSeparator;
         private String version;
         private String source;
+        private String sourceName;
         private boolean validDestinations;
+        private boolean serviceConnected;
+        private String serviceSourceId;
+        private boolean activeSubscription;
         private BackupSet defaultSet;
+        private NewVersion newVersion;
         private String defaultRestoreFolder;
     }
 
@@ -78,6 +114,23 @@ public class StateGet extends JsonWrap {
                     String backupDir = manifestDestination.substring(home.length() + 1);
                     filters.add(BackupFilter.builder().type(BackupFilterType.EXCLUDE)
                             .paths(Lists.newArrayList(backupDir)).build());
+                }
+
+                boolean activeSubscription = false;
+                boolean serviceConnected = false;
+                String serviceSourceId = null;
+
+                ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
+                if (serviceManager.getToken() != null) {
+                    serviceSourceId = serviceManager.getSourceId();
+                    try {
+                        activeSubscription = serviceManager.activeSubscription();
+
+                        // This can get reset when checking subscription.
+                        serviceConnected = serviceManager.getToken() != null;
+                    } catch (Exception exc) {
+                        log.warn("Failed to fetch subscription status", exc);
+                    }
                 }
 
                 List<String> exclusions = Lists.newArrayList(
@@ -115,10 +168,15 @@ public class StateGet extends JsonWrap {
                             .build()));
                 }
 
+                List<String> setDestinations = new ArrayList<>();
+                if (config.getManifest() != null && config.getManifest().getDestination() != null) {
+                    setDestinations.add(config.getManifest().getDestination());
+                }
+
                 BackupSet set = BackupSet.builder().schedule("0 3 * * *")
                         .exclusions(exclusions)
                         .roots(Lists.newArrayList(root))
-                        .destinations(Lists.newArrayList(config.getManifest().getDestination()))
+                        .destinations(setDestinations)
                         .id("home")
                         .retention(BackupRetention.builder()
                                 .defaultFrequency(BackupTimespan.builder().duration(1).unit(BackupTimeUnit.DAYS).build())
@@ -137,11 +195,20 @@ public class StateGet extends JsonWrap {
                     }
                 }
 
+                String sourceName = InstanceFactory.getAdditionalSource() != null
+                        ? InstanceFactory.getAdditionalSourceName()
+                        : InstanceFactory.getInstance(ServiceManager.class).getSourceName();
+
                 return new RsText(WRITER.writeValueAsString(StateResponse.builder()
                         .defaultSet(set)
                         .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                         .validDestinations(validDestinations)
+                        .serviceConnected(serviceConnected)
+                        .activeSubscription(activeSubscription)
+                        .serviceSourceId(serviceSourceId)
+                        .sourceName(sourceName)
                         .source(InstanceFactory.getAdditionalSource())
+                        .newVersion(NewVersion.fromRelease(serviceManager.newVersion()))
                         .pathSeparator(File.separator)
                         .defaultRestoreFolder(defaultRestore).build()));
             } catch (Exception exc) {

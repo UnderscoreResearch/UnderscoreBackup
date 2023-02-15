@@ -51,8 +51,8 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
     }
 
     @Override
-    protected CachedData createCacheData(String key, String passphrase) {
-        return new ZipCachedData(key, passphrase);
+    protected CachedData createCacheData(String key, String password) {
+        return new ZipCachedData(key, password);
     }
 
     @Data
@@ -79,12 +79,12 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
         private final String hash;
         private Map<String, CacheEntry> blockEntries;
 
-        private ZipCachedData(String hash, String passphrase) {
+        private ZipCachedData(String hash, String password) {
             this.hash = hash;
             try {
                 blockEntries = new HashMap<>();
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(getBlockDownloader()
-                        .downloadBlock(hash, passphrase))) {
+                        .downloadBlock(hash, password))) {
                     try (ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
                         ZipEntry ze;
                         while ((ze = zipInputStream.getNextEntry()) != null) {

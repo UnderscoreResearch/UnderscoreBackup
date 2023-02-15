@@ -1,11 +1,13 @@
 package com.underscoreresearch.backup.encryption;
 
 import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.encryption.AesEncryptor.applyKeyData;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -13,11 +15,12 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.Objects;
 
-import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.codec.binary.Base64;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -26,17 +29,27 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.x25519.X25519;
 import com.underscoreresearch.backup.manifest.AdditionalKeyManager;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.AdditionalKeyManagerImpl;
+
+import de.mkammerer.argon2.Argon2Advanced;
+import de.mkammerer.argon2.Argon2Factory;
 
 @Slf4j
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 public class EncryptionKey {
-    private static final int FIXED_ITERATIONS = 64 * 1024;
-    private static final String DISPLAY_PREFIX = "=";
+    public static final String DISPLAY_PREFIX = "=";
+    private static final int LEGACY_ITERATIONS = 64 * 1024;
+    private static final String CURRENT_ALGORITHM = "ARGON2";
     private byte[] publicKey;
+    private byte[] sharingPublicKey;
     private byte[] salt;
-    private byte[] passphraseKey;
+    private byte[] passwordKey;
+    private byte[] keyData;
+    @Getter
+    @Setter
+    private String algorithm;
     @Getter
     @Setter
     private String encryptedAdditionalKeys;
@@ -62,47 +75,67 @@ public class EncryptionKey {
         return ret;
     }
 
-    public static EncryptionKey changeEncryptionPassphrase(String oldPassphrase, String newPassphrase, EncryptionKey key) {
-        PrivateKey oldPrivateKey = key.getPrivateKey(oldPassphrase);
+    public static EncryptionKey changeEncryptionPassword(String oldPassword, String newPassword, EncryptionKey key) {
+        PrivateKey oldPrivateKey = key.getPrivateKey(oldPassword);
 
-        EncryptionKey ret = generateKeyWithPassphrase(newPassphrase);
-        AesEncryptor aesEncryptor = new AesEncryptor();
-        byte[] privateKey = aesEncryptor.encryptBlock(null, oldPrivateKey.privateKey, ret);
-        ret.passphraseKey = privateKey;
-        ret.publicKey = key.publicKey;
-        ret.cachedPrivateKey = new PrivateKey(newPassphrase, oldPrivateKey.privateKey, ret);
+        EncryptionKey ret = generateKeyWithPassword(newPassword);
+        ret.keyData = applyKeyData(applyKeyData(oldPrivateKey.privateKey, ret.getPrivateKey(newPassword).privateKey), ret.keyData);
+        ret.publicKey = oldPrivateKey.getParent().publicKey;
+        ret.cachedPrivateKey.privateKey = oldPrivateKey.privateKey;
+        ret.cachedPrivateKey.keyManager = oldPrivateKey.keyManager;
         ret.encryptedAdditionalKeys = key.encryptedAdditionalKeys;
+        ret.sharingPublicKey = key.sharingPublicKey;
         return ret;
     }
 
-    public static EncryptionKey generateKeyWithPassphrase(String passphrase) {
+    public static EncryptionKey generateKeyWithPassword(String password) {
         try {
             byte[] saltData = new byte[32];
             SecureRandom random = new SecureRandom();
             random.nextBytes(saltData);
 
-            byte[] bytes = getPasswordDerivative(passphrase, saltData);
-
             EncryptionKey ret = new EncryptionKey();
-            ret.cachedPrivateKey = new PrivateKey(passphrase, bytes, ret);
+            ret.algorithm = CURRENT_ALGORITHM;
+
+            byte[] bytes = getPasswordDerivative(ret.algorithm, password, saltData);
+
+            ret.keyData = new byte[bytes.length];
+            random.nextBytes(ret.keyData);
+            byte[] privateKey = applyKeyData(ret.keyData, bytes);
+            makePrivateKey(privateKey);
+            ret.cachedPrivateKey = new PrivateKey(password, privateKey, ret);
             ret.salt = saltData;
-            ret.publicKey = X25519.publicFromPrivate(bytes);
+            ret.publicKey = X25519.publicFromPrivate(privateKey);
+            try {
+                ret.cachedPrivateKey.populateSharingKey(null);
+            } catch (IOException exc) {
+                throw new InvalidKeyException(exc);
+            }
             return ret;
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static byte[] getPasswordDerivative(String passphrase, byte[] saltData) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), saltData, FIXED_ITERATIONS, 32 * 8);
-        SecretKeyFactory skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
-        byte[] bytes = skf.generateSecret(spec).getEncoded();
+    private static void makePrivateKey(byte[] privateKey) {
+        privateKey[0] = (byte) (privateKey[0] | 7);
+        privateKey[31] = (byte) (privateKey[31] & 63);
+        privateKey[31] = (byte) (privateKey[31] | 128);
 
-        bytes[0] = (byte) (bytes[0] | 7);
-        bytes[31] = (byte) (bytes[31] & 63);
-        bytes[31] = (byte) (bytes[31] | 128);
+    }
 
-        return bytes;
+    private static byte[] getPasswordDerivative(String algorithm, String password, byte[] saltData) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        if (CURRENT_ALGORITHM.equals(algorithm)) {
+            Argon2Advanced argon2 = Argon2Factory.createAdvanced();
+            String hash = argon2.hash(64, 8192, 2, password.toCharArray(), StandardCharsets.UTF_8, saltData);
+            int lastPart = hash.lastIndexOf('$');
+            return Base64.decodeBase64(hash.substring(lastPart + 1));
+        } else if (algorithm == null) {
+            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), saltData, LEGACY_ITERATIONS, 32 * 8);
+            SecretKeyFactory skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+            return skf.generateSecret(spec).getEncoded();
+        }
+        throw new InvalidKeySpecException();
     }
 
     public static EncryptionKey createWithPublicKey(String publicKey) {
@@ -130,7 +163,7 @@ public class EncryptionKey {
 
     @JsonProperty("privateKey")
     public String getPrivateKeySerializing() {
-        if (cachedPrivateKey != null && cachedPrivateKey.passphrase == null)
+        if (cachedPrivateKey != null && cachedPrivateKey.password == null)
             return Hash.encodeBytes(cachedPrivateKey.privateKey);
         return null;
     }
@@ -143,39 +176,67 @@ public class EncryptionKey {
             this.cachedPrivateKey = null;
     }
 
+    @JsonProperty("keyData")
+    public String getKeyData() {
+        if (keyData != null)
+            return Hash.encodeBytes(keyData);
+        return null;
+    }
+
+    @JsonProperty("keyData")
+    public void setKeyData(String xor) {
+        if (xor != null)
+            keyData = Hash.decodeBytes(xor);
+        else
+            keyData = null;
+    }
+
     @JsonIgnore
-    public PrivateKey getPrivateKey(String passphrase) {
-        if (cachedPrivateKey == null || !Objects.equals(cachedPrivateKey.getPassphrase(), passphrase)) {
+    public PrivateKey getPrivateKey(String password) {
+        if (cachedPrivateKey == null || !Objects.equals(cachedPrivateKey.getPassword(), password)) {
             try {
                 if (getSalt() == null) {
                     EncryptionKey rootKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class);
-                    EncryptionKey key = rootKey.getPrivateKey(passphrase)
+                    EncryptionKey key = rootKey.getPrivateKey(password)
                             .getAdditionalKeyManager().findMatchingPrivateKey(this);
                     if (key != null) {
-                        cachedPrivateKey = new PrivateKey(passphrase, key.getPrivateKey(null).privateKey,
+                        cachedPrivateKey = new PrivateKey(password, key.getPrivateKey(null).privateKey,
                                 this);
                         return cachedPrivateKey;
                     }
                 }
                 byte[] saltData = Hash.decodeBytes(getSalt());
 
-                byte[] bytes = getPasswordDerivative(passphrase, saltData);
+                byte[] bytes = getPasswordDerivative(algorithm, password, saltData);
 
-                if (passphraseKey != null) {
+                if (keyData != null) {
+                    bytes = applyKeyData(bytes, keyData);
+                    makePrivateKey(bytes);
+                } else if (passwordKey != null) {
                     byte[] privateKey = bytes;
+                    makePrivateKey(privateKey);
                     AesEncryptor aesEncryptor = new AesEncryptor();
-                    bytes = aesEncryptor.decodeBlock(null, passphraseKey,
+                    bytes = aesEncryptor.decodeBlock(null, passwordKey,
                             new PrivateKey(null, privateKey, null));
+
+                    // We will migrate key data in place here so anytime the key is written anywhere it will have the
+                    // keyData format.
+                    keyData = applyKeyData(privateKey, bytes);
+                    passwordKey = null;
                 }
 
                 byte[] publicKey = X25519.publicFromPrivate(bytes);
-                if (!Arrays.equals(publicKey, this.publicKey)) {
-                    throw new InvalidKeyException();
+                if (this.publicKey != null) {
+                    if (!Arrays.equals(publicKey, this.publicKey)) {
+                        throw new InvalidKeyException();
+                    }
+                } else {
+                    this.publicKey = publicKey;
                 }
 
-                cachedPrivateKey = new PrivateKey(passphrase, bytes, this);
+                cachedPrivateKey = new PrivateKey(password, bytes, this);
             } catch (InvalidKeyException | NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
-                throw new IllegalArgumentException("Could not unpack private key with passphrase");
+                throw new IllegalArgumentException("Could not unpack private key with password");
             }
         }
         return cachedPrivateKey;
@@ -197,6 +258,28 @@ public class EncryptionKey {
     }
 
     @JsonProperty
+    public String getSharingPublicKey() {
+        if (sharingPublicKey != null)
+            return Hash.encodeBytes(sharingPublicKey);
+        return null;
+    }
+
+    @JsonProperty
+    public void setSharingPublicKey(String sharingPublicKey) {
+        if (sharingPublicKey != null)
+            this.sharingPublicKey = Hash.decodeBytes(sharingPublicKey);
+        else
+            this.sharingPublicKey = null;
+    }
+
+    @JsonIgnore
+    public EncryptionKey getSharingPublicEncryptionKey() {
+        EncryptionKey key = new EncryptionKey();
+        key.publicKey = sharingPublicKey;
+        return key;
+    }
+
+    @JsonProperty
     public String getSalt() {
         if (salt != null)
             return Hash.encodeBytes(salt);
@@ -212,26 +295,29 @@ public class EncryptionKey {
     }
 
     @JsonProperty
-    public String getPassphraseKey() {
-        if (passphraseKey != null)
-            return Hash.encodeBytes(passphraseKey);
+    public String getPasswordKey() {
+        if (passwordKey != null)
+            return Hash.encodeBytes(passwordKey);
         return null;
     }
 
     @JsonProperty
-    public void setPassphraseKey(String passphraseKey) {
-        if (passphraseKey != null)
-            this.passphraseKey = Hash.decodeBytes(passphraseKey);
+    public void setPasswordKey(String passwordKey) {
+        if (passwordKey != null)
+            this.passwordKey = Hash.decodeBytes(passwordKey);
         else
-            this.passphraseKey = null;
+            this.passwordKey = null;
     }
 
     public EncryptionKey publicOnly() {
         EncryptionKey ret = new EncryptionKey();
         ret.publicKey = publicKey;
         ret.salt = salt;
-        ret.passphraseKey = passphraseKey;
+        ret.passwordKey = passwordKey;
+        ret.keyData = keyData;
+        ret.algorithm = algorithm;
         ret.encryptedAdditionalKeys = encryptedAdditionalKeys;
+        ret.sharingPublicKey = sharingPublicKey;
         return ret;
     }
 
@@ -241,16 +327,17 @@ public class EncryptionKey {
         return ret;
     }
 
-    @Data
     public static class PrivateKey {
-        private final String passphrase;
+        @Getter
+        private final String password;
+        @Getter
         private final EncryptionKey parent;
         private byte[] privateKey;
         private AdditionalKeyManagerImpl keyManager;
 
 
-        public PrivateKey(String passphrase, byte[] privateKey, EncryptionKey parent) {
-            this.passphrase = passphrase;
+        PrivateKey(String password, byte[] privateKey, EncryptionKey parent) {
+            this.password = password;
             this.privateKey = privateKey;
             this.parent = parent;
         }
@@ -283,6 +370,15 @@ public class EncryptionKey {
                 keyManager = new AdditionalKeyManagerImpl(this);
             }
             return keyManager;
+        }
+
+        @JsonIgnore
+        public void populateSharingKey(ManifestManager manifestManager) throws IOException {
+            if (parent.sharingPublicKey == null) {
+                EncryptionKey key = EncryptionKey.generateKeys();
+                parent.sharingPublicKey = key.publicKey;
+                getAdditionalKeyManager().addNewKey(key, manifestManager);
+            }
         }
     }
 }

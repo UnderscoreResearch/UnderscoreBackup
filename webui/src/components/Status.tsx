@@ -1,5 +1,5 @@
 import * as React from "react";
-import {GetActivity, StatusLine} from "../api";
+import {getActivity, StatusLine} from "../api";
 import {LinearProgress, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableRow} from "@mui/material";
 import LogTable from "./LogTable";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
@@ -47,11 +47,11 @@ function StatusRow(row: StatusLine) {
 }
 
 var lastStatus: StatusLine[] = [];
-var statusUpdated : ((newValue : StatusLine[]) => void) | undefined;
+var statusUpdated: ((newValue: StatusLine[]) => void) | undefined;
 
 
 async function updateLogs() {
-    const logs = await GetActivity(true);
+    const logs = await getActivity(true);
 
     if (logs && !deepEqual(lastStatus, logs)) {
         lastStatus = logs;
@@ -75,7 +75,6 @@ export default function Status(props: StatusProps) {
             ...oldState,
             logs: logs
         }));
-
         const timer = setInterval(updateLogs, 5000);
         return () => {
             statusUpdated = undefined;

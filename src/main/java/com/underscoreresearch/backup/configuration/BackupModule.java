@@ -51,6 +51,7 @@ import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
@@ -222,6 +223,7 @@ public class BackupModule extends AbstractModule {
     public ManifestManagerImpl manifestManagerImplementation(@Named(SOURCE_CONFIG) BackupConfiguration configuration,
                                                              @Named(MANIFEST_LOCATION) String manifestLocation,
                                                              RateLimitController rateLimitController,
+                                                             ServiceManager serviceManager,
                                                              @Named(INSTALLATION_IDENTITY) String installationIdentity,
                                                              @Named(ADDITIONAL_SOURCE) String source,
                                                              EncryptionKey encryptionKey,
@@ -235,6 +237,7 @@ public class BackupModule extends AbstractModule {
                 IOProviderFactory.getProvider(destination),
                 EncryptorFactory.getEncryptor(destination.getEncryption()),
                 rateLimitController,
+                serviceManager,
                 installationIdentity,
                 source,
                 commandLine.hasOption(FORCE),

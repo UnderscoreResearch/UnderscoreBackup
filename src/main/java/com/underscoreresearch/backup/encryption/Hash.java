@@ -29,6 +29,20 @@ public class Hash {
         return BaseEncoding.base32().decode(data);
     }
 
+    public static String hash64(byte[] buffer) {
+        Hash hash = new Hash();
+        hash.addBytes(buffer);
+        return hash.getHash64();
+    }
+
+    public static String encodeBytes64(byte[] bytes) {
+        return BaseEncoding.base64Url().encode(bytes).replace("=", "");
+    }
+
+    public static byte[] decodeBytes64(String bytes) {
+        return BaseEncoding.base64Url().decode(bytes);
+    }
+
     public void addBytes(byte[] bytes) {
         hasher.putBytes(bytes);
     }
@@ -36,6 +50,13 @@ public class Hash {
     public String getHash() {
         if (hash == null) {
             hash = encodeBytes(hasher.hash().asBytes());
+        }
+        return hash;
+    }
+
+    public String getHash64() {
+        if (hash == null) {
+            hash = encodeBytes64(hasher.hash().asBytes());
         }
         return hash;
     }

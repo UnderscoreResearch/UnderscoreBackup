@@ -62,7 +62,7 @@ public class RepositoryBackfiller {
         this.encryptionKey = encryptionKey;
     }
 
-    public void executeBackfill(String passphrase) throws IOException {
+    public void executeBackfill(String password) throws IOException {
         Stopwatch stopwatch = Stopwatch.createStarted();
         AtomicLong lastDuration = new AtomicLong(0);
         long blockCount = repository.getBlockCount();
@@ -90,7 +90,7 @@ public class RepositoryBackfiller {
                         backfillDownloader.addInferredBlockSizes(file);
                     });
                     repository.allFiles(true).forEach(file -> {
-                        backfillDownloader.backfillFilePartOffsets(file, passphrase);
+                        backfillDownloader.backfillFilePartOffsets(file, password);
                         long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
                         if (currentMinute != lastDuration.get()) {
                             log.info("Processed {} / {} files, updated {} files so far (Last file {})",
@@ -168,7 +168,7 @@ public class RepositoryBackfiller {
             }
         }
 
-        public void backfillFilePartOffsets(BackupFile file, String passphrase) {
+        public void backfillFilePartOffsets(BackupFile file, String password) {
             processed.incrementAndGet();
             if (file.getLocations() != null) {
                 for (BackupLocation location : file.getLocations()) {
@@ -177,7 +177,7 @@ public class RepositoryBackfiller {
                             // This code relies on the lsat block never being a super block
                             if ((location.getParts().get(i).getOffset() == null)
                                     || incompleteSuperblock(location.getParts().get(i - 1).getBlockHash())) {
-                                processOffsetBackfill(file, passphrase);
+                                processOffsetBackfill(file, password);
                                 postPending();
                                 return;
                             }
@@ -202,7 +202,7 @@ public class RepositoryBackfiller {
             return false;
         }
 
-        private void processOffsetBackfill(BackupFile file, String passphrase) {
+        private void processOffsetBackfill(BackupFile file, String password) {
             for (BackupLocation location : file.getLocations()) {
                 if (location.getParts().size() > 1) {
                     for (int i = 0; i < location.getParts().size() - 1; i++) {
@@ -215,7 +215,7 @@ public class RepositoryBackfiller {
                                 List<BackupBlock> blocks = BackupBlock.expandBlock(part.getBlockHash(), repository);
                                 for (BackupBlock block : blocks) {
                                     if (blockSizes.get(block.getHash()) == null) {
-                                        schedule(() -> downloadPartBlock(part, block, passphrase));
+                                        schedule(() -> downloadPartBlock(part, block, password));
                                     }
                                 }
                             } catch (IOException e) {
@@ -230,7 +230,7 @@ public class RepositoryBackfiller {
             }
         }
 
-        private void downloadPartBlock(BackupFilePart part, BackupBlock block, String passphrase) {
+        private void downloadPartBlock(BackupFilePart part, BackupBlock block, String password) {
             boolean updateBlock = false;
             for (BackupBlockStorage storage : block.getStorage()) {
                 try {
@@ -243,7 +243,7 @@ public class RepositoryBackfiller {
 
                     FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
                     blockSizes.put(block.getHash(), extractor.blockSize(part,
-                            encryptor.decodeBlock(storage, data, encryptionKey.getPrivateKey(passphrase))));
+                            encryptor.decodeBlock(storage, data, encryptionKey.getPrivateKey(password))));
 
                     break;
                 } catch (IOException e) {

@@ -1,9 +1,13 @@
 package com.underscoreresearch.backup.encryption;
 
+import static com.underscoreresearch.backup.encryption.NoneEncryptor.NONE_ENCRYPTION;
+
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
-@EncryptorPlugin(value = "NONE")
+@EncryptorPlugin(value = NONE_ENCRYPTION)
 public class NoneEncryptor implements Encryptor {
+    public static final String NONE_ENCRYPTION = "NONE";
+
     @Override
     public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key) {
         return data;

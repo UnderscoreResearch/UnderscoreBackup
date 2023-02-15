@@ -31,11 +31,9 @@ import com.underscoreresearch.backup.model.BackupFile;
 @Getter
 public final class DestinationDecoder {
     private Response response;
-    private String path;
     private IOProvider provider;
 
-    public DestinationDecoder(Request req, String base) throws IOException {
-        path = decodePath(req, base);
+    public DestinationDecoder(Request req) throws IOException {
         Href href = new RqHref.Base(req).href();
         String destination = null;
         for (String ts : href.param("destination")) {

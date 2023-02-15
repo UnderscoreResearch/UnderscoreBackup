@@ -17,7 +17,7 @@ import org.takes.rq.RqPrint;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectReader;
-import com.underscoreresearch.backup.cli.commands.ChangePassphraseCommand;
+import com.underscoreresearch.backup.cli.commands.ChangePasswordCommand;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
@@ -34,15 +34,15 @@ public class KeyChangePost extends JsonWrap {
     @NoArgsConstructor
     @EqualsAndHashCode(callSuper = true)
     public static class KeyChangeRequest extends PrivateKeyRequest {
-        private String newPassphrase;
+        private String newPassword;
 
         @JsonCreator
         @Builder
-        public KeyChangeRequest(@JsonProperty("newPassphrase") String newPassphrase,
-                                @JsonProperty("passphrase") String passphrase) {
-            super(passphrase);
+        public KeyChangeRequest(@JsonProperty("newPassword") String newPassword,
+                                @JsonProperty("password") String password) {
+            super(password);
 
-            this.newPassphrase = newPassphrase;
+            this.newPassword = newPassword;
         }
     }
 
@@ -51,23 +51,23 @@ public class KeyChangePost extends JsonWrap {
         public Response actualAct(Request req) throws Exception {
             KeyChangeRequest request = READER.readValue(new RqPrint(req).printBody());
 
-            if (Strings.isEmpty(request.getPassphrase())) {
-                return messageJson(400, "Missing passphrase to change password");
+            if (Strings.isEmpty(request.getPassword())) {
+                return messageJson(400, "Missing password to change password");
             }
 
-            if (Strings.isEmpty(request.getNewPassphrase())) {
-                return messageJson(400, "Missing newPassphrase to change password");
+            if (Strings.isEmpty(request.getNewPassword())) {
+                return messageJson(400, "Missing newPassword to change password");
             }
 
-            if (!PrivateKeyRequest.validatePassphrase(request.getPassphrase())) {
-                return messageJson(403, "Invalid passphrase provided");
+            if (!PrivateKeyRequest.validatePassword(request.getPassword())) {
+                return messageJson(403, "Invalid password provided");
             }
 
-            ChangePassphraseCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
-                    request.getPassphrase(),
-                    request.getNewPassphrase());
+            ChangePasswordCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
+                    request.getPassword(),
+                    request.getNewPassword());
 
-            InstanceFactory.reloadConfiguration(null,
+            InstanceFactory.reloadConfiguration(
                     () -> InteractiveCommand.startBackupIfAvailable());
 
             return messageJson(200, "Ok");

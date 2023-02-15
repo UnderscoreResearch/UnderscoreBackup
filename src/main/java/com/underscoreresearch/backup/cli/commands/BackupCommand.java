@@ -34,7 +34,7 @@ public class BackupCommand extends SimpleCommand {
             if (exc.getCause() instanceof ParseException)
                 log.error(exc.getCause().getMessage());
             else {
-                log.error("Failed to start backup", exc);
+                log.error("Failed to start backup: " + exc.getMessage(), exc);
             }
             return;
         }

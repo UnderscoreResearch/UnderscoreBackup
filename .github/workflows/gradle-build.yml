@@ -15,14 +15,22 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os:
-          - windows-latest
+          - windows-x64
           - ubuntu-latest
           - macos-latest
+          - macos-arm
     runs-on: ${{ matrix.os }}
 
     steps:
+      - uses: act10ns/slack@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_HOOK }}
+          status: STARTING
+          message: Starting build of *${{ github.ref_name }}* on *${{ matrix.os }}*
+
       - uses: actions/checkout@v3
 
       - name: Set up JDK 17
@@ -34,7 +42,7 @@ jobs:
           settings-path: ${{ github.workspace }} # location for the settings.xml file
 
       - name: Install the Apple certificate and provisioning profile
-        if: matrix.os == 'macOS-latest'
+        if: contains(matrix.os, 'macos')
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE }}
           CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
@@ -44,7 +52,7 @@ jobs:
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           # import certificate and provisioning profile from secrets
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output $CERTIFICATE_PATH
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           # create temporary keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
@@ -81,3 +89,10 @@ jobs:
           tag_name: ${{ github.ref_name }}
           draft: true
           overwrite: true
+
+      - uses: act10ns/slack@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_HOOK }}
+          status: ${{ job.status }}
+          message: Build of *${{ github.ref_name }}* on *${{ matrix.os }}* completed with *${{ job.status }}*
+        if: always()

@@ -3,10 +3,11 @@ import {
     BackupConfiguration,
     BackupGlobalLimits,
     BackupManifest,
-    BackupRetention, BackupTimespan,
-    DeleteReset,
-    PostChangeEncryptionKey,
-    PropertyMap
+    BackupRetention,
+    BackupState,
+    changeEncryptionKey,
+    PropertyMap,
+    resetSettings
 } from "../api";
 import {
     Alert,
@@ -27,24 +28,29 @@ import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWit
 import SpeedLimit from "./SpeedLimit";
 import PropertyMapEditor from "./PropertyMapEditor";
 import UIAuthentication from "./UIAuthentication";
+import ServiceAuthentication from "./ServiceAuthentication";
 import Cron from "../3rdparty/react-js-cron-mui";
 import {DisplayMessage} from "../App";
 import Box from "@mui/material/Box";
 import Retention from "./Retention";
 import Typography from "@mui/material/Typography";
 import Timespan from "./Timespan";
+import PasswordStrengthBar from "../3rdparty/react-password-strength-bar";
 
 export interface SettingsProps {
     config: BackupConfiguration,
-    onChange: (newConfig: BackupConfiguration) => void
+    backendState: BackupState,
+    onChange: (newConfig: BackupConfiguration) => void,
+    updatedToken: () => Promise<void>
 }
 
 interface SettingsState {
     manifest: BackupManifest,
     showConfig: boolean,
-    passphrase: string,
-    passphraseConfirm: string,
-    oldPassphrase: string,
+    passwordValid: boolean,
+    password: string,
+    passwordConfirm: string,
+    oldPassword: string,
     showChangePassword: boolean,
     showResetWarning: boolean,
     configData: string,
@@ -60,9 +66,10 @@ function createInitialState(config: BackupConfiguration): SettingsState {
         showConfig: false,
         showChangePassword: false,
         showResetWarning: false,
-        passphrase: "",
-        passphraseConfirm: "",
-        oldPassphrase: "",
+        password: "",
+        passwordValid: false,
+        passwordConfirm: "",
+        oldPassword: "",
         hasRandomizedSchedule: !!config.manifest.scheduleRandomize,
         properties: config.properties,
         missingRetention: config.missingRetention,
@@ -81,7 +88,7 @@ export default function Settings(props: SettingsProps) {
             scheduleRandomize: newState.hasRandomizedSchedule ?
                 (newState.manifest.scheduleRandomize ?
                     newState.manifest.scheduleRandomize :
-                    { duration: 1, unit: "HOURS" }) :
+                    {duration: 1, unit: "HOURS"}) :
                 undefined
         }
 
@@ -134,9 +141,9 @@ export default function Settings(props: SettingsProps) {
     function handleShowChangePassword() {
         setState({
             ...state,
-            oldPassphrase: "",
-            passphrase: "",
-            passphraseConfirm: "",
+            oldPassword: "",
+            password: "",
+            passwordConfirm: "",
             showChangePassword: true
         });
     }
@@ -165,13 +172,15 @@ export default function Settings(props: SettingsProps) {
 
     async function handleChangePassword() {
         try {
-            if (!state.oldPassphrase) {
-                DisplayMessage("Missing old passphrase");
-            } else if (!state.passphrase) {
-                DisplayMessage("Missing new passphrase");
-            } else if (state.passphrase !== state.passphraseConfirm) {
-                DisplayMessage("Passphrase does not match");
-            } else if (await PostChangeEncryptionKey(state.oldPassphrase, state.passphrase)) {
+            if (!state.oldPassword) {
+                DisplayMessage("Missing old password");
+            } else if (!state.passwordValid) {
+                DisplayMessage("Password too weak");
+            } else if (!state.password) {
+                DisplayMessage("Missing new password");
+            } else if (state.password !== state.passwordConfirm) {
+                DisplayMessage("Password does not match");
+            } else if (await changeEncryptionKey(state.oldPassword, state.password)) {
                 setState((oldState) => {
                     return {
                         ...oldState,
@@ -185,12 +194,23 @@ export default function Settings(props: SettingsProps) {
     }
 
     async function performResetWarningClose() {
-        await DeleteReset();
+        await resetSettings();
 
         location.href = location.href.substring(0, location.href.lastIndexOf("/")) + "/";
     }
 
     return <Stack spacing={2}>
+        <Paper sx={{p: 2}}>
+            <Grid container spacing={2} alignItems={"center"}>
+                <Grid item xs={12}>
+                    <DividerWithText>Underscore Backup Service Account</DividerWithText>
+                </Grid>
+                <ServiceAuthentication includeSkip={false}
+                                       needSubscription={false}
+                                       backendState={props.backendState}
+                                       updatedToken={() => props.updatedToken()}/>
+            </Grid>
+        </Paper>
         <UIAuthentication manifest={state.manifest} onChange={(manifest) => updateState({
             ...state,
             manifest: manifest
@@ -267,6 +287,20 @@ export default function Settings(props: SettingsProps) {
         </Paper>
         <Paper sx={{p: 2}}>
             <DividerWithText>Advanced settings</DividerWithText>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <FormControlLabel control={<Checkbox
+                        checked={state.manifest.versionCheck || state.manifest.versionCheck === undefined}
+                        onChange={(e) => updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                versionCheck: e.target.checked
+                            }
+                        })}
+                    />} label="Automatically check for new versions"/>
+                </Grid>
+            </Grid>
             <Grid container spacing={2}>
                 <Grid item xs={12}>
                     <FormControlLabel control={<Checkbox
@@ -358,7 +392,7 @@ export default function Settings(props: SettingsProps) {
                 </Grid>
             </Grid>
             <div style={{marginLeft: "-8px"}}>
-                <div style={{ display: "flex"}}>
+                <div style={{display: "flex"}}>
                     <Checkbox
                         checked={state.hasRandomizedSchedule}
                         onChange={(e) => {
@@ -376,7 +410,10 @@ export default function Settings(props: SettingsProps) {
                                 scheduleRandomize: newVal
                             }
                         })
-                    }} timespan={state.manifest.scheduleRandomize ? state.manifest.scheduleRandomize: { unit: "HOURS", duration: 1} } title={"Randomize start of schedules"} requireTime={true}/>
+                    }} timespan={state.manifest.scheduleRandomize ? state.manifest.scheduleRandomize : {
+                        unit: "HOURS",
+                        duration: 1
+                    }} title={"Randomize start of schedules"} requireTime={true}/>
                 </div>
             </div>
         </Paper>
@@ -392,25 +429,23 @@ export default function Settings(props: SettingsProps) {
             }/>
         </Paper>
 
-        <Grid container spacing={2}>
-            <Grid item xs={3}>
-                <Button variant="contained" id="showConfiguration" onClick={handleShowConfig}>
+        <div style={{display: "flex", width: "100%"}}>
+            <Box textAlign={"left"} width={"60%"}>
+                <Button variant="contained" id="showConfiguration" onClick={handleShowConfig}
+                        style={{marginRight: "16px", marginBottom: "16px"}}>
                     Edit Configuration
                 </Button>
-            </Grid>
-            <Grid item xs={3}>
-                <Button variant="contained" id="showChangePassword" onClick={handleShowChangePassword}>
+                <Button variant="contained" id="showChangePassword" onClick={handleShowChangePassword}
+                        style={{marginRight: "16px", marginBottom: "16px"}}>
                     Change Password
                 </Button>
-            </Grid>
-            <Grid item xs={3}>
-            </Grid>
-            <Grid item xs={3}>
+            </Box>
+            <Box textAlign={"right"} width={"40%"}>
                 <Button variant="contained" onClick={handlesResetWarning} color="error">
                     Delete Configuration
                 </Button>
-            </Grid>
-        </Grid>
+            </Box>
+        </div>
 
         <Dialog open={state.showConfig} onClose={handleConfigClose} fullWidth={true} maxWidth={"xl"}>
             <DialogTitle>Configuration</DialogTitle>
@@ -443,60 +478,69 @@ export default function Settings(props: SettingsProps) {
         </Dialog>
 
         <Dialog open={state.showChangePassword} onClose={handleChangePasswordClose}>
-            <DialogTitle>Change Passphrase</DialogTitle>
+            <DialogTitle>Change Password</DialogTitle>
             <DialogContent>
                 <DialogContentText>
-                    Change the passphrase used to protect your backup.
+                    Change the password used to protect your backup.
                 </DialogContentText>
-                <Alert severity="warning">Please keep your passphrase safe.
-                    There is no way to recover a lost passphrase!</Alert>
+                <Alert severity="warning">Please keep your password safe.
+                    There is no way to recover a lost password!</Alert>
 
                 <Box
                     component="div"
                     sx={{
                         '& .MuiTextField-root': {m: 1},
                     }}
-                    style={{marginTop: 4}}
+                    style={{marginTop: 4, marginLeft: "-8px", marginRight: "8px"}}
                 >
-                    <TextField label="Existing Passphrase" variant="outlined"
+                    <TextField label="Existing Password" variant="outlined"
                                fullWidth={true}
                                required={true}
-                               value={state.oldPassphrase}
-                               error={!state.oldPassphrase}
-                               id={"oldPassphrase"}
+                               value={state.oldPassword}
+                               error={!state.oldPassword}
+                               id={"oldPassword"}
                                type="password"
                                onChange={(e) => setState({
                                    ...state,
-                                   oldPassphrase: e.target.value
+                                   oldPassword: e.target.value
                                })}/>
-                    <TextField label="New Passphrase" variant="outlined"
+                    <Box style={{marginLeft: "8px", marginRight: "-8px"}}>
+                    <PasswordStrengthBar password={state.password} onChangeScore={(newScore) =>
+                        setState((oldState) => ({
+                            ...oldState,
+                            passwordValid: newScore >= 2
+                        }))
+                    }/>
+                    </Box>
+                    <TextField label="New Password" variant="outlined"
                                fullWidth={true}
                                required={true}
-                               value={state.passphrase}
-                               error={!state.passphrase}
-                               id={"passphraseFirst"}
+                               value={state.password}
+                               error={!state.password}
+                               id={"passwordFirst"}
                                type="password"
                                onChange={(e) => setState({
                                    ...state,
-                                   passphrase: e.target.value
+                                   password: e.target.value
                                })}/>
-                    <TextField label="Confirm New Passphrase" variant="outlined"
+                    <TextField label="Confirm New Password" variant="outlined"
                                fullWidth={true}
                                required={true}
-                               helperText={state.passphraseConfirm !== state.passphrase ? "Does not match" : null}
-                               value={state.passphraseConfirm}
-                               error={state.passphraseConfirm !== state.passphrase || !state.passphrase}
-                               id={"passphraseSecond"}
+                               helperText={state.passwordConfirm !== state.password ? "Does not match" : null}
+                               value={state.passwordConfirm}
+                               error={state.passwordConfirm !== state.password || !state.password}
+                               id={"passwordSecond"}
                                type="password"
                                onChange={(e) => setState({
                                    ...state,
-                                   passphraseConfirm: e.target.value
+                                   passwordConfirm: e.target.value
                                })}/>
                 </Box>
             </DialogContent>
             <DialogActions>
                 <Button onClick={handleChangePasswordClose}>Cancel</Button>
-                <Button onClick={() => handleChangePassword()} id={"submitPasswordChange"}>OK</Button>
+                <Button disabled={!(state.passwordValid && state.oldPassword && state.password === state.passwordConfirm)}
+                        onClick={() => handleChangePassword()} id={"submitPasswordChange"}>OK</Button>
             </DialogActions>
         </Dialog>
 
@@ -513,7 +557,9 @@ export default function Settings(props: SettingsProps) {
                 <DialogContentText id="alert-dialog-description">
                     This action will remove all local configuration for this backup and move you back to the
                     initial setup. This operation can not be reversed.
-                    <hr/>
+                </DialogContentText>
+                <hr/>
+                <DialogContentText>
                     This will not remove any data from the backup destinations.
                 </DialogContentText>
             </DialogContent>
@@ -523,5 +569,6 @@ export default function Settings(props: SettingsProps) {
                     Agree
                 </Button>
             </DialogActions>
-        </Dialog> </Stack>
+        </Dialog>
+    </Stack>
 }

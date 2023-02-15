@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BackupSet, BackupSetRoot, BackupState, GetLocalFiles, PostRestartSets} from "../api";
+import {BackupSet, BackupSetRoot, BackupState, getLocalFiles, restartSets} from "../api";
 import FileTreeView from './FileTreeView'
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import Cron from "../3rdparty/react-js-cron-mui";
@@ -10,7 +10,7 @@ import Retention from "./Retention";
 import {expandRoots} from "../api/utils";
 import ExclusionList from "./ExclusionList";
 import IconButton from "@mui/material/IconButton";
-import {RestartAlt} from "@mui/icons-material";
+import {PlayArrow} from "@mui/icons-material";
 
 export interface SetState {
     set: BackupSet,
@@ -21,7 +21,7 @@ export interface SetProps {
     set: BackupSet,
     allowReset: boolean,
     destinations: DestinationProp[],
-    state: BackupState,
+    backendState: BackupState,
     setUpdated: (valid: boolean, val: BackupSet) => void
 }
 
@@ -59,7 +59,7 @@ export default function SetConfig(props: SetProps) {
     const [state, setState] = React.useState(() => {
         return {
             tab: 0,
-            set: expandRoots(props.set, props.state) as BackupSet
+            set: expandRoots(props.set, props.backendState) as BackupSet
         } as SetState
     });
 
@@ -113,11 +113,11 @@ export default function SetConfig(props: SetProps) {
     return <Paper sx={{p: 2}}>
         {props.allowReset &&
             <Tooltip
-                title="Restart processing set">
+                title="Backup this set now">
                 <IconButton style={{float: "right"}} onClick={() => {
-                    PostRestartSets([props.set.id]);
+                    restartSets([props.set.id]);
                 }
-                }><RestartAlt/></IconButton>
+                }><PlayArrow/></IconButton>
             </Tooltip>
         }
         <Tabs value={state.tab} onChange={changeTab}>
@@ -127,8 +127,8 @@ export default function SetConfig(props: SetProps) {
         </Tabs>
         <TabPanel value={state.tab} index={0}>
             <FileTreeView
-                fileFetcher={GetLocalFiles}
-                state={props.state}
+                fileFetcher={getLocalFiles}
+                backendState={props.backendState}
                 roots={state.set.roots}
                 stateValue={""}
                 onChange={fileSelectionChanged}

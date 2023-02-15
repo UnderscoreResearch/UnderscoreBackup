@@ -30,7 +30,7 @@ public class UploadSchedulerImplTest {
 
     @BeforeEach
     public void setup() {
-        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null);
+        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
         rateLimitController = new RateLimitController(null);
         destination = new BackupDestination();
         destination.setType("DELAY");

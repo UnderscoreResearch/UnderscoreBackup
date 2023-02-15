@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -26,6 +27,7 @@ import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.LogConsumer;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.ShareManifestManager;
 import com.underscoreresearch.backup.model.BackupActivatedShare;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -36,6 +38,7 @@ import com.underscoreresearch.backup.utils.NonClosingInputStream;
 @Slf4j
 public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements ShareManifestManager {
     public static final String SHARE_CONFIG_FILE = "share.json";
+    @Getter
     private final BackupActivatedShare activatedShare;
     private boolean activated;
 
@@ -45,15 +48,36 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
                                     IOProvider provider,
                                     Encryptor encryptor,
                                     RateLimitController rateLimitController,
+                                    ServiceManager serviceManager,
                                     String installationIdentity,
                                     boolean forceIdentity,
                                     EncryptionKey publicKey,
                                     boolean activated,
                                     BackupActivatedShare activatedShare) {
         super(configuration, manifestDestination, manifestLocation, provider, encryptor,
-                rateLimitController, installationIdentity, forceIdentity, publicKey);
+                rateLimitController, serviceManager, installationIdentity, forceIdentity, publicKey);
         this.activated = activated;
         this.activatedShare = activatedShare;
+    }
+
+    private boolean serviceShare() {
+        return activatedShare.getShare().getDestination().isServiceDestination();
+    }
+
+    @Override
+    public void validateIdentity() {
+        // Service shares are validated by their parent.
+        if (!serviceShare()) {
+            super.validateIdentity();
+        }
+    }
+
+    @Override
+    public void storeIdentity() {
+        // Service shares are validated by their parent.
+        if (!serviceShare()) {
+            super.storeIdentity();
+        }
     }
 
     protected void uploadPending(LogConsumer logConsumer) throws IOException {
@@ -104,24 +128,13 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
                 .destinations(getConfiguration().getDestinations().entrySet()
                         .stream()
                         .filter(entry -> activatedShare.getUsedDestinations().contains(entry.getKey()))
-                        .map(entry -> Map.entry(entry.getKey(), stripDestination(entry.getValue())))
+                        .map(entry -> Map.entry(entry.getKey(), entry.getValue().strippedDestination(getServiceManager().getSourceId(),
+                                getPublicKey().getPublicKey())))
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
                 .properties(getConfiguration().getProperties())
                 .build();
         return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(strippedConfiguration);
     }
-
-    private BackupDestination stripDestination(BackupDestination value) {
-        return BackupDestination.builder()
-                .type(value.getType())
-                .endpointUri(value.getEndpointUri())
-                .properties(value.getProperties())
-                .encryption(value.getEncryption())
-                .errorCorrection(value.getErrorCorrection())
-                .properties(value.getProperties())
-                .build();
-    }
-
 
     @Override
     public void completeActivation() throws IOException {
@@ -148,5 +161,17 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
                 saveShareFile();
             }
         }
+    }
+
+    @Override
+    public void updateEncryptionKeys(EncryptionKey.PrivateKey privateKey) throws IOException {
+        if (getServiceManager().getToken() != null && getServiceManager().getSourceId() != null) {
+            activatedShare.setUpdatedEncryption(getServiceManager().updateShareEncryption(privateKey,
+                    getPublicKey().getPublicKey(),
+                    activatedShare.getShare()));
+        } else {
+            activatedShare.setUpdatedEncryption(true);
+        }
+        saveShareFile();
     }
 }

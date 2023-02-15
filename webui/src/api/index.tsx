@@ -77,6 +77,7 @@ export interface BackupManifest {
     pauseOnBattery?: boolean,
     trimSchedule?: string,
     scheduleRandomize?: BackupTimespan,
+    versionCheck?: boolean,
     configUser?: string
     configPassword?: string
     interactiveBackup?: boolean
@@ -96,6 +97,7 @@ export interface BackupDestination {
 
 export interface BackupShare {
     name: string,
+    targetEmail?: string,
     destination: BackupDestination,
     contents: BackupFileSpecification
 }
@@ -133,13 +135,33 @@ export interface BackupFile {
     path: string
 }
 
+interface ReleaseFileItem {
+    name: string,
+    size: number,
+    url: string
+}
+
+export interface ReleaseResponse {
+    releaseDate: number;
+    name: string;
+    version: string;
+    body: string;
+    changeLog: string;
+    download?: ReleaseFileItem;
+}
+
 export interface BackupState {
     pathSeparator: string,
     version: string,
     defaultRestoreFolder: string,
     defaultSet: BackupSet,
+    serviceConnected: boolean,
+    serviceSourceId?: string,
+    activeSubscription: boolean,
     validDestinations: boolean,
-    source?: string
+    sourceName: string,
+    source?: string,
+    newVersion?: ReleaseResponse
 }
 
 export interface StatusLine {
@@ -165,7 +187,7 @@ export interface StatusResponse {
 }
 
 export interface BackupRestoreRequest {
-    passphrase: string,
+    password: string,
     destination?: string,
     files: BackupSetRoot[],
     overwrite: boolean,
@@ -174,7 +196,8 @@ export interface BackupRestoreRequest {
 }
 
 export interface ActiveShares {
-    activeShares: string[]
+    activeShares: string[],
+    shareEncryptionNeeded: boolean
 }
 
 function reportError(errors: any) {
@@ -182,7 +205,7 @@ function reportError(errors: any) {
     DisplayMessage(errors.toString());
 }
 
-async function MakeCall(api: string, init?: RequestInit): Promise<any | undefined> {
+export async function makeApiCall(api: string, init?: RequestInit): Promise<any | undefined> {
     try {
         const response = await fetch(baseApi + api, init);
         if (!response.ok) {
@@ -207,17 +230,20 @@ async function MakeCall(api: string, init?: RequestInit): Promise<any | undefine
     }
 }
 
-export async function GetConfiguration(): Promise<BackupConfiguration | undefined> {
-    return await MakeCall("configuration");
+export async function getConfiguration(): Promise<BackupConfiguration | undefined> {
+    return await makeApiCall("configuration");
 }
 
-export async function GetState(): Promise<BackupState> {
-    const defaults = await MakeCall("state");
+export async function getState(): Promise<BackupState> {
+    const defaults = await makeApiCall("state");
     if (!defaults) {
         return {
             defaultRestoreFolder: "/",
             pathSeparator: "/",
             version: "",
+            sourceName: "",
+            serviceConnected: false,
+            activeSubscription: false,
             validDestinations: false,
             defaultSet: {
                 id: "home",
@@ -230,52 +256,52 @@ export async function GetState(): Promise<BackupState> {
     return defaults;
 }
 
-export async function GetLocalFiles(path: string): Promise<BackupFile[] | undefined> {
-    return await MakeCall("local-files/" + encodeURIComponent(path));
+export async function getLocalFiles(path: string): Promise<BackupFile[] | undefined> {
+    return await makeApiCall("local-files/" + encodeURIComponent(path));
 }
 
-export async function GetBackupFiles(path: string, includeDeleted: boolean, timestamp?: Date): Promise<BackupFile[] | undefined> {
+export async function getBackupFiles(path: string, includeDeleted: boolean, timestamp?: Date): Promise<BackupFile[] | undefined> {
     let url = "backup-files/" + encodeURIComponent(path) + "?include-deleted=" + (includeDeleted ? "true" : "false");
     if (timestamp) {
         url += "&timestamp=" + timestamp.getTime();
     }
-    return await MakeCall(url);
+    return await makeApiCall(url);
 }
 
-export async function GetSearchBackup(query: string, includeDeleted: boolean, timestamp?: Date): Promise<BackupFile[] | undefined> {
+export async function searchBackup(query: string, includeDeleted: boolean, timestamp?: Date): Promise<BackupFile[] | undefined> {
     let url = "search-backup?q=" + encodeURIComponent(query) + "&include-deleted=" + (includeDeleted ? "true" : "false");
     if (timestamp) {
         url += "&timestamp=" + timestamp.getTime();
     }
-    return await MakeCall(url);
+    return await makeApiCall(url);
 }
 
-export async function GetBackupVersions(path: string): Promise<BackupFile[] | undefined> {
+export async function getBackupVersions(path: string): Promise<BackupFile[] | undefined> {
     let url = "backup-versions/" + encodeURIComponent(path);
-    return await MakeCall(url);
+    return await makeApiCall(url);
 }
 
-export async function GetActivity(temporal: boolean): Promise<StatusLine[] | undefined> {
-    const ret = await MakeCall("activity?temporal=" + (temporal ? "true" : "false")) as StatusResponse;
+export async function getActivity(temporal: boolean): Promise<StatusLine[] | undefined> {
+    const ret = await makeApiCall("activity?temporal=" + (temporal ? "true" : "false")) as StatusResponse;
     if (ret) {
         return ret.status;
     }
     return undefined;
 }
 
-export async function GetDestinationFiles(path: string, destination: string): Promise<BackupFile[] | undefined> {
-    return await MakeCall("destination-files/" + encodeURIComponent(path) + "?destination=" + encodeURIComponent(destination));
+export async function rebuildAvailable(destination: string): Promise<boolean> {
+    return await makeApiCall("rebuild-available?destination=" + encodeURIComponent(destination)) ? true : false;
 }
 
-export async function GetAuthEndpoint(): Promise<string | undefined> {
-    const ret = await MakeCall("auth-endpoint");
+export async function createAuthEndpoint(): Promise<string | undefined> {
+    const ret = await makeApiCall("auth-endpoint");
     if (ret) {
         return ret.endpoint;
     }
     return undefined;
 }
 
-function GetBackupDownloadLink(file: string, added: number): string {
+function getBackupDownloadLink(file: string, added: number): string {
     const ind = file.lastIndexOf('/');
     const firstPathPart = file.substring(0, ind);
     const secondPath = file.substring(ind + 1);
@@ -285,14 +311,14 @@ function GetBackupDownloadLink(file: string, added: number): string {
         + added;
 }
 
-export function DownloadBackupFile(file: string, added: number, passphrase: string) {
+export function downloadBackupFile(file: string, added: number, password: string) {
     const request = new XMLHttpRequest();
 
     request.responseType = "blob";
-    request.open("post", GetBackupDownloadLink(file, added), true);
+    request.open("post", getBackupDownloadLink(file, added), true);
     request.setRequestHeader('content-type', 'application/json;charset=UTF-8');
     request.send(JSON.stringify({
-        "passphrase": passphrase
+        "password": password
     }));
 
     request.onreadystatechange = function () {
@@ -308,14 +334,14 @@ export function DownloadBackupFile(file: string, added: number, passphrase: stri
     }
 }
 
-export async function GetEncryptionKey(passphrase?: string): Promise<boolean> {
-    const ret = await MakeCall("encryption-key", {
+export async function getEncryptionKey(password?: string): Promise<boolean> {
+    const ret = await makeApiCall("encryption-key", {
         method: 'POST',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
         },
         body: JSON.stringify({
-            "passphrase": passphrase
+            "password": password
         })
     });
 
@@ -325,7 +351,7 @@ export async function GetEncryptionKey(passphrase?: string): Promise<boolean> {
     return ret.specified;
 }
 
-export async function PostSelectSource(source: string, passphrase?: string): Promise<string | undefined> {
+export async function selectSource(source: string, password?: string): Promise<string | undefined> {
     try {
         const response = await fetch(baseApi + "sources/" + encodeURIComponent(source), {
             method: 'POST',
@@ -333,7 +359,7 @@ export async function PostSelectSource(source: string, passphrase?: string): Pro
                 'content-type': 'application/json;charset=UTF-8',
             },
             body: JSON.stringify({
-                "passphrase": passphrase
+                "password": password
             })
         });
         if (!response.ok) {
@@ -358,14 +384,14 @@ export async function PostSelectSource(source: string, passphrase?: string): Pro
     }
 }
 
-export async function PutEncryptionKey(passphrase: string): Promise<boolean> {
-    const ret = await MakeCall("encryption-key", {
+export async function createEncryptionKey(password: string): Promise<boolean> {
+    const ret = await makeApiCall("encryption-key", {
         method: 'PUT',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
         },
         body: JSON.stringify({
-            "passphrase": passphrase
+            "password": password
         })
     });
 
@@ -375,49 +401,49 @@ export async function PutEncryptionKey(passphrase: string): Promise<boolean> {
     return true;
 }
 
-export async function PutAdditionalEncryptionKey(passphrase: string, privateKey?: string): Promise<AdditionalKey | undefined> {
-    return await MakeCall("encryption-key/additional", {
+export async function createAdditionalEncryptionKey(password: string, privateKey?: string): Promise<AdditionalKey | undefined> {
+    return await makeApiCall("encryption-key/additional", {
         method: 'PUT',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
         },
         body: JSON.stringify({
-            "passphrase": passphrase,
+            "password": password,
             "privateKey": privateKey
         })
     });
 }
 
-export async function PostAdditionalEncryptionKeys(passphrase: string): Promise<AdditionalKeys | undefined> {
-    return await MakeCall("encryption-key/additional", {
+export async function listAdditionalEncryptionKeys(password: string): Promise<AdditionalKeys | undefined> {
+    return await makeApiCall("encryption-key/additional", {
         method: 'POST',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
         },
         body: JSON.stringify({
-            "passphrase": passphrase
+            "password": password
         })
     });
 }
 
-export async function GetActiveShares(): Promise<ActiveShares | undefined> {
-    return await MakeCall("shares");
+export async function listActiveShares(): Promise<ActiveShares | undefined> {
+    return await makeApiCall("shares");
 }
 
-export async function PostActivateShares(passphrase: string): Promise<AdditionalKeys | undefined> {
-    return await MakeCall("shares", {
+export async function activateShares(password: string): Promise<AdditionalKeys | undefined> {
+    return await makeApiCall("shares", {
         method: 'POST',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
         },
         body: JSON.stringify({
-            "passphrase": passphrase
+            "password": password
         })
     });
 }
 
-export async function DeleteReset(): Promise<boolean> {
-    const ret = await MakeCall("", {
+export async function resetSettings(): Promise<boolean> {
+    const ret = await makeApiCall("", {
         method: 'DELETE'
     });
 
@@ -427,15 +453,15 @@ export async function DeleteReset(): Promise<boolean> {
     return true;
 }
 
-export async function PostChangeEncryptionKey(passphrase: string, newPassphrase: string): Promise<boolean> {
-    const ret = await MakeCall("encryption-key/change", {
+export async function changeEncryptionKey(password: string, newPassword: string): Promise<boolean> {
+    const ret = await makeApiCall("encryption-key/change", {
         method: 'POST',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
         },
         body: JSON.stringify({
-            "passphrase": passphrase,
-            "newPassphrase": newPassphrase
+            "password": password,
+            "newPassword": newPassword
         })
     });
 
@@ -445,8 +471,8 @@ export async function PostChangeEncryptionKey(passphrase: string, newPassphrase:
     return true;
 }
 
-export async function PostConfiguration(config: BackupConfiguration): Promise<boolean> {
-    const ret = await MakeCall("configuration", {
+export async function postConfiguration(config: BackupConfiguration): Promise<boolean> {
+    const ret = await makeApiCall("configuration", {
         method: 'POST',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
@@ -460,14 +486,14 @@ export async function PostConfiguration(config: BackupConfiguration): Promise<bo
     return ret;
 }
 
-export async function PostRemoteRestore(passphrase: string): Promise<boolean> {
-    const ret = await MakeCall("remote-configuration/rebuild", {
+export async function startRemoteRestore(password: string): Promise<boolean> {
+    const ret = await makeApiCall("remote-configuration/rebuild", {
         method: 'POST',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
         },
         body: JSON.stringify({
-            passphrase: passphrase
+            password: password
         })
     });
 
@@ -477,8 +503,8 @@ export async function PostRemoteRestore(passphrase: string): Promise<boolean> {
     return ret;
 }
 
-export async function PostRestartSets(sets?: string[]): Promise<boolean> {
-    const ret = await MakeCall("sets/restart", {
+export async function restartSets(sets?: string[]): Promise<boolean> {
+    const ret = await makeApiCall("sets/restart", {
         method: 'POST',
         headers: {
             'content-type': 'application/json;charset=UTF-8',
@@ -494,8 +520,8 @@ export async function PostRestartSets(sets?: string[]): Promise<boolean> {
     return ret;
 }
 
-export async function PostRestore(request: BackupRestoreRequest): Promise<boolean> {
-    const ret = await MakeCall("restore", {
+export async function initiateRestore(request: BackupRestoreRequest): Promise<boolean> {
+    const ret = await makeApiCall("restore", {
         method: 'POST',
         headers: {
             'content-type': 'application/json;charset=UTF-8',

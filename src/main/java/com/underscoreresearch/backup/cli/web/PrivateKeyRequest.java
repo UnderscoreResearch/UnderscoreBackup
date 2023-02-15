@@ -26,25 +26,25 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 public class PrivateKeyRequest {
     private static ObjectReader READER = MAPPER
             .readerFor(PrivateKeyRequest.class);
-    private String passphrase;
+    private String password;
 
     public static String decodePrivateKeyRequest(Request req) throws IOException {
         String request = new RqPrint(req).printBody();
         PrivateKeyRequest ret = READER.readValue(request);
-        if (Strings.isNullOrEmpty(ret.getPassphrase())) {
+        if (Strings.isNullOrEmpty(ret.getPassword())) {
             throw new HttpException(
                     HttpURLConnection.HTTP_BAD_REQUEST,
-                    "Missing required parameter passphrase"
+                    "Missing required parameter password"
             );
         }
-        return ret.getPassphrase();
+        return ret.getPassword();
     }
 
-    public static boolean validatePassphrase(String passphrase) {
+    public static boolean validatePassword(String password) {
         EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
 
         try {
-            encryptionKey.getPrivateKey(passphrase);
+            encryptionKey.getPrivateKey(password);
             return true;
         } catch (Exception exc) {
             log.warn("Failed to validate key", exc);

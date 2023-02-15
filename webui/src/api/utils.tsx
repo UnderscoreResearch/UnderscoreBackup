@@ -1,4 +1,6 @@
 import {BackupFileSpecification, BackupFilter, BackupSet, BackupState} from "./index";
+import crypto, {randomBytes} from "crypto";
+import base64url from "base64url";
 
 function expandFilters(filters: BackupFilter[]): BackupFilter[] {
     let ret: BackupFilter[] = [];
@@ -40,3 +42,25 @@ export function expandRoots(contents: BackupSet | BackupFileSpecification,
     }
     return contents;
 }
+
+export function hash(data: string) {
+    return base64url(crypto.createHash('sha256').update(data).digest())
+        .replace("=", "");
+}
+
+export function authorizationRedirect(location: string, additionalArgs: string, additionalReturnArgs: string) {
+    const code = base64url(randomBytes(32));
+    const nonce = base64url(randomBytes(16));
+    window.localStorage.setItem("redirectSource", location);
+    window.localStorage.setItem("redirectCodeVerifier", code);
+    window.localStorage.setItem("redirectNonce", nonce);
+
+    const redirectSource = window.location.href.substring(0, window.location.href.lastIndexOf('/'))
+        + `/authorizeaccept?nonce=${encodeURIComponent(nonce)}&${additionalReturnArgs}`;
+
+    const authUrl = `https://dev.underscorebackup.com/authorize?clientId=DEFAULT_CLIENT&challenge=${
+        encodeURIComponent(hash(code))}&redirectUrl=${
+        encodeURIComponent(redirectSource)}&` + additionalArgs;
+    window.location.href = authUrl;
+}
+

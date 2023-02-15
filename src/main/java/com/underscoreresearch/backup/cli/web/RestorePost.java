@@ -57,10 +57,10 @@ public class RestorePost extends JsonWrap {
         @Builder
         public BackupRestoreRequest(@JsonProperty("destination") String destination,
                                     @JsonProperty("files") List<BackupSetRoot> files,
-                                    @JsonProperty("passphrase") String passphrase,
+                                    @JsonProperty("password") String password,
                                     @JsonProperty("overwrite") Boolean overwrite,
                                     @JsonProperty("timestamp") Long timestamp) {
-            super(passphrase);
+            super(password);
 
             this.destination = destination;
             this.files = files;
@@ -74,19 +74,19 @@ public class RestorePost extends JsonWrap {
         public Response actualAct(Request req) throws Exception {
             BackupRestoreRequest request = READER.readValue(new RqPrint(req).printBody());
 
-            if (Strings.isEmpty(request.getPassphrase())) {
-                return messageJson(400, "Missing passphrase to restore");
+            if (Strings.isEmpty(request.getPassword())) {
+                return messageJson(400, "Missing password to restore");
             }
 
-            if (!PrivateKeyRequest.validatePassphrase(request.getPassphrase())) {
-                return messageJson(403, "Invalid passphrase provided");
+            if (!PrivateKeyRequest.validatePassword(request.getPassword())) {
+                return messageJson(403, "Invalid password provided");
             }
 
             if (request.getFiles() == null || request.getFiles().size() < 1) {
                 return messageJson(400, "Missing files to restore");
             }
 
-            InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource());
+            InstanceFactory.reloadConfigurationWithSource();
             new Thread(() -> {
                 AtomicBoolean restart = new AtomicBoolean(true);
                 try {
@@ -118,7 +118,7 @@ public class RestorePost extends JsonWrap {
                     String destination = request.getDestination();
 
                     try {
-                        RestoreExecutor restoreExecutor = new RestoreExecutor(contents, request.getPassphrase());
+                        RestoreExecutor restoreExecutor = new RestoreExecutor(contents, request.getPassword());
                         if (destination != null && !isNullFile(destination)) {
                             new File(destination).mkdirs();
                         }
@@ -134,6 +134,7 @@ public class RestorePost extends JsonWrap {
 
                 if (restart.get()) {
                     InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                            InstanceFactory.getAdditionalSourceName(),
                             () -> InteractiveCommand.startBackupIfAvailable());
                 }
             }, "RestorePost").start();

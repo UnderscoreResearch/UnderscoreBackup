@@ -7,7 +7,7 @@ import {DestinationProp} from "./Destinations";
 export interface SetsProps {
     sets: BackupSet[],
     allowReset: boolean,
-    state: BackupState,
+    backendState: BackupState,
     destinations: DestinationProp[],
     configurationUpdated: (valid: boolean, destinations: BackupSet[]) => void
 }
@@ -34,11 +34,11 @@ export default function Sets(props: SetsProps) {
     }
 
     function createEmptySet(): SetState {
-        const useState = props.sets.length > 0 ? state[0].set : props.state.defaultSet;
+        const useState = props.sets.length > 0 ? state[0].set : props.backendState.defaultSet;
         return {
             set: {
                 id: findNewId(),
-                destinations: props.state.defaultSet.destinations,
+                destinations: props.backendState.defaultSet.destinations,
                 roots: [],
                 exclusions: useState.exclusions,
                 retention: useState.retention,
@@ -75,7 +75,7 @@ export default function Sets(props: SetsProps) {
             return <SetConfig set={item.set}
                               destinations={props.destinations}
                               allowReset={props.allowReset}
-                              state={props.state}
+                              backendState={props.backendState}
                               setUpdated={(valid, set) => {
                                   itemUpdated({valid: valid, set: set});
                               }}/>

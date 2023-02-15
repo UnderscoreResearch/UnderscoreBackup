@@ -23,10 +23,10 @@ import {
     BackupFile,
     BackupSetRoot,
     BackupState,
-    DownloadBackupFile,
-    GetBackupFiles,
-    GetBackupVersions,
-    GetSearchBackup
+    downloadBackupFile,
+    getBackupFiles,
+    getBackupVersions,
+    searchBackup
 } from '../api';
 import {DateTimePicker} from '@mui/x-date-pickers/DateTimePicker';
 import {AdapterDateFns} from '@mui/x-date-pickers/AdapterDateFns';
@@ -37,9 +37,10 @@ import {DisplayMessage} from "../App";
 import IconButton from "@mui/material/IconButton";
 import {Clear} from "@mui/icons-material";
 import Divider from "@mui/material/Divider";
+import {listShares, listSources, ShareResponse, SourceResponse} from "../api/service";
 
 export interface RestorePropsChange {
-    passphrase: string,
+    password: string,
     timestamp?: Date,
     roots: BackupSetRoot[],
     source: string,
@@ -49,24 +50,24 @@ export interface RestorePropsChange {
 }
 
 export interface RestoreProps {
-    passphrase?: string,
+    password?: string,
     timestamp?: Date,
     defaultDestination: string,
     destination?: string,
     overwrite: boolean,
-    state: BackupState,
+    backendState: BackupState,
     roots: BackupSetRoot[],
     sources: string[],
     source: string,
     activeSource: boolean,
     onChange: (state: RestorePropsChange) => void,
     onSubmit: () => void,
-    validatedPassphrase: boolean,
+    validatedPassword: boolean,
     includeDeleted?: boolean
 }
 
 export interface RestoreState {
-    passphrase: string,
+    password: string,
     timestamp?: Date,
     current: boolean,
     search: string,
@@ -75,12 +76,14 @@ export interface RestoreState {
     roots: BackupSetRoot[],
     overwrite: boolean,
     destination?: string,
-    includeDeleted?: boolean
+    includeDeleted?: boolean,
+    serviceSources?: SourceResponse[]
+    serviceShares?: ShareResponse[]
 }
 
 function defaultState(props: RestoreProps) {
     return {
-        passphrase: props.passphrase ? props.passphrase : "",
+        password: props.password ? props.password : "",
         roots: props.roots,
         timestamp: props.timestamp,
         search: "",
@@ -89,17 +92,19 @@ function defaultState(props: RestoreProps) {
         current: !props.timestamp,
         overwrite: props.overwrite,
         destination: props.destination ? props.destination : props.defaultDestination,
-        includeDeleted: props.includeDeleted
+        includeDeleted: props.includeDeleted,
+        serviceSources: props.backendState.serviceConnected ? undefined : [],
+        serviceShares: props.backendState.serviceConnected ? undefined : []
     }
 }
 
 export default function Restore(props: RestoreProps) {
-    const [state, setState] = React.useState<RestoreState>(defaultState(props));
+    const [state, setState] = React.useState<RestoreState>(() => defaultState(props));
 
     function updateState(newState: RestoreState) {
-        if (newState.passphrase.length > 0) {
+        if (newState.password.length > 0) {
             props.onChange({
-                passphrase: newState.passphrase,
+                password: newState.password,
                 source: props.activeSource ? props.source : newState.source,
                 timestamp: newState.current ? undefined : newState.timestamp,
                 overwrite: newState.overwrite,
@@ -111,8 +116,36 @@ export default function Restore(props: RestoreProps) {
         setState(newState);
     }
 
+    async function fetchSources() {
+        if (!state.serviceSources) {
+            const sources = await listSources(true);
+            if (sources && sources.sources) {
+                setState((oldState) => ({
+                    ...oldState,
+                    serviceSources: sources.sources
+                }));
+            }
+        }
+    }
+
+    async function fetchShares() {
+        if (!state.serviceShares) {
+            const shares = await listShares();
+            if (shares && shares.shares) {
+                setState((oldState) => ({
+                    ...oldState,
+                    serviceShares: shares.shares
+                }));
+            }
+        }
+    }
+
     useEffect(() => {
-        setState(defaultState(props))
+        setState({
+            ...(defaultState(props)),
+            serviceSources: state.serviceSources,
+            serviceShares: state.serviceShares
+        });
     }, [props.source === "" ? "1" : ""])
 
     function updateSelection(newRoots: BackupSetRoot[]) {
@@ -131,7 +164,7 @@ export default function Restore(props: RestoreProps) {
 
     async function fetchTooltipContents(path: string): Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
         => JSX.Element) | undefined> {
-        const files = await GetBackupVersions(path);
+        const files = await getBackupVersions(path);
         if (files) {
             return function (anchor: HTMLElement, open: boolean, handleClose: () => void) {
                 return <Popover
@@ -160,9 +193,9 @@ export default function Restore(props: RestoreProps) {
                                                 variant="contained"
                                                 disabled={!file.length || file.length > 1024 * 1024 * 1024}
                                                 onClick={(e) => {
-                                                    DownloadBackupFile(file.path,
+                                                    downloadBackupFile(file.path,
                                                         file.added ? file.added : 0,
-                                                        state.passphrase);
+                                                        state.password);
                                                     DisplayMessage("Download started", "success");
                                                 }
                                                 }>Download</Button>
@@ -179,24 +212,23 @@ export default function Restore(props: RestoreProps) {
 
     function fetchContents(path: string) {
         if (state.showingSearch) {
-            return GetSearchBackup(state.showingSearch, state.includeDeleted ? true : false,
+            return searchBackup(state.showingSearch, state.includeDeleted ? true : false,
                 state.current ? undefined : state.timestamp);
         } else {
-            return GetBackupFiles(path,
+            return getBackupFiles(path,
                 state.includeDeleted ? true : false,
                 state.current ? undefined : state.timestamp);
         }
     }
 
-    if (!props.passphrase || !props.validatedPassphrase) {
-
+    if (!props.password || !props.validatedPassword) {
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
                 p: 2
             }}>
                 <Typography variant="body1" component="div">
                     <p>
-                        To restore data you need to provide your backup passphrase.
+                        To restore data you need to provide your backup password.
                     </p>
                 </Typography>
                 <Box component="div"
@@ -221,28 +253,49 @@ export default function Restore(props: RestoreProps) {
                                 value={state.source}
                                 label="Source"
                                 id={"restoreSource"}
-                                onChange={(e) => {
-                                    updateState({
-                                        ...state,
-                                        source: e.target.value
-                                    })
+                                onChange={
+                                    (e) => {
+                                        updateState({
+                                            ...state,
+                                            source: e.target.value,
+                                        })
+                                    }
                                 }
-                                }
+                                onOpen={() => {
+                                    fetchSources();
+                                    fetchShares();
+                                }}
                             >
                                 <MenuItem key="-" value={"-"}>Local</MenuItem>
-                                {props.sources && props.sources.length > 0 && <Divider>Other Sources</Divider>}
-                                {props.sources.sort().map(str => {
-                                    return <MenuItem key={str} value={str}>{str}</MenuItem>;
-                                })}
+                                {props.sources && props.sources.length > 0 &&
+                                    <Divider>Local Sources</Divider>
+                                }
+                                {props.sources.sort().map(str =>
+                                    <MenuItem key={str} value={str}>{str}</MenuItem>
+                                )}
+                                {state.serviceSources && state.serviceSources.length > 0 &&
+                                    <Divider>Services Sources</Divider>
+                                }
+                                {(state.serviceSources ? state.serviceSources : [])
+                                    .map((source) =>
+                                        <MenuItem key={source.sourceId} value={source.sourceId}>{source.name}</MenuItem>
+                                    )}
+                                {state.serviceShares && state.serviceShares.length > 0 &&
+                                    <Divider>Services Shares</Divider>
+                                }
+                                {(state.serviceShares ? state.serviceShares : [])
+                                    .map((share) =>
+                                        <MenuItem key={share.shareId} value={share.shareId}>{share.name}</MenuItem>
+                                    )}
                             </Select>
                         }
                     </FormControl>
-                    <TextField label="Passphrase" variant="outlined"
+                    <TextField label="Password" variant="outlined"
                                fullWidth={true}
                                required={true}
-                               id={"restorePassphrase"}
-                               value={state.passphrase}
-                               error={!state.passphrase}
+                               id={"restorePassword"}
+                               value={state.password}
+                               error={!state.password}
                                type="password"
                                onKeyDown={(e) => {
                                    if (e.key === "Enter") {
@@ -251,7 +304,7 @@ export default function Restore(props: RestoreProps) {
                                }}
                                onChange={(e) => updateState({
                                    ...state,
-                                   passphrase: e.target.value
+                                   password: e.target.value
                                })}/>
                 </Box>
             </Paper>
@@ -323,7 +376,7 @@ export default function Restore(props: RestoreProps) {
                     }}
                 />
                 <FileTreeView roots={state.roots}
-                              state={props.state}
+                              backendState={props.backendState}
                               hideRoot={!!state.showingSearch}
                               rootName={state.showingSearch ? "Not found" : ""}
                               rootNameProcessing={state.showingSearch ? "Searching..." : ""}
@@ -350,7 +403,7 @@ export default function Restore(props: RestoreProps) {
                         } else {
                             updateState({
                                 ...state,
-                                destination: props.state.defaultRestoreFolder
+                                destination: props.backendState.defaultRestoreFolder
                             });
                         }
                     }}/>} label="Original location" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
@@ -359,7 +412,7 @@ export default function Restore(props: RestoreProps) {
                                fullWidth={true}
                                disabled={!state.destination || state.destination === "-" || state.destination === "="}
                                defaultValue={state.destination && state.destination !== "-" && state.destination !== "="
-                                   ? state.destination : props.state.defaultRestoreFolder}
+                                   ? state.destination : props.backendState.defaultRestoreFolder}
                                onBlur={(e) => updateState({
                                    ...state,
                                    destination: e.target.value
@@ -387,7 +440,7 @@ export default function Restore(props: RestoreProps) {
                             } else {
                                 updateState({
                                     ...state,
-                                    destination: props.state.defaultRestoreFolder
+                                    destination: props.backendState.defaultRestoreFolder
                                 });
                             }
                         }}/>} label="Only verify backup" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>

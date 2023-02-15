@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,34 +30,47 @@ public class ConfigureCommand extends Command {
         }
 
         try {
-            File configFile = new File(InstanceFactory.getInstance(URL_LOCATION));
-            if (!configFile.exists()) {
-                System.err.println("Daemon does not appear to be running");
-                System.exit(1);
-            }
-            if (!configFile.canRead()) {
-                System.err.println("No permissions to access configuration interface");
-                System.exit(1);
-            }
-            try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
-                String url = reader.readLine();
+            String url = getConfigurationUrl();
 
-                System.err.println("Configuration URL is available at:");
-                System.err.println();
-                System.out.println(url);
+            System.err.println("Configuration URL is available at:");
+            System.err.println();
+            System.out.println(url);
 
-                try {
-                    if (SystemUtils.IS_OS_MAC_OSX) {
-                        Runtime.getRuntime().exec(new String[]{"open", url.trim()});
-                    } else {
-                        Desktop.getDesktop().browse(new URI(url.trim()));
-                    }
-                } catch (IOException | UnsupportedOperationException e) {
+            try {
+                if (SystemUtils.IS_OS_MAC_OSX) {
+                    Runtime.getRuntime().exec(new String[]{"open", url.trim()});
+                } else {
+                    Desktop.getDesktop().browse(new URI(url.trim()));
                 }
+            } catch (IOException | UnsupportedOperationException e) {
             }
+        } catch (ConfigurationUrlException exc) {
+            log.error(exc.getMessage());
+            System.exit(1);
         } catch (Exception exc) {
             log.error("Encountered issue reading configuration URL", exc);
             System.exit(1);
+        }
+    }
+
+    public static class ConfigurationUrlException extends IOException {
+        public ConfigurationUrlException(String message) {
+            super(message);
+        }
+    }
+
+    public static String getConfigurationUrl() throws IOException {
+        File configFile = new File(InstanceFactory.getInstance(URL_LOCATION));
+        if (!configFile.exists()) {
+            throw new ConfigurationUrlException("Daemon does not appear to be running");
+        }
+        if (!configFile.canRead()) {
+            throw new ConfigurationUrlException("No permissions to access configuration interface");
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
+            String url = reader.readLine();
+
+            return url.trim();
         }
     }
 }

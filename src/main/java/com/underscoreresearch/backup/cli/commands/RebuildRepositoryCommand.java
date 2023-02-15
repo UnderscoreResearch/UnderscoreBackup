@@ -2,7 +2,6 @@ package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
@@ -28,26 +27,36 @@ import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @CommandPlugin(value = "rebuild-repository", description = "Rebuild repository metadata from logs",
         readonlyRepository = false, supportSource = true)
 @Slf4j
 public class RebuildRepositoryCommand extends Command {
-    public static String downloadRemoteConfiguration(String source, String passphrase) throws IOException {
+    public static String downloadRemoteConfiguration(String source, String password) throws IOException {
         BackupDestination destination = getManifestDestination(source);
         if (destination == null) {
             throw new IOException("Could not find destination for configuration");
         }
+        return downloadRemoteConfiguration(destination, InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(password));
+    }
+
+    public static String downloadRemoteConfiguration(BackupDestination destination,
+                                                     EncryptionKey.PrivateKey privateKey) throws IOException {
         IOProvider provider = IOProviderFactory.getProvider(destination);
         byte[] data = provider.download("configuration.json");
+        return unpackConfigData(destination.getEncryption(), privateKey, data);
+    }
+
+    public static String unpackConfigData(String encryption, EncryptionKey.PrivateKey privateKey, byte[] data) throws IOException {
         try {
             BACKUP_CONFIGURATION_READER.readValue(data);
             return new String(data, StandardCharsets.UTF_8);
         } catch (IOException exc) {
-            Encryptor encryptor = EncryptorFactory.getEncryptor(destination.getEncryption());
+            Encryptor encryptor = EncryptorFactory.getEncryptor(encryption);
             try (ByteArrayInputStream stream = new ByteArrayInputStream(encryptor.decodeBlock(null, data,
-                    InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(passphrase)))) {
+                    privateKey))) {
                 try (GZIPInputStream gzipInputStream = new GZIPInputStream(stream)) {
                     return new String(IOUtils.readAllBytes(gzipInputStream), StandardCharsets.UTF_8);
                 }
@@ -68,7 +77,7 @@ public class RebuildRepositoryCommand extends Command {
         }
     }
 
-    public static void rebuildFromLog(String passphrase, boolean async) {
+    public static void rebuildFromLog(String password, boolean async) {
         log.info("Rebuilding repository from logs");
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         if (InstanceFactory.getAdditionalSource() == null) {
@@ -85,7 +94,7 @@ public class RebuildRepositoryCommand extends Command {
 
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         if (async) {
-            Thread thread = new Thread(() -> executeRebuildLog(manifestManager, logConsumer, repository, passphrase),
+            Thread thread = new Thread(() -> executeRebuildLog(manifestManager, logConsumer, repository, password),
                     "LogRebuild");
             InstanceFactory.addOrderedCleanupHook(() -> {
                 try {
@@ -110,17 +119,17 @@ public class RebuildRepositoryCommand extends Command {
                 }
             } while (!manifestManager.isBusy() && thread.isAlive());
         } else {
-            executeRebuildLog(manifestManager, logConsumer, repository, passphrase);
+            executeRebuildLog(manifestManager, logConsumer, repository, password);
         }
     }
 
     private static void executeRebuildLog(ManifestManager manifestManager,
                                           LogConsumer logConsumer,
                                           MetadataRepository repository,
-                                          String passphrase) {
+                                          String password) {
         try {
             repository.open(false);
-            manifestManager.replayLog(logConsumer, passphrase);
+            manifestManager.replayLog(logConsumer, password);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
@@ -132,12 +141,20 @@ public class RebuildRepositoryCommand extends Command {
         }
     }
 
+    public static boolean configChanged(BackupConfiguration newConfig) {
+        BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
+        if (configuration.getManifest() != null && newConfig.getManifest() != null) {
+            newConfig.getManifest().setInteractiveBackup(configuration.getManifest().getInteractiveBackup());
+        }
+        return !configuration.equals(newConfig);
+    }
+
     @Override
     public void executeCommand(CommandLine commandLine) throws Exception {
         if (InstanceFactory.getAdditionalSource() == null) {
             try {
-                String config = downloadRemoteConfiguration(null, getPassphrase());
-                if (!config.equals(InstanceFactory.getInstance(CONFIG_DATA))) {
+                String config = downloadRemoteConfiguration(null, getPassword());
+                if (configChanged(BACKUP_CONFIGURATION_READER.readValue(config))) {
                     throw new IOException("Configuration file does not match. Use -f flag to continue or use download-config command to replace");
                 }
             } catch (Exception exc) {
@@ -150,6 +167,6 @@ public class RebuildRepositoryCommand extends Command {
             }
         }
 
-        rebuildFromLog(getPassphrase(), false);
+        rebuildFromLog(getPassword(), false);
     }
 }

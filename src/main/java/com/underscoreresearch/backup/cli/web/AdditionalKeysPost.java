@@ -40,7 +40,7 @@ public class AdditionalKeysPost extends JsonWrap {
                 EncryptionKey publicKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class);
                 masterKey = publicKey.getPrivateKey(password);
             } catch (Exception exc) {
-                return messageJson(403, "Invalid passphrase provided");
+                return messageJson(403, "Invalid password provided");
             }
 
             List<AdditionalKeyPut.ExternalEncryptionKey> keys = new ArrayList<>();

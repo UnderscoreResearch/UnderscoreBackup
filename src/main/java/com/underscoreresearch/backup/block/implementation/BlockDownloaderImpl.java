@@ -56,7 +56,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     }
 
     @Override
-    public byte[] downloadBlock(String blockHash, String passphrase) throws IOException {
+    public byte[] downloadBlock(String blockHash, String password) throws IOException {
         BackupBlock block = metadataRepository.block(blockHash);
         if (block == null) {
             throw new IOException(String.format("Trying to get unknown block %s", blockHash));
@@ -65,7 +65,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         for (int storageIndex = 0; storageIndex < block.getStorage().size(); storageIndex++) {
             BackupBlockStorage storage = block.getStorage().get(storageIndex);
             try {
-                return EncryptorFactory.decodeBlock(storage, downloadEncryptedBlockStorage(block, storage), key.getPrivateKey(passphrase));
+                return EncryptorFactory.decodeBlock(storage, downloadEncryptedBlockStorage(block, storage), key.getPrivateKey(password));
             } catch (Exception exc) {
                 if (storageIndex == block.getStorage().size() - 1 || InstanceFactory.isShutdown()) {
                     throw new IOException("Failed to download block " + block.getHash() + " was unreadable", exc);
@@ -155,7 +155,9 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
             }
         };
 
-        pendingParts.add(partIndex);
+        synchronized (pendingParts) {
+            pendingParts.add(partIndex);
+        }
         schedule(() -> {
             try {
                 consumer.accept(provider.download(storage.getParts().get(partIndex)));

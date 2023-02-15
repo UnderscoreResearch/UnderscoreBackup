@@ -33,8 +33,8 @@ class AesEncryptorTest {
 
     @BeforeEach
     public void setup() {
-        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null);
-        key = EncryptionKey.generateKeyWithPassphrase("Seed");
+        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
+        key = EncryptionKey.generateKeyWithPassword("Seed");
 
         encryptor = new AesEncryptor();
         decryptor = new AesEncryptor();

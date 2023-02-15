@@ -3,19 +3,26 @@ Serverless backup solution with client side encryption with the following featur
 * Public key based encryption allows continuously running backups that can only be read with a key not available on the
   server running the backup.
 
+* Ties into [a free service](https://underscorebackup.com/) that helps coordination of your backup sources, optional encryption key recovery and coordination
+  of sharing of backup data. However, all online services are optional, and you can run the backup software without an
+  online account.
+
+* Provides optional [paid for storage service](https://underscorebackup.com/pricing) as part of the service offering. However this is also optional and you can
+  use any supported storage service you wish.
+
 * Pre-egress encryption means no proprietary data leaves your system in a format where it can be compromised as long as
   your private key is not compromised.
 
-* Runs entirely without a service component.
+* Allow selective sharing of backup data with other participants with complete cryptographically enforced security.
 
 * Designed from the ground up to manage very large backup sets with multiple TB of data and millions of file in a
   single repository.
 
-* Multi-platform support based on Java 11. Linux, Windows and OSX are supported platforms, but should run anywhere Java
-  11 is supported.
+* Multi-platform support based on Java 17. Linux, Windows and MacOS are supported platforms, but should run anywhere Java
+  17 is supported.
 
 * Low resource requirements, runs efficiently with 256MB of heap memory even if the backup sets have millions of files
-  and terrabytes of data.
+  and terabytes of data.
 
 * Efficient storage of both large and small file with built-in deduplication of data.
 
@@ -138,7 +145,8 @@ The configuration file is a JSON file with the following root fields.
 * **limits** - Global throughput limits.
 * **manifest** - Backup manifest options.
 * **properties** - Custom additional properties.
-* **missingRetention** - If specified used for retention of files not covered by any set.
+* **missingRetention** - If specified used for retention of files not covered by any set. See the set retention
+  documentation for more information.
 * **additionalSources** - A map of backup destinations for manifest of secondary backup sources.
 
 ## Backup set definitions
@@ -225,6 +233,11 @@ Contains information of how the backup repository is managed.
 * **scheduleRandomize** - Amount of time to randomly add to any schedule time to jitter the start of next scheduled run.
     * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS or YEARS).
     * **duration** - How many of units for the timespan.
+* **interactiveBackup** - When set automatically start a backup when running in interactive mode. Defaults to off if not
+  specified.
+* **pauseOnBattery** - Pause backups when running on battery. Defaults to on if not specified.
+* **hideNotifications** - Hide UI notifications except for errors. Defaults to off if not specified.
+* **versionCheck** - Controls whether to check for new versions online periodically. Defaults to on.
 
 ## Global limits
 
@@ -251,7 +264,7 @@ currently existing property keys used.
   existing backup.
 * **noneErrorCorrection.maximumFileSize** - Maximum part size for none error correction. Defaults to 16384kb.
 * **maximumRefreshedBytes** - Maximum amount of bytes to refresh because of destination retention setting per run.
-* **crossSourceDedupe** - Allow data to be deduped across multiple hosts. Affects how the keys to AES encryption are
+* **crossSourceDedupe** - Allow data to be deduped across multiple sources. Affects how the keys to AES encryption are
   handled.
 
 Future development ideas

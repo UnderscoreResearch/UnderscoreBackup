@@ -3,6 +3,8 @@ package com.underscoreresearch.backup.cli.commands;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setReadOnlyFilePermissions;
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.downloadKeyData;
+import static com.underscoreresearch.backup.cli.web.SourceSelectPost.downloadSourceConfig;
+import static com.underscoreresearch.backup.cli.web.SourceSelectPost.validatePrivateKey;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,11 +18,13 @@ import org.apache.commons.cli.ParseException;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
-import com.underscoreresearch.backup.cli.PassphraseReader;
+import com.underscoreresearch.backup.cli.PasswordReader;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
 @CommandPlugin(value = "download-config", description = "Download config from manifest destination",
         readonlyRepository = false, supportSource = true, needConfiguration = false, needPrivateKey = false)
@@ -41,23 +45,41 @@ public class DownloadConfigCommand extends Command {
     public void executeCommand(CommandLine commandLine) throws Exception {
         try {
             String source = InstanceFactory.getAdditionalSource();
-            String key = EncryptionModule.getPassphrase();
+            SourceResponse sourceResponse = InstanceFactory.getInstance(SourceResponse.class);
+
+            String key = EncryptionModule.getPassword();
             if (Strings.isNullOrEmpty(key))
-                key = PassphraseReader.readPassphrase("Enter passphrase for private key: ");
+                key = PasswordReader.readPassword("Enter password for private key: ");
             if (key == null) {
                 System.exit(1);
             }
-            storeKeyData(key, source);
 
-            InstanceFactory.reloadConfiguration(source);
-            String config = downloadRemoteConfiguration(source, key);
-            if (source == null) {
-                ConfigurationPost.updateConfiguration(config, false, false);
+            if (sourceResponse.getSourceId() == null) {
+                storeKeyData(key, source);
 
-                log.info("Successfully downloaded and replaced the configuration file");
+                InstanceFactory.reloadConfigurationWithSource();
+                String config = downloadRemoteConfiguration(source, key);
+                if (source == null) {
+                    ConfigurationPost.updateConfiguration(config, false, false);
+
+                    log.info("Successfully downloaded and replaced the configuration file");
+                } else {
+                    ConfigurationPost.updateSourceConfiguration(config, false);
+                    log.info("Successfully downloaded and the configuration file for {}", source);
+                }
             } else {
+                EncryptionKey.PrivateKey privateKey = validatePrivateKey(sourceResponse, key);
+                if (privateKey == null) {
+                    throw new ParseException("Invalid password provided for restore");
+                }
+
+                String config = downloadSourceConfig(source, sourceResponse, privateKey);
+                if (config == null) {
+                    throw new ParseException("Failed to download remote configuration");
+                }
+
                 ConfigurationPost.updateSourceConfiguration(config, false);
-                log.info("Successfully downloaded and the configuration file for {}", source);
+                log.info("Successfully downloaded and the configuration file for {}", sourceResponse.getName());
             }
         } catch (Exception exc) {
             log.error("Failed to download and replace config", exc);

@@ -60,7 +60,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
             .build(new CacheLoader<>() {
                 @Override
                 public CachedData load(KeyFetch key) throws Exception {
-                    return createCacheData(key.getBlockHash(), key.getPassphrase());
+                    return createCacheData(key.getBlockHash(), key.getPassword());
                 }
             });
 
@@ -137,12 +137,12 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         pendingFiles.clear();
     }
 
-    protected abstract CachedData createCacheData(String key, String passphrase);
+    protected abstract CachedData createCacheData(String key, String password);
 
     @Override
-    public byte[] extractPart(BackupFilePart file, BackupBlock block, String passphrase) throws IOException {
+    public byte[] extractPart(BackupFilePart file, BackupBlock block, String password) throws IOException {
         try {
-            CachedData data = cache.get(new KeyFetch(file.getBlockHash(), passphrase));
+            CachedData data = cache.get(new KeyFetch(file.getBlockHash(), password));
             return data.get(file.getBlockIndex(), file.getPartHash());
         } catch (ExecutionException e) {
             throw new IOException("Failed to process contents of block " + file.getBlockHash(), e);
@@ -159,7 +159,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         @Getter
         private String blockHash;
         @Getter
-        private String passphrase;
+        private String password;
 
         @Override
         public boolean equals(Object o) {

@@ -9,15 +9,16 @@ const backupLocationRaw = Cypress.env('TEST_BACKUP');
 
 it('backup', function () {
     cy.visit('http://localhost:12345/fixed/');
+    cy.get('#skipService').click();
     cy.get('#selectType').click();
     cy.get('#typeLocalDirectory').click();
     cy.get('#localFileText').clear();
     cy.get('#localFileText').type(backupLocationRaw);
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
-    cy.get('#passphraseFirst').clear();
-    cy.get('#passphraseFirst').type('1234');
-    cy.get('#passphraseSecond').clear();
-    cy.get('#passphraseSecond').type('1234');
+    cy.get('#passwordFirst').clear();
+    cy.get('#passwordFirst').type('bYisMYVs9Qdw');
+    cy.get('#passwordSecond').clear();
+    cy.get('#passwordSecond').type('bYisMYVs9Qdw');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
 
     cy.get("#loading").should('not.be.visible');

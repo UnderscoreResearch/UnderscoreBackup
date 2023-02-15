@@ -63,7 +63,7 @@ export interface SetTreeViewProps {
     roots: BackupSetRoot[],
     fileFetcher: (node: string) => Promise<BackupFile[] | undefined>,
     stateValue: string,
-    state: BackupState,
+    backendState: BackupState,
     hideRoot?: boolean,
     rootName?: string,
     rootNameProcessing?: string,
@@ -232,7 +232,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
                 size: "",
                 added: ""
             }],
-            roots: normalizeRoots(props.roots, props.state),
+            roots: normalizeRoots(props.roots, props.backendState),
             stateValue: props.stateValue
         }
     }
@@ -241,7 +241,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
 
     function updateState(newState: SetTreeViewState) {
         setState(newState);
-        props.onChange(physicalRoots(newState.roots, props.state));
+        props.onChange(physicalRoots(newState.roots, props.backendState));
     }
 
     if (state.stateValue !== props.stateValue) {
@@ -362,7 +362,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
         }
 
         function formatPath(path: string) {
-            return path.replaceAll("/", props.state.pathSeparator);
+            return path.replaceAll("/", props.backendState.pathSeparator);
         }
 
         function name() {

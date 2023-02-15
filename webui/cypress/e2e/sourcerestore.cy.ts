@@ -50,7 +50,7 @@ it('sourcerestore', function () {
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click()
     cy.get("#restoreSource").click();
     cy.get('ul > li[data-value="same"]').click()
-    cy.get('#restorePassphrase').clear().type('12345');
+    cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#currentProgress').contains("Browsing same Contents");
@@ -64,7 +64,7 @@ it('sourcerestore', function () {
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get("#restoreSource").click();
     cy.get('ul > li[data-value="same"]').click()
-    cy.get('#restorePassphrase').clear().type('12345');
+    cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#currentProgress').contains("Browsing same Contents");

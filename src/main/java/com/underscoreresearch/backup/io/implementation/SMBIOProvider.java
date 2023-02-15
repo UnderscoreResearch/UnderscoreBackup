@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.io.implementation;
 
+import static com.underscoreresearch.backup.io.implementation.SMBIOProvider.SMB_TYPE;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
@@ -14,10 +15,12 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
+import com.hierynomus.mssmb2.SMBApiException;
 import com.hierynomus.smbj.SMBClient;
 import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.common.SMBRuntimeException;
@@ -30,9 +33,10 @@ import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
 
-@IOPlugin(("SMB"))
+@IOPlugin(SMB_TYPE)
 @Slf4j
 public class SMBIOProvider implements IOIndex, Closeable {
+    public static final String SMB_TYPE = "SMB";
     private static final Pattern PATH_PARSER = Pattern.compile("^\\\\\\\\([^\\\\]+)\\\\([^\\\\]+)\\\\?(.*)");
     private static final Pattern URI_PARSER = Pattern.compile("^smb://([^//]+)/([^//]+)/?(.*)");
     private final BackupDestination destination;
@@ -74,7 +78,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
             try {
                 connection = client.connect(host);
                 session = connection.authenticate(new AuthenticationContext(destination.getPrincipal(),
-                        destination.getCredential().toCharArray(),
+                        destination.getCredential() != null ? destination.getCredential().toCharArray() : new char[0],
                         destination.getProperty("domain", "WORKGROUP")));
                 share = (DiskShare) session.connectShare(shareName);
             } catch (SMBRuntimeException exc) {
@@ -102,14 +106,14 @@ public class SMBIOProvider implements IOIndex, Closeable {
     }
 
     private String physicalPath(String prefix) {
-        String ret = prefix.replace("/", "\\");
+        String ret = prefix.replace('/', '\\');
         if (ret.startsWith("\\"))
             return ret.substring(1);
         return ret;
     }
 
     private String parentPath(String physicalKey) {
-        int index = physicalKey.indexOf("\\");
+        int index = physicalKey.lastIndexOf("\\");
         if (index >= 0) {
             return physicalKey.substring(0, index);
         }
@@ -121,7 +125,6 @@ public class SMBIOProvider implements IOIndex, Closeable {
         String physicalKey = physicalPath(key);
         String parent = parentPath(physicalKey);
         createParent(root + parent);
-
 
         try {
             try (File file = getShare().openFile(root + physicalKey,
@@ -140,6 +143,9 @@ public class SMBIOProvider implements IOIndex, Closeable {
 
     private void createParent(String parent) throws IOException {
         try {
+            if (parent.endsWith("\\"))
+                parent = parent.substring(0, parent.length() - 1);
+
             if (parent.length() > 0 && !getShare().folderExists(parent)) {
                 createParent(parentPath(parent));
                 getShare().mkdir(parent);
@@ -176,6 +182,16 @@ public class SMBIOProvider implements IOIndex, Closeable {
         try {
             if (getShare().fileExists(root + physicalKey)) {
                 getShare().rm(root + physicalKey);
+            }
+
+            String parent = parentPath(physicalKey);
+            while (!Strings.isNullOrEmpty(parent)) {
+                try {
+                    getShare().rmdir(root + parent, false);
+                    parent = parentPath(physicalKey);
+                } catch (SMBApiException exc) {
+                    break;
+                }
             }
         } catch (SMBRuntimeException exc) {
             throw new IOException("Failed to delete file", exc);

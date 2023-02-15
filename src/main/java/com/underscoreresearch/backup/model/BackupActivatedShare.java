@@ -17,4 +17,5 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 public class BackupActivatedShare {
     private BackupShare share;
     private Set<String> usedDestinations;
+    private boolean updatedEncryption;
 }

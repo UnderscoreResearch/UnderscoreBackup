@@ -119,6 +119,11 @@ public final class IOProviderFactory {
                     public void checkCredentials(boolean readOnly) throws IOException {
                         actualProvider.checkCredentials(readOnly);
                     }
+
+                    @Override
+                    public List<String> availableLogs(String lastSyncedFile) throws IOException {
+                        return ((IOIndex) actualProvider).availableLogs(lastSyncedFile);
+                    }
                 };
             } else {
                 return new IOProvider() {

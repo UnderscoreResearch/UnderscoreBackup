@@ -67,6 +67,13 @@ public class ConfigurationPost extends JsonWrap {
         if (validateDestinations) {
             validateDestinations(configuration);
         }
+
+        writeConfig(config);
+
+        return configuration;
+    }
+
+    public static void writeConfig(String config) throws IOException {
         File file = new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION));
         boolean exists = file.exists();
         try (OutputStreamWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
@@ -75,7 +82,6 @@ public class ConfigurationPost extends JsonWrap {
 
         if (!exists)
             setReadOnlyFilePermissions(file);
-        return configuration;
     }
 
     /**
@@ -163,7 +169,7 @@ public class ConfigurationPost extends JsonWrap {
                     if (InstanceFactory.hasConfiguration(false))
                         currentConfig = InstanceFactory.getInstance(BackupConfiguration.class);
                     if (InstanceFactory.getAdditionalSource() != null)
-                        InstanceFactory.reloadConfiguration(null, null);
+                        InstanceFactory.reloadConfiguration(null);
 
                     BackupConfiguration newConfig = updateConfiguration(config, false, true);
                     if (currentConfig != null && currentConfig.getAdditionalSources() != null) {
@@ -171,13 +177,13 @@ public class ConfigurationPost extends JsonWrap {
                         if (newConfig.getAdditionalSources() != null) {
                             abandonedSources.removeAll(newConfig.getAdditionalSources().keySet());
                         }
+
                         abandonedSources.forEach(source -> removeSourceData(source));
                     }
-                    InstanceFactory.reloadConfiguration(null,
-                            () -> InteractiveCommand.startBackupIfAvailable());
+                    InstanceFactory.reloadConfiguration(() -> InteractiveCommand.startBackupIfAvailable());
                 } else {
                     updateSourceConfiguration(config, true);
-                    InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource());
+                    InstanceFactory.reloadConfigurationWithSource();
                 }
                 return messageJson(200, "Updated configuration");
             } catch (Exception exc) {

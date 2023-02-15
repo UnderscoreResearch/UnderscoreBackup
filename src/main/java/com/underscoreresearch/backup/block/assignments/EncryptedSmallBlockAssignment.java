@@ -61,8 +61,8 @@ public class EncryptedSmallBlockAssignment extends SmallFileBlockAssignment impl
     }
 
     @Override
-    protected CachedData createCacheData(String key, String passphrase) {
-        return new EncryptedCachedData(key, passphrase);
+    protected CachedData createCacheData(String key, String password) {
+        return new EncryptedCachedData(key, password);
     }
 
     private class EncryptedCachedData extends CachedData {
@@ -71,12 +71,12 @@ public class EncryptedSmallBlockAssignment extends SmallFileBlockAssignment impl
         private String hash;
         private ArrayList<byte[]> blockEntries;
 
-        private EncryptedCachedData(String hash, String passphrase) {
+        private EncryptedCachedData(String hash, String password) {
             this.hash = hash;
             try {
                 blockEntries = new ArrayList<>();
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(getBlockDownloader()
-                        .downloadBlock(hash, passphrase))) {
+                        .downloadBlock(hash, password))) {
                     try (DataInputStream dataInputStream = new DataInputStream(inputStream)) {
                         while (dataInputStream.available() > 0) {
                             int length = dataInputStream.readInt();

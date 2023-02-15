@@ -1,17 +1,17 @@
 {
   "images": [
     {
-      "filename": "trayicon.png",
+      "filename": "icon_19x19.png",
       "idiom": "universal",
       "scale": "1x"
     },
     {
-      "filename": "trayicon@2.png",
+      "filename": "icon_38x38.png",
       "idiom": "universal",
       "scale": "2x"
     },
     {
-      "filename": "trayicon@3.png",
+      "filename": "icon_57x57.png",
       "idiom": "universal",
       "scale": "3x"
     }

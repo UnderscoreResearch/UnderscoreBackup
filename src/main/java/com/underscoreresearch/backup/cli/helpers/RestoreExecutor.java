@@ -25,11 +25,11 @@ import com.underscoreresearch.backup.utils.StateLogger;
 public class RestoreExecutor {
     private final BackupContentsAccess contents;
     private final DownloadScheduler scheduler;
-    private final String passphrase;
+    private final String password;
 
-    public RestoreExecutor(BackupContentsAccess contents, String passphrase) {
+    public RestoreExecutor(BackupContentsAccess contents, String password) {
         this.contents = contents;
-        this.passphrase = passphrase;
+        this.password = password;
         scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
     }
 
@@ -170,7 +170,7 @@ public class RestoreExecutor {
 
     private void downloadFile(DownloadScheduler scheduler, BackupFile file, String currentDestination, boolean overwrite) {
         if (isNullFile(currentDestination)) {
-            scheduler.scheduleDownload(file, currentDestination, passphrase);
+            scheduler.scheduleDownload(file, currentDestination, password);
         } else {
             if (currentDestination == null) {
                 currentDestination = file.getPath();
@@ -180,7 +180,7 @@ public class RestoreExecutor {
                 if (destinationFile.exists() && !destinationFile.canWrite()) {
                     log.error("Does not have permissions to write to existing file {}", destinationFile.toString());
                 } else {
-                    scheduler.scheduleDownload(file, currentDestination, passphrase);
+                    scheduler.scheduleDownload(file, currentDestination, password);
                 }
             } else if (destinationFile.length() != file.getLength()) {
                 log.warn("File {} not of same size as in backup", currentDestination);

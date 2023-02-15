@@ -6,6 +6,8 @@ import static com.underscoreresearch.backup.io.IOProviderFactory.removeOldProvid
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,9 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public abstract class InstanceFactory {
+    private static final ReentrantReadWriteLock configReadWriteLock = new ReentrantReadWriteLock();
+    private static final Lock configUseLock = configReadWriteLock.readLock();
+    private static final Lock configChangeLock = configReadWriteLock.writeLock();
     private static InstanceFactory defaultFactory;
     private static Reflections reflections = new Reflections("com.underscoreresearch.backup");
     private static boolean shutdown;
@@ -31,7 +36,7 @@ public abstract class InstanceFactory {
     private static List<Runnable> shutdownHooks = new ArrayList<>();
     private static BackupConfiguration cachedConfig;
     private static boolean cachedHasConfig;
-    private static Object configReload = new Object();
+    private static String additionalSource;
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -64,31 +69,54 @@ public abstract class InstanceFactory {
     }
 
     public static String getAdditionalSource() {
-        String ret = getInstance(CommandLineModule.ADDITIONAL_SOURCE);
+        configUseLock.lock();
+        try {
+            return additionalSource;
+        } finally {
+            configUseLock.unlock();
+        }
+    }
+
+    public static String getAdditionalSourceName() {
+        String ret = getInstance(CommandLineModule.ADDITIONAL_SOURCE_NAME);
         if (Strings.isNullOrEmpty(ret)) {
             return null;
         }
         return ret;
     }
 
-    public static void initialize(String[] argv, String source) {
-        synchronized (configReload) {
+    public static void initialize(String[] argv, String source, String sourceName) {
+        configChangeLock.lock();
+        try {
             initialArguments = argv;
             initialize(Guice.createInjector(
-                    new CommandLineModule(argv, source),
+                    new CommandLineModule(argv, source, sourceName),
                     new EncryptionModule(),
                     new ErrorCorrectionModule(),
                     new BackupModule(),
                     new RestoreModule()));
+
+            additionalSource = getInstance(CommandLineModule.ADDITIONAL_SOURCE);
+            if (Strings.isNullOrEmpty(additionalSource)) {
+                additionalSource = null;
+            }
+
             shutdown = false;
+        } finally {
+            configChangeLock.unlock();
         }
     }
 
-    public static void reloadConfiguration(String source) {
-        reloadConfiguration(source, null);
+    public static void reloadConfigurationWithSource() {
+        reloadConfiguration(InstanceFactory.getAdditionalSource(), InstanceFactory.getAdditionalSourceName(),
+                null);
     }
 
-    public static void reloadConfiguration(String source, Runnable startup) {
+    public static void reloadConfiguration(Runnable startup) {
+        reloadConfiguration(null, null, startup);
+    }
+
+    public static void reloadConfiguration(String source, String sourceName, Runnable startup) {
         synchronized (shutdownHooks) {
             executeOrderedCleanupHook();
             MetadataRepository repository = null;
@@ -103,7 +131,7 @@ public abstract class InstanceFactory {
             } catch (IOException e) {
                 log.error("Failed to close metadata repository");
             }
-            initialize(initialArguments, source);
+            initialize(initialArguments, source, sourceName);
             if (hasConfiguration(true)) {
                 ConfigurationValidator.validateConfiguration(
                         getInstance(SOURCE_CONFIG, BackupConfiguration.class),
@@ -143,14 +171,20 @@ public abstract class InstanceFactory {
     }
 
     private static void initialize(Injector injector) {
-        synchronized (configReload) {
+        configUseLock.lock();
+        try {
             defaultFactory = new DefaultFactory(injector);
+        } finally {
+            configUseLock.unlock();
         }
     }
 
     public static <T> T getInstance(Class<T> tClass) {
-        synchronized (configReload) {
+        configUseLock.lock();
+        try {
             return getFactory(tClass).instance(tClass);
+        } finally {
+            configUseLock.unlock();
         }
     }
 
@@ -163,24 +197,33 @@ public abstract class InstanceFactory {
     }
 
     public static <T> T getInstance(String name, Class<T> tClass) {
-        synchronized (configReload) {
+        configUseLock.lock();
+        try {
             return getFactory(tClass).instance(name, tClass);
+        } finally {
+            configUseLock.unlock();
         }
     }
 
     public static <T> InstanceFactory getFactory(Class<T> tClass) {
-        synchronized (configReload) {
+        configUseLock.lock();
+        try {
             PluginFactory ret = tClass.getAnnotation(PluginFactory.class);
             if (ret != null && ret.factory() != null) {
                 return defaultFactory.instance(ret.factory());
             }
             return defaultFactory;
+        } finally {
+            configUseLock.unlock();
         }
     }
 
     public static String getInstance(String name) {
-        synchronized (configReload) {
+        configUseLock.lock();
+        try {
             return defaultFactory.instance(name, String.class);
+        } finally {
+            configUseLock.unlock();
         }
     }
 
@@ -194,15 +237,21 @@ public abstract class InstanceFactory {
 
         @Override
         protected <T> T instance(Class<T> tClass) {
-            synchronized (configReload) {
+            configUseLock.lock();
+            try {
                 return injector.getInstance(tClass);
+            } finally {
+                configUseLock.unlock();
             }
         }
 
         @Override
         protected <T> T instance(String name, Class<T> tClass) {
-            synchronized (configReload) {
+            configUseLock.lock();
+            try {
                 return injector.getInstance(Key.get(tClass, Names.named(name)));
+            } finally {
+                configUseLock.unlock();
             }
         }
     }

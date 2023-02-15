@@ -2,11 +2,14 @@ package com.underscoreresearch.backup.utils.state;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -49,6 +52,16 @@ public class MachineState {
                 }
             }
         }
+    }
+
+    public ReleaseFileItem getDistribution(List<ReleaseFileItem> files) {
+        Optional<ReleaseFileItem> ret = files.stream().filter(file -> file.getName().endsWith(".tar")).findAny();
+        if (ret.isPresent())
+            return ret.get();
+        ret = files.stream().filter(file -> file.getName().endsWith(".zip")).findAny();
+        if (ret.isPresent())
+            return ret.get();
+        return null;
     }
 
     public void lowPriority() {

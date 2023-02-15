@@ -31,7 +31,7 @@ public class ConfigurationGet extends JsonWrap {
                 } else if (InstanceFactory.getAdditionalSource() != null) {
                     log.warn("Have a source but an invalid configuration {}, bailing",
                             InstanceFactory.getAdditionalSource());
-                    InstanceFactory.reloadConfiguration(null, () -> InteractiveCommand.startBackupIfAvailable());
+                    InstanceFactory.reloadConfiguration(() -> InteractiveCommand.startBackupIfAvailable());
                     return actualAct(req);
                 }
             } catch (Exception exc) {

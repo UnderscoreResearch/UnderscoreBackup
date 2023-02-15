@@ -8,7 +8,7 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 
 public interface ManifestManager extends BaseManifestManager {
 
-    void replayLog(LogConsumer consumer, String passphrase) throws IOException;
+    void replayLog(LogConsumer consumer, String password) throws IOException;
 
     void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException;
 
@@ -24,5 +24,9 @@ public interface ManifestManager extends BaseManifestManager {
 
     void updateKeyData(EncryptionKey key) throws IOException;
 
+    void updateServiceSourceData(EncryptionKey encryptionKey) throws IOException;
+
     Map<String, ShareManifestManager> getActivatedShares();
+
+    void updateShareEncryption(EncryptionKey.PrivateKey privateKey) throws IOException;
 }

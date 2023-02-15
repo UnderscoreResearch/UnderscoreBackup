@@ -24,16 +24,16 @@ import com.google.common.base.Strings;
 public class AdditionalPrivateKeyRequest {
     private static ObjectReader READER = MAPPER
             .readerFor(AdditionalPrivateKeyRequest.class);
-    private String passphrase;
+    private String password;
     private String privateKey;
 
     public static AdditionalPrivateKeyRequest decodePrivateKeyRequest(Request req) throws IOException {
         String request = new RqPrint(req).printBody();
         AdditionalPrivateKeyRequest ret = READER.readValue(request);
-        if (Strings.isNullOrEmpty(ret.getPassphrase())) {
+        if (Strings.isNullOrEmpty(ret.getPassword())) {
             throw new HttpException(
                     HttpURLConnection.HTTP_BAD_REQUEST,
-                    "Missing required parameter passphrase"
+                    "Missing required parameter password"
             );
         }
         return ret;

@@ -40,6 +40,7 @@ import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -61,6 +62,7 @@ class ManifestManagerImplTest {
     private RateLimitController rateLimitController;
     private ManifestManagerImpl manifestManager;
     private MemoryIOProvider memoryIOProvider;
+    private ServiceManager serviceManager;
     private Encryptor encryptor;
     private File tempDir;
     private File backupDir;
@@ -73,7 +75,7 @@ class ManifestManagerImplTest {
         tempDir = Files.createTempDirectory("test").toFile();
         backupDir = Files.createTempDirectory("backup").toFile();
         shareDir = Files.createTempDirectory("share").toFile();
-        sharePrivateKey = EncryptionKey.generateKeyWithPassphrase("testkey");
+        sharePrivateKey = EncryptionKey.generateKeyWithPassword("testkey");
         File sourceFile = new File(System.getProperty("user.dir"), "src");
 
         BackupDestination shareDestination = BackupDestination.builder()
@@ -82,6 +84,8 @@ class ManifestManagerImplTest {
                 .encryption("AES256")
                 .errorCorrection("NONE")
                 .build();
+
+        serviceManager = Mockito.mock(ServiceManager.class);
 
         configuration = BackupConfiguration.builder()
                 .destinations(ImmutableMap.of("TEST", BackupDestination.builder()
@@ -122,10 +126,10 @@ class ManifestManagerImplTest {
     }
 
     private void initializeFactory() throws JsonProcessingException {
-        InstanceFactory.initialize(new String[]{"--no-log", "--passphrase", "test", "--config-data",
+        InstanceFactory.initialize(new String[]{"--no-log", "--password", "test", "--config-data",
                 new ObjectMapper().writeValueAsString(configuration),
                 "-m", tempDir.getPath(),
-                "--encryption-key-data", PUBLIC_KEY_DATA}, null);
+                "--encryption-key-data", PUBLIC_KEY_DATA}, null, null);
 
         publickKey = InstanceFactory.getInstance(EncryptionKey.class);
     }
@@ -134,7 +138,7 @@ class ManifestManagerImplTest {
     public void testUploadConfig() throws IOException {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any(), any());
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, "id", null, false, publickKey);
+                rateLimitController, serviceManager, "id", null, false, publickKey);
         manifestManager.addLogEntry("doh", "doh");
         assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
     }
@@ -147,7 +151,7 @@ class ManifestManagerImplTest {
             stream.write(new byte[]{1, 2, 3});
         }
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, "id", null, false, publickKey);
+                rateLimitController, serviceManager, "id", null, false, publickKey);
         manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
         manifestManager.addLogEntry("doh", "doh");
         Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any(), any());
@@ -159,7 +163,7 @@ class ManifestManagerImplTest {
     @Test
     public void testDelayedUpload() throws IOException, InterruptedException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, "id", null, false, publickKey);
+                rateLimitController, serviceManager, "id", null, false, publickKey);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -174,7 +178,7 @@ class ManifestManagerImplTest {
     @Test
     public void testLoggingUpdateAndReplay() throws IOException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, "id", null, false, publickKey);
+                rateLimitController, serviceManager, "id", null, false, publickKey);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -193,7 +197,7 @@ class ManifestManagerImplTest {
         Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any(), any());
 
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, "id", null, false, publickKey);
+                rateLimitController, serviceManager, "id", null, false, publickKey);
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
         manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false), "test");
 

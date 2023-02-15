@@ -4,8 +4,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 
 @Slf4j
 public class OsxState extends MachineState {
@@ -31,6 +35,20 @@ public class OsxState extends MachineState {
         } catch (IOException ex) {
         }
         return false;
+    }
+
+    @Override
+    public ReleaseFileItem getDistribution(List<ReleaseFileItem> files) {
+        Optional<ReleaseFileItem> ret;
+        if ("aarch64".equals(System.getProperty("os.arch"))) {
+            ret = files.stream().filter(file -> file.getName().endsWith(".arm64.pkg")).findAny();
+        } else {
+            ret = files.stream().filter(file -> file.getName().endsWith(".x86_64.pkg")).findAny();
+        }
+        if (ret.isPresent()) {
+            return ret.get();
+        }
+        return null;
     }
 
     @Override

@@ -82,7 +82,7 @@ export default function SpeedLimit(props: SpeedLimitProps) {
                        ...state,
                        speed: parseInt(e.target.value),
                    })}/>
-        <Select disabled={!state.enabled} style={{minWidth: "10em", margin: "4px"}} value={state.unit}
+        <Select disabled={!state.enabled} style={{minWidth: "6em", margin: "4px"}} value={state.unit}
                 onChange={(e) => updateState({
                     ...state,
                     unit: e.target.value

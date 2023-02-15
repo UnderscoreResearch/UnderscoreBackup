@@ -5,7 +5,6 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -45,10 +44,12 @@ import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.implementation.DownloadSchedulerImpl;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
@@ -245,6 +246,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         log.error("Failed to flush backup log", e);
                     }
 
+                    checkNewVersion();
+
                     log.info("Paused for next scheduled scan");
                     System.gc();
                     running = false;
@@ -259,6 +262,18 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         condition.signal();
         lock.unlock();
         stateLogger.reset();
+
+        checkNewVersion();
+    }
+
+    private void checkNewVersion() {
+        if (configuration.getManifest().getVersionCheck() == null || configuration.getManifest().getVersionCheck()) {
+            ReleaseResponse version = InstanceFactory.getInstance(ServiceManager.class).checkVersion();
+            if (version != null) {
+                UIManager.displayInfoMessage(String.format("New version %s available:\n\n%s",
+                        version.getVersion(), version.getName()));
+            }
+        }
     }
 
     private boolean shouldOnlyDoFileTrim() {
@@ -359,9 +374,23 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
             for (int i = 0; i < configuration.getSets().size(); i++) {
                 BackupSet set = configuration.getSets().get(i);
                 BackupPendingSet pendingSet = pendingScheduled.remove(set.getId());
-                if (pendingSet != null
-                        && Objects.equals(pendingSet.getSchedule(), set.getSchedule())
-                        && (pendingSet.getScheduledAt() == null || pendingSet.getScheduledAt().after(new Date()))) {
+
+                if (pendingSet != null && !Objects.equals(pendingSet.getSchedule(), set.getSchedule())) {
+                    if (!Strings.isNullOrEmpty(set.getSchedule())) {
+                        Date date = getNextScheduleDate(set.getSchedule());
+                        pendingSet.setScheduledAt(date);
+
+                        try {
+                            repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
+                        } catch (IOException e) {
+                            log.error("Failed to update pending set {}", set.getId());
+                        }
+                    } else {
+                        pendingSet = null;
+                    }
+                }
+
+                if (pendingSet != null && (pendingSet.getScheduledAt() == null || pendingSet.getScheduledAt().after(new Date()))) {
                     if (pendingSet.getScheduledAt() != null) {
                         hasSchedules = true;
                         scheduleNextAt(set, i, pendingSet.getScheduledAt());

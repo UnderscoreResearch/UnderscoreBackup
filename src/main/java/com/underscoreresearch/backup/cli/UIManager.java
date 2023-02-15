@@ -70,7 +70,7 @@ public class UIManager {
                     ConfigurationPost.updateConfiguration(
                             BACKUP_CONFIGURATION_WRITER
                                     .writeValueAsString(InstanceFactory.getInstance(BackupConfiguration.class)), true, false);
-                    InstanceFactory.reloadConfiguration(null, null);
+                    InstanceFactory.reloadConfiguration(null);
                 } catch (IOException ex) {
                     log.error("Failed to pause backup", ex);
                 }

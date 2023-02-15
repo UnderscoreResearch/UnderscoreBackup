@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.io.implementation;
 
+import static com.underscoreresearch.backup.io.implementation.DropboxIOProvider.DROPBOX_TYPE;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
@@ -26,9 +28,10 @@ import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.RetryUtils;
 
-@IOPlugin(("DROPBOX"))
+@IOPlugin(DROPBOX_TYPE)
 @Slf4j
 public class DropboxIOProvider implements IOIndex {
+    public static final String DROPBOX_TYPE = "DROPBOX";
     private final DbxClientV2 clientV2;
     private final String root;
 

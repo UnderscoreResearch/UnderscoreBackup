@@ -40,9 +40,9 @@ public class AdditionalKeyPut extends JsonWrap {
 
             EncryptionKey.PrivateKey masterKey;
             try {
-                masterKey = InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(request.getPassphrase());
+                masterKey = InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(request.getPassword());
             } catch (Exception exc) {
-                return messageJson(403, "Invalid passphrase provided");
+                return messageJson(403, "Invalid password provided");
             }
 
             EncryptionKey key;

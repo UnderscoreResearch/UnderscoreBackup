@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.io.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.io.implementation.S3IOProvider.S3_TYPE;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
@@ -38,10 +39,11 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-@IOPlugin(("S3"))
+@IOPlugin(S3_TYPE)
 @Slf4j
 public class
 S3IOProvider implements IOIndex, Closeable {
+    public static final String S3_TYPE = "S3";
     private final S3Client client;
     private final String root;
     private final String bucket;

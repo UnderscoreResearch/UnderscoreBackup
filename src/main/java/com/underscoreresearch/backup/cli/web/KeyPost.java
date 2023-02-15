@@ -31,17 +31,17 @@ public class KeyPost extends JsonWrap {
     private static class Implementation extends BaseImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String passphrase = null;
+            String password = null;
             try {
-                passphrase = PrivateKeyRequest.decodePrivateKeyRequest(req);
+                password = PrivateKeyRequest.decodePrivateKeyRequest(req);
             } catch (HttpException exc) {
             }
             try {
-                if (passphrase != null) {
-                    if (PrivateKeyRequest.validatePassphrase(passphrase)) {
+                if (password != null) {
+                    if (PrivateKeyRequest.validatePassword(password)) {
                         return new RsText(WRITER.writeValueAsString(new KeyResponse(true)));
                     } else {
-                        return messageJson(403, "Invalid passphrase provided");
+                        return messageJson(403, "Invalid password provided");
                     }
                 }
 

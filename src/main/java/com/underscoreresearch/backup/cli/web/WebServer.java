@@ -38,6 +38,15 @@ import org.takes.http.FtBasic;
 import org.takes.misc.Opt;
 import org.takes.tk.TkWithType;
 
+import com.underscoreresearch.backup.cli.web.service.BestRegionGet;
+import com.underscoreresearch.backup.cli.web.service.CreateSecretPut;
+import com.underscoreresearch.backup.cli.web.service.GenerateTokenPost;
+import com.underscoreresearch.backup.cli.web.service.GetSecretPost;
+import com.underscoreresearch.backup.cli.web.service.SharesGet;
+import com.underscoreresearch.backup.cli.web.service.SourcesGet;
+import com.underscoreresearch.backup.cli.web.service.SourcesPost;
+import com.underscoreresearch.backup.cli.web.service.SourcesPut;
+import com.underscoreresearch.backup.cli.web.service.TokenDelete;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
@@ -110,12 +119,6 @@ public class WebServer {
                                     new FkRegex(base + "/api/state", new TkFork(
                                             new FkMethods("GET", new StateGet())
                                     )),
-                                    new FkRegex(base + "/api/destination-download/.*", new TkFork(
-                                            new FkMethods("GET", new DestinationDownloadGet(base))
-                                    )),
-                                    new FkRegex(base + "/api/destination-files(/.*)?", new TkFork(
-                                            new FkMethods("GET", new ListDestinationFilesGet(base))
-                                    )),
                                     new FkRegex(base + "/api/encryption-key", new TkFork(
                                             new FkMethods("POST", new KeyPost()),
                                             new FkMethods("PUT", new GenerateKeyPut()))),
@@ -127,18 +130,25 @@ public class WebServer {
                                     new FkRegex(base + "/api/local-files(/.*)?", new TkFork(
                                             new FkMethods("GET", new ListLocalFilesGet(base))
                                     )),
+                                    new FkRegex(base + "/api/rebuild-available", new TkFork(
+                                            new FkMethods("GET", new RebuildAvailableGet())
+                                    )),
                                     new FkRegex(base + "/api/remote-configuration/rebuild", new TkFork(
                                             new FkMethods("POST", new RemoteRestorePost()))),
-                                    new FkRegex(base + "/api/sets/restart", new TkFork(
-                                            new FkMethods("POST", new RestartSetsPost()))),
                                     new FkRegex(base + "/api/remote-configuration", new TkFork(
                                             new FkMethods("GET", new RemoteConfigurationGet())
+                                    )),
+                                    new FkRegex(base + "/api/ping", new TkFork(
+                                            new FkMethods("GET", new PingGet()),
+                                            new FkMethods("OPTIONS", new PingOptions())
                                     )),
                                     new FkRegex(base + "/api/restore", new TkFork(
                                             new FkMethods("POST", new RestorePost()))),
                                     new FkRegex(base + "/api/search-backup", new TkFork(
                                             new FkMethods("GET", new SearchBackupFilesGet(base))
                                     )),
+                                    new FkRegex(base + "/api/sets/restart", new TkFork(
+                                            new FkMethods("POST", new RestartSetsPost()))),
                                     new FkRegex(base + "/api/shares", new TkFork(
                                             new FkMethods("GET", new ActiveSharesGet()),
                                             new FkMethods("POST", new ActivateSharesPost()))),
@@ -149,6 +159,21 @@ public class WebServer {
                                             new FkMethods("POST", new SourceSelectPost(base))
                                     )),
 
+                                    new FkRegex(base + "/api/service/best-region", new TkFork(
+                                            new FkMethods("GET", new BestRegionGet()))),
+                                    new FkRegex(base + "/api/service/token", new TkFork(
+                                            new FkMethods("POST", new GenerateTokenPost()),
+                                            new FkMethods("DELETE", new TokenDelete()))),
+                                    new FkRegex(base + "/api/service/sources", new TkFork(
+                                            new FkMethods("GET", new SourcesGet()),
+                                            new FkMethods("POST", new SourcesPost()),
+                                            new FkMethods("PUT", new SourcesPut()))),
+                                    new FkRegex(base + "/api/service/shares", new TkFork(
+                                            new FkMethods("GET", new SharesGet()))),
+                                    new FkRegex(base + "/api/service/secrets", new TkFork(
+                                            new FkMethods("POST", new GetSecretPost()),
+                                            new FkMethods("PUT", new CreateSecretPut()))),
+
                                     createIndexPath(base),
                                     createIndexPath(base + "/destinations"),
                                     createIndexPath(base + "/restore"),
@@ -157,6 +182,7 @@ public class WebServer {
                                     createIndexPath(base + "/settings"),
                                     createIndexPath(base + "/share"),
                                     createIndexPath(base + "/sources"),
+                                    createIndexPath(base + "/authorizeaccept"),
 
                                     createFiletypePath("css", "text/css"),
                                     createFiletypePath("html", "text/html"),
@@ -223,7 +249,7 @@ public class WebServer {
         }
     }
 
-    private InetAddress getInetAddress() {
+    private static InetAddress getInetAddress() {
         CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
 
         if (commandLine.hasOption(BIND_ADDRESS)) {

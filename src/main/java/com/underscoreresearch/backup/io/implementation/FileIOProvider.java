@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.io.implementation;
 
+import static com.underscoreresearch.backup.io.implementation.FileIOProvider.FILE_TYPE;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
@@ -20,9 +21,10 @@ import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
 
-@IOPlugin(("FILE"))
+@IOPlugin(FILE_TYPE)
 @Slf4j
 public class FileIOProvider implements IOIndex {
+    public static final String FILE_TYPE = "FILE";
     private final String root;
 
     public FileIOProvider(BackupDestination destination) {
@@ -78,6 +80,16 @@ public class FileIOProvider implements IOIndex {
         File file = getFile(key);
         if (file.exists() && !file.delete()) {
             throw new IOException("Failed to delete " + file);
+        }
+
+        File parent = file.getParentFile();
+        File root = new File(this.root);
+        while (parent != null && !parent.equals(root) && parent.exists() && parent.list().length == 0) {
+            if (!parent.delete()) {
+                log.warn("Failed to delete directory {}", parent);
+                return;
+            }
+            parent = parent.getParentFile();
         }
     }
 

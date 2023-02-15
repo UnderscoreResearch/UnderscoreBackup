@@ -68,10 +68,11 @@ export default function Timespan(props: DurationProps) {
                            unit: state.unit
                        })}/>
         }
-        <Select style={{minWidth: "10em", margin: "4px"}} disabled={props.disabled} value={state.unit} onChange={(e) => updateState({
-            duration: state.duration,
-            unit: e.target.value
-        })}>
+        <Select style={{minWidth: "10em", margin: "4px"}} disabled={props.disabled} value={state.unit}
+                onChange={(e) => updateState({
+                    duration: state.duration,
+                    unit: e.target.value
+                })}>
             {!props.requireTime && <MenuItem value={"IMMEDIATE"}>immediate</MenuItem>}
             <MenuItem value={"SECONDS"}>second{pluralS}</MenuItem>
             <MenuItem value={"MINUTES"}>minute{pluralS}</MenuItem>

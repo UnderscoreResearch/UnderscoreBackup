@@ -44,13 +44,14 @@ import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.BaseManifestManager;
 import com.underscoreresearch.backup.manifest.LogConsumer;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.AccessLock;
 
 @Slf4j
 public abstract class BaseManifestManagerImpl implements BaseManifestManager {
-    protected static final String LOG_ROOT = "logs";
+    public static final String LOG_ROOT = "logs";
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.nnnnnnnnn").withZone(ZoneId.of("UTC"));
     private static final String IDENTITY_MANIFEST_LOCATION = "identity";
@@ -70,6 +71,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final String installationIdentity;
     @Getter(AccessLevel.PROTECTED)
     private final boolean forceIdentity;
+    @Getter(AccessLevel.PROTECTED)
+    private final ServiceManager serviceManager;
     private boolean activated;
     @Getter
     private boolean shutdown;
@@ -99,6 +102,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                                    IOProvider provider,
                                    Encryptor encryptor,
                                    RateLimitController rateLimitController,
+                                   ServiceManager serviceManager,
                                    String installationIdentity,
                                    boolean forceIdentity,
                                    EncryptionKey publicKey) {
@@ -108,6 +112,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         this.installationIdentity = installationIdentity;
         this.forceIdentity = forceIdentity;
         this.publicKey = publicKey;
+        this.serviceManager = serviceManager;
 
         this.manifestDestination = manifestDestination;
         if (manifestDestination == null) {
@@ -220,7 +225,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             provider.upload(IDENTITY_MANIFEST_LOCATION, data);
             rateLimitController.acquireUploadPermits(manifestDestination, data.length);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to save identity to target");
+            throw new RuntimeException(String.format("Failed to save identity to target: %s", e.getMessage()), e);
         }
     }
 
@@ -265,17 +270,22 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         byte[] data;
         if (encrypt) {
             validateIdentity();
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
-                IOUtils.copyStream(inputStream, gzipStream);
-            }
-            data = encryptor.encryptBlock(null, outputStream.toByteArray(), publicKey);
+
+            data = encryptConfigData(inputStream);
         } else {
             data = IOUtils.readAllBytes(inputStream);
         }
         log.info("Uploading {} ({})", filename, readableSize(data.length));
         rateLimitController.acquireUploadPermits(manifestDestination, data.length);
         provider.upload(filename, data);
+    }
+
+    public byte[] encryptConfigData(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
+            IOUtils.copyStream(inputStream, gzipStream);
+        }
+        return encryptor.encryptBlock(null, outputStream.toByteArray(), publicKey);
     }
 
     private String transformLogFilename(String path) {

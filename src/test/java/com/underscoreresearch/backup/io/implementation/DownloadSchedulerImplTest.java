@@ -67,7 +67,7 @@ public class DownloadSchedulerImplTest {
     @IOPlugin("DELAY")
     public static class DelayedFiledownloader implements FileDownloader {
         @Override
-        public void downloadFile(BackupFile source, String destination, String passphrase) throws IOException {
+        public void downloadFile(BackupFile source, String destination, String password) throws IOException {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {

@@ -32,23 +32,23 @@ public class RemoteRestorePost extends JsonWrap {
         super(new Implementation());
     }
 
-    public static byte[] downloadKeyData(String passphrase, String source) throws ParseException, IOException {
+    public static byte[] downloadKeyData(String password, String source) throws ParseException, IOException {
         IOProvider provider = getIoProvider(source);
         byte[] keyData = provider.download("/publickey.json");
         EncryptionKey encryptionKey = ENCRYPTION_KEY_READER.readValue(keyData);
 
         if (!Strings.isNullOrEmpty(source) && encryptionKey.getSalt() == null) {
             encryptionKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class)
-                    .getPrivateKey(passphrase)
+                    .getPrivateKey(password)
                     .getAdditionalKeyManager().findMatchingPrivateKey(encryptionKey);
             if (encryptionKey == null) {
                 throw new ParseException("No private key found");
             }
         } else {
             try {
-                encryptionKey.getPrivateKey(passphrase);
+                encryptionKey.getPrivateKey(password);
             } catch (RuntimeException exc) {
-                throw new ParseException("Invalid passphrase provided for restore");
+                throw new ParseException("Invalid password provided for restore");
             }
         }
         return keyData;
@@ -77,12 +77,12 @@ public class RemoteRestorePost extends JsonWrap {
     private static class Implementation extends BaseImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String passphrase = PrivateKeyRequest.decodePrivateKeyRequest(req);
+            String password = PrivateKeyRequest.decodePrivateKeyRequest(req);
             try {
                 try {
                     byte[] keyData;
                     try {
-                        keyData = downloadKeyData(passphrase, null);
+                        keyData = downloadKeyData(password, null);
                     } catch (ParseException exc) {
                         return messageJson(403, exc.getMessage());
                     }
@@ -93,9 +93,9 @@ public class RemoteRestorePost extends JsonWrap {
                         writer.write(keyData);
                     }
 
-                    InstanceFactory.reloadConfiguration(null, null);
+                    InstanceFactory.reloadConfiguration(null);
                     try {
-                        String config = RebuildRepositoryCommand.downloadRemoteConfiguration(null, passphrase);
+                        String config = RebuildRepositoryCommand.downloadRemoteConfiguration(null, password);
 
                         updateConfiguration(config, true, true);
                     } catch (Exception exc) {
@@ -105,8 +105,8 @@ public class RemoteRestorePost extends JsonWrap {
                     }
 
                     // We want the rebild to start before we return.
-                    InstanceFactory.reloadConfiguration(null,
-                            () -> RebuildRepositoryCommand.rebuildFromLog(passphrase, true));
+                    InstanceFactory.reloadConfiguration(
+                            () -> RebuildRepositoryCommand.rebuildFromLog(password, true));
                     return messageJson(200, "Remote restore initiated");
                 } catch (Exception exc) {
                     return JsonWrap.messageJson(400, "Couldn't fetch remote configuration");

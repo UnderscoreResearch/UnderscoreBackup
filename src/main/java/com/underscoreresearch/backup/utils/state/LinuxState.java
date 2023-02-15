@@ -4,8 +4,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
+
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 
 @Slf4j
 public class LinuxState extends MachineState {
@@ -26,6 +30,19 @@ public class LinuxState extends MachineState {
         } catch (IOException exc) {
             return false;
         }
+    }
+
+    @Override
+    public ReleaseFileItem getDistribution(List<ReleaseFileItem> files) {
+        Optional<ReleaseFileItem> ret;
+        if (new File("/usr/bin/dpkg").exists())
+            ret = files.stream().filter(file -> file.getName().endsWith(".deb")).findAny();
+        else
+            ret = files.stream().filter(file -> file.getName().endsWith(".rpm")).findAny();
+        if (ret.isPresent()) {
+            return ret.get();
+        }
+        return null;
     }
 
     @Override

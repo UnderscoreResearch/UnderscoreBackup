@@ -42,7 +42,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
     private Stopwatch duration;
     private DB fileDb;
     private BTreeMap<Object[], String> fileMap;
-    private String pendingPassphrase;
+    private String pendingPassword;
 
     public DownloadSchedulerImpl(int maximumConcurrency,
                                  FileDownloader fileDownloader) {
@@ -51,7 +51,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
     }
 
     @Override
-    public void scheduleDownload(BackupFile file, String destination, String passphrase) {
+    public void scheduleDownload(BackupFile file, String destination, String password) {
         if (duration == null)
             duration = Stopwatch.createStarted();
 
@@ -63,12 +63,12 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                 pendingOutstanding.incrementAndGet();
                 fileMap.put(new Object[]{file.getLocations().get(0).getParts().get(0).getBlockHash(), BACKUP_FILE_WRITER.writeValueAsString(file)},
                         destination);
-                pendingPassphrase = passphrase;
+                pendingPassword = password;
             } catch (JsonProcessingException e) {
                 log.error("Failed to temporarily serialize backup file", e);
             }
         } else {
-            internalSchedule(file, destination, passphrase);
+            internalSchedule(file, destination, password);
         }
     }
 
@@ -102,7 +102,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                     pendingOutstanding.decrementAndGet();
                     BackupFile file = BACKUP_FILE_READER.readValue((String) entry.getKey()[1]);
                     String destination = entry.getValue();
-                    internalSchedule(file, destination, pendingPassphrase);
+                    internalSchedule(file, destination, pendingPassword);
                 } catch (JsonProcessingException e) {
                     log.error("Failed to deserialize backup file", e);
                 }
@@ -117,13 +117,13 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
             closingFileMap.close();
             closingDb.close();
 
-            pendingPassphrase = null;
+            pendingPassword = null;
         }
 
         super.waitForCompletion();
     }
 
-    private void internalSchedule(BackupFile file, String destination, String passphrase) {
+    private void internalSchedule(BackupFile file, String destination, String password) {
         schedule(() -> {
             try {
                 if (file.getLength() == null) {
@@ -132,7 +132,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                 }
                 log.info("Restoring {} to {} ({})", PathNormalizer.physicalPath(file.getPath()),
                         destination, readableSize(file.getLength()));
-                fileDownloader.downloadFile(file, destination, passphrase);
+                fileDownloader.downloadFile(file, destination, password);
                 debug(() -> log.debug("Restored " + file.getPath()));
                 totalSize.addAndGet(file.getLength());
                 totalCount.incrementAndGet();

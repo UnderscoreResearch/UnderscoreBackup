@@ -25,7 +25,7 @@ gulp.task('delete-dist', () => {
 gulp.task('clean', gulp.parallel('delete-parcel-cache', 'delete-build', 'delete-dist', 'delete-resources'));
 
 gulp.task('parcel-build', function (cb) {
-    exec('parcel build  --public-url . ./src/index.html --dist-dir build', function (err, stdout, stderr) {
+    exec('parcel build  --public-url . --no-source-maps ./src/index.html --dist-dir build', function (err, stdout, stderr) {
         console.log(stdout);
         console.log(stderr);
         cb(err);

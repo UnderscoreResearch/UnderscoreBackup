@@ -13,8 +13,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,8 +37,13 @@ import com.joestelmach.natty.DateGroup;
 import com.joestelmach.natty.Parser;
 import com.underscoreresearch.backup.cli.web.WebServer;
 import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupManifest;
+import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
+import com.underscoreresearch.backup.service.api.model.SourceResponse;
 import com.underscoreresearch.backup.utils.ActivityAppender;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.LinuxState;
@@ -47,7 +55,7 @@ import com.underscoreresearch.backup.utils.state.WindowsState;
 public class CommandLineModule extends AbstractModule {
     public static final String CONFIG_FILE_LOCATION = "CONFIG_FILE_LOCATION";
 
-    public static final String PRIVATE_KEY_SEED = "passphrase";
+    public static final String PRIVATE_KEY_SEED = "password";
     public static final String KEY_FILE_NAME = "key-file-name";
     public static final String ENCRYPTION_KEY_DATA = "encryption-key-data";
     public static final String CONFIG_DATA = "config-data";
@@ -75,6 +83,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String DEFAULT_USER_MANIFEST_LOCATION = "DEFAULT_USER_MANIFEST_LOCATION";
     public static final String DEFAULT_MANIFEST_LOCATION = "DEFAULT_MANIFEST_LOCATION";
     public static final String ADDITIONAL_SOURCE = "ADDITIONAL_SOURCE";
+    public static final String ADDITIONAL_SOURCE_NAME = "ADDITIONAL_SOURCE_NAME";
     public static final String SOURCE_CONFIG = "SOURCE_CONFIG";
     public static final String SOURCE_CONFIG_LOCATION = "SOURCE_CONFIG_LOCATION";
     private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
@@ -82,13 +91,21 @@ public class CommandLineModule extends AbstractModule {
     private static final String DEFAULT_LOG_PATH = "/var/log/underscorebackup.log";
     private final String[] argv;
     private final String source;
+    private String sourceName;
+    private SourceResponse sourceDefinition;
 
-    public CommandLineModule(String[] argv, String source) {
+    public CommandLineModule(String[] argv, String source, String sourceName) {
         this.argv = argv;
         if (source != null) {
             this.source = source;
+            if (sourceName != null) {
+                this.sourceName = sourceName;
+            } else {
+                this.sourceName = source;
+            }
         } else {
             this.source = "";
+            this.sourceName = "";
         }
     }
 
@@ -131,6 +148,49 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    public static BackupConfiguration expandSourceManifestDestination(BackupConfiguration sourceConfig,
+                                                                      BackupDestination destination) {
+        final AtomicReference<BackupDestination> manifestDestination = new AtomicReference<>();
+        if (sourceConfig.getManifest() == null) {
+            sourceConfig.setManifest(new BackupManifest());
+        }
+        if (sourceConfig.getManifest().getDestination() != null) {
+            manifestDestination.set(sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination()));
+        } else {
+            // Do we have a destination there that exactly match already?
+            for (Map.Entry<String, BackupDestination> entry : sourceConfig.getDestinations().entrySet()) {
+                if (entry.getValue().equals(destination)) {
+                    manifestDestination.set(entry.getValue());
+                    sourceConfig.getManifest().setDestination(entry.getKey());
+                    break;
+                }
+            }
+        }
+
+        // So this is a bit tricky. If the configuration for the manifest matches the URI and type we have then
+        // replace the destination with what is defined in the backup configuration. Otherwise, add a new destination
+        // with a generated name and make that the manifest location.
+        if (manifestDestination.get() == null
+                || !Objects.equals(destination.getEndpointUri(), manifestDestination.get().getEndpointUri())
+                || !Objects.equals(destination.getType(), manifestDestination.get().getType())) {
+            String manifestName = "manifest";
+            int i = 0;
+            while (sourceConfig.getDestinations().containsKey(manifestName)) {
+                i++;
+                manifestName = "manifest-" + i;
+            }
+            sourceConfig.getDestinations().put(manifestName, destination);
+            sourceConfig.getManifest().setDestination(manifestName);
+        } else {
+            sourceConfig.getDestinations().put(sourceConfig.getManifest().getDestination(), destination);
+        }
+        return sourceConfig;
+    }
+
+    public static String getSourceConfigLocation(String manifestLocation, String source) {
+        return Paths.get(manifestLocation, "sources", source, "config.json").toString();
+    }
+
     @Provides
     @Singleton
     public Options options() {
@@ -155,7 +215,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption("m", MANIFEST_LOCATION, true, "Local manifest location");
         options.addOption("k", KEY, true, "Location for key file");
         options.addOption(null, ENCRYPTION_KEY_DATA, true, "Encryption key data");
-        options.addOption(null, PRIVATE_KEY_SEED, true, "Private key passphrase");
+        options.addOption(null, PRIVATE_KEY_SEED, true, "Private key password");
         options.addOption(null, ADDITIONAL_KEY, false, "Generate a new additional key for sharing instead of a new master key");
 
         return options;
@@ -209,15 +269,49 @@ public class CommandLineModule extends AbstractModule {
     @Provides
     @Singleton
     @Named(ADDITIONAL_SOURCE)
-    public String getSource(BackupConfiguration configuration, CommandLine commandLine) throws ParseException {
+    public String getSource(BackupConfiguration configuration, CommandLine commandLine, ServiceManager serviceManager)
+            throws ParseException, IOException {
         String additionalSource = calculateSource(commandLine);
         if (additionalSource != null) {
-            if (!configuration.getAdditionalSources().containsKey(additionalSource)) {
+            if (configuration.getAdditionalSources() == null || !configuration.getAdditionalSources().containsKey(additionalSource)) {
+                if (!Strings.isNullOrEmpty(sourceName)) {
+                    return additionalSource;
+                }
+                if (serviceManager.getToken() != null) {
+                    ListSourcesResponse serviceSources = ServiceManagerImpl.retry(() -> serviceManager.getClient().listSources());
+                    Optional<SourceResponse> service = serviceSources.getSources().stream()
+                            .filter((source) -> source.getSourceId().equals(additionalSource)
+                                    || source.getName().equals(additionalSource)).findAny();
+                    if (service.isPresent()) {
+                        sourceDefinition = service.get();
+                        sourceName = service.get().getName();
+                        return service.get().getSourceId();
+                    }
+                }
                 throw new ParseException(String.format("Additional source %s not in config file", additionalSource));
             }
             return additionalSource;
         }
         return "";
+    }
+
+    @Provides
+    @Singleton
+    public SourceResponse sourceDefinition(@Named(ADDITIONAL_SOURCE) String source) {
+        if (sourceDefinition == null) {
+            return new SourceResponse();
+        }
+        return sourceDefinition;
+    }
+
+    @Provides
+    @Singleton
+    @Named(ADDITIONAL_SOURCE_NAME)
+    public String getSourceName(@Named(ADDITIONAL_SOURCE) String source) {
+        if (!Strings.isNullOrEmpty(sourceName)) {
+            return sourceName;
+        }
+        return source;
     }
 
     private String calculateSource(CommandLine commandLine) {
@@ -385,7 +479,7 @@ public class CommandLineModule extends AbstractModule {
     @Singleton
     @Named(SOURCE_CONFIG_LOCATION)
     public String sourceConfigLocation(@Named(MANIFEST_LOCATION) String manifestLocation, @Named(ADDITIONAL_SOURCE) String source) {
-        return Paths.get(manifestLocation, "sources", source, "config.json").toString();
+        return getSourceConfigLocation(manifestLocation, source);
     }
 
     @Provides
@@ -397,30 +491,12 @@ public class CommandLineModule extends AbstractModule {
         if (!Strings.isNullOrEmpty(additionalSource)) {
             BackupConfiguration sourceConfig
                     = BACKUP_CONFIGURATION_READER.readValue(new File(configLocation));
-            BackupDestination destination = configuration.getAdditionalSources().get(additionalSource);
-            BackupDestination manifestDestination;
-            if (sourceConfig.getManifest() != null && sourceConfig.getManifest().getDestination() != null) {
-                manifestDestination = sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination());
-            } else {
-                manifestDestination = null;
-            }
-
-            // So this is a bit tricky. If the configuration for the manifest matches the URI and type we have then
-            // replace the destination with what is defined in the backup configuration. Otherwise, add a new destination
-            // with a generated name and make that the manifest location.
-            if (manifestDestination == null
-                    || !Objects.equals(destination.getEndpointUri(), manifestDestination.getEndpointUri())
-                    || !Objects.equals(destination.getType(), manifestDestination.getType())) {
-                String manifestName = "manifest";
-                int i = 0;
-                while (sourceConfig.getDestinations().containsKey(manifestName)) {
-                    i++;
-                    manifestName = "manifest-" + i;
+            BackupDestination destination;
+            if (configuration.getAdditionalSources() != null) {
+                destination = configuration.getAdditionalSources().get(additionalSource);
+                if (destination != null) {
+                    return expandSourceManifestDestination(sourceConfig, destination);
                 }
-                sourceConfig.getDestinations().put(manifestName, destination);
-                sourceConfig.getManifest().setDestination(manifestName);
-            } else {
-                sourceConfig.getDestinations().put(sourceConfig.getManifest().getDestination(), destination);
             }
             return sourceConfig;
         }
@@ -497,5 +573,11 @@ public class CommandLineModule extends AbstractModule {
     @Singleton
     public ActivityAppender activityAppender() {
         return ActivityAppender.createAppender("Activity", null, null);
+    }
+
+    @Provides
+    @Singleton
+    public ServiceManager serviceManager(@Named(MANIFEST_LOCATION) String location) throws IOException {
+        return new ServiceManagerImpl(location);
     }
 }

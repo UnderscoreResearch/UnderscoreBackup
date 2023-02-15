@@ -17,6 +17,7 @@ import org.takes.Response;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.utils.ActivityAppender;
 
 @Slf4j
@@ -57,10 +58,11 @@ public class ResetDelete extends JsonWrap {
     private static class Implementation extends BaseImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
+            executeShielded(() -> InstanceFactory.getInstance(ServiceManager.class).reset());
             executeShielded(() -> new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION)).delete());
             executeShielded(() -> new File(InstanceFactory.getInstance(KEY_FILE_NAME)).delete());
 
-            executeShielded(() -> InstanceFactory.reloadConfiguration(null, null));
+            executeShielded(() -> InstanceFactory.reloadConfiguration(null));
             executeShielded(() -> deleteContents(new File(InstanceFactory.getInstance(MANIFEST_LOCATION))));
 
             ActivityAppender.resetLogging();

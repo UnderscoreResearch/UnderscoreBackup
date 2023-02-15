@@ -63,7 +63,7 @@ class RepositoryTrimmerTest {
 
     @BeforeEach
     public void setup() throws IOException {
-        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null);
+        InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
         manifestManager = Mockito.mock(ManifestManager.class);
         tempDir = Files.createTempDirectory("test").toFile();
         repository = Mockito.spy(new LoggingMetadataRepository(new MapdbMetadataRepository(tempDir.getPath(), false), manifestManager, false));
