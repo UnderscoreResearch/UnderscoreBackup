@@ -18,6 +18,7 @@ export interface DestinationProp {
 export interface DestinationsProps {
     destinations: DestinationProp[],
     dontDelete: string[],
+    manifestDestination?: string,
     backendState: BackupState,
     configurationUpdated: (valid: boolean, destinations: DestinationProp[]) => void
 }
@@ -96,7 +97,7 @@ export default function Destinations(props: DestinationsProps) {
                 return <Destination id={item.id}
                                     backendState={props.backendState}
                                     destination={item.destination}
-                                    manifestDestination={props.dontDelete.includes(item.id)}
+                                    manifestDestination={props.manifestDestination === item.id}
                                     destinationUpdated={(valid, destination) => {
                                         itemUpdated({valid: valid, destination: destination, id: item.id});
                                     }

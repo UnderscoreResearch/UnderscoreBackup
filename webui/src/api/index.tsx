@@ -161,6 +161,7 @@ export interface BackupState {
     validDestinations: boolean,
     sourceName: string,
     source?: string,
+    siteUrl: string,
     newVersion?: ReleaseResponse
 }
 
@@ -242,6 +243,7 @@ export async function getState(): Promise<BackupState> {
             pathSeparator: "/",
             version: "",
             sourceName: "",
+            siteUrl: "https://underscorebackup.com",
             serviceConnected: false,
             activeSubscription: false,
             validDestinations: false,

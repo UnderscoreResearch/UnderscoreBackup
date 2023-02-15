@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PingGet.getSiteUrl;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
@@ -85,6 +86,7 @@ public class StateGet extends JsonWrap {
         private String version;
         private String source;
         private String sourceName;
+        private String siteUrl;
         private boolean validDestinations;
         private boolean serviceConnected;
         private String serviceSourceId;
@@ -207,6 +209,7 @@ public class StateGet extends JsonWrap {
                         .activeSubscription(activeSubscription)
                         .serviceSourceId(serviceSourceId)
                         .sourceName(sourceName)
+                        .siteUrl(getSiteUrl())
                         .source(InstanceFactory.getAdditionalSource())
                         .newVersion(NewVersion.fromRelease(serviceManager.newVersion()))
                         .pathSeparator(File.separator)

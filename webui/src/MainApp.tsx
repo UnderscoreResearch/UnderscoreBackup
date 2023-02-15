@@ -1234,6 +1234,7 @@ export default function MainApp() {
             <Route path="destinations" element={<Destinations destinations={getDestinationList()}
                                                               backendState={state.backendState}
                                                               dontDelete={getUsedDestinations()}
+                                                              manifestDestination={state.currentConfiguration?.manifest?.destination}
                                                               configurationUpdated={updateDestinations}/>}/>
             <Route path="sources" element={<Sources sources={getSourcesList()}
                                                     backendState={state.backendState}

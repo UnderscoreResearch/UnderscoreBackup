@@ -281,7 +281,7 @@ export default function InitialSetup(props: InitialSetupProps) {
 
     function reclaimPassword() {
         window.sessionStorage.setItem("newPassword", state.passwordReclaim);
-        authorizationRedirect("/?refresh=true",
+        authorizationRedirect(props.backendState.siteUrl, "/?refresh=true",
             `emailHash=${
                 encodeURIComponent(hash(base64url.decode(window.localStorage.getItem("email") as string)))}&sourceId=${
                 state.selectedSource?.sourceId}&region=${

@@ -33,7 +33,7 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
             busy: true
         });
         try {
-            authorizationRedirect(location.pathname,
+            authorizationRedirect(props.backendState.siteUrl, location.pathname,
                 `name=${encodeURIComponent(props.backendState.sourceName)}`,
                 `sourceName=${encodeURIComponent(props.backendState.sourceName)}`);
         } finally {
@@ -137,7 +137,7 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
                 <>
                     <Grid item xs={12} textAlign={"center"}>
                         <Link rel="noreferrer" target="_blank"
-                              href={"https://dev.underscorebackup.com/settings/general"}>Account
+                              href={`${props.backendState.siteUrl}/settings/general`}>Account
                             Settings</Link>
                     </Grid>
                     <Grid item md={9} xs={12}>
