@@ -137,6 +137,11 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
                 <>
                     <Grid item xs={12} textAlign={"center"}>
                         <Link rel="noreferrer" target="_blank"
+                              href={`${props.backendState.siteUrl}/dashboard`} underline={"hover"}>Dashboard</Link>
+                        &nbsp;
+                        &nbsp;
+                        &nbsp;
+                        <Link rel="noreferrer" target="_blank" underline={"hover"}
                               href={`${props.backendState.siteUrl}/settings/general`}>Account
                             Settings</Link>
                     </Grid>

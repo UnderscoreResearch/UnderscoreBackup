@@ -212,7 +212,11 @@ public class ServiceManagerImpl implements ServiceManager {
         String ret = data.getSourceName();
         if (ret == null) {
             try {
-                return InetAddress.getLocalHost().getHostName();
+                String name = InetAddress.getLocalHost().getHostName();
+                int idx = name.indexOf('.');
+                if (idx > 0)
+                    name = name.substring(0, idx);
+                return name;
             } catch (UnknownHostException e) {
             }
         }

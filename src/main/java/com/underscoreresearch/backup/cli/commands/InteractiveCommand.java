@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEVELOPER_MODE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -8,6 +9,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -115,6 +118,9 @@ public class InteractiveCommand extends Command {
             throw new ParseException("Too many arguments for command");
         }
 
+        if (checkIfAlreadyRunning())
+            return;
+
         WebServer server = InstanceFactory.getInstance(WebServer.class);
         server.start(InstanceFactory.getInstance(CommandLine.class).hasOption(DEVELOPER_MODE));
 
@@ -150,5 +156,20 @@ public class InteractiveCommand extends Command {
         startBackupIfAvailable();
 
         Thread.sleep(Long.MAX_VALUE);
+    }
+
+    private static boolean checkIfAlreadyRunning() {
+        try {
+            String url = getConfigurationUrl();
+            URL endpoint = new URL(url + "api/ping");
+            HttpURLConnection con = (HttpURLConnection) endpoint.openConnection();
+            con.setConnectTimeout(3000);
+            if (con.getResponseCode() == 200) {
+                log.info("Underscore Backup is already running, shutting down");
+                return true;
+            }
+        } catch (Exception exc) {
+        }
+        return false;
     }
 }

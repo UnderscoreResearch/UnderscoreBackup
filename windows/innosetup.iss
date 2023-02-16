@@ -54,6 +54,10 @@ Root: "HKLM"; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Envi
 const
   EnvironmentKey = 'SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment';
 
+var
+  PreviousMemory: string;
+  PreviousMemoryUI: string;
+
 function NeedsAddPath(Param: string): boolean;
 var
   OrigPath: string;
@@ -84,7 +88,7 @@ begin
   begin
     Log('PATH not found');
   end
-    else
+  else
   begin
     Log(Format('PATH is [%s]', [Paths]));
 
@@ -93,7 +97,7 @@ begin
     begin
       Log(Format('Path [%s] not found in PATH', [Path]));
     end
-      else
+    else
     begin
       if P > 1 then P := P - 1;
       Delete(Paths, P, Length(Path) + 1);
@@ -103,7 +107,7 @@ begin
       begin
         Log('PATH written');
       end
-        else
+      else
       begin
         Log('Error writing PATH');
       end;
@@ -126,4 +130,72 @@ var
 begin
     Exec('taskkill.exe', '/f /im ' + '"' + FileName + '"', '', SW_HIDE,
      ewWaitUntilTerminated, ResultCode);
+end;
+
+function ExtractMemory(file: string) : string;
+var
+  config : TArrayOfString;
+  i : Integer;
+  line : string;
+begin
+  if FileExists(file) then
+  begin
+    if LoadStringsFromFile(file, config) then
+    begin
+      for i := 0 to GetArrayLength(config) - 1 do
+      begin
+        line := config[i];
+        if Pos('java-options=-Xmx', line) = 1 then
+        begin
+          Result := line;
+          exit;
+        end;
+      end;
+    end;
+  end;
+  Result := '';
+end;
+
+procedure ReplaceMemory(file: string; newLine: string);
+var
+  config : TArrayOfString;
+  i : Integer;
+  line : string;
+begin
+  if FileExists(file) then
+  begin
+    if LoadStringsFromFile(file, config) then
+    begin
+      for i := 0 to GetArrayLength(config) - 1 do
+      begin
+        line := config[i];
+        if Pos('java-options=-Xmx', line) = 1 then
+        begin
+          config[i] := newLine;
+          SaveStringsToFile(file, config, False);
+          exit;
+        end;
+      end;
+    end;
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    PreviousMemory := ExtractMemory(ExpandConstant('{app}\\app\\underscorebackup.cfg'));
+    PreviousMemoryUI := ExtractMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'));
+  end
+  else if CurStep = ssPostInstall then
+  begin
+    if PreviousMemory <> '' then
+    begin
+      ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup.cfg'), PreviousMemory);
+    end;
+    if PreviousMemoryUI <> '' then
+    begin
+      ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'), PreviousMemoryUI);
+    end;
+  end;
 end;

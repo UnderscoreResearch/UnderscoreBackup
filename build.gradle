@@ -13,9 +13,10 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.0pre1'
-def edition = ''
+version '2.0.0pre2'
+
 def archiveName = 'underscorebackup'
+def edition = ''
 
 sourceCompatibility = 17
 targetCompatibility = 17
