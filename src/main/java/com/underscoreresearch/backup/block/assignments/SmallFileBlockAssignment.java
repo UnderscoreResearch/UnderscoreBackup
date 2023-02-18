@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.block.assignments;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -186,6 +187,10 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         private Map<String, List<BackupFilePart>> pendingParts = new HashMap<>();
         private List<BackupCompletion> completions = new ArrayList<>();
 
+        public PendingFile() {
+            hash.addBytes(SmallFileBlockAssignment.this.getClass().getName().getBytes(StandardCharsets.UTF_8));
+        }
+
         public synchronized void addData(byte[] data, BackupSet set, BackupBlockCompletion completion) throws IOException {
             String partHash = Hash.hash(data);
 
@@ -224,6 +229,10 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
             List<BackupFilePart> piecePart;
             if (existingPending == null) {
                 currentIndex++;
+                hash.addBytes(new byte[] { (byte)data.length,
+                        (byte)(data.length / 0x100),
+                        (byte)(data.length / 0x10000),
+                        (byte)(data.length / 0x1000000) });
                 hash.addBytes(data);
 
                 addPartData(currentIndex, data, partHash);

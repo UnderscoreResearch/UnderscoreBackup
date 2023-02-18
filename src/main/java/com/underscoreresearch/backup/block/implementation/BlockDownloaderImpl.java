@@ -155,7 +155,9 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
             }
         };
 
-        pendingParts.add(partIndex);
+        synchronized (pendingParts) {
+            pendingParts.add(partIndex);
+        }
         schedule(() -> {
             try {
                 consumer.accept(provider.download(storage.getParts().get(partIndex)));

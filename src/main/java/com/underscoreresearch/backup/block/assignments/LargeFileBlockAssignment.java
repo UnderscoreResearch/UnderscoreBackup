@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.block.assignments;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -97,7 +98,11 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                     return true;
                 }
 
-                final String hash = Hash.hash(buffer);
+                final Hash hashCalc = new Hash();
+                hashCalc.addBytes(getClass().getName().getBytes(StandardCharsets.UTF_8));
+                hashCalc.addBytes(buffer);
+                final String hash = hashCalc.getHash();
+
                 BackupFilePart part = BackupFilePart.builder()
                         .blockHash(hash)
                         .offset(start > 0 ? start : null)
