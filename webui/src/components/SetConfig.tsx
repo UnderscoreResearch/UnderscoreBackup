@@ -151,6 +151,18 @@ export default function SetConfig(props: SetProps) {
                       value={state.set.schedule ? state.set.schedule : "0 3 * * *"} setValue={changedSchedule}
                       clockFormat='12-hour-clock'
                       clearButton={false}/>
+
+                <FormControlLabel control={<Checkbox
+                    disabled={state.set.schedule === undefined}
+                    checked={state.set.continuous && state.set.schedule !== undefined}
+                    onChange={(e) => updateState({
+                        ...state,
+                        set: {
+                            ...state.set,
+                            continuous: !state.set.continuous
+                        }
+                    })}
+                />} label="Continuously listen for file changes"/>
             </div>
             <DividerWithText>Retention</DividerWithText>
             <Retention retention={state.set.retention} retentionUpdated={(e) => updateState({

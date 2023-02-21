@@ -15,6 +15,7 @@ import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
+import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 
 public class NullRepository implements MetadataRepository {
@@ -43,8 +44,28 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
+    public CloseableLock acquireUpdateLock() {
+        return getDummyLock();
+    }
+
+    @Override
     public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
 
+    }
+
+    @Override
+    public boolean addUpdatedFile(BackupUpdatedFile file, long howOftenMs) throws IOException {
+        return false;
+    }
+
+    @Override
+    public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
+
+    }
+
+    @Override
+    public Stream<BackupUpdatedFile> getUpdatedFiles() throws IOException {
+        return null;
     }
 
     @Override
@@ -192,16 +213,7 @@ public class NullRepository implements MetadataRepository {
 
     @Override
     public CloseableLock acquireLock() {
-        return new CloseableLock() {
-            @Override
-            public void close() {
-            }
-
-            @Override
-            public boolean requested() {
-                return false;
-            }
-        };
+        return getDummyLock();
     }
 
     @Override
@@ -228,4 +240,18 @@ public class NullRepository implements MetadataRepository {
     public void clear() throws IOException {
 
     }
+
+    private static CloseableLock getDummyLock() {
+        return new CloseableLock() {
+            @Override
+            public void close() {
+            }
+
+            @Override
+            public boolean requested() {
+                return false;
+            }
+        };
+    }
+
 }

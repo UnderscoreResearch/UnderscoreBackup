@@ -14,7 +14,7 @@ import {
     DialogContentText,
     DialogTitle,
     FormControlLabel,
-    Grid,
+    Grid, Link,
     List,
     ListItem,
     MenuItem,
@@ -60,7 +60,7 @@ interface InitialSetupState {
     passwordReclaim: string,
     passwordConfirm: string,
     passwordValid: boolean,
-    saveSecret: boolean,
+    saveSecret?: boolean,
     haveSecret?: boolean,
     secretRegion: string,
     showChangePassword: boolean,
@@ -119,7 +119,7 @@ export default function InitialSetup(props: InitialSetupProps) {
             }
         },
         showChangePassword: false,
-        saveSecret: !!window.localStorage.getItem("email"),
+        saveSecret: undefined,
         secretRegion: getSecretRegionFromDestination(props.currentConfig),
         selectedSource: undefined,
         sourceList: undefined
@@ -215,20 +215,19 @@ export default function InitialSetup(props: InitialSetupProps) {
 
     function updateState(newState: InitialSetupState) {
         setState(newState);
-        if (((props.rebuildAvailable || state.selectedSource) && newState.password) ||
-            (newState.password === newState.passwordConfirm && newState.passwordValid)) {
-            props.configUpdated(true, {
-                    ...props.currentConfig,
-                    manifest: state.manifest
-                }, newState.password,
-                getSecretRegion());
-        } else {
-            props.configUpdated(false, {
-                    ...props.currentConfig,
-                    manifest: state.manifest
-                }, newState.password,
-                getSecretRegion());
+
+        let valid = ((props.rebuildAvailable || state.selectedSource) && !!newState.password) ||
+            (newState.password === newState.passwordConfirm && newState.passwordValid);
+
+        if (!!window.localStorage.getItem("email") && props.backendState.serviceSourceId) {
+            valid = newState.saveSecret !== undefined;
         }
+
+        props.configUpdated(valid, {
+                ...props.currentConfig,
+                manifest: state.manifest
+            }, newState.password,
+            getSecretRegion());
     }
 
     async function newSource() {
@@ -581,6 +580,7 @@ export default function InitialSetup(props: InitialSetupProps) {
             </Dialog>
         </Stack>
     } else {
+        let privateKeyDisabled = !props.backendState.serviceSourceId || !window.localStorage.getItem("email");
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{p: 2}}>
                 <Typography variant="h3" component="div">
@@ -633,17 +633,20 @@ export default function InitialSetup(props: InitialSetupProps) {
             <Paper sx={{p: 2}}>
                 <Grid container spacing={2} alignItems={"center"}>
                     <Grid item xs={12}>
-                        <DividerWithText>Password recovery</DividerWithText>
+                        <DividerWithText>Private key recovery</DividerWithText>
                     </Grid>
                     <Grid item md={6} xs={12}>
-                        <FormControlLabel control={<Checkbox
-                            disabled={!props.backendState.serviceSourceId || !window.localStorage.getItem("email")}
+                        <FormControlLabel
+                            style={{color: !privateKeyDisabled && state.saveSecret === undefined ? "#d32f2f" : "inherit"}}
+                            control={<Checkbox
+                            disabled={privateKeyDisabled}
                             checked={state.saveSecret && !!window.localStorage.getItem("email")}
                             onChange={(e) => updateState({
                                 ...state,
                                 saveSecret: e.target.checked
                             })}
-                        />} label="Enable encryption password recovery from"/>
+                            indeterminate={state.saveSecret === undefined}
+                        />} label={"Enable private key recovery from" + (!privateKeyDisabled ? " *" : "")}/>
 
                     </Grid>
                     <Grid item md={6} xs={12}>
@@ -666,8 +669,13 @@ export default function InitialSetup(props: InitialSetupProps) {
                     </Grid>
                     <Grid item xs={12}>
                         { !!window.localStorage.getItem("email") ?
-                            <Alert severity="warning">Enabling password recover will store your private
-                                encryption key with online service!</Alert>
+                            <Alert severity="warning">
+                                Enabling private key recover will store your private
+                                encryption key with online service! For more information see&nbsp;
+                                <Link rel="noreferrer" target="_blank" underline={"hover"} href={"https://underscorebackup.com/blog?source=https%3A%2F%2Fblog.underscorebackup.com%2F2023%2F02%2Fhow-does-private-key-recovery-work.html"}>
+                                    this documentation article.
+                                </Link>
+                            </Alert>
                             :
                             <Alert severity="warning">This option is only available if you are using a
                                 service account and complete the setup in a single browser session!

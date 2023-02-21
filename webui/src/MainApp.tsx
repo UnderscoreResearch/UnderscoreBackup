@@ -1074,6 +1074,8 @@ export default function MainApp() {
             ret.statusTitle = "Trimming Repository";
         } else if (state.activity.some(item => item.code.startsWith("VALIDATE_"))) {
             ret.statusTitle = "Validating Repository";
+        } else if (state.activity.some(item => item.code.startsWith("CONTINUOUS_"))) {
+            ret.statusTitle = "Listening For Changes";
         } else {
             backupInProgress = false;
 

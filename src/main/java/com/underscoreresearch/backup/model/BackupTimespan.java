@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.model;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -79,6 +80,30 @@ public class BackupTimespan {
                 return now.minus(duration, ChronoUnit.MINUTES);
             case SECONDS:
                 return now.minus(duration, ChronoUnit.SECONDS);
+            default:
+                throw new IllegalArgumentException("Unknown time unit: " + unit);
+        }
+    }
+
+    public Duration toDuration() {
+        if (unit == null)
+            return null;
+
+        switch (unit) {
+            case FOREVER:
+            case YEARS:
+            case MONTHS:
+                return null;
+            case WEEKS:
+                return Duration.ofDays(7 * duration);
+            case DAYS:
+                return Duration.ofDays(duration);
+            case HOURS:
+                return Duration.ofHours(duration);
+            case MINUTES:
+                return Duration.ofMinutes(duration);
+            case SECONDS:
+                return Duration.ofSeconds(duration);
             default:
                 throw new IllegalArgumentException("Unknown time unit: " + unit);
         }

@@ -79,6 +79,14 @@ jobs:
         with:
           arguments: allDistTest
 
+      - name: Apply code signature to Windows installer
+        if: contains(matrix.os, 'windows')
+        env:
+          CERT_DATA: ${{ secrets.WINDOWS_CODE_SIGN }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
+        run: |
+          perl windows\signinstaller.pl
+
       - name: Upload binaries to release
         uses: xresloader/upload-to-github-release@v1
         env:

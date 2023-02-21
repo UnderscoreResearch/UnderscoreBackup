@@ -34,11 +34,15 @@ import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.file.ContinuousBackup;
+import com.underscoreresearch.backup.file.FileChangeWatcher;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.ScannerScheduler;
+import com.underscoreresearch.backup.file.implementation.ContinuousBackupImpl;
+import com.underscoreresearch.backup.file.implementation.FileChangeWatcherImpl;
 import com.underscoreresearch.backup.file.implementation.FileConsumerImpl;
 import com.underscoreresearch.backup.file.implementation.FileScannerImpl;
 import com.underscoreresearch.backup.file.implementation.FileSystemAccessImpl;
@@ -71,8 +75,11 @@ public class BackupModule extends AbstractModule {
                                                  MetadataRepository repository,
                                                  RepositoryTrimmer repositoryTrimmer,
                                                  FileScanner scanner,
-                                                 StateLogger stateLogger) {
-        return new ScannerSchedulerImpl(configuration, repository, repositoryTrimmer, scanner, stateLogger);
+                                                 StateLogger stateLogger,
+                                                 FileChangeWatcher fileChangeWatcher,
+                                                 ContinuousBackup continuousBackup) {
+        return new ScannerSchedulerImpl(configuration, repository, repositoryTrimmer, scanner, stateLogger,
+                fileChangeWatcher, continuousBackup);
     }
 
     @Singleton
@@ -321,6 +328,34 @@ public class BackupModule extends AbstractModule {
                                          MetadataRepository repository) {
         return new BlockRefresher(threads, fileDownloader, uploadScheduler, configuration, repository,
                 manifestManager);
+    }
+
+    @Singleton
+    @Provides
+    public FileChangeWatcherImpl fileChangeWatcher(BackupConfiguration configuration,
+                                               MetadataRepository repository,
+                                               ContinuousBackup continuousBackup,
+                                               @Named(MANIFEST_LOCATION) String manifestLocation) {
+        return new FileChangeWatcherImpl(configuration, repository, continuousBackup, manifestLocation);
+    }
+
+    @Singleton
+    @Provides
+    public FileChangeWatcher fileChangeWatcher(FileChangeWatcherImpl fileChangeWatcher) {
+        return fileChangeWatcher;
+    }
+
+    @Singleton
+    @Provides
+    public ContinuousBackupImpl continuousBackup(MetadataRepository repository, FileConsumer fileConsumer,
+                                             BackupConfiguration backupConfiguration) {
+        return new ContinuousBackupImpl(repository, fileConsumer, backupConfiguration);
+    }
+
+    @Singleton
+    @Provides
+    public ContinuousBackup continuousBackup(ContinuousBackupImpl continuousBackup) {
+        return continuousBackup;
     }
 
     @Provides

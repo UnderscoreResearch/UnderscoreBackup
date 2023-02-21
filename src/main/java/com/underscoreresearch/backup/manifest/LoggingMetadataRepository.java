@@ -49,6 +49,7 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
+import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupShare;
 
@@ -264,8 +265,28 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public CloseableLock acquireUpdateLock() {
+        return repository.acquireUpdateLock();
+    }
+
+    @Override
     public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
         repository.deleteAdditionalBlock(publicKey, blockHash);
+    }
+
+    @Override
+    public boolean addUpdatedFile(BackupUpdatedFile file, long howOftenMs) throws IOException {
+        return repository.addUpdatedFile(file, howOftenMs);
+    }
+
+    @Override
+    public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
+        repository.removeUpdatedFile(file);
+    }
+
+    @Override
+    public Stream<BackupUpdatedFile> getUpdatedFiles() throws IOException {
+        return repository.getUpdatedFiles();
     }
 
     @Override

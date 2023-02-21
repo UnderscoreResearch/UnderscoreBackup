@@ -15,6 +15,8 @@ import org.mockito.Mockito;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
+import com.underscoreresearch.backup.file.ContinuousBackup;
+import com.underscoreresearch.backup.file.FileChangeWatcher;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -53,7 +55,7 @@ class ScannerSchedulerImplTest {
     //@Test
     public void test() throws IOException {
         ScannerSchedulerImpl scannerScheduler = new ScannerSchedulerImpl(configuration, repository, trimmer, scanner,
-                Mockito.mock(StateLogger.class));
+                Mockito.mock(StateLogger.class), Mockito.mock(FileChangeWatcher.class), Mockito.mock(ContinuousBackup.class));
         new Thread(() -> {
             try {
                 Thread.sleep(2500);

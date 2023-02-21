@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_ADDITIONAL_READER;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +73,7 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
+import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.utils.AccessLock;
 
@@ -100,7 +103,10 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static final String PENDING_SET_STORE = "pendingset.db";
     private static final String PARTIAL_FILE_STORE = "partialfiles.db";
     private static final String ADDITIONAL_BLOCK_STORE = "additionalblocks.db";
+    private static final String UPDATED_FILES_STORE = "updatedfiles.db";
+    private static final String UPDATED_PENDING_FILES_STORE = "updatedpendingfiles.db";
     private static final String INFO_STORE = "info.json";
+    private static final long MINIMUM_WAIT_UPDATE_MS = 2000;
     private static Map<String, MapdbMetadataRepository> openRepositories = new HashMap<>();
     private final String dataPath;
     private final boolean replayOnly;
@@ -115,6 +121,9 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private DB pendingSetDb;
     private DB partialFileDb;
     private DB additionalBlockDb;
+    private DB updatedFilesDb;
+    private DB updatedPendingFilesDb;
+
     private AccessLock fileLock;
     private HTreeMap<String, byte[]> blockMap;
     private TreeOrSink additionalBlockMap;
@@ -122,12 +131,15 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private TreeOrSink directoryMap;
     private TreeOrSink partsMap;
     private TreeOrSink activePathMap;
+    private TreeOrSink updatedPendingFilesMap;
     private HTreeMap<String, byte[]> pendingSetMap;
     private HTreeMap<String, byte[]> partialFileMap;
+    private HTreeMap<String, Long> updatedFilesMap;
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
     private Object explicitRequestLock = new Object();
     private boolean explicitRequested = false;
     private ReentrantLock explicitLock = new ReentrantLock();
+    private ReentrantLock updateLock = new ReentrantLock();
     private ReentrantLock openLock = new ReentrantLock();
 
     public MapdbMetadataRepository(String dataPath, boolean replayOnly) throws IOException {
@@ -147,6 +159,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 pendingSetDb.commit();
                 partialFileDb.commit();
                 additionalBlockDb.commit();
+                updatedFilesDb.commit();
+                updatedPendingFilesDb.commit();
             }
         } finally {
             openLock.unlock();
@@ -213,6 +227,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
         pendingSetDb = createDb(readOnly, PENDING_SET_STORE);
         partialFileDb = createDb(readOnly, PARTIAL_FILE_STORE);
         additionalBlockDb = createDb(readOnly, ADDITIONAL_BLOCK_STORE);
+        updatedFilesDb = createDb(readOnly, UPDATED_FILES_STORE);
+        updatedPendingFilesDb = createDb(readOnly, UPDATED_PENDING_FILES_STORE);
 
         blockMap = openHashMap(blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         additionalBlockMap = openTreeMap(additionalBlockDb, additionalBlockDb.treeMap(ADDITIONAL_BLOCK_STORE)
@@ -230,8 +246,12 @@ public class MapdbMetadataRepository implements MetadataRepository {
         partsMap = openTreeMap(partsDb, partsDb.treeMap(FILE_STORE)
                 .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
                 .valueSerializer(Serializer.BYTE_ARRAY));
+        updatedPendingFilesMap = openTreeMap(updatedPendingFilesDb, updatedPendingFilesDb.treeMap(UPDATED_PENDING_FILES_STORE)
+                .keySerializer(new SerializerArrayTuple(Serializer.LONG, Serializer.STRING))
+                .valueSerializer(Serializer.BYTE_ARRAY));
         pendingSetMap = openHashMap(pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         partialFileMap = openHashMap(partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
+        updatedFilesMap = openHashMap(updatedFilesDb.hashMap(UPDATED_FILES_STORE, Serializer.STRING, Serializer.LONG));
     }
 
     private TreeOrSink openTreeMap(DB db, DB.TreeMapMaker<Object[], byte[]> maker) throws IOException {
@@ -251,7 +271,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         return new TreeOrSink(maker.createOrOpen());
     }
 
-    private HTreeMap<String, byte[]> openHashMap(DB.HashMapMaker<String, byte[]> maker) throws IOException {
+    private <T> HTreeMap<String, T> openHashMap(DB.HashMapMaker<String, T> maker) throws IOException {
         switch (repositoryInfo.getVersion()) {
             case INITIAL_VERSION:
                 // No storage parameters originally specified.
@@ -374,6 +394,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
         pendingSetDb.close();
         partialFileDb.close();
         additionalBlockDb.close();
+
+        try (MapDbUpdateLock ignored = new MapDbUpdateLock()) {
+            updatedPendingFilesMap.close();
+            updatedFilesMap.close();
+            updatedPendingFilesDb.close();
+            updatedFilesDb.close();
+        }
     }
 
     @Override
@@ -874,6 +901,9 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     log.error("Invalid partialFile {} reprocessing entire file", file.getFile().getPath(), exc);
                     return null;
                 }
+                if (file.getFile().getLength() == null) {
+                    return ret;
+                }
                 if (Objects.equals(ret.getFile().getLength(), file.getFile().getLength())
                         && Objects.equals(ret.getFile().getLastChanged(), file.getFile().getLastChanged())) {
                     return ret;
@@ -1016,6 +1046,11 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
+    public CloseableLock acquireUpdateLock() {
+        return new MapDbUpdateLock();
+    }
+
+    @Override
     public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
         try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
             ensureOpen();
@@ -1028,6 +1063,79 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     additionalBlockMap.remove(key);
             }
         }
+    }
+
+    @Override
+    public boolean addUpdatedFile(BackupUpdatedFile file, long howOften) throws IOException {
+        try (CloseableLock ignored = acquireUpdateLock()) {
+            ensureOpen();
+
+            Long updated = updatedFilesMap.get(file.getPath());
+            if (updated == null) {
+                long lastExisting = 0;
+                if (file.getPath().endsWith(PathNormalizer.PATH_SEPARATOR)) {
+                    BackupDirectory dir = lastDirectory(file.getPath());
+                    if (dir != null) {
+                        lastExisting = dir.getAdded();
+                    }
+                } else {
+                    BackupPartialFile partialFile = getPartialFile(new BackupPartialFile(
+                            BackupFile.builder().path(file.getPath()).build()));
+                    if (partialFile != null) {
+                        lastExisting = partialFile.getFile().getLastChanged();
+                    } else {
+                        BackupFile existingFile = lastFile(file.getPath());
+                        if (existingFile != null) {
+                            lastExisting = existingFile.getLastChanged();
+                        }
+                    }
+                }
+
+                long when = System.currentTimeMillis();
+                if (lastExisting + howOften > when) {
+                    when = lastExisting + howOften;
+                }
+                when += MINIMUM_WAIT_UPDATE_MS;
+
+//                final long whenFinal = when;
+//                debug(() -> log.debug("Adding updated file {} at {}", file.getPath(), new Date(whenFinal)));
+
+                updatedFilesMap.put(file.getPath(), when);
+                updatedPendingFilesMap.put(new Object[]{when, file.getPath()}, new byte[0]);
+                return true;
+            } else if (file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS > updated) {
+//                debug(() -> log.debug("Updating updated file {} from {} to {}", file.getPath(), new Date(updated), new Date(file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS)));
+                updatedPendingFilesMap.remove(new Object[]{updated, file.getPath()});
+                updatedPendingFilesMap.put(new Object[]{file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS, file.getPath()}, new byte[0]);
+                updatedFilesMap.put(file.getPath(), file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
+        try (MapDbUpdateLock ignored = new MapDbUpdateLock()) {
+            ensureOpen();
+
+            updatedFilesMap.remove(file.getPath());
+            updatedPendingFilesMap.remove(new Object[]{file.getLastUpdated(), file.getPath()});
+        }
+    }
+
+    @Override
+    public Stream<BackupUpdatedFile> getUpdatedFiles() throws IOException {
+        if (!updateLock.isHeldByCurrentThread()) {
+            throw new IllegalAccessError("Called without acquiring lock");
+        }
+
+        ensureOpen();
+
+        final Map<Object[], byte[]> map = updatedPendingFilesMap.ascendingMap();
+
+        return map.entrySet().stream().map((entry) ->
+                new BackupUpdatedFile((String) entry.getKey()[1], (Long) entry.getKey()[0]));
     }
 
     @Data
@@ -1180,6 +1288,22 @@ public class MapdbMetadataRepository implements MetadataRepository {
         public void close() {
             MapdbMetadataRepository.this.openLock.unlock();
             super.close();
+        }
+    }
+
+    private class MapDbUpdateLock extends CloseableLock {
+        public MapDbUpdateLock() {
+            MapdbMetadataRepository.this.updateLock.lock();
+        }
+
+        @Override
+        public void close() {
+            MapdbMetadataRepository.this.updateLock.unlock();
+        }
+
+        @Override
+        public boolean requested() {
+            return false;
         }
     }
 }

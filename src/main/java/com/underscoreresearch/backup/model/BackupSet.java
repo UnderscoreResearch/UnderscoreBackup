@@ -21,6 +21,7 @@ public class BackupSet extends BackupFileSelection {
     private String schedule;
     private List<String> destinations;
     private BackupRetention retention;
+    private Boolean continuous;
 
     @JsonCreator
     @Builder

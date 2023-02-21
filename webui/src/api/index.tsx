@@ -55,7 +55,8 @@ export interface BackupSet {
     exclusions?: string[],
     schedule?: string,
     destinations: string[],
-    retention?: BackupRetention
+    retention?: BackupRetention,
+    continuous?: boolean
 }
 
 export interface BackupFileSpecification {

@@ -96,7 +96,7 @@ export default function CustomSelect(props: CustomSelectProps) {
         (event: any) => {
             let newValueOption: number[] = event.target.value;
             if (newValueOption.length == 0) {
-                newValueOption.push(0);
+                newValueOption.push(+options[0].value);
             }
             newValueOption = Array.isArray(newValueOption)
                 ? sort(newValueOption)

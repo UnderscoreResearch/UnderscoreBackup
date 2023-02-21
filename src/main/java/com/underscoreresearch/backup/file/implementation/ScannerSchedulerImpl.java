@@ -37,6 +37,8 @@ import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.ContinuousBackup;
+import com.underscoreresearch.backup.file.FileChangeWatcher;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.ScannerScheduler;
@@ -71,6 +73,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private final Condition condition = lock.newCondition();
     private final Map<String, Date> scheduledTimes = new HashMap<>();
     private final Random random = new Random();
+    private final FileChangeWatcher fileChangeWatcher;
+    private final ContinuousBackup continuousBackup;
     private boolean shutdown;
     private boolean scheduledRestart;
     @Getter
@@ -80,12 +84,16 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                                 MetadataRepository repository,
                                 RepositoryTrimmer trimmer,
                                 FileScanner scanner,
-                                StateLogger stateLogger) {
+                                StateLogger stateLogger,
+                                FileChangeWatcher fileChangeWatcher,
+                                ContinuousBackup continuousBackup) {
         this.configuration = configuration;
         this.scanner = scanner;
         this.repository = repository;
         this.trimmer = trimmer;
         this.stateLogger = stateLogger;
+        this.fileChangeWatcher = fileChangeWatcher;
+        this.continuousBackup = continuousBackup;
 
         pendingSets = new boolean[configuration.getSets().size()];
 
@@ -179,6 +187,11 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
 
         lock.lock();
         running = true;
+        try {
+            fileChangeWatcher.start();
+        } catch (IOException e) {
+            log.warn("Failed to start watching for filesystem changes", e);
+        }
         while (!shutdown) {
             int i = 0;
             boolean anyRan = false;
@@ -248,15 +261,26 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
 
                     checkNewVersion();
 
-                    log.info("Paused for next scheduled scan");
+                    if (fileChangeWatcher.active()) {
+                        log.info("Waiting for filesystem changes");
+                    } else {
+                        log.info("Paused for next scheduled scan");
+                    }
+                    continuousBackup.start();
                     System.gc();
                     running = false;
                     condition.await();
+                    continuousBackup.shutdown();
                 } catch (InterruptedException e) {
                     log.error("Failed to wait", e);
                 }
                 running = true;
             }
+        }
+        try {
+            fileChangeWatcher.stop();
+        } catch (IOException e) {
+            log.error("Failed to stop watching for filesystem changes", e);
         }
         running = false;
         condition.signal();
@@ -475,7 +499,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         lock.lock();
         shutdown = true;
         try {
-            executor.shutdownNow();
+            condition.signal();
+            executor.shutdown();
             scanner.shutdown();
             condition.signal();
         } finally {

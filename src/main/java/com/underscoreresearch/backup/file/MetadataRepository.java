@@ -13,6 +13,7 @@ import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
+import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 
 public interface MetadataRepository {
@@ -98,5 +99,12 @@ public interface MetadataRepository {
 
     BackupBlockAdditional additionalBlock(String publicKey, String blockHash) throws IOException;
 
+    CloseableLock acquireUpdateLock();
     void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException;
+
+    boolean addUpdatedFile(BackupUpdatedFile file, long howOftenMs) throws IOException;
+
+    void removeUpdatedFile(BackupUpdatedFile file) throws IOException;
+
+    Stream<BackupUpdatedFile> getUpdatedFiles() throws IOException;
 }
