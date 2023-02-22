@@ -253,32 +253,23 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
 
         File file = new File(PathNormalizer.physicalPath(updatedFile.getPath()));
         if (!file.exists()) {
-            log.info("File deleted {}", PathNormalizer.physicalPath(updatedFile.getPath()));
-
-            try (CloseableLock ignore = repository.acquireLock()) {
-                removeFileFromDirectory(file);
-            }
-
             BackupFile existingFile = repository.lastFile(file.getPath());
             if (existingFile != null && existingFile.getDeleted() == null) {
+                log.info("File deleted {}", PathNormalizer.physicalPath(updatedFile.getPath()));
+
                 existingFile.setDeleted(System.currentTimeMillis());
                 repository.addFile(existingFile);
-            }
-        } else {
-            if (file.isFile()) {
-                BackupFile existingFile = repository.lastFile(file.getPath());
-                if (existingFile == null
-                    || (existingFile.getLastChanged() != file.lastModified() || existingFile.getLength() != file.length())) {
-                    log.info("Backing up {}", PathNormalizer.physicalPath(updatedFile.getPath()));
-                    uploadFile(set, file, updatedFile);
-                }
-            } else if (file.isDirectory()) {
-                log.info("Updating directory {}", PathNormalizer.physicalPath(updatedFile.getPath()));
+
                 try (CloseableLock ignore = repository.acquireLock()) {
-                    addFileToDirectory(file, true);
-                } catch (IOException e) {
-                    log.error("Error adding file {} to parent directory", file, e);
+                    removeFileFromDirectory(file);
                 }
+            }
+        } else if (file.isFile()) {
+            BackupFile existingFile = repository.lastFile(file.getPath());
+            if (existingFile == null
+                    || (existingFile.getLastChanged() != file.lastModified() || existingFile.getLength() != file.length())) {
+                log.info("Backing up {}", PathNormalizer.physicalPath(updatedFile.getPath()));
+                uploadFile(set, file, updatedFile);
             }
         }
         repository.removeUpdatedFile(updatedFile);
@@ -369,8 +360,9 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
                     .build();
         }
         directory.setAdded(System.currentTimeMillis());
-        if (directory.getFiles().add(file.getName() + (isDirectory ? PathNormalizer.PATH_SEPARATOR : "")))
+        if (directory.getFiles().add(file.getName() + (isDirectory ? PathNormalizer.PATH_SEPARATOR : ""))) {
             repository.addDirectory(directory);
+        }
     }
 
     private void removeFileFromDirectory(File file) throws IOException {

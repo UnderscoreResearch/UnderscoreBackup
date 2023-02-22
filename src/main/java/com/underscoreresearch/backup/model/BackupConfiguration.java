@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.model;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,9 +11,10 @@ import lombok.NoArgsConstructor;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.google.common.collect.Maps;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 @AllArgsConstructor
@@ -68,5 +70,21 @@ public class BackupConfiguration {
             }
         }
         return defaultValue;
+    }
+
+    public BackupConfiguration strippedCopy() {
+        return toBuilder()
+                .destinations(destinations.entrySet().stream()
+                        .map(e -> Maps.immutableEntry(e.getKey(), e.getValue().strippedDestination(null, null)))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
+                .shares(shares != null ? shares.entrySet().stream()
+                        .map(e -> Maps.immutableEntry(e.getKey(),
+                                e.getValue().toBuilder().destination(
+                                        e.getValue().getDestination().strippedDestination(null, null)).build()))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)) : null)
+                .additionalSources(additionalSources != null ? additionalSources.entrySet().stream()
+                        .map(e -> Maps.immutableEntry(e.getKey(), e.getValue().strippedDestination(null, null)))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)) : null)
+                .build();
     }
 }

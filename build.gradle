@@ -13,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.0pre3'
+version '2.0.0rc1'
 
 def archiveName = 'underscorebackup'
 def edition = ''
@@ -199,7 +199,9 @@ task installerDef(type: Copy) {
 task installerImage(type: Exec) {
     workingDir "${rootProject.projectDir}"
     commandLine 'cmd', '/c',
-            'gradlew.bat jpackageImage -Pinstaller_type=win-console ' +
+            'gradlew.bat jpackageImage -Pinstaller_type=win-console' +
+                    ' && attrib -r build\\jpackage\\underscorebackup\\underscorebackup.exe' +
+                    ' && perl windows\\signexe.pl optional build\\jpackage\\underscorebackup' +
                     ' && ( rmdir /s /q build\\installerimage || ver > nul )' +
                     ' && mkdir build\\installerimage' +
                     ' && move /Y build\\jpackage\\underscorebackup\\app build\\installerimage' +
@@ -207,6 +209,8 @@ task installerImage(type: Exec) {
                     ' && move /Y build\\jpackage\\underscorebackup\\README.md build\\installerimage' +
                     ' && move /Y build\\jpackage\\underscorebackup\\underscorebackup.exe build\\installerimage' +
                     ' && gradlew.bat jpackageImage -Pinstaller_type=win-gui' +
+                    ' && attrib -r build\\jpackage\\underscorebackup-gui\\underscorebackup-gui.exe' +
+                    ' && perl windows\\signexe.pl optional build\\jpackage\\underscorebackup-gui' +
                     ' && copy build\\jpackage\\underscorebackup-gui\\underscorebackup-gui.exe build\\installerimage' +
                     ' && copy build\\jpackage\\underscorebackup-gui\\app\\underscorebackup-gui.cfg build\\installerimage\\app'
 }

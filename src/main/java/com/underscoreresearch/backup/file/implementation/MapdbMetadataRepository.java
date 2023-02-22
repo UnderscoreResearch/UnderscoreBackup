@@ -354,16 +354,18 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     public void close() throws IOException {
-        try (MapDbRepositoryLock ignored = new MapDbOpenLock()) {
-            if (open) {
-                closeAllDataFiles();
+        try (MapDbUpdateLock ignored = new MapDbUpdateLock()) {
+            try (MapDbRepositoryLock ignored2 = new MapDbOpenLock()) {
+                if (open) {
+                    closeAllDataFiles();
 
-                fileLock.close();
-                open = false;
+                    fileLock.close();
+                    open = false;
 
-                synchronized (openRepositories) {
-                    openRepositories.remove(dataPath);
-                    openRepositories.notify();
+                    synchronized (openRepositories) {
+                        openRepositories.remove(dataPath);
+                        openRepositories.notify();
+                    }
                 }
             }
         }
@@ -395,12 +397,10 @@ public class MapdbMetadataRepository implements MetadataRepository {
         partialFileDb.close();
         additionalBlockDb.close();
 
-        try (MapDbUpdateLock ignored = new MapDbUpdateLock()) {
-            updatedPendingFilesMap.close();
-            updatedFilesMap.close();
-            updatedPendingFilesDb.close();
-            updatedFilesDb.close();
-        }
+        updatedPendingFilesMap.close();
+        updatedFilesMap.close();
+        updatedPendingFilesDb.close();
+        updatedFilesDb.close();
     }
 
     @Override
@@ -595,14 +595,18 @@ public class MapdbMetadataRepository implements MetadataRepository {
         try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
             ensureOpen();
 
-            NavigableMap<Object[], byte[]> query =
-                    fileMap.prefixSubMap(new Object[]{path});
-            if (query.size() > 0) {
-                Map.Entry<Object[], byte[]> entry = query.lastEntry();
-                return decodeFile(entry);
-            }
-            return null;
+            return lastFileInternal(path);
         }
+    }
+
+    private BackupFile lastFileInternal(String path) throws IOException {
+        NavigableMap<Object[], byte[]> query =
+                fileMap.prefixSubMap(new Object[]{path});
+        if (query.size() > 0) {
+            Map.Entry<Object[], byte[]> entry = query.lastEntry();
+            return decodeFile(entry);
+        }
+        return null;
     }
 
     @Override
@@ -892,25 +896,29 @@ public class MapdbMetadataRepository implements MetadataRepository {
         try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
             ensureOpen();
 
-            byte[] data = partialFileMap.get(file.getFile().getPath());
-            if (data != null) {
-                BackupPartialFile ret;
-                try {
-                    ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
-                } catch (IOException exc) {
-                    log.error("Invalid partialFile {} reprocessing entire file", file.getFile().getPath(), exc);
-                    return null;
-                }
-                if (file.getFile().getLength() == null) {
-                    return ret;
-                }
-                if (Objects.equals(ret.getFile().getLength(), file.getFile().getLength())
-                        && Objects.equals(ret.getFile().getLastChanged(), file.getFile().getLastChanged())) {
-                    return ret;
-                }
-            }
-            return null;
+            return getPartialFileInternal(file);
         }
+    }
+
+    private BackupPartialFile getPartialFileInternal(BackupPartialFile file) {
+        byte[] data = partialFileMap.get(file.getFile().getPath());
+        if (data != null) {
+            BackupPartialFile ret;
+            try {
+                ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
+            } catch (IOException exc) {
+                log.error("Invalid partialFile {} reprocessing entire file", file.getFile().getPath(), exc);
+                return null;
+            }
+            if (file.getFile().getLength() == null) {
+                return ret;
+            }
+            if (Objects.equals(ret.getFile().getLength(), file.getFile().getLength())
+                    && Objects.equals(ret.getFile().getLastChanged(), file.getFile().getLastChanged())) {
+                return ret;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -992,21 +1000,23 @@ public class MapdbMetadataRepository implements MetadataRepository {
         if (readOnly) {
             throw new IOException("Tried to clear read only repository");
         }
-        try (MapDbOpenLock ignoed2 = new MapDbOpenLock()) {
-            try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
-                closeAllDataFiles();
+        try (MapDbOpenLock ignored = new MapDbOpenLock()) {
+            try (MapDbUpdateLock ignored2 = new MapDbUpdateLock()) {
+                try (MapDbRepositoryLock ignored3 = new MapDbRepositoryLock()) {
+                    closeAllDataFiles();
 
-                for (File file : new File(dataPath).listFiles()) {
-                    if (file.isFile() &&
-                            !file.getName().equals(LOCK_FILE) &&
-                            !file.getName().equals(REQUEST_LOCK_FILE)) {
-                        if (!file.delete()) {
-                            log.error("Failed to delete file {} clearing repository", file.getAbsolutePath());
+                    for (File file : new File(dataPath).listFiles()) {
+                        if (file.isFile() &&
+                                !file.getName().equals(LOCK_FILE) &&
+                                !file.getName().equals(REQUEST_LOCK_FILE)) {
+                            if (!file.delete()) {
+                                log.error("Failed to delete file {} clearing repository", file.getAbsolutePath());
+                            }
                         }
                     }
-                }
 
-                openAllDataFiles(false);
+                    openAllDataFiles(false);
+                }
             }
         }
     }
@@ -1079,12 +1089,12 @@ public class MapdbMetadataRepository implements MetadataRepository {
                         lastExisting = dir.getAdded();
                     }
                 } else {
-                    BackupPartialFile partialFile = getPartialFile(new BackupPartialFile(
+                    BackupPartialFile partialFile = getPartialFileInternal(new BackupPartialFile(
                             BackupFile.builder().path(file.getPath()).build()));
                     if (partialFile != null) {
                         lastExisting = partialFile.getFile().getLastChanged();
                     } else {
-                        BackupFile existingFile = lastFile(file.getPath());
+                        BackupFile existingFile = lastFileInternal(file.getPath());
                         if (existingFile != null) {
                             lastExisting = existingFile.getLastChanged();
                         }
@@ -1116,7 +1126,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     @Override
     public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
-        try (MapDbUpdateLock ignored = new MapDbUpdateLock()) {
+        try (CloseableLock ignored = acquireUpdateLock()) {
             ensureOpen();
 
             updatedFilesMap.remove(file.getPath());

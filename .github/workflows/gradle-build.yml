@@ -76,6 +76,8 @@ jobs:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
           GITHUB_ACTION: yes
           GITHUB_TARGET: ${{ matrix.os }}
+          CERT_DATA: ${{ secrets.WINDOWS_CODE_SIGN }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
         with:
           arguments: allDistTest
 
@@ -85,7 +87,19 @@ jobs:
           CERT_DATA: ${{ secrets.WINDOWS_CODE_SIGN }}
           CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
         run: |
-          perl windows\signinstaller.pl
+          perl windows\signexe.pl required build\distributions
+
+      - name: Remove duplicate distributions for Windows
+        if: contains(matrix.os, 'windows')
+        run: |
+          del build\distributions\*.tar
+          del build\distributions\*.zip
+
+      - name: Remove duplicate distributions for MacOS
+        if: contains(matrix.os, 'macos')
+        run: |
+          rm build/distributions/*.tar
+          rm build/distributions/*.zip
 
       - name: Upload binaries to release
         uses: xresloader/upload-to-github-release@v1

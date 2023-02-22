@@ -36,6 +36,7 @@ import Retention from "./Retention";
 import Typography from "@mui/material/Typography";
 import Timespan from "./Timespan";
 import PasswordStrengthBar from "../3rdparty/react-password-strength-bar";
+import SupportBundleDialog from "./SupportBundleDialog";
 
 export interface SettingsProps {
     config: BackupConfiguration,
@@ -53,6 +54,7 @@ interface SettingsState {
     oldPassword: string,
     showChangePassword: boolean,
     showResetWarning: boolean,
+    showSupportBundle: boolean,
     configData: string,
     limits: BackupGlobalLimits,
     missingRetention?: BackupRetention,
@@ -66,6 +68,7 @@ function createInitialState(config: BackupConfiguration): SettingsState {
         showConfig: false,
         showChangePassword: false,
         showResetWarning: false,
+        showSupportBundle: false,
         password: "",
         passwordValid: false,
         passwordConfirm: "",
@@ -439,6 +442,10 @@ export default function Settings(props: SettingsProps) {
                         style={{marginRight: "16px", marginBottom: "16px"}}>
                     Change Password
                 </Button>
+                <Button variant="contained" onClick={() => setState({...state, showSupportBundle: true})}
+                        style={{marginRight: "16px", marginBottom: "16px"}}>
+                    Support Bundle
+                </Button>
             </Box>
             <Box textAlign={"right"} width={"40%"}>
                 <Button variant="contained" onClick={handlesResetWarning} color="error">
@@ -570,5 +577,7 @@ export default function Settings(props: SettingsProps) {
                 </Button>
             </DialogActions>
         </Dialog>
+        <SupportBundleDialog open={state.showSupportBundle} backendState={props.backendState}
+                             onClose={() => setState({...state, showSupportBundle: false})}/>
     </Stack>
 }

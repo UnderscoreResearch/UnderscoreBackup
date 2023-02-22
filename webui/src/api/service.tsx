@@ -24,6 +24,13 @@ export interface ShareResponse {
     name: string
 }
 
+export interface SupportBundleRequest {
+    includeLogs: boolean,
+    includeConfig: boolean,
+    includeMetadata: boolean,
+    includeKey: boolean
+}
+
 export interface ListSourcesResponse {
     sources: SourceResponse[];
 }
@@ -84,6 +91,20 @@ export async function createSource(name: string): Promise<SourceResponse> {
             name: name
         })
     });
+}
+
+export async function createSupportBundle(contents: SupportBundleRequest): Promise<string | undefined> {
+    const ret = await makeApiCall("service/support", {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json;charset=UTF-8',
+        },
+        body: JSON.stringify(contents)
+    });
+    if (ret && ret.location) {
+        return ret.location;
+    }
+    return undefined;
 }
 
 export async function updateSource(name: string, sourceId?: string, password?: string): Promise<boolean> {

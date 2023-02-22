@@ -157,4 +157,18 @@ public class UIManager {
             }
         }
     }
+
+    public static void openFolder(File path) {
+        try {
+            if (SystemUtils.IS_OS_MAC_OSX) {
+                Runtime.getRuntime().exec(new String[]{"open", path.toString()});
+            } else if (SystemUtils.IS_OS_WINDOWS) {
+                if (Desktop.getDesktop() != null) {
+                    Desktop.getDesktop().open(path);
+                }
+            }
+        } catch (IOException e) {
+            log.warn("Failed to open folder {}", path.toString(), e);
+        }
+    }
 }

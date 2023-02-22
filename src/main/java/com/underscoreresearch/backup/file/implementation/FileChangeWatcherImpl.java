@@ -1,6 +1,5 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
@@ -15,9 +14,18 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -36,6 +44,8 @@ import com.underscoreresearch.backup.model.BackupUpdatedFile;
 
 @Slf4j
 public class FileChangeWatcherImpl implements FileChangeWatcher {
+    private static final int THREAD_POOL_SIZE = 5;
+    private static final int QUEUE_SIZE = 100;
     private final List<BackupSet> sets;
     private final Map<String, Long> whenBySet;
     private final MetadataRepository repository;
@@ -43,10 +53,11 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
     private final Path manifestDirectory;
     private WatchService watchService;
 
-
-
     private Lock lock = new ReentrantLock();
+    private Condition condition = lock.newCondition();
     private Thread thread;
+    private ExecutorService executorService;
+    private BlockingQueue<Runnable> executionQueue;
 
     public FileChangeWatcherImpl(BackupConfiguration configuration, MetadataRepository repository,
                                  ContinuousBackup continuousBackup, String manifestDirectory) {
@@ -75,13 +86,14 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
     }
 
     private class PollingThread implements Runnable {
+        private AtomicBoolean overflowing = new AtomicBoolean();
+
         @Override
         public void run() {
-            boolean overflowing = false;
             lock.lock();
             try {
                 while (watchService != null) {
-                    boolean anyChanged = false;
+                    List<Path> paths = new ArrayList<>();
                     try {
                         WatchService currentWatchService = watchService;
                         lock.unlock();
@@ -91,27 +103,14 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                                 Path watchedPath = (Path) key.watchable();
                                 for (WatchEvent<?> event : key.pollEvents()) {
                                     if (event.kind().equals(OVERFLOW)) {
-                                        if (!overflowing) {
+                                        if (!overflowing.get()) {
                                             log.warn("Overflow detected, some files may not be backed up");
-                                            overflowing = true;
+                                            overflowing.set(true);
                                         }
                                         continue;
                                     }
                                     Path path = watchedPath.resolve((Path) event.context());
-                                    if (!path.startsWith(manifestDirectory)) {
-                                        String filePath = PathNormalizer.normalizePath(path.toString());
-                                        for (BackupSet set : sets) {
-                                            if (set.includeFile(filePath)) {
-                                                File file = path.toFile();
-                                                final long when = file.exists() ? file.lastModified() : 0;
-                                                if (repository.addUpdatedFile(new BackupUpdatedFile(filePath, when),
-                                                        whenBySet.get(set.getId()))) {
-                                                    anyChanged = true;
-                                                    overflowing = false;
-                                                }
-                                            }
-                                        }
-                                    }
+                                    paths.add(path);
                                 }
                                 key.reset();
                             }
@@ -120,15 +119,55 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                         }
                     } catch (ClosedWatchServiceException e) {
                         // Ignored, happens when closing the watch service is closed.
-                    } catch (InterruptedException | IOException e) {
+                        paths.clear();
+                    } catch (InterruptedException e) {
                         log.warn("Error while watching for file changes", e);
                     }
-                    if (anyChanged) {
-                        continuousBackup.signalChanged();
+                    while (executionQueue.remainingCapacity() < THREAD_POOL_SIZE) {
+                        try {
+                            condition.await();
+                        } catch (InterruptedException e) {
+                            log.warn("Error while waiting for execution queue to free up", e);
+                        }
                     }
+                    executorService.submit(() -> processPaths(paths));
                 }
             } finally {
                 thread = null;
+                condition.signalAll();
+                lock.unlock();
+            }
+        }
+
+        private void processPaths(List<Path> paths) {
+            boolean anyChanged = false;
+            for (Path path : paths) {
+                if (!path.startsWith(manifestDirectory)) {
+                    String filePath = PathNormalizer.normalizePath(path.toString());
+                    for (BackupSet set : sets) {
+                        if (set.includeFile(filePath)) {
+                            File file = path.toFile();
+                            final long when = file.exists() ? file.lastModified() : 0;
+                            try {
+                                if (repository.addUpdatedFile(new BackupUpdatedFile(filePath, when),
+                                        whenBySet.get(set.getId()))) {
+                                    anyChanged = true;
+                                }
+                            } catch (IOException e) {
+                                log.error("Error while processing file change for {}", path, e);
+                            }
+                        }
+                    }
+                }
+            }
+            if (anyChanged) {
+                continuousBackup.signalChanged();
+                overflowing.set(false);
+            }
+
+            if (executionQueue.remainingCapacity() < THREAD_POOL_SIZE * 2) {
+                lock.lock();
+                condition.signalAll();
                 lock.unlock();
             }
         }
@@ -156,6 +195,12 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
 
             if (thread == null) {
                 thread = new Thread(new PollingThread(), "FileChangeWatcher");
+                executionQueue = new LinkedBlockingQueue<>(QUEUE_SIZE);
+                executorService = new ThreadPoolExecutor(THREAD_POOL_SIZE, THREAD_POOL_SIZE,
+                        0, TimeUnit.MILLISECONDS,
+                        executionQueue,
+                        r -> new Thread(r, "FileChangeWatcherConsumer"));
+
                 thread.start();
             }
         } finally {
@@ -171,6 +216,17 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                 return;
             watchService.close();
             watchService = null;
+
+            while(thread != null) {
+                try {
+                    condition.await();
+                } catch (InterruptedException e) {
+                    log.warn("Interrupted while waiting for file change watcher to stop", e);
+                }
+            }
+
+            executorService.shutdownNow();
+            executorService = null;
         } finally {
             lock.unlock();
         }

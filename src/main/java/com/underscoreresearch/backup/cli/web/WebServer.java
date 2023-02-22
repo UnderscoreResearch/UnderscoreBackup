@@ -46,6 +46,7 @@ import com.underscoreresearch.backup.cli.web.service.SharesGet;
 import com.underscoreresearch.backup.cli.web.service.SourcesGet;
 import com.underscoreresearch.backup.cli.web.service.SourcesPost;
 import com.underscoreresearch.backup.cli.web.service.SourcesPut;
+import com.underscoreresearch.backup.cli.web.service.SupportBundlePost;
 import com.underscoreresearch.backup.cli.web.service.TokenDelete;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -173,6 +174,8 @@ public class WebServer {
                                     new FkRegex(base + "/api/service/secrets", new TkFork(
                                             new FkMethods("POST", new GetSecretPost()),
                                             new FkMethods("PUT", new CreateSecretPut()))),
+                                    new FkRegex(base + "/api/service/support", new TkFork(
+                                            new FkMethods("POST", new SupportBundlePost()))),
 
                                     createIndexPath(base),
                                     createIndexPath(base + "/destinations"),
