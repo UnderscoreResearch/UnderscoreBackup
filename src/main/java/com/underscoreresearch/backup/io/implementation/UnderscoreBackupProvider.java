@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.io.implementation;
 
 import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.IDENTITY_MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.RetryUtils.retry;
 
@@ -9,6 +10,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -17,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.cache.LoadingCache;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.io.IOIndex;
@@ -34,10 +38,15 @@ import com.underscoreresearch.backup.service.api.model.SourceResponse;
 @Slf4j
 public class UnderscoreBackupProvider implements IOIndex {
     public static final String UB_TYPE = "UB";
+    private static final Duration IDENTITY_TIMEOUT = Duration.ofSeconds(30);
     private String region;
     private String sourceId;
     private String shareId;
     private ServiceManager serviceManager;
+
+    private static String cachedIdentityKey;
+    private static Instant cachedIdentityTimeout;
+    private static byte[] cachedIdentity;
 
     public UnderscoreBackupProvider(BackupDestination destination) {
         region = destination.getEndpointUri();
@@ -98,6 +107,14 @@ public class UnderscoreBackupProvider implements IOIndex {
 
     @Override
     public String upload(String suggestedKey, byte[] data) throws IOException {
+        if (IDENTITY_MANIFEST_LOCATION.equals(suggestedKey)) {
+            synchronized (this) {
+                cachedIdentityKey = String.format("%s/%s", sourceId, region);
+                cachedIdentity = data;
+                cachedIdentityTimeout = Instant.now().plus(IDENTITY_TIMEOUT);
+            }
+        }
+
         String hash = Hash.hash(data);
         int size = data.length;
 
@@ -140,6 +157,16 @@ public class UnderscoreBackupProvider implements IOIndex {
 
     @Override
     public byte[] download(String key) throws IOException {
+        // This is needed because it is quite common to read this immediately after writing it and
+        // the service only has eventual consistency.
+        if (IDENTITY_MANIFEST_LOCATION.equals(key)) {
+            String identityKey = String.format("%s/%s", sourceId, region);
+            synchronized (this) {
+                if (identityKey.equals(cachedIdentityKey) && Instant.now().isBefore(cachedIdentityTimeout)) {
+                    return cachedIdentity;
+                }
+            }
+        }
         final String useKey = normalizeKey(key);
         debug(() -> log.debug("Downloading " + useKey));
 

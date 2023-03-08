@@ -69,7 +69,7 @@ public class RestorePost extends JsonWrap {
         }
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             BackupRestoreRequest request = READER.readValue(new RqPrint(req).printBody());
@@ -140,6 +140,11 @@ public class RestorePost extends JsonWrap {
             }, "RestorePost").start();
 
             return messageJson(200, "Ok");
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Initializing restore";
         }
     }
 }

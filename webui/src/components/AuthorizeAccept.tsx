@@ -69,7 +69,7 @@ export default function AuthorizeAccept(props: { updatedToken: () => Promise<voi
         }
 
         fetch();
-    }, ["once"]);
+    }, []);
 
     return <React.Fragment/>;
 }

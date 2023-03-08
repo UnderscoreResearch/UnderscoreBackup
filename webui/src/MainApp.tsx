@@ -1200,7 +1200,7 @@ export default function MainApp() {
                         initialSource={(source) => setState((oldState) => ({
                             ...oldState,
                             initialSource: source,
-                            initialPage: source ? "destination" : "key"
+                            initialPage: source ? "key" : "destination"
                         }))}
                         onPageChange={(page) => initialPageChanged(page)}
                         currentConfig={state.currentConfiguration}
@@ -1273,7 +1273,8 @@ export default function MainApp() {
         <Box sx={{display: 'flex'}}>
             <CssBaseline/>
             <AppBar position="absolute" open={state.open}>
-                { displayState.statusTitle !== "Currently Inactive" && !displayState.navigation.firstTime && !state.loading &&
+                { displayState.statusTitle !== "Currently Inactive" && !displayState.statusTitle.startsWith("Browsing ")
+                    && !displayState.navigation.firstTime && !state.loading &&
                     <LinearProgress style={{position: "fixed", width: "100%", top: "0"}}/>
                 }
                 <Toolbar

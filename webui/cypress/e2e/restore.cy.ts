@@ -1,7 +1,8 @@
 const backupLocation = Cypress.env('TEST_BACKUP')
+const configInterface = Cypress.env("CONFIG_INTERFACE")
 
 it('restore', function () {
-    cy.visit('http://localhost:12345/fixed/');
+    cy.visit(configInterface);
     cy.get('#skipService').click();
     cy.get('#selectType').click();
     cy.get('#typeLocalDirectory').click();
@@ -25,7 +26,7 @@ it('restore', function () {
     cy.get("#submitPasswordChange").click();
     cy.get("#loading").should('not.be.visible');
 
-    cy.visit('http://localhost:12345/fixed/');
+    cy.visit(configInterface);
 
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();

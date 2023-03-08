@@ -15,7 +15,9 @@ import org.takes.rq.RqPrint;
 import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
+import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -54,7 +56,7 @@ public class SourcesPost extends JsonWrap {
         private String sourceId;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             String config = new RqPrint(req).printBody();
@@ -70,6 +72,7 @@ public class SourcesPost extends JsonWrap {
                     String identity = InstanceFactory.getInstance(CommandLineModule.INSTALLATION_IDENTITY);
                     SourceResponse ret = ServiceManagerImpl.retry(() -> serviceManager.getClient().createSource(new SourceRequest()
                             .name(serviceManager.getSourceName())
+                            .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                             .identity(identity)));
                     serviceManager.setSourceId(ret.getSourceId());
                 }
@@ -77,6 +80,11 @@ public class SourcesPost extends JsonWrap {
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Creating source";
         }
     }
 }

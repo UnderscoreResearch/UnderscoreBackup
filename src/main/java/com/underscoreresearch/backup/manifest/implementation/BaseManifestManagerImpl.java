@@ -54,7 +54,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     public static final String LOG_ROOT = "logs";
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.nnnnnnnnn").withZone(ZoneId.of("UTC"));
-    private static final String IDENTITY_MANIFEST_LOCATION = "identity";
+    public static final String IDENTITY_MANIFEST_LOCATION = "identity";
 
     @Getter(AccessLevel.PROTECTED)
     private final BackupConfiguration configuration;

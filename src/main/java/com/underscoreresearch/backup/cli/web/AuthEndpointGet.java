@@ -43,7 +43,7 @@ public class AuthEndpointGet extends JsonWrap {
         private String endpoint;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         private static final TemporalAmount MAX_OPEN_DURATION = Duration.ofMinutes(10);
         private static String existingAddress;
         private static Instant lastRequested;
@@ -123,6 +123,11 @@ public class AuthEndpointGet extends JsonWrap {
                 log.error("Failed to get auth endpoint", exc);
             }
             return messageJson(404, "Failed to get auth endpoint");
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Creating auth endpoint";
         }
 
         private class AuthRedirect extends TkWrap {

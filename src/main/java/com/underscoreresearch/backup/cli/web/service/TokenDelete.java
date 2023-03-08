@@ -8,6 +8,7 @@ import org.takes.Request;
 import org.takes.Response;
 
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
+import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -17,7 +18,7 @@ public class TokenDelete extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
 
@@ -28,6 +29,11 @@ public class TokenDelete extends JsonWrap {
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Deleting service token";
         }
     }
 }

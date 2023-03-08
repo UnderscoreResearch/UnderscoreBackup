@@ -46,7 +46,7 @@ public class KeyChangePost extends JsonWrap {
         }
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             KeyChangeRequest request = READER.readValue(new RqPrint(req).printBody());
@@ -71,6 +71,11 @@ public class KeyChangePost extends JsonWrap {
                     () -> InteractiveCommand.startBackupIfAvailable());
 
             return messageJson(200, "Ok");
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Changing password";
         }
     }
 }

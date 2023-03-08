@@ -448,7 +448,7 @@ export default function Settings(props: SettingsProps) {
                 </Button>
             </Box>
             <Box textAlign={"right"} width={"40%"}>
-                <Button variant="contained" onClick={handlesResetWarning} color="error">
+                <Button variant="contained" id="deleteConfiguration" onClick={handlesResetWarning} color="error">
                     Delete Configuration
                 </Button>
             </Box>
@@ -572,7 +572,7 @@ export default function Settings(props: SettingsProps) {
             </DialogContent>
             <DialogActions>
                 <Button onClick={handleResetWarningClose} autoFocus={true}>Cancel</Button>
-                <Button onClick={performResetWarningClose} color="error">
+                <Button onClick={performResetWarningClose} color="error" id={"confirmDelete"}>
                     Agree
                 </Button>
             </DialogActions>

@@ -159,7 +159,7 @@ public class ConfigurationPost extends JsonWrap {
         }
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             String config = new RqPrint(req).printBody();
@@ -189,6 +189,11 @@ public class ConfigurationPost extends JsonWrap {
             } catch (Exception exc) {
                 return messageJson(400, exc.getMessage());
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Configuration is being updated";
         }
     }
 }

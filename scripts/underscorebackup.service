@@ -2,10 +2,11 @@
 Description=Underscore Backup
 
 [Service]
+EnvironmentFile=-/etc/default/underscorebackup
 User=root
 WorkingDirectory=/tmp
 StandardOutput=null
-ExecStart=/opt/underscorebackup/bin/underscorebackup interactive
+ExecStart=/opt/underscorebackup/bin/underscorebackup $UNDERSCOREBACKUP_OPTS interactive
 SuccessExitStatus=0
 TimeoutStopSec=60
 Restart=on-failure

@@ -33,7 +33,7 @@ public class AdditionalKeyPut extends JsonWrap {
         }
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             AdditionalPrivateKeyRequest request = AdditionalPrivateKeyRequest.decodePrivateKeyRequest(req);
@@ -58,6 +58,11 @@ public class AdditionalKeyPut extends JsonWrap {
             }
 
             return new RsText(WRITER.writeValueAsString(new ExternalEncryptionKey(key)));
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Adding additional key";
         }
     }
 }

@@ -89,18 +89,18 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
             {props.backendState.serviceConnected ?
                 (props.needSubscription && !props.backendState.activeSubscription ?
                         <Button variant="contained" fullWidth={true} disabled={state.busy} size="large"
-                                onClick={authorizeRedirect}>
+                                onClick={authorizeRedirect} id="subscribe">
                             <>Add Subscription</>
                         </Button>
                         :
                         <Button variant="contained" fullWidth={true} disabled={state.busy} size="large"
-                                onClick={disconnect}>
+                                onClick={disconnect} id="disconnect">
                             <>Disconnect</>
                         </Button>
                 )
                 :
                 <Button variant="contained" fullWidth={true} disabled={state.busy} size="large"
-                        onClick={authorizeRedirect}>
+                        onClick={authorizeRedirect} id="connect">
                     <>Connect</>
                 </Button>
             }

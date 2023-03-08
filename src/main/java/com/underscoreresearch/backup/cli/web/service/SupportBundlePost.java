@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
+import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
@@ -67,7 +68,7 @@ public class SupportBundlePost extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             GenerateSupportBundleRequest request = READER.readValue(new RqPrint(req).printBody());
@@ -189,6 +190,11 @@ public class SupportBundlePost extends JsonWrap {
 
         private static void addZipFile(ZipOutputStream out, File file) throws IOException {
             addZipFile(out, file, file.getName());
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Generating support bundle";
         }
 
         private interface ContentWriter {

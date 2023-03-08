@@ -15,7 +15,7 @@ public class GenerateKeyPut extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             String password = decodePrivateKeyRequest(req);
@@ -27,6 +27,11 @@ public class GenerateKeyPut extends JsonWrap {
             } catch (Exception exc) {
                 return messageJson(400, exc.getMessage());
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Generating new key";
         }
     }
 }

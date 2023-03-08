@@ -81,13 +81,29 @@ function validKey(encryptionKey: string): boolean {
     return encryptionKey.length == 52;
 }
 
-function validState(state: { share: BackupShare; encryptionKey: string; destinationValid: boolean, serviceSharing: boolean }): boolean {
+interface ShareItemState {
+    share: BackupShare,
+    serviceSharing: boolean,
+    generatingKey: boolean,
+    encryptionKey: string,
+    destinationValid: boolean,
+    missingUpdate: number
+};
+
+function validState(state: ShareItemState): boolean {
     return state.destinationValid && !!state.share.name &&
         (!state.serviceSharing || (!!state.share.targetEmail && state.share.targetEmail.indexOf("@") > 0)) &&
         validKey(state.encryptionKey) && state.share.contents.roots.length > 0;
 }
 
-function Share(props: {
+function externalShare(state : ShareItemState) : BackupShare {
+    return {
+        ...state.share,
+        targetEmail: state.serviceSharing ? state.share.targetEmail : undefined
+    }
+}
+
+function ShareItem(props: {
     id: string,
     encryptionKey: string,
     backendState: BackupState,
@@ -108,44 +124,32 @@ function Share(props: {
             encryptionKey: props.encryptionKey,
             destinationValid: true,
             missingUpdate: 1
-        }
+        } as ShareItemState;
     });
 
-    function updateState(newState: { share: BackupShare, encryptionKey: string, destinationValid: boolean, missingUpdate: number, serviceSharing: boolean }) {
-        setState((oldState) => ({
-            ...newState,
-            generatingKey: oldState.generatingKey
-        }));
-
-        const currentShare: BackupShare = {
-            ...newState.share,
-            targetEmail: newState.serviceSharing ? newState.share.targetEmail : undefined
-        }
-
-        props.shareUpdated(validState(newState), newState.encryptionKey, currentShare);
-    }
-
     function destinationUpdated(valid: boolean, destination: BackupDestination) {
-        const share = {
-            ...state.share,
-            destination: destination
-        };
-        updateState({
-            ...state,
-            share: share,
-            destinationValid: valid
-        });
-    }
+        setState((oldState) => ({
+            ...oldState,
+            destinationValid: valid,
+            share: {
+                ...oldState.share,
+                destination: destination
+            }
+        }));
+    };
+
+    useEffect(() => {
+        props.shareUpdated(validState(state), state.encryptionKey, externalShare(state));
+    }, [state.destinationValid, state.share, state.serviceSharing, state.encryptionKey, state.share.destination]);
 
     function updatedName(value: string) {
-        const share = {
-            ...state.share,
-            name: value
-        };
-        updateState({
-            ...state,
-            share: share,
-        });
+        setState((oldState) => ({
+            ...oldState,
+            share: {
+                ...oldState.share,
+                name:value
+            }
+        }));
     }
 
     function updateKey(value: string) {
@@ -158,24 +162,23 @@ function Share(props: {
                 value = key.publicKey;
             }
         }
-        updateState({
+        setState({
             ...state,
             encryptionKey: value
         });
     }
 
     function updateSelection(roots: BackupSetRoot[]) {
-        const share = {
-            ...state.share,
-            contents: {
-                ...state.share.contents,
-                roots: roots
+        setState((oldState) => ({
+            ...oldState,
+            share: {
+                ...oldState.share,
+                contents: {
+                    ...oldState.share.contents,
+                    roots: roots
+                }
             }
-        };
-        updateState({
-            ...state,
-            share: share
-        });
+        }));
     }
 
     function fetchContents(path: string) {
@@ -233,16 +236,16 @@ function Share(props: {
     }
 
     function exclusionsChanged(items: string[]) {
-        updateState({
-            ...state,
+        setState((oldState) => ({
+            ...oldState,
             share: {
-                ...state.share,
+                ...oldState.share,
                 contents: {
-                    ...state.share.contents,
+                    ...oldState.share.contents,
                     exclusions: items
                 }
             }
-        });
+        }));
     }
 
     const postElement = <Fragment>
@@ -261,13 +264,13 @@ function Share(props: {
         if (value && !state.encryptionKey) {
             generateAndAssignKey();
         }
-        updateState({
-            ...state,
+        setState((oldState) => ({
+            ...oldState,
             share: {
-                ...state.share,
+                ...oldState.share,
                 targetEmail: value
             }
-        });
+        }));
     }
 
     return <Destination id={props.id}
@@ -296,7 +299,7 @@ function Share(props: {
                 <div style={{marginLeft: "8px", marginRight: "0px", marginBottom: "8px"}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.serviceSharing}
-                        onChange={(e) => updateState({...state, serviceSharing: e.target.checked})}
+                        onChange={(e) => setState((oldState) => ({...oldState, serviceSharing: e.target.checked}))}
                     />} label="Share through Underscore Backup service"/>
                 </div>
                 {state.serviceSharing &&
@@ -493,7 +496,7 @@ export default function Shares(props: SharesProps) {
         onItemChanged: destinationChanged,
         items: state.shares,
         createItem: (item, itemUpdated: (item: ShareState) => void) => {
-            return <Share id={item.id}
+            return <ShareItem id={item.id}
                           share={item.share}
                           exists={item.exists}
                           encryptionKey={item.encryptionKey}

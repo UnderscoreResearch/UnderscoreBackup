@@ -135,9 +135,9 @@ export default function InitialSetup(props: InitialSetupProps) {
         }
     }
 
-    function getSecretRegion() {
-        if (props.backendState.serviceSourceId && window.localStorage.getItem("email") && state.saveSecret) {
-            return state.secretRegion;
+    function getSecretRegion(newState: InitialSetupState) {
+        if (props.backendState.serviceSourceId && window.localStorage.getItem("email") && newState.saveSecret) {
+            return newState.secretRegion;
         }
         return undefined;
     }
@@ -153,7 +153,7 @@ export default function InitialSetup(props: InitialSetupProps) {
                 if (props.currentConfig.destinations[props.currentConfig.manifest.destination]) {
                     props.onPageChange("key");
                     props.configUpdated(false, props.currentConfig,
-                        getSecretRegion());
+                        getSecretRegion(state));
                 } else {
                     props.onPageChange("destination");
                 }
@@ -200,10 +200,10 @@ export default function InitialSetup(props: InitialSetupProps) {
             };
 
             props.configUpdated(true, config,
-                getSecretRegion());
+                getSecretRegion(state));
         } else {
             props.configUpdated(false, props.currentConfig,
-                getSecretRegion())
+                getSecretRegion(state))
         }
     }
 
@@ -219,15 +219,15 @@ export default function InitialSetup(props: InitialSetupProps) {
         let valid = ((props.rebuildAvailable || state.selectedSource) && !!newState.password) ||
             (newState.password === newState.passwordConfirm && newState.passwordValid);
 
-        if (!!window.localStorage.getItem("email") && props.backendState.serviceSourceId) {
-            valid = newState.saveSecret !== undefined;
+        if (!!window.localStorage.getItem("email") && props.backendState.serviceSourceId && !state.selectedSource) {
+            valid &&= undefined !== newState.saveSecret;
         }
 
         props.configUpdated(valid, {
                 ...props.currentConfig,
                 manifest: state.manifest
             }, newState.password,
-            getSecretRegion());
+            getSecretRegion(newState));
     }
 
     async function newSource() {
@@ -416,7 +416,7 @@ export default function InitialSetup(props: InitialSetupProps) {
                                     </Grid>
                                     <Grid item md={3} xs={12}>
                                         <Button fullWidth={true} disabled={state.busy} variant="contained"
-                                                id="newSource"
+                                                id="adoptSource"
                                                 onClick={() => adoptSource(source.sourceId, source.name)}>
                                             Adopt
                                         </Button>
@@ -639,14 +639,15 @@ export default function InitialSetup(props: InitialSetupProps) {
                         <FormControlLabel
                             style={{color: !privateKeyDisabled && state.saveSecret === undefined ? "#d32f2f" : "inherit"}}
                             control={<Checkbox
-                            disabled={privateKeyDisabled}
-                            checked={state.saveSecret && !!window.localStorage.getItem("email")}
-                            onChange={(e) => updateState({
-                                ...state,
-                                saveSecret: e.target.checked
-                            })}
-                            indeterminate={state.saveSecret === undefined}
-                        />} label={"Enable private key recovery from" + (!privateKeyDisabled ? " *" : "")}/>
+                                id={"saveSecret"}
+                                disabled={privateKeyDisabled}
+                                defaultChecked={false}
+                                onChange={(e) => updateState({
+                                    ...state,
+                                    saveSecret: e.target.checked
+                                })}
+                                indeterminate={state.saveSecret === undefined}
+                            />} label={"Enable private key recovery from" + (!privateKeyDisabled ? " *" : "")}/>
 
                     </Grid>
                     <Grid item md={6} xs={12}>

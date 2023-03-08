@@ -376,7 +376,7 @@ function DropboxDestination(props: DestinationProps) {
     let lastDestination = props.destination;
     lastDestination.type = "DROPBOX";
 
-    function updateState(newState: {
+    function sendUpdated(newState: {
         endpointUri: string,
         accessToken: string,
         refreshToken: string,
@@ -398,8 +398,24 @@ function DropboxDestination(props: DestinationProps) {
             };
             props.destinationUpdated(!(!newState.accessToken || !newState.refreshToken), lastDestination);
         }
+    }
+
+    function updateState(newState: {
+        endpointUri: string,
+        accessToken: string,
+        refreshToken: string,
+        encryption: string,
+        maxRetention: BackupTimespan | undefined,
+        errorCorrection: string,
+        limits: BackupLimits | undefined
+    }) {
+        sendUpdated(newState);
         setState(newState);
     }
+
+    useEffect(() => {
+        sendUpdated(state);
+    }, [state.accessToken, state.refreshToken]);
 
     async function fetchAccessToken(codeVerified: string, code: string) {
         let redirectUri = await createAuthEndpoint();
@@ -411,7 +427,7 @@ function DropboxDestination(props: DestinationProps) {
         dbxAuth.getAccessTokenFromCode(redirectUri, code)
             // @ts-ignore
             .then((response) => {
-                updateState({
+                setState({
                     ...state,
                     accessToken: response.result.access_token,
                     refreshToken: response.result.refresh_token
@@ -491,14 +507,14 @@ function DropboxDestination(props: DestinationProps) {
 }
 
 function UnderscoreBackupDestination(props: DestinationProps) {
-    const [state, setState] = React.useState({
+    const [state, setState] = React.useState(() => ({
         region: props.destination.endpointUri ? props.destination.endpointUri : "",
         maxRetention: props.destination.maxRetention,
         encryption: props.destination.encryption ? props.destination.encryption : "AES256",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         autoDetecting: false,
         limits: props.destination.limits
-    });
+    }));
 
     let lastDestination = props.destination;
     lastDestination.type = "UB";
@@ -537,6 +553,10 @@ function UnderscoreBackupDestination(props: DestinationProps) {
         }
     }, [])
 
+    useEffect(() => {
+        updateState(state);
+    }, [state.region]);
+
     async function autoDetectRegion() {
         setState({
             ...state,
@@ -545,11 +565,11 @@ function UnderscoreBackupDestination(props: DestinationProps) {
 
         let data = await getBestRegion();
         if (data) {
-            updateState({
-                ...state,
+            setState((oldState) => ({
+                ...oldState,
                 region: data as string,
                 autoDetecting: false
-            });
+            }));
         } else {
             setState((oldState) => ({
                 ...oldState,
@@ -578,11 +598,10 @@ function UnderscoreBackupDestination(props: DestinationProps) {
                         value={state.region}
                         label="Region"
                         onChange={(event: SelectChangeEvent) => {
-                            const newState = {
-                                ...state,
-                                region: event.target.value as string,
-                            }
-                            updateState(newState);
+                            setState((oldState) => ({
+                                ...oldState,
+                                region: event.target.value as string
+                            }));
                         }}>
                     <MenuItem value={"-"}>Select Region</MenuItem>
                     <Divider/>
@@ -593,7 +612,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
             </Grid>
             <Grid item md={3} xs={12}>
                 <div style={{height: "100%", width: "100%", display: "flex", alignItems: "center"}}>
-                    <Button disabled={state.autoDetecting} fullWidth={true} variant={"contained"}
+                    <Button disabled={state.autoDetecting} fullWidth={true} id="autodetect" variant={"contained"}
                             onClick={() => autoDetectRegion()}>
                         {
                             state.autoDetecting ?
@@ -1065,24 +1084,6 @@ export default function Destination(props: DestinationProps) {
         }
     });
 
-    const handleChange = (event: any, newValue: number) => {
-        if (props.destinationUpdated) {
-            const currentType = state.destinationsByTab.get(newValue);
-            if (currentType) {
-                props.destinationUpdated(currentType.valid, currentType.destination);
-            } else {
-                props.destinationUpdated(false, {
-                    type: "",
-                    endpointUri: ""
-                });
-            }
-        }
-        setState({
-            ...state,
-            type: newValue
-        });
-    };
-
     function getDefaultTabState(): TabState {
         return {
             valid: false,
@@ -1100,6 +1101,17 @@ export default function Destination(props: DestinationProps) {
         }
         return ret;
     }
+
+    const handleChange = (event: any, newValue: number) => {
+        let currentType = getTabState(newValue);
+
+        setState({
+            ...state,
+            activeDestination: currentType.destination,
+            activeValid: currentType.valid,
+            type: newValue
+        });
+    };
 
     function destinationUpdated(type: number, valid: boolean, dest: BackupDestination) {
         setState((oldState) => {

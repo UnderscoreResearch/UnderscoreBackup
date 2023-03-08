@@ -139,6 +139,7 @@ public class StateGet extends JsonWrap {
                         "(?i)\\.tmp$",
                         "(?i)\\.old$",
                         "(?i)\\.temp$",
+                        "(?i)\\.part$",
                         "~$",
                         "(?i)\\.ost$",
                         "(?i)/te?mp/",

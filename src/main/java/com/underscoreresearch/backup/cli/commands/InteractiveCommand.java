@@ -148,7 +148,7 @@ public class InteractiveCommand extends Command {
                 throw exc;
             }
         } catch (Exception exc) {
-            if (!commandLine.hasOption(DEVELOPER_MODE)) {
+            if (!commandLine.hasOption(DEVELOPER_MODE) && !"TRUE".equals(System.getenv("UNDERSCORE_SUPPRESS_OPEN"))) {
                 server.launchPage();
             }
         }

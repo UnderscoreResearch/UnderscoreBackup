@@ -42,6 +42,7 @@ import org.jetbrains.annotations.NotNull;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
+import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
@@ -198,6 +199,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                             .applicationUrl(getApplicationUrl())
                             .encryptionMode(destination.getEncryption())
                             .key(keyData)
+                            .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                             .sharingKey(encryptionKey.getSharingPublicKey())));
         }
     }

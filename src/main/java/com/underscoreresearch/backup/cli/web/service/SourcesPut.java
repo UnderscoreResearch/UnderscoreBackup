@@ -29,7 +29,9 @@ import org.takes.rq.RqPrint;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.io.BaseEncoding;
 import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
+import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
+import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.cli.web.PrivateKeyRequest;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
@@ -103,6 +105,7 @@ public class SourcesPut extends JsonWrap {
                             .encryptionMode(sourceDefinition.getEncryptionMode())
                             .destination(sourceDefinition.getDestination())
                             .sharingKey(sourceDefinition.getSharingKey())
+                            .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                             .key(sourceDefinition.getKey())));
         }
         serviceManager.setSourceId(sourceDefinition.getSourceId());
@@ -117,7 +120,7 @@ public class SourcesPut extends JsonWrap {
         private String name;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             String requestBody = new RqPrint(req).printBody();
@@ -170,6 +173,11 @@ public class SourcesPut extends JsonWrap {
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Updating source";
         }
     }
 }

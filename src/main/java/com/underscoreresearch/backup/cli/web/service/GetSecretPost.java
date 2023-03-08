@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
+import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -71,7 +72,7 @@ public class GetSecretPost extends JsonWrap {
         private boolean installed;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             String config = new RqPrint(req).printBody();
@@ -128,6 +129,11 @@ public class GetSecretPost extends JsonWrap {
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Restoring private key from service";
         }
     }
 }

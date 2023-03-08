@@ -92,7 +92,7 @@ public class SearchBackupFilesGet extends JsonWrap {
         return ret;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         public Implementation(String base) {
         }
 
@@ -103,6 +103,11 @@ public class SearchBackupFilesGet extends JsonWrap {
                             .stream()
                             .map(t -> new ExternalBackupFile(t))
                             .collect(Collectors.toList())));
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Searching files";
         }
     }
 }

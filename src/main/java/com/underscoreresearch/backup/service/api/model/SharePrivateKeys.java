@@ -34,7 +34,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SharePrivateKeys.JSON_PROPERTY_PUBLIC_KEY,
   SharePrivateKeys.JSON_PROPERTY_ENCRYPTED_KEY
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-13T08:26:04.416037100-08:00[America/Los_Angeles]")
+@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-21T23:05:24.673599500-08:00[America/Los_Angeles]")
 public class SharePrivateKeys {
   public static final String JSON_PROPERTY_PUBLIC_KEY = "publicKey";
   private String publicKey;

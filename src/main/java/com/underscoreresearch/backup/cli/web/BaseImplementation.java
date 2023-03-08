@@ -11,23 +11,10 @@ import org.takes.rq.RqHref;
 import org.takes.rq.RqMethod;
 
 @Slf4j
-public abstract class BaseImplementation implements Take {
+public abstract class BaseImplementation extends ResponseDecodingTake {
+
     @Override
     public final Response act(Request req) throws Exception {
-        Href href = new RqHref.Base(req).href();
-        RqMethod.Base method = new RqMethod.Base(req);
-        try {
-            Response response = actualAct(req);
-            log.debug("{} {}", method.method(), href);
-            return response;
-        } catch (HttpException httpException) {
-            log.debug("{} {}: {}", method.method(), href, httpException.code());
-            throw httpException;
-        } catch (Exception exc) {
-            log.warn("{} {}", method.method(), href, exc);
-            throw exc;
-        }
+        return super.act(req);
     }
-
-    public abstract Response actualAct(Request req) throws Exception;
 }

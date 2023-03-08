@@ -32,7 +32,7 @@ public class BackupDownloadPost extends TkWrap {
         super(new Implementation(base));
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         private final String base;
 
         public Implementation(String base) {
@@ -99,6 +99,11 @@ public class BackupDownloadPost extends TkWrap {
                         exc.getMessage()
                 );
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Backup file download in progress";
         }
     }
 }

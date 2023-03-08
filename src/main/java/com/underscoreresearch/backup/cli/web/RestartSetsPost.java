@@ -31,7 +31,7 @@ public class RestartSetsPost extends JsonWrap {
         private Set<String> sets;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             String body = new RqPrint(req).printBody();
@@ -60,6 +60,11 @@ public class RestartSetsPost extends JsonWrap {
                 log.error("Failed to reset sets", exc);
                 return messageJson(400, exc.getMessage());
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Restarting sets";
         }
     }
 }

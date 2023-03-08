@@ -39,7 +39,7 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 @Slf4j
 public class BestRegionGet extends JsonWrap {
     private static final Map<String, URL> REGIONS;
-    private static final int ITERATIONS = 5;
+    private static final int ITERATIONS = 10;
     private static ObjectWriter WRITER = MAPPER.writerFor(BestRegion.class);
 
     static {

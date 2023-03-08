@@ -107,7 +107,12 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                 processPath(backupSet, root.getNormalizedPath(), needStorageValidation);
         }
 
-        consumer.flushAssignments();
+        lock.unlock();
+        try {
+            consumer.flushAssignments();
+        } finally {
+            lock.lock();
+        }
 
         debug(() -> log.debug("File scanner shutting down"));
         while (processedPendingPaths().size() > 0 && !shutdown) {
@@ -290,11 +295,14 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                                 completedFiles.incrementAndGet();
                                 completedSize.addAndGet(file.getLength());
                                 lock.lock();
-                                pendingFiles.getFile(file).setStatus(success ?
-                                        BackupActiveStatus.INCLUDED :
-                                        BackupActiveStatus.EXCLUDED);
-                                updateActivePath(set, currentPath, false);
-                                lock.unlock();
+                                try {
+                                    pendingFiles.getFile(file).setStatus(success ?
+                                            BackupActiveStatus.INCLUDED :
+                                            BackupActiveStatus.EXCLUDED);
+                                    updateActivePath(set, currentPath, false);
+                                } finally {
+                                    lock.unlock();
+                                }
                             });
                             lock.lock();
                         } else {

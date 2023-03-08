@@ -13,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.0rc1'
+version '2.0.0rc2'
 
 def archiveName = 'underscorebackup'
 def edition = ''

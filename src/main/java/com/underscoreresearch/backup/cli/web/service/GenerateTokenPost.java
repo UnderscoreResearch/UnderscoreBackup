@@ -17,7 +17,9 @@ import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
+import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -48,7 +50,7 @@ public class GenerateTokenPost extends JsonWrap {
         private String token;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             InternalGenerateTokenRequest request = READER.readValue(new RqPrint(req).printBody());
@@ -67,6 +69,7 @@ public class GenerateTokenPost extends JsonWrap {
                 } else if (InstanceFactory.hasConfiguration(false) && encryptionKey() != null) {
                     SourceResponse created = ServiceManagerImpl.retry(() -> serviceManager.getClient()
                             .createSource(new SourceRequest().name(serviceManager.getSourceName())
+                                    .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                                     .identity(identity)));
                     serviceManager.setSourceId(created.getSourceId());
                 }
@@ -75,6 +78,11 @@ public class GenerateTokenPost extends JsonWrap {
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Generating service token";
         }
     }
 }

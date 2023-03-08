@@ -17,6 +17,7 @@ if (!$root) {
 
 my $FIRST_PASSWORD = "bYisMYVs9Qdw";
 my $SECOND_PASSWORD = "KqNK4bFj8ZTc";
+$ENV{"UNDERSCORE_SUPPRESS_OPEN"} = "TRUE";
 
 my $underscoreBackup = shift(@ARGV);
 my $webuiDir = shift(@ARGV);
@@ -174,6 +175,20 @@ sub validateLog() {
         }
         close LOG;
     }
+}
+
+sub findConfigLocation() {
+    my $config;
+    if (-f $logFile) {
+        open(LOG, "<$logFile");
+        while (<LOG>) {
+            if (/URL for configuration\: (\S+)/) {
+                $config = $1;
+            }
+        }
+        close LOG;
+    }
+    return $config;
 }
 
 sub executeUnderscoreBackupParameters {
@@ -407,7 +422,9 @@ sub validateAnswer {
 }
 
 sub killInteractive {
-    system("curl http://localhost:12345/fixed/api/shutdown");
+    if ($ENV{"CYPRESS_CONFIG_INTERFACE"}) {
+        system("curl ".$ENV{"CYPRESS_CONFIG_INTERFACE"}."api/shutdown");
+    }
 }
 
 sub executeCypressTest {
@@ -417,6 +434,7 @@ sub executeCypressTest {
         "npx",
         "cypress",
         "run",
+        "--headless",
         "--spec", File::Spec->catdir("cypress", File::Spec->catdir("e2e", $script. ".cy.ts"))
     );
     if ($ENV{"GITHUB_TARGET"}) {
@@ -427,7 +445,14 @@ sub executeCypressTest {
     }
     push(@args, @_);
 
+    my $configLocation = &findConfigLocation();
+    if (!$configLocation) {
+        die "Could not find config location";
+    }
+    print "Config location: $configLocation\n";
+
     $ENV{"CYPRESS_TEST_ROOT"} = $root;
+    $ENV{"CYPRESS_CONFIG_INTERFACE"} = $configLocation;
     $ENV{"CYPRESS_TEST_DATA"} = $testRoot;
     $ENV{"CYPRESS_TEST_BACKUP"} = $backupRoot;
     $ENV{"CYPRESS_TEST_SHARE"} = $shareRoot;
@@ -460,7 +485,7 @@ for (my $retry = 0; 1; $retry++) {
 
     $pid = fork();
     if (!$pid) {
-        &executeUnderscoreBackup("interactive", "--developer-mode");
+        &executeUnderscoreBackup("interactive");
         print "Interactive process terminated\n";
         exit(0);
     }
@@ -490,7 +515,7 @@ for (my $retry = 0; 1; $retry++) {
     unlink($keyFile);
     $pid = fork();
     if (!$pid) {
-        &executeUnderscoreBackup("interactive", "--developer-mode");
+        &executeUnderscoreBackup("interactive");
         print "Interactive process terminated\n";
         exit(0);
     }

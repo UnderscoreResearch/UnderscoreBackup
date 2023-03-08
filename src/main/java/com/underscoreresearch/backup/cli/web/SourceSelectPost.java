@@ -165,7 +165,7 @@ public class SourceSelectPost extends JsonWrap {
         }
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         private final String base;
 
         private Implementation(String base) {
@@ -342,6 +342,11 @@ public class SourceSelectPost extends JsonWrap {
                     return selectLocalSource(source, password);
                 }
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Switching source";
         }
     }
 }

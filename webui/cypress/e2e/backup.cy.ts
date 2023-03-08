@@ -6,9 +6,10 @@ const backupLocation = Cypress.env('TEST_BACKUP')
     .replaceAll("\\", "\\\\");
 
 const backupLocationRaw = Cypress.env('TEST_BACKUP');
+const configInterface = Cypress.env("CONFIG_INTERFACE");
 
 it('backup', function () {
-    cy.visit('http://localhost:12345/fixed/');
+    cy.visit(configInterface);
     cy.get('#skipService').click();
     cy.get('#selectType').click();
     cy.get('#typeLocalDirectory').click();

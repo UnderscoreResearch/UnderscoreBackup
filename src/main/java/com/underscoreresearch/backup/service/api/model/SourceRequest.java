@@ -37,9 +37,10 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SourceRequest.JSON_PROPERTY_ENCRYPTION_MODE,
   SourceRequest.JSON_PROPERTY_APPLICATION_URL,
   SourceRequest.JSON_PROPERTY_KEY,
+  SourceRequest.JSON_PROPERTY_VERSION,
   SourceRequest.JSON_PROPERTY_SHARING_KEY
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-13T08:26:04.416037100-08:00[America/Los_Angeles]")
+@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-21T23:05:24.673599500-08:00[America/Los_Angeles]")
 public class SourceRequest {
   public static final String JSON_PROPERTY_NAME = "name";
   private String name;
@@ -58,6 +59,9 @@ public class SourceRequest {
 
   public static final String JSON_PROPERTY_KEY = "key";
   private String key;
+
+  public static final String JSON_PROPERTY_VERSION = "version";
+  private String version;
 
   public static final String JSON_PROPERTY_SHARING_KEY = "sharingKey";
   private String sharingKey;
@@ -221,6 +225,32 @@ public class SourceRequest {
   }
 
 
+  public SourceRequest version(String version) {
+    this.version = version;
+    return this;
+  }
+
+   /**
+   * Application version for source.
+   * @return version
+  **/
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "Application version for source.")
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getVersion() {
+    return version;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setVersion(String version) {
+    this.version = version;
+  }
+
+
   public SourceRequest sharingKey(String sharingKey) {
     this.sharingKey = sharingKey;
     return this;
@@ -265,12 +295,13 @@ public class SourceRequest {
         Objects.equals(this.encryptionMode, sourceRequest.encryptionMode) &&
         Objects.equals(this.applicationUrl, sourceRequest.applicationUrl) &&
         Objects.equals(this.key, sourceRequest.key) &&
+        Objects.equals(this.version, sourceRequest.version) &&
         Objects.equals(this.sharingKey, sourceRequest.sharingKey);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, identity, destination, encryptionMode, applicationUrl, key, sharingKey);
+    return Objects.hash(name, identity, destination, encryptionMode, applicationUrl, key, version, sharingKey);
   }
 
   @Override
@@ -283,6 +314,7 @@ public class SourceRequest {
     sb.append("    encryptionMode: ").append(toIndentedString(encryptionMode)).append("\n");
     sb.append("    applicationUrl: ").append(toIndentedString(applicationUrl)).append("\n");
     sb.append("    key: ").append(toIndentedString(key)).append("\n");
+    sb.append("    version: ").append(toIndentedString(version)).append("\n");
     sb.append("    sharingKey: ").append(toIndentedString(sharingKey)).append("\n");
     sb.append("}");
     return sb.toString();

@@ -10,7 +10,7 @@ public class RebuildAvailableGet extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             DestinationDecoder destination = new DestinationDecoder(req);
@@ -25,6 +25,11 @@ public class RebuildAvailableGet extends JsonWrap {
             if (index.rebuildAvailable())
                 return messageJson(200, "Rebuild " + destination + " available");
             return messageJson(404, "Rebuild " + destination + " not available");
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Checking rebuild availability";
         }
     }
 }

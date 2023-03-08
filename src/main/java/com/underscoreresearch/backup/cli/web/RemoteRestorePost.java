@@ -74,7 +74,7 @@ public class RemoteRestorePost extends JsonWrap {
         return destination;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             String password = PrivateKeyRequest.decodePrivateKeyRequest(req);
@@ -115,6 +115,11 @@ public class RemoteRestorePost extends JsonWrap {
                 log.error("Failed to read existing config", exc);
             }
             return messageJson(404, "No valid config available");
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Restoring from remote server";
         }
     }
 }

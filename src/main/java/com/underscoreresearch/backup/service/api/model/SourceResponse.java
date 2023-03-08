@@ -42,6 +42,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SourceResponse.JSON_PROPERTY_DESTINATION,
   SourceResponse.JSON_PROPERTY_ENCRYPTION_MODE,
   SourceResponse.JSON_PROPERTY_SECRET_REGION,
+  SourceResponse.JSON_PROPERTY_VERSION,
   SourceResponse.JSON_PROPERTY_LAST_USAGE,
   SourceResponse.JSON_PROPERTY_DAILY_USAGE,
   SourceResponse.JSON_PROPERTY_PERIOD_USAGE,
@@ -49,7 +50,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SourceResponse.JSON_PROPERTY_KEY,
   SourceResponse.JSON_PROPERTY_SHARING_KEY
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-13T08:26:04.416037100-08:00[America/Los_Angeles]")
+@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-21T23:05:24.673599500-08:00[America/Los_Angeles]")
 public class SourceResponse {
   public static final String JSON_PROPERTY_SOURCE_ID = "sourceId";
   private String sourceId;
@@ -71,6 +72,9 @@ public class SourceResponse {
 
   public static final String JSON_PROPERTY_SECRET_REGION = "secretRegion";
   private String secretRegion;
+
+  public static final String JSON_PROPERTY_VERSION = "version";
+  private String version;
 
   public static final String JSON_PROPERTY_LAST_USAGE = "lastUsage";
   private String lastUsage;
@@ -275,6 +279,32 @@ public class SourceResponse {
   }
 
 
+  public SourceResponse version(String version) {
+    this.version = version;
+    return this;
+  }
+
+   /**
+   * Application version for source.
+   * @return version
+  **/
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "Application version for source.")
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getVersion() {
+    return version;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setVersion(String version) {
+    this.version = version;
+  }
+
+
   public SourceResponse lastUsage(String lastUsage) {
     this.lastUsage = lastUsage;
     return this;
@@ -466,6 +496,7 @@ public class SourceResponse {
         Objects.equals(this.destination, sourceResponse.destination) &&
         Objects.equals(this.encryptionMode, sourceResponse.encryptionMode) &&
         Objects.equals(this.secretRegion, sourceResponse.secretRegion) &&
+        Objects.equals(this.version, sourceResponse.version) &&
         Objects.equals(this.lastUsage, sourceResponse.lastUsage) &&
         Objects.equals(this.dailyUsage, sourceResponse.dailyUsage) &&
         Objects.equals(this.periodUsage, sourceResponse.periodUsage) &&
@@ -476,7 +507,7 @@ public class SourceResponse {
 
   @Override
   public int hashCode() {
-    return Objects.hash(sourceId, name, created, identity, destination, encryptionMode, secretRegion, lastUsage, dailyUsage, periodUsage, applicationUrl, key, sharingKey);
+    return Objects.hash(sourceId, name, created, identity, destination, encryptionMode, secretRegion, version, lastUsage, dailyUsage, periodUsage, applicationUrl, key, sharingKey);
   }
 
   @Override
@@ -490,6 +521,7 @@ public class SourceResponse {
     sb.append("    destination: ").append(toIndentedString(destination)).append("\n");
     sb.append("    encryptionMode: ").append(toIndentedString(encryptionMode)).append("\n");
     sb.append("    secretRegion: ").append(toIndentedString(secretRegion)).append("\n");
+    sb.append("    version: ").append(toIndentedString(version)).append("\n");
     sb.append("    lastUsage: ").append(toIndentedString(lastUsage)).append("\n");
     sb.append("    dailyUsage: ").append(toIndentedString(dailyUsage)).append("\n");
     sb.append("    periodUsage: ").append(toIndentedString(periodUsage)).append("\n");

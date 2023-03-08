@@ -55,9 +55,10 @@ public class ResetDelete extends JsonWrap {
         private Boolean specified;
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
+            InstanceFactory.reloadConfiguration(null);
             executeShielded(() -> InstanceFactory.getInstance(ServiceManager.class).reset());
             executeShielded(() -> new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION)).delete());
             executeShielded(() -> new File(InstanceFactory.getInstance(KEY_FILE_NAME)).delete());
@@ -68,6 +69,11 @@ public class ResetDelete extends JsonWrap {
             ActivityAppender.resetLogging();
 
             return messageJson(200, "Ok");
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Deleting configuration";
         }
     }
 }

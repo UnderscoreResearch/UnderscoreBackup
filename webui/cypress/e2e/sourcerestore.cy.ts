@@ -6,9 +6,10 @@ const backupLocation = Cypress.env('TEST_BACKUP')
     .replaceAll("\\", "\\\\");
 const shareLocation = Cypress.env('TEST_SHARE')
     .replaceAll("\\", "\\\\");
+const configInterface = Cypress.env("CONFIG_INTERFACE")
 
 it('sourcerestore', function () {
-    cy.visit('http://localhost:12345/fixed/');
+    cy.visit(configInterface);
 
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageSettings > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();

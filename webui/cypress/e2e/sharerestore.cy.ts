@@ -1,5 +1,9 @@
+const shareLocation = Cypress.env('TEST_SHARE')
+    .replaceAll("\\", "\\\\");
+const configInterface = Cypress.env("CONFIG_INTERFACE")
+
 it('sharerestore', function () {
-    cy.visit('http://localhost:12345/fixed/');
+    cy.visit(configInterface);
 
     cy.get('#pageShare > .MuiListItemText-root > .MuiTypography-root').click();
     cy.get("#loading").should('not.be.visible');
@@ -8,7 +12,7 @@ it('sharerestore', function () {
     cy.get('#new-item').click();
     cy.get('#share-name').clear().type('share');
     cy.get('#generate-key').click();
-    cy.get('#localFileText').clear().type(Cypress.env('TEST_SHARE'));
+    cy.get('#localFileText').clear().type(shareLocation);
     cy.get('.fileTreeList').find(".treeRow").should('have.length.at.least', 2);
     cy.get('.fileTreeList .treeRow #checkbox__').check({force: true});
     cy.get('#acceptButton').contains("Save").should("be.visible").and('not.be.disabled').click();

@@ -17,7 +17,7 @@ public class BackupPauseGet extends JsonWrap {
         super(new Implementation());
     }
 
-    private static class Implementation extends BaseImplementation {
+    private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
             String config = BACKUP_CONFIGURATION_WRITER
@@ -29,6 +29,11 @@ public class BackupPauseGet extends JsonWrap {
             } catch (Exception exc) {
                 return messageJson(400, exc.getMessage());
             }
+        }
+
+        @Override
+        protected String getBusyMessage() {
+            return "Pausing backup";
         }
     }
 }
