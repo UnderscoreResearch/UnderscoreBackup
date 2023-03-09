@@ -8,7 +8,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.HashMap;
@@ -39,9 +38,9 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 public class LogWriter extends AbstractAppender {
     private static final long MAXIMUM_FILE_AGE = Duration.ofDays(7).toMillis();
     private static Map<String, LogWriter> APPENDERS = new HashMap<>();
+    long creationDate;
     private FileOutputStream stream;
     private boolean initialized;
-    long creationDate;
 
     protected LogWriter(String name, Filter filter, Layout<String> layout) {
         super(name, filter, layout, true, Property.EMPTY_ARRAY);

@@ -52,10 +52,9 @@ import com.underscoreresearch.backup.utils.AccessLock;
 @Slf4j
 public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     public static final String LOG_ROOT = "logs";
+    public static final String IDENTITY_MANIFEST_LOCATION = "identity";
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.nnnnnnnnn").withZone(ZoneId.of("UTC"));
-    public static final String IDENTITY_MANIFEST_LOCATION = "identity";
-
     @Getter(AccessLevel.PROTECTED)
     private final BackupConfiguration configuration;
     @Getter(AccessLevel.PROTECTED)

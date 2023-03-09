@@ -96,7 +96,7 @@ function validState(state: ShareItemState): boolean {
         validKey(state.encryptionKey) && state.share.contents.roots.length > 0;
 }
 
-function externalShare(state : ShareItemState) : BackupShare {
+function externalShare(state: ShareItemState): BackupShare {
     return {
         ...state.share,
         targetEmail: state.serviceSharing ? state.share.targetEmail : undefined
@@ -147,7 +147,7 @@ function ShareItem(props: {
             ...oldState,
             share: {
                 ...oldState.share,
-                name:value
+                name: value
             }
         }));
     }
@@ -497,22 +497,22 @@ export default function Shares(props: SharesProps) {
         items: state.shares,
         createItem: (item, itemUpdated: (item: ShareState) => void) => {
             return <ShareItem id={item.id}
-                          share={item.share}
-                          exists={item.exists}
-                          encryptionKey={item.encryptionKey}
-                          additionalKeys={state.additionalKeys ? state.additionalKeys : []}
-                          backendState={props.backendState}
-                          addNewKey={addNewKey}
-                          shareUpdated={(valid, encryptionKey, share) => {
-                              itemUpdated({
-                                  valid: valid,
-                                  share: share,
-                                  exists: item.exists,
-                                  id: item.id,
-                                  encryptionKey: encryptionKey,
-                                  name: share.name
-                              });
-                          }}
+                              share={item.share}
+                              exists={item.exists}
+                              encryptionKey={item.encryptionKey}
+                              additionalKeys={state.additionalKeys ? state.additionalKeys : []}
+                              backendState={props.backendState}
+                              addNewKey={addNewKey}
+                              shareUpdated={(valid, encryptionKey, share) => {
+                                  itemUpdated({
+                                      valid: valid,
+                                      share: share,
+                                      exists: item.exists,
+                                      id: item.id,
+                                      encryptionKey: encryptionKey,
+                                      name: share.name
+                                  });
+                              }}
             />
         }
     });

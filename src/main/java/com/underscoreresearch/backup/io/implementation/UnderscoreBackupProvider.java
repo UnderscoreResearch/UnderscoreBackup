@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
-import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.io.IOIndex;
@@ -39,14 +39,13 @@ import com.underscoreresearch.backup.service.api.model.SourceResponse;
 public class UnderscoreBackupProvider implements IOIndex {
     public static final String UB_TYPE = "UB";
     private static final Duration IDENTITY_TIMEOUT = Duration.ofSeconds(30);
+    private static String cachedIdentityKey;
+    private static Instant cachedIdentityTimeout;
+    private static byte[] cachedIdentity;
     private String region;
     private String sourceId;
     private String shareId;
     private ServiceManager serviceManager;
-
-    private static String cachedIdentityKey;
-    private static Instant cachedIdentityTimeout;
-    private static byte[] cachedIdentity;
 
     public UnderscoreBackupProvider(BackupDestination destination) {
         region = destination.getEndpointUri();
@@ -68,6 +67,18 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    private static <T> T callRetry(Callable<T> callable) throws IOException {
+        try {
+            return ServiceManagerImpl.retryApi(callable);
+        } catch (ApiException e) {
+            if (e.getCode() == 404)
+                throw new IOException("Source no longer exists in service");
+            if (e.getCode() == 401 || e.getCode() == 403)
+                throw new IOException("Authorization to service is missing or invalid");
+            throw new IOException(e);
+        }
+    }
+
     private String getSourceId() {
         if (sourceId == null) {
             sourceId = getServiceManager().getSourceId();
@@ -84,7 +95,19 @@ public class UnderscoreBackupProvider implements IOIndex {
     public List<String> availableLogs(String lastSyncedFile) throws IOException {
         debug(() -> log.debug("Getting available logs"));
         FileListResponse response = callRetry(() -> getServiceManager().getClient(region).listLogFiles(getSourceId(), lastSyncedFile, shareId));
-        return response.getFiles();
+
+        // Almost all backups will be less than one page, so we can optimize for that case
+        if (response.getCompleted()) {
+            return response.getFiles();
+        }
+
+        // Lots of log files so lets go through all the pages.
+        List<String> ret = Lists.newArrayList(response.getFiles());
+        do {
+            response = callRetry(() -> getServiceManager().getClient(region).listLogFiles(getSourceId(), ret.get(ret.size() - 1), shareId));
+            ret.addAll(response.getFiles());
+        } while (!response.getCompleted());
+        return ret;
     }
 
     private synchronized ServiceManager getServiceManager() {
@@ -207,18 +230,6 @@ public class UnderscoreBackupProvider implements IOIndex {
                 getServiceManager().getClient(region).getSource(getSourceId());
             }
         } catch (ApiException e) {
-            throw new IOException(e);
-        }
-    }
-
-    private static <T>  T callRetry(Callable<T> callable) throws IOException {
-        try {
-            return ServiceManagerImpl.retryApi(callable);
-        } catch (ApiException e) {
-            if (e.getCode() == 404)
-                throw new IOException("Source no longer exists in service");
-            if (e.getCode() == 401 || e.getCode() == 403)
-                throw new IOException("Authorization to service is missing or invalid");
             throw new IOException(e);
         }
     }

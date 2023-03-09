@@ -23,7 +23,6 @@ import org.takes.rs.RsWithStatus;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.web.BaseImplementation;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;

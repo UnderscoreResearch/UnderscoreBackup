@@ -229,10 +229,10 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
             List<BackupFilePart> piecePart;
             if (existingPending == null) {
                 currentIndex++;
-                hash.addBytes(new byte[] { (byte)data.length,
-                        (byte)(data.length / 0x100),
-                        (byte)(data.length / 0x10000),
-                        (byte)(data.length / 0x1000000) });
+                hash.addBytes(new byte[]{(byte) data.length,
+                        (byte) (data.length / 0x100),
+                        (byte) (data.length / 0x10000),
+                        (byte) (data.length / 0x1000000)});
                 hash.addBytes(data);
 
                 addPartData(currentIndex, data, partHash);

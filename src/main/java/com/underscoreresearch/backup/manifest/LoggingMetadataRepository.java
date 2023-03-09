@@ -49,9 +49,9 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
-import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupShare;
+import com.underscoreresearch.backup.model.BackupUpdatedFile;
 
 @Slf4j
 public class LoggingMetadataRepository implements MetadataRepository, LogConsumer {

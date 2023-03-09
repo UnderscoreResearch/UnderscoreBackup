@@ -17,7 +17,6 @@ import org.takes.rq.RqPrint;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.web.BaseImplementation;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;

@@ -33,12 +33,16 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * FileListResponse
  */
 @JsonPropertyOrder({
-  FileListResponse.JSON_PROPERTY_FILES
+  FileListResponse.JSON_PROPERTY_FILES,
+  FileListResponse.JSON_PROPERTY_COMPLETED
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-21T23:05:24.673599500-08:00[America/Los_Angeles]")
+@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
 public class FileListResponse {
   public static final String JSON_PROPERTY_FILES = "files";
   private List<String> files = new ArrayList<>();
+
+  public static final String JSON_PROPERTY_COMPLETED = "completed";
+  private Boolean completed;
 
   public FileListResponse() { 
   }
@@ -74,6 +78,32 @@ public class FileListResponse {
   }
 
 
+  public FileListResponse completed(Boolean completed) {
+    this.completed = completed;
+    return this;
+  }
+
+   /**
+   * If false there are more files to be fetched. Use the last file of the previous response as the start parameter to fetch the next page.
+   * @return completed
+  **/
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "If false there are more files to be fetched. Use the last file of the previous response as the start parameter to fetch the next page.")
+  @JsonProperty(JSON_PROPERTY_COMPLETED)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public Boolean getCompleted() {
+    return completed;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_COMPLETED)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setCompleted(Boolean completed) {
+    this.completed = completed;
+  }
+
+
   /**
    * Return true if this FileListResponse object is equal to o.
    */
@@ -86,12 +116,13 @@ public class FileListResponse {
       return false;
     }
     FileListResponse fileListResponse = (FileListResponse) o;
-    return Objects.equals(this.files, fileListResponse.files);
+    return Objects.equals(this.files, fileListResponse.files) &&
+        Objects.equals(this.completed, fileListResponse.completed);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(files);
+    return Objects.hash(files, completed);
   }
 
   @Override
@@ -99,6 +130,7 @@ public class FileListResponse {
     StringBuilder sb = new StringBuilder();
     sb.append("class FileListResponse {\n");
     sb.append("    files: ").append(toIndentedString(files)).append("\n");
+    sb.append("    completed: ").append(toIndentedString(completed)).append("\n");
     sb.append("}");
     return sb.toString();
   }

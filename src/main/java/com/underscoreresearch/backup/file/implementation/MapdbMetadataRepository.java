@@ -1,6 +1,5 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_ADDITIONAL_READER;
@@ -24,7 +23,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,8 +71,8 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
-import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
+import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.utils.AccessLock;
 
 @Slf4j

@@ -67,6 +67,20 @@ public class WebServer {
         return server;
     }
 
+    private static InetAddress getInetAddress() {
+        CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
+
+        if (commandLine.hasOption(BIND_ADDRESS)) {
+            try {
+                return InetAddress.getByName(commandLine.getOptionValue(BIND_ADDRESS));
+            } catch (UnknownHostException e) {
+                throw new RuntimeException(String.format("Failed to resolve %s",
+                        commandLine.getOptionValue(BIND_ADDRESS)), e);
+            }
+        } else
+            return InetAddress.getLoopbackAddress();
+    }
+
     public void start(boolean developerMode) {
         if (socket == null) {
             InetAddress address = getInetAddress();
@@ -250,20 +264,6 @@ public class WebServer {
                 log.warn("Failed to write configuration location to disk", exc);
             }
         }
-    }
-
-    private static InetAddress getInetAddress() {
-        CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
-
-        if (commandLine.hasOption(BIND_ADDRESS)) {
-            try {
-                return InetAddress.getByName(commandLine.getOptionValue(BIND_ADDRESS));
-            } catch (UnknownHostException e) {
-                throw new RuntimeException(String.format("Failed to resolve %s",
-                        commandLine.getOptionValue(BIND_ADDRESS)), e);
-            }
-        } else
-            return InetAddress.getLoopbackAddress();
     }
 
     private Fork createIndexPath(String base) {

@@ -447,7 +447,8 @@ sub executeCypressTest {
 
     my $configLocation = &findConfigLocation();
     if (!$configLocation) {
-        die "Could not find config location";
+        print "Could not find config location\n";
+        return undef;
     }
     print "Config location: $configLocation\n";
 

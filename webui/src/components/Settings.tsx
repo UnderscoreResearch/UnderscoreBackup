@@ -512,12 +512,12 @@ export default function Settings(props: SettingsProps) {
                                    oldPassword: e.target.value
                                })}/>
                     <Box style={{marginLeft: "8px", marginRight: "-8px"}}>
-                    <PasswordStrengthBar password={state.password} onChangeScore={(newScore) =>
-                        setState((oldState) => ({
-                            ...oldState,
-                            passwordValid: newScore >= 2
-                        }))
-                    }/>
+                        <PasswordStrengthBar password={state.password} onChangeScore={(newScore) =>
+                            setState((oldState) => ({
+                                ...oldState,
+                                passwordValid: newScore >= 2
+                            }))
+                        }/>
                     </Box>
                     <TextField label="New Password" variant="outlined"
                                fullWidth={true}
@@ -546,8 +546,9 @@ export default function Settings(props: SettingsProps) {
             </DialogContent>
             <DialogActions>
                 <Button onClick={handleChangePasswordClose}>Cancel</Button>
-                <Button disabled={!(state.passwordValid && state.oldPassword && state.password === state.passwordConfirm)}
-                        onClick={() => handleChangePassword()} id={"submitPasswordChange"}>OK</Button>
+                <Button
+                    disabled={!(state.passwordValid && state.oldPassword && state.password === state.passwordConfirm)}
+                    onClick={() => handleChangePassword()} id={"submitPasswordChange"}>OK</Button>
             </DialogActions>
         </Dialog>
 

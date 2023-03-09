@@ -16,7 +16,6 @@ import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
-import com.underscoreresearch.backup.cli.web.BaseImplementation;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;

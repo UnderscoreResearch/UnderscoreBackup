@@ -34,7 +34,6 @@ import org.takes.rs.RsText;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.cli.UIManager;
-import com.underscoreresearch.backup.cli.web.BaseImplementation;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -46,6 +45,13 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class SupportBundlePost extends JsonWrap {
+
+    private static ObjectReader READER = MAPPER.readerFor(GenerateSupportBundleRequest.class);
+    private static ObjectWriter WRITER = MAPPER.writerFor(GenerateSupportBundleResponse.class);
+
+    public SupportBundlePost() {
+        super(new Implementation());
+    }
 
     @Data
     private static class GenerateSupportBundleRequest {
@@ -61,32 +67,7 @@ public class SupportBundlePost extends JsonWrap {
         private String location;
     }
 
-    private static ObjectReader READER = MAPPER.readerFor(GenerateSupportBundleRequest.class);
-    private static ObjectWriter WRITER = MAPPER.writerFor(GenerateSupportBundleResponse.class);
-
-    public SupportBundlePost() {
-        super(new Implementation());
-    }
-
     private static class Implementation extends ExclusiveImplementation {
-        @Override
-        public Response actualAct(Request req) throws Exception {
-            GenerateSupportBundleRequest request = READER.readValue(new RqPrint(req).printBody());
-
-            Path path = Files.createTempDirectory("supportBundle");
-            File f = File.createTempFile("supportBundle", ".zip", path.toFile());
-
-            if (!createSupportBundle(request, f)) {
-                return messageJson(400, "Failed to generate support bundle");
-            }
-
-            log.info("Support bundle generated at " + f.getAbsolutePath());
-
-            UIManager.openFolder(f.getParentFile());
-
-            return new RsText(WRITER.writeValueAsString(new GenerateSupportBundleResponse(f.getAbsolutePath())));
-        }
-
         @NotNull
         private static boolean createSupportBundle(GenerateSupportBundleRequest request, File f) {
             try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f))) {
@@ -105,7 +86,7 @@ public class SupportBundlePost extends JsonWrap {
                     try {
                         baseFileName = InstanceFactory.getInstance(LOG_FILE);
                         addZipFile(out, new File(baseFileName));
-                        for (int i = 1 ; i < 9; i++) {
+                        for (int i = 1; i < 9; i++) {
                             addZipFile(out, new File(baseFileName + "." + i + ".gz"));
                         }
                     } catch (Exception exc) {
@@ -190,6 +171,24 @@ public class SupportBundlePost extends JsonWrap {
 
         private static void addZipFile(ZipOutputStream out, File file) throws IOException {
             addZipFile(out, file, file.getName());
+        }
+
+        @Override
+        public Response actualAct(Request req) throws Exception {
+            GenerateSupportBundleRequest request = READER.readValue(new RqPrint(req).printBody());
+
+            Path path = Files.createTempDirectory("supportBundle");
+            File f = File.createTempFile("supportBundle", ".zip", path.toFile());
+
+            if (!createSupportBundle(request, f)) {
+                return messageJson(400, "Failed to generate support bundle");
+            }
+
+            log.info("Support bundle generated at " + f.getAbsolutePath());
+
+            UIManager.openFolder(f.getParentFile());
+
+            return new RsText(WRITER.writeValueAsString(new GenerateSupportBundleResponse(f.getAbsolutePath())));
         }
 
         @Override

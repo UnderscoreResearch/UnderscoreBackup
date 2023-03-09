@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -81,8 +80,72 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
             if (whenBySet != null)
                 whenBySet.put(set.getId(), set.getRetention().getDefaultFrequency().toDuration().toMillis());
 
-          return set.getContinuous() != null && set.getContinuous();
+            return set.getContinuous() != null && set.getContinuous();
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    public void start() throws IOException {
+        if (sets.isEmpty())
+            return;
+        lock.lock();
+        try {
+            if (watchService != null)
+                throw new IllegalStateException("Already started");
+            watchService = FileSystems.getDefault().newWatchService();
+
+            for (BackupSet set : sets) {
+                for (BackupSetRoot root : set.getRoots()) {
+                    Path path = FileSystems.getDefault().getPath(root.getPath());
+                    path.register(watchService, new WatchEvent.Kind[]{
+                                    ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY, OVERFLOW
+                            },
+                            ExtendedWatchEventModifier.FILE_TREE);
+                }
+            }
+
+            if (thread == null) {
+                thread = new Thread(new PollingThread(), "FileChangeWatcher");
+                executionQueue = new LinkedBlockingQueue<>(QUEUE_SIZE);
+                executorService = new ThreadPoolExecutor(THREAD_POOL_SIZE, THREAD_POOL_SIZE,
+                        0, TimeUnit.MILLISECONDS,
+                        executionQueue,
+                        r -> new Thread(r, "FileChangeWatcherConsumer"));
+
+                thread.start();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public void stop() throws IOException {
+        lock.lock();
+        try {
+            if (watchService == null)
+                return;
+            watchService.close();
+            watchService = null;
+
+            while (thread != null) {
+                try {
+                    condition.await();
+                } catch (InterruptedException e) {
+                    log.warn("Interrupted while waiting for file change watcher to stop", e);
+                }
+            }
+
+            executorService.shutdownNow();
+            executorService = null;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
+    public boolean active() {
+        return !sets.isEmpty();
     }
 
     private class PollingThread implements Runnable {
@@ -171,69 +234,5 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                 lock.unlock();
             }
         }
-    }
-
-    @Override
-    public void start() throws IOException {
-        if (sets.isEmpty())
-            return;
-        lock.lock();
-        try {
-            if (watchService != null)
-                throw new IllegalStateException("Already started");
-            watchService = FileSystems.getDefault().newWatchService();
-
-            for (BackupSet set : sets) {
-                for (BackupSetRoot root : set.getRoots()) {
-                    Path path = FileSystems.getDefault().getPath(root.getPath());
-                    path.register(watchService, new WatchEvent.Kind[]{
-                                    ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY, OVERFLOW
-                            },
-                            ExtendedWatchEventModifier.FILE_TREE);
-                }
-            }
-
-            if (thread == null) {
-                thread = new Thread(new PollingThread(), "FileChangeWatcher");
-                executionQueue = new LinkedBlockingQueue<>(QUEUE_SIZE);
-                executorService = new ThreadPoolExecutor(THREAD_POOL_SIZE, THREAD_POOL_SIZE,
-                        0, TimeUnit.MILLISECONDS,
-                        executionQueue,
-                        r -> new Thread(r, "FileChangeWatcherConsumer"));
-
-                thread.start();
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    @Override
-    public void stop() throws IOException {
-        lock.lock();
-        try {
-            if (watchService == null)
-                return;
-            watchService.close();
-            watchService = null;
-
-            while(thread != null) {
-                try {
-                    condition.await();
-                } catch (InterruptedException e) {
-                    log.warn("Interrupted while waiting for file change watcher to stop", e);
-                }
-            }
-
-            executorService.shutdownNow();
-            executorService = null;
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    @Override
-    public boolean active() {
-        return !sets.isEmpty();
     }
 }

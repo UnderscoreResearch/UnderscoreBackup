@@ -7,7 +7,6 @@ import java.io.IOException;
 import org.takes.Request;
 import org.takes.Response;
 
-import com.underscoreresearch.backup.cli.web.BaseImplementation;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;

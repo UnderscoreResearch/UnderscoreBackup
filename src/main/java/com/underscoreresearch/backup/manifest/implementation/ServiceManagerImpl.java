@@ -89,7 +89,7 @@ public class ServiceManagerImpl implements ServiceManager {
             throw new IOException(exc);
         } catch (Exception exc) {
             if (exc.getCause() instanceof IOException) {
-                throw (IOException)exc.getCause();
+                throw (IOException) exc.getCause();
             }
             throw new IOException(exc.getMessage(), exc.getCause());
         }

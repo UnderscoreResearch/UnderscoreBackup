@@ -333,9 +333,9 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public FileChangeWatcherImpl fileChangeWatcher(BackupConfiguration configuration,
-                                               MetadataRepository repository,
-                                               ContinuousBackup continuousBackup,
-                                               @Named(MANIFEST_LOCATION) String manifestLocation) {
+                                                   MetadataRepository repository,
+                                                   ContinuousBackup continuousBackup,
+                                                   @Named(MANIFEST_LOCATION) String manifestLocation) {
         return new FileChangeWatcherImpl(configuration, repository, continuousBackup, manifestLocation);
     }
 
@@ -348,7 +348,7 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public ContinuousBackupImpl continuousBackup(MetadataRepository repository, FileConsumer fileConsumer,
-                                             BackupConfiguration backupConfiguration) {
+                                                 BackupConfiguration backupConfiguration) {
         return new ContinuousBackupImpl(repository, fileConsumer, backupConfiguration);
     }
 

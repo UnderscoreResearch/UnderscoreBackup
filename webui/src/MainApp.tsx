@@ -51,7 +51,8 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle, LinearProgress
+    DialogTitle,
+    LinearProgress
 } from "@mui/material";
 import InitialSetup, {InitialPage} from "./components/InitialSetup";
 import Restore, {RestorePropsChange} from "./components/Restore";
@@ -1273,7 +1274,7 @@ export default function MainApp() {
         <Box sx={{display: 'flex'}}>
             <CssBaseline/>
             <AppBar position="absolute" open={state.open}>
-                { displayState.statusTitle !== "Currently Inactive" && !displayState.statusTitle.startsWith("Browsing ")
+                {displayState.statusTitle !== "Currently Inactive" && !displayState.statusTitle.startsWith("Browsing ")
                     && !displayState.navigation.firstTime && !state.loading &&
                     <LinearProgress style={{position: "fixed", width: "100%", top: "0"}}/>
                 }

@@ -13,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.0rc2'
+version '2.0.0rc3'
 
 def archiveName = 'underscorebackup'
 def edition = ''
@@ -144,8 +144,8 @@ dependencies {
     implementation(
             'com.cronutils:cron-utils:9.2.0',
             'com.dropbox.core:dropbox-core-sdk:5.4.4',
-            'com.fasterxml.jackson.core:jackson-databind:2.14.0',
-            'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.0',
+            'com.fasterxml.jackson.core:jackson-databind:2.14.2',
+            'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.2',
             'com.google.guava:guava:31.1-jre',
             'com.google.inject:guice:5.1.0',
             'com.hierynomus:smbj:0.11.5',
@@ -157,30 +157,30 @@ dependencies {
             'javax.xml.bind:jaxb-api:2.3.1',
             'org.apache.commons:commons-lang3:3.12.0',
             'commons-net:commons-net:3.9.0',
-            'org.apache.logging.log4j:log4j-api:2.19.0',
-            'org.apache.logging.log4j:log4j-core:2.19.0',
-            'org.apache.logging.log4j:log4j-slf4j2-impl:2.19.0',
+            'org.apache.logging.log4j:log4j-api:2.20.0',
+            'org.apache.logging.log4j:log4j-core:2.20.0',
+            'org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0',
             'org.mapdb:mapdb:3.0.9',
-            'org.openapitools:jackson-databind-nullable:0.2.4',
-            'org.projectlombok:lombok:1.18.24',
+            'org.openapitools:jackson-databind-nullable:0.2.6',
+            'org.projectlombok:lombok:1.18.26',
             'org.reflections:reflections:0.10.2',
             'org.slf4j:slf4j-api:2.0.5',
             'org.takes:takes:1.24.4',
-            'software.amazon.awssdk:s3control:2.18.35'
+            'software.amazon.awssdk:s3control:2.20.18'
     )
 
     testImplementation(
             'org.hamcrest:hamcrest:2.2',
-            'org.junit.jupiter:junit-jupiter:5.9.0',
-            'org.mockito:mockito-junit-jupiter:4.10.0'
+            'org.junit.jupiter:junit-jupiter:5.9.2',
+            'org.mockito:mockito-junit-jupiter:5.1.1'
     )
 
     testRuntimeOnly(
-            'org.junit.jupiter:junit-jupiter-engine:5.9.0'
+            'org.junit.jupiter:junit-jupiter-engine:5.9.2'
     )
 
-    annotationProcessor 'org.projectlombok:lombok:1.18.24'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
+    annotationProcessor 'org.projectlombok:lombok:1.18.26'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.26'
 }
 
 test {

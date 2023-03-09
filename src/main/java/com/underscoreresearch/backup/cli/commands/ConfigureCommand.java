@@ -8,7 +8,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,6 +23,21 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
         needConfiguration = false, needPrivateKey = false)
 @Slf4j
 public class ConfigureCommand extends Command {
+    public static String getConfigurationUrl() throws IOException {
+        File configFile = new File(InstanceFactory.getInstance(URL_LOCATION));
+        if (!configFile.exists()) {
+            throw new ConfigurationUrlException("Daemon does not appear to be running");
+        }
+        if (!configFile.canRead()) {
+            throw new ConfigurationUrlException("No permissions to access configuration interface");
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
+            String url = reader.readLine();
+
+            return url.trim();
+        }
+    }
+
     public void executeCommand(CommandLine commandLine) throws Exception {
         if (commandLine.getArgList().size() > 1) {
             throw new ParseException("Too many arguments for command");
@@ -56,21 +70,6 @@ public class ConfigureCommand extends Command {
     public static class ConfigurationUrlException extends IOException {
         public ConfigurationUrlException(String message) {
             super(message);
-        }
-    }
-
-    public static String getConfigurationUrl() throws IOException {
-        File configFile = new File(InstanceFactory.getInstance(URL_LOCATION));
-        if (!configFile.exists()) {
-            throw new ConfigurationUrlException("Daemon does not appear to be running");
-        }
-        if (!configFile.canRead()) {
-            throw new ConfigurationUrlException("No permissions to access configuration interface");
-        }
-        try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
-            String url = reader.readLine();
-
-            return url.trim();
         }
     }
 }

@@ -8,7 +8,8 @@ import {
     Divider,
     FormControl,
     Grid,
-    InputLabel, Link,
+    InputLabel,
+    Link,
     MenuItem,
     Select,
     SelectChangeEvent,
@@ -799,7 +800,13 @@ function BaseS3Destination(props: S3DestinationProps) {
                 </div>
             </Grid>
             <Grid item xs={2}>
-                <Box style={{height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "right"}}>
+                <Box style={{
+                    height: "100%",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "right"
+                }}>
                     <Link rel="noreferrer" target="_blank" underline={"hover"} href={props.console}>Console</Link>
                 </Box>
             </Grid>

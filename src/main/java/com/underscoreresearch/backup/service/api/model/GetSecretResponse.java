@@ -34,7 +34,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   GetSecretResponse.JSON_PROPERTY_AVAILABLE,
   GetSecretResponse.JSON_PROPERTY_SECRET
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-21T23:05:24.673599500-08:00[America/Los_Angeles]")
+@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
 public class GetSecretResponse {
   public static final String JSON_PROPERTY_AVAILABLE = "available";
   private Boolean available;

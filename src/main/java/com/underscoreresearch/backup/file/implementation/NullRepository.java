@@ -15,10 +15,23 @@ import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
-import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
+import com.underscoreresearch.backup.model.BackupUpdatedFile;
 
 public class NullRepository implements MetadataRepository {
+    private static CloseableLock getDummyLock() {
+        return new CloseableLock() {
+            @Override
+            public void close() {
+            }
+
+            @Override
+            public boolean requested() {
+                return false;
+            }
+        };
+    }
+
     @Override
     public void addFile(BackupFile file) throws IOException {
     }
@@ -239,19 +252,6 @@ public class NullRepository implements MetadataRepository {
     @Override
     public void clear() throws IOException {
 
-    }
-
-    private static CloseableLock getDummyLock() {
-        return new CloseableLock() {
-            @Override
-            public void close() {
-            }
-
-            @Override
-            public boolean requested() {
-                return false;
-            }
-        };
     }
 
 }

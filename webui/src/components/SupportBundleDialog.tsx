@@ -1,5 +1,7 @@
 import {
-    Button, Checkbox, CircularProgress,
+    Button,
+    Checkbox,
+    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -13,7 +15,7 @@ import * as React from "react";
 import {BackupState} from "../api";
 import {createSupportBundle} from "../api/service";
 
-export default function SupportBundleDialog(props: {open: boolean, backendState: BackupState, onClose: () => void}) {
+export default function SupportBundleDialog(props: { open: boolean, backendState: BackupState, onClose: () => void }) {
     const [busy, setBusy] = React.useState(false);
     const [location, setLocation] = React.useState(undefined as string | undefined);
 
@@ -110,8 +112,8 @@ export default function SupportBundleDialog(props: {open: boolean, backendState:
                             />} label="Include log files"/>
                         </Grid>
                         <Grid item xs={12} paddingLeft={"2em"}>
-                            Will contain the location and name of all the files that have been backed up or have had changes detected in the in
-                            the last couple of weeks.
+                            Will contain the location and name of all the files that have been backed up or have had
+                            changes detected in the in the last couple of weeks.
                         </Grid>
                         <Grid item xs={12}>
                             <FormControlLabel control={<Checkbox

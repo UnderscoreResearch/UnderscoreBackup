@@ -3,11 +3,13 @@ Serverless backup solution with client side encryption with the following featur
 * Public key based encryption allows continuously running backups that can only be read with a key not available on the
   server running the backup.
 
-* Ties into [a free service](https://underscorebackup.com/) that helps coordination of your backup sources, optional encryption key recovery and coordination
+* Ties into [a free service](https://underscorebackup.com/) that helps coordination of your backup sources, optional
+  encryption key recovery and coordination
   of sharing of backup data. However, all online services are optional, and you can run the backup software without an
   online account.
 
-* Provides optional [paid for storage service](https://underscorebackup.com/pricing) as part of the service offering. However this is also optional and you can
+* Provides optional [paid for storage service](https://underscorebackup.com/pricing) as part of the service offering.
+  However this is also optional and you can
   use any supported storage service you wish.
 
 * Pre-egress encryption means no proprietary data leaves your system in a format where it can be compromised as long as
@@ -18,7 +20,8 @@ Serverless backup solution with client side encryption with the following featur
 * Designed from the ground up to manage very large backup sets with multiple TB of data and millions of file in a
   single repository.
 
-* Multi-platform support based on Java 17. Linux, Windows and MacOS are supported platforms, but should run anywhere Java
+* Multi-platform support based on Java 17. Linux, Windows and MacOS are supported platforms, but should run anywhere
+  Java
   17 is supported.
 
 * Low resource requirements, runs efficiently with 256MB of heap memory even if the backup sets have millions of files

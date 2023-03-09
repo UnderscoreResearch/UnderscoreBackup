@@ -1,4 +1,4 @@
-import React, { Fragment, CSSProperties, ReactNode } from 'react';
+import React, {CSSProperties, Fragment, ReactNode} from 'react';
 
 // components
 import Item from './Item';
@@ -77,14 +77,50 @@ class PasswordStrengthBar extends React.Component<
     }
 
     public componentDidUpdate(prevProps: PasswordStrengthBarProps): void {
-        const { password } = this.props;
+        const {password} = this.props;
         if (prevProps.password !== password) {
             this.setScore();
         }
     }
 
+    public render(): ReactNode {
+        const {
+            className,
+            style,
+            scoreWordClassName,
+            scoreWordStyle,
+            password,
+            barColors,
+            scoreWords,
+            minLength,
+            shortScoreWord,
+        } = this.props;
+        const {score} = this.state;
+        const newShortScoreWord =
+            password.length >= (minLength as number) ? (scoreWords as string[])[score] : shortScoreWord;
+
+        return (
+            <div className={className} style={{...rootStyle, ...style}}>
+                <p
+                    className={scoreWordClassName}
+                    style={{...descStyle, ...scoreWordStyle}}
+                >
+                    {newShortScoreWord}
+                </p>
+                <div style={wrapStyle}>
+                    {[1, 2, 3, 4].map((el: number) => (
+                        <Fragment key={`password-strength-bar-item-${el}`}>
+                            {el > 1 && <div style={spaceStyle}/>}
+                            <Item score={score} itemNum={el} barColors={barColors as string[]}/>
+                        </Fragment>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     private setScore = (): void => {
-        const { password, minLength, userInputs, onChangeScore } = this.props;
+        const {password, minLength, userInputs, onChangeScore} = this.props;
 
         async function updateScore(parent: PasswordStrengthBar): Promise<void> {
             const dynamoloader = await import('./dynamoloader');
@@ -94,7 +130,7 @@ class PasswordStrengthBar extends React.Component<
             let feedback: PasswordFeedback = {};
             if (password.length >= (minLength as number)) {
                 result = dynamoloader.zxcvbn(password, userInputs);
-                ({ score, feedback } = result);
+                ({score, feedback} = result);
             }
             parent.setState(
                 {
@@ -110,42 +146,6 @@ class PasswordStrengthBar extends React.Component<
 
         updateScore(this);
     };
-
-    public render(): ReactNode {
-        const {
-            className,
-            style,
-            scoreWordClassName,
-            scoreWordStyle,
-            password,
-            barColors,
-            scoreWords,
-            minLength,
-            shortScoreWord,
-        } = this.props;
-        const { score } = this.state;
-        const newShortScoreWord =
-            password.length >= (minLength as number) ? (scoreWords as string[])[score] : shortScoreWord;
-
-        return (
-            <div className={className} style={{ ...rootStyle, ...style }}>
-                <p
-                    className={scoreWordClassName}
-                    style={{ ...descStyle, ...scoreWordStyle }}
-                >
-                    {newShortScoreWord}
-                </p>
-                <div style={wrapStyle}>
-                    {[1, 2, 3, 4].map((el: number) => (
-                        <Fragment key={`password-strength-bar-item-${el}`}>
-                            {el > 1 && <div style={spaceStyle} />}
-                            <Item score={score} itemNum={el} barColors={barColors as string[]} />
-                        </Fragment>
-                    ))}
-                </div>
-            </div>
-        );
-    }
 }
 
 export default PasswordStrengthBar;

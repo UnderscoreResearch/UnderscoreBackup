@@ -30,7 +30,6 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.io.BaseEncoding;
 import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
-import com.underscoreresearch.backup.cli.web.BaseImplementation;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.cli.web.PrivateKeyRequest;

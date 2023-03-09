@@ -113,6 +113,21 @@ public class InteractiveCommand extends Command {
         }
     }
 
+    private static boolean checkIfAlreadyRunning() {
+        try {
+            String url = getConfigurationUrl();
+            URL endpoint = new URL(url + "api/ping");
+            HttpURLConnection con = (HttpURLConnection) endpoint.openConnection();
+            con.setConnectTimeout(3000);
+            if (con.getResponseCode() == 200) {
+                log.info("Underscore Backup is already running, shutting down");
+                return true;
+            }
+        } catch (Exception exc) {
+        }
+        return false;
+    }
+
     public void executeCommand(CommandLine commandLine) throws Exception {
         if (commandLine.getArgList().size() > 1) {
             throw new ParseException("Too many arguments for command");
@@ -156,20 +171,5 @@ public class InteractiveCommand extends Command {
         startBackupIfAvailable();
 
         Thread.sleep(Long.MAX_VALUE);
-    }
-
-    private static boolean checkIfAlreadyRunning() {
-        try {
-            String url = getConfigurationUrl();
-            URL endpoint = new URL(url + "api/ping");
-            HttpURLConnection con = (HttpURLConnection) endpoint.openConnection();
-            con.setConnectTimeout(3000);
-            if (con.getResponseCode() == 200) {
-                log.info("Underscore Backup is already running, shutting down");
-                return true;
-            }
-        } catch (Exception exc) {
-        }
-        return false;
     }
 }

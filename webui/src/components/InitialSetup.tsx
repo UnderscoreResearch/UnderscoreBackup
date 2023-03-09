@@ -14,7 +14,8 @@ import {
     DialogContentText,
     DialogTitle,
     FormControlLabel,
-    Grid, Link,
+    Grid,
+    Link,
     List,
     ListItem,
     MenuItem,
@@ -539,7 +540,8 @@ export default function InitialSetup(props: InitialSetupProps) {
                         Choose a new password used to protect your backup.
                     </DialogContentText>
 
-                    <PasswordStrengthBar password={state.passwordReclaim} onChangeScore={(newScore) => updatedPasswordScore(newScore)}/>
+                    <PasswordStrengthBar password={state.passwordReclaim}
+                                         onChangeScore={(newScore) => updatedPasswordScore(newScore)}/>
                     <Box
                         component="div"
                         sx={{
@@ -594,7 +596,8 @@ export default function InitialSetup(props: InitialSetupProps) {
                 <Alert severity="warning">Please keep your password safe.
                     There is no way to recover a lost password unless you enable password recovery!</Alert>
 
-                <PasswordStrengthBar password={state.password} onChangeScore={(newScore) => updatedPasswordScore(newScore)}/>
+                <PasswordStrengthBar password={state.password}
+                                     onChangeScore={(newScore) => updatedPasswordScore(newScore)}/>
 
                 <Box
                     component="div"
@@ -669,18 +672,19 @@ export default function InitialSetup(props: InitialSetupProps) {
                         </Select>
                     </Grid>
                     <Grid item xs={12}>
-                        { !!window.localStorage.getItem("email") ?
+                        {!!window.localStorage.getItem("email") ?
                             <Alert severity="warning">
                                 Enabling private key recover will store your private
                                 encryption key with online service! For more information see&nbsp;
-                                <Link rel="noreferrer" target="_blank" underline={"hover"} href={"https://underscorebackup.com/blog?source=https%3A%2F%2Fblog.underscorebackup.com%2F2023%2F02%2Fhow-does-private-key-recovery-work.html"}>
+                                <Link rel="noreferrer" target="_blank" underline={"hover"}
+                                      href={"https://underscorebackup.com/blog?source=https%3A%2F%2Fblog.underscorebackup.com%2F2023%2F02%2Fhow-does-private-key-recovery-work.html"}>
                                     this documentation article.
                                 </Link>
                             </Alert>
                             :
                             <Alert severity="warning">This option is only available if you are using a
                                 service account and complete the setup in a single browser session!
-                                { !!props.backendState.serviceSourceId &&
+                                {!!props.backendState.serviceSourceId &&
                                     <span> To enable go back to the beginning of the setup, disconnect from the service and reconnect!</span>
                                 }
                             </Alert>

@@ -50,7 +50,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SourceResponse.JSON_PROPERTY_KEY,
   SourceResponse.JSON_PROPERTY_SHARING_KEY
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-02-21T23:05:24.673599500-08:00[America/Los_Angeles]")
+@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
 public class SourceResponse {
   public static final String JSON_PROPERTY_SOURCE_ID = "sourceId";
   private String sourceId;
