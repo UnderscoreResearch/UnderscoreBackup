@@ -86,7 +86,7 @@ public class GetSecretPost extends JsonWrap {
                     return messageJson(400, "Missing region");
                 }
 
-                final GetSecretResponse ret = ServiceManagerImpl.retry(() -> serviceManager.getClient(request.getRegion()).getSecret(request.getSourceId(),
+                final GetSecretResponse ret = serviceManager.call(request.getRegion(), (api) -> api.getSecret(request.getSourceId(),
                         new GetSecretRequest()
                                 .emailHash(Hash.hash64(request.email.getBytes(StandardCharsets.UTF_8)))
                                 .clientId(CLIENT_ID)
@@ -100,7 +100,7 @@ public class GetSecretPost extends JsonWrap {
                 EncryptionKey key = ENCRYPTION_KEY_READER.readValue(ret.getSecret());
                 EncryptionKey newKey = EncryptionKey.changeEncryptionPassword(request.getEmail(), request.getPassword(), key);
 
-                final SourceResponse sourceResponse = ServiceManagerImpl.retry(() -> serviceManager.getClient(request.getRegion()).getSource(request.getSourceId()));
+                final SourceResponse sourceResponse = serviceManager.call(request.getRegion(), (api) -> api.getSource(request.getSourceId()));
 
                 EncryptionKey sourceKey;
                 try {

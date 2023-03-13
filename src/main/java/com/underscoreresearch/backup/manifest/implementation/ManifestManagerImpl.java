@@ -191,7 +191,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                 }
             }
             String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.publicOnly());
-            ServiceManagerImpl.retry(() -> getServiceManager().getClient().updateSource(getServiceManager().getSourceId(),
+            getServiceManager().call(null, (api) -> api.updateSource(getServiceManager().getSourceId(),
                     new SourceRequest()
                             .identity(getInstallationIdentity())
                             .name(getServiceManager().getSourceName())

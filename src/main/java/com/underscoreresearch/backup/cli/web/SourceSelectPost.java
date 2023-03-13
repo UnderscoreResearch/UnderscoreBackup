@@ -205,7 +205,7 @@ public class SourceSelectPost extends JsonWrap {
             final String finalSource;
             String config;
             finalSource = source;
-            SourceResponse sourceDefinition = ServiceManagerImpl.retry(() -> serviceManager.getClient().getSource(finalSource));
+            SourceResponse sourceDefinition = serviceManager.call(null, (api) -> api.getSource(finalSource));
 
             if (sourceDefinition == null || sourceDefinition.getDestination() == null
                     || sourceDefinition.getKey() == null || sourceDefinition.getEncryptionMode() == null) {
@@ -235,7 +235,7 @@ public class SourceSelectPost extends JsonWrap {
 
             final ShareResponse share;
             try {
-                share = ServiceManagerImpl.retry(() -> serviceManager.getClient().getShare(sourceId, shareId));
+                share = serviceManager.call(null, (api) -> api.getShare(sourceId, shareId));
             } catch (HttpException exc) {
                 return messageJson(404, "Share not found");
             }

@@ -37,7 +37,6 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 @Slf4j
 public class LogWriter extends AbstractAppender {
     private static final long MAXIMUM_FILE_AGE = Duration.ofDays(7).toMillis();
-    private static Map<String, LogWriter> APPENDERS = new HashMap<>();
     long creationDate;
     private FileOutputStream stream;
     private boolean initialized;
@@ -55,7 +54,7 @@ public class LogWriter extends AbstractAppender {
     }
 
     private synchronized void setup() {
-        if (initialized) {
+        if (stream != null) {
             if (creationDate + MAXIMUM_FILE_AGE < System.currentTimeMillis()) {
                 initialized = false;
                 try {

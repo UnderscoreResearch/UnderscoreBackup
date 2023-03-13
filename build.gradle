@@ -13,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.0rc3'
+version '2.0.0rc4'
 
 def archiveName = 'underscorebackup'
 def edition = ''
@@ -180,6 +180,7 @@ dependencies {
     )
 
     annotationProcessor 'org.projectlombok:lombok:1.18.26'
+    annotationProcessor 'org.apache.logging.log4j:log4j-core:2.20.0'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.26'
 }
 

@@ -58,7 +58,7 @@ public class GenerateTokenPost extends JsonWrap {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
                 serviceManager.generateToken(request.getCode(),
                         request.getCodeVerifier());
-                ListSourcesResponse sources = ServiceManagerImpl.retry(() -> serviceManager.getClient().listSources());
+                ListSourcesResponse sources = serviceManager.call(null, (api) -> api.listSources());
                 String identity = InstanceFactory.getInstance(CommandLineModule.INSTALLATION_IDENTITY);
                 Optional<SourceResponse> found = sources.getSources().stream()
                         .filter(source -> source.getIdentity().equals(identity)).findAny();
@@ -66,7 +66,7 @@ public class GenerateTokenPost extends JsonWrap {
                     serviceManager.setSourceId(found.get().getSourceId());
                     serviceManager.setSourceName(found.get().getName());
                 } else if (InstanceFactory.hasConfiguration(false) && encryptionKey() != null) {
-                    SourceResponse created = ServiceManagerImpl.retry(() -> serviceManager.getClient()
+                    SourceResponse created = serviceManager.call(null, (api) -> api
                             .createSource(new SourceRequest().name(serviceManager.getSourceName())
                                     .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                                     .identity(identity)));

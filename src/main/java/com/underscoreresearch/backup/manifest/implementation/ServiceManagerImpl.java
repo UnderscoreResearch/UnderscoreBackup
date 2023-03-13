@@ -11,11 +11,11 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
 import lombok.AllArgsConstructor;
@@ -82,9 +82,9 @@ public class ServiceManagerImpl implements ServiceManager {
         throw exc;
     }
 
-    public static <T> T retry(Callable<T> callable) throws IOException {
+    public <T> T call(String region, ApiFunction<T> callable) throws IOException {
         try {
-            return retryApi(callable);
+            return callApi(region, callable);
         } catch (ApiException exc) {
             throw new IOException(exc);
         } catch (Exception exc) {
@@ -95,14 +95,16 @@ public class ServiceManagerImpl implements ServiceManager {
         }
     }
 
-    public static <T> T retryApi(Callable<T> callable) throws ApiException {
+    public <T> T callApi(String region, ApiFunction<T> callable) throws ApiException {
         try {
-            return RetryUtils.retry(callable, (exc) -> {
+            return RetryUtils.retry(() -> callable.call(getClient(region)), (exc) -> {
                 if (exc instanceof ApiException) {
                     int code = ((ApiException) exc).getCode();
-                    return code >= 500;
+                    if (callable.shouldRetryMissing(region) && code == 404)
+                        return true;
+                    return callable.shouldRetry() && code >= 500;
                 }
-                return true;
+                return callable.shouldRetry();
             });
         } catch (ApiException exc) {
             throw exc;
@@ -138,7 +140,7 @@ public class ServiceManagerImpl implements ServiceManager {
     public boolean activeSubscription() throws IOException {
         if (data.getToken() != null) {
             try {
-                return retry(() -> getClient().getSubscription()).getActive();
+                return call(null, (api) -> api.getSubscription()).getActive();
             } catch (IOException exc) {
                 if (exc.getCause() instanceof ApiException) {
                     switch (((ApiException) exc.getCause()).getCode()) {
@@ -161,9 +163,29 @@ public class ServiceManagerImpl implements ServiceManager {
         try {
             ReleaseResponse release;
             if (PRE_RELEASE.matcher(VersionCommand.getVersion()).find())
-                release = getClient().preRelease();
+                release = callApi(null, new ApiFunction<ReleaseResponse>() {
+                    @Override
+                    public boolean shouldRetry() {
+                        return false;
+                    }
+
+                    @Override
+                    public ReleaseResponse call(BackupApi api) throws ApiException {
+                        return api.preRelease();
+                    }
+                });
             else
-                release = getClient().currentRelease();
+                release = callApi(null, new ApiFunction<ReleaseResponse>() {
+                    @Override
+                    public boolean shouldRetry() {
+                        return false;
+                    }
+
+                    @Override
+                    public ReleaseResponse call(BackupApi api) throws ApiException {
+                        return api.currentRelease();
+                    }
+                });
             String lastVersion;
             if (data.getLastRelease() != null) {
                 lastVersion = data.getLastRelease().getVersion();
@@ -233,7 +255,7 @@ public class ServiceManagerImpl implements ServiceManager {
 
     @Override
     public void generateToken(String code, String codeVerifier) throws IOException {
-        ScopedTokenResponse response = retry(() -> getClient().generateToken(new GenerateTokenRequest()
+        ScopedTokenResponse response = call(null, (api) -> api.generateToken(new GenerateTokenRequest()
                 .clientId(CLIENT_ID)
                 .codeVerifier(codeVerifier)
                 .code(code)));
@@ -244,14 +266,14 @@ public class ServiceManagerImpl implements ServiceManager {
     @Override
     public void deleteToken() throws IOException {
         if (data.getToken() != null) {
-            retry(() -> getClient().deleteToken(new DeleteTokenRequest()
+            call(null, (api) -> api.deleteToken(new DeleteTokenRequest()
                     .token(data.getToken())));
             data.setToken(null);
             saveFile();
         }
     }
 
-    public synchronized BackupApi getClient(String region) {
+    private synchronized BackupApi getClient(String region) {
         if (region == null) {
             region = "us-west";
         }
@@ -268,6 +290,8 @@ public class ServiceManagerImpl implements ServiceManager {
             } else {
                 client.setHost(finalRegion + "-api.underscorebackup.com");
             }
+            client.setConnectTimeout(Duration.ofSeconds(5));
+            client.setReadTimeout(Duration.ofSeconds(20));
             return new BackupApi(client);
         });
     }
@@ -287,7 +311,7 @@ public class ServiceManagerImpl implements ServiceManager {
         request.setDestination(destination);
 
         try {
-            getClient().createShare(getSourceId(), shareId, request);
+            callApi(null, (api) -> api.createShare(getSourceId(), shareId, request));
         } catch (ApiException exc) {
             if (exc.getCode() == 409) {
                 throw new IOException("Share already exists");
@@ -300,9 +324,9 @@ public class ServiceManagerImpl implements ServiceManager {
     public boolean updateShareEncryption(EncryptionKey.PrivateKey privateKey, String shareId, BackupShare share) throws IOException {
         try {
             final String targetAccountHash = Hash.hash64(share.getTargetEmail().getBytes(StandardCharsets.UTF_8));
-            final ShareResponse response = getClient().getShare(getSourceId(), shareId);
-            final ListSharingKeysResponse keys = getClient().listSharingKeys(new ListSharingKeysRequest().
-                    targetAccountEmailHash(targetAccountHash));
+            final ShareResponse response = callApi(null, (api) -> api.getShare(getSourceId(), shareId));
+            final ListSharingKeysResponse keys = callApi(null, (api) -> api.listSharingKeys(new ListSharingKeysRequest().
+                    targetAccountEmailHash(targetAccountHash)));
 
             if (!response.getPrivateKeys().stream().anyMatch(key -> keys.getPublicKeys().contains(key.getPublicKey()))) {
                 if (privateKey != null) {
@@ -322,7 +346,7 @@ public class ServiceManagerImpl implements ServiceManager {
                                         sharePrivateKey, EncryptionKey.createWithPublicKey(key)))));
                     }
 
-                    getClient().updateShare(getSourceId(), shareId, request);
+                    callApi(null, (api) -> api.updateShare(getSourceId(), shareId, request));
                 } else {
                     log.warn("Share primary keys need to be updated for share {}", share.getName());
                 }
@@ -340,7 +364,7 @@ public class ServiceManagerImpl implements ServiceManager {
     @Override
     public void deleteShare(String shareId) throws IOException {
         try {
-            getClient().deleteShare(getSourceId(), shareId);
+            callApi(null, (api) -> api.deleteShare(getSourceId(), shareId));
         } catch (ApiException e) {
             throw new IOException(e);
         }
@@ -349,7 +373,7 @@ public class ServiceManagerImpl implements ServiceManager {
     @Override
     public List<ShareResponse> getShares() throws IOException {
         try {
-            return getClient().listShares().getShares();
+            return callApi(null, (api) -> api.listShares().getShares());
         } catch (ApiException e) {
             throw new IOException(e);
         }
@@ -358,14 +382,10 @@ public class ServiceManagerImpl implements ServiceManager {
     @Override
     public List<ShareResponse> getSourceShares() throws IOException {
         try {
-            return getClient().listSourceShares(getSourceId()).getShares();
+            return callApi(null, (api) -> api.listSourceShares(getSourceId()).getShares());
         } catch (ApiException e) {
             throw new IOException(e);
         }
-    }
-
-    public BackupApi getClient() {
-        return getClient(null);
     }
 
     @Override

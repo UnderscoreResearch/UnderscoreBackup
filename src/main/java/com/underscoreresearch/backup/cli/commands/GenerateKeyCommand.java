@@ -102,6 +102,16 @@ public class GenerateKeyCommand extends Command {
                 System.out.println(newKey.getPrivateKey(null).getDisplayPrivateKey());
             }
         } else {
+            try {
+                InstanceFactory.getInstance(EncryptionKey.class);
+                if (!commandLine.hasOption(CommandLineModule.FORCE)) {
+                    System.out.println("Private key already exists, use --force flag to overwrite");
+                    System.exit(1);
+                }
+                System.out.println("Private key already exists, replacing it because --force flag was used");
+            } catch (Exception ex) {
+            }
+
             String file = generateAndSaveNewKey(commandLine, firstTry);
 
             System.out.println("Wrote public key to " + file);

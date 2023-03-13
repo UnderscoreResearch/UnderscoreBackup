@@ -8,6 +8,7 @@ import org.takes.Response;
 
 import com.underscoreresearch.backup.cli.commands.GenerateKeyCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 public class GenerateKeyPut extends JsonWrap {
 
@@ -20,6 +21,12 @@ public class GenerateKeyPut extends JsonWrap {
         public Response actualAct(Request req) throws Exception {
             String password = decodePrivateKeyRequest(req);
             try {
+                // Need to check that key doesn't already exist before doing this.
+                try {
+                    InstanceFactory.getInstance(EncryptionKey.class);
+                    return messageJson(400, "Already have encryption key generated");
+                } catch (Exception exc) {
+                }
                 GenerateKeyCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
                         password);
                 InstanceFactory.reloadConfiguration(null);

@@ -34,8 +34,7 @@ public class SourcesGet extends JsonWrap {
 
             try {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
-                final ListSourcesResponse ret = ServiceManagerImpl.retry(() ->
-                        serviceManager.getClient().listSources());
+                final ListSourcesResponse ret = serviceManager.call(null, (api) -> api.listSources());
                 final Href href = new RqHref.Base(req).href();
                 final Iterable<String> excludeSelf = href.param("excludeSelf");
                 if (excludeSelf != null) {

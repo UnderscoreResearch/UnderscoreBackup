@@ -30,6 +30,7 @@ import org.takes.rs.RsText;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.ProvisionException;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
@@ -38,16 +39,16 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 @Slf4j
 public class BestRegionGet extends JsonWrap {
-    private static final Map<String, URL> REGIONS;
-    private static final int ITERATIONS = 10;
+    private static final Map<String, List<URL>> REGIONS;
+    private static final int ITERATIONS = 5;
     private static ObjectWriter WRITER = MAPPER.writerFor(BestRegion.class);
 
     static {
         try {
             REGIONS = ImmutableMap.of(
-                    "us-west", new URL("https://s3.us-west-1.wasabisys.com"),
-                    "eu-central", new URL("https://s3.eu-central-2.wasabisys.com"),
-                    "ap-southeast", new URL("https://s3.ap-southeast-1.wasabisys.com")
+                    "us-west", Lists.newArrayList(new URL("https://s3.us-west-1.wasabisys.com"), new URL("https://s3.us-east-1.wasabisys.com")),
+                    "eu-central", Lists.newArrayList(new URL("https://s3.eu-central-2.wasabisys.com"), new URL("https://s3.eu-west-1.wasabisys.com")),
+                    "ap-southeast", Lists.newArrayList(new URL("https://s3.ap-southeast-1.wasabisys.com"), new URL("https://s3.ap-northeast-1.wasabisys.com"))
             );
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
@@ -63,27 +64,29 @@ public class BestRegionGet extends JsonWrap {
                 new AtomicLong()))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         Map<String, AtomicInteger> successCount = REGIONS.entrySet().stream().map((entry) -> (Maps.immutableEntry(entry.getKey(),
                 new AtomicInteger()))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        ExecutorService pool = Executors.newFixedThreadPool(ITERATIONS * REGIONS.size());
+        ExecutorService pool = Executors.newFixedThreadPool(ITERATIONS
+                * REGIONS.values().stream().map(List::size).reduce(0, Integer::sum));
         try {
             List<Future> futures = new ArrayList<>();
             for (int i = 0; i < ITERATIONS; i++) {
-                for (Map.Entry<String, URL> entry : REGIONS.entrySet()) {
-                    String region = entry.getKey();
-                    URL endpoint = entry.getValue();
-                    futures.add(pool.submit(() -> {
-                        try {
-                            Stopwatch timer = Stopwatch.createStarted();
-                            HttpURLConnection con = (HttpURLConnection) endpoint.openConnection();
-                            con.setConnectTimeout(3000);
-                            con.setReadTimeout(3000);
-                            con.setRequestMethod("OPTIONS");
-                            if (con.getResponseCode() < 500) {
-                                result.get(region).addAndGet(timer.elapsed(TimeUnit.MILLISECONDS));
-                                successCount.get(region).incrementAndGet();
+                for (Map.Entry<String, List<URL>> entry : REGIONS.entrySet()) {
+                    final String region = entry.getKey();
+                    for (URL endpoint : entry.getValue()) {
+                        futures.add(pool.submit(() -> {
+                            try {
+                                Stopwatch timer = Stopwatch.createStarted();
+                                HttpURLConnection con = (HttpURLConnection) endpoint.openConnection();
+                                con.setConnectTimeout(3000);
+                                con.setReadTimeout(3000);
+                                con.setRequestMethod("OPTIONS");
+                                if (con.getResponseCode() < 500) {
+                                    result.get(region).addAndGet(timer.elapsed(TimeUnit.MILLISECONDS));
+                                    successCount.get(region).incrementAndGet();
+                                }
+                            } catch (IOException exc) {
                             }
-                        } catch (IOException exc) {
-                        }
-                    }));
+                        }));
+                    }
                 }
             }
             futures.forEach(item -> {

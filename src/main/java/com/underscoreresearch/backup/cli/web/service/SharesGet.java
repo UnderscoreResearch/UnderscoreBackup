@@ -50,8 +50,7 @@ public class SharesGet extends JsonWrap {
             try {
                 EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
-                final List<ShareResponse> shares = ServiceManagerImpl.retry(() ->
-                        serviceManager.getShares());
+                final List<ShareResponse> shares = serviceManager.getShares();
                 ListSharesResponse ret = new ListSharesResponse(shares.stream()
                         .filter((share) -> share.getPrivateKeys().stream()
                                 .anyMatch((privateKey) -> privateKey.getPublicKey().equals(key.getSharingPublicKey())))

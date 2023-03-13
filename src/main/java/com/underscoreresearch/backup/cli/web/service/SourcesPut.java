@@ -97,8 +97,7 @@ public class SourcesPut extends JsonWrap {
                                      SourceResponse sourceDefinition, String identity) throws IOException {
         if (!Objects.equals(serviceManager.getSourceName(), sourceName)
                 || !Objects.equals(identity, sourceDefinition.getIdentity())) {
-            ServiceManagerImpl.retry(() ->
-                    serviceManager.getClient().updateSource(sourceDefinition.getSourceId(), new SourceRequest()
+            serviceManager.call(null, (api) -> api.updateSource(sourceDefinition.getSourceId(), new SourceRequest()
                             .name(sourceName)
                             .identity(identity)
                             .encryptionMode(sourceDefinition.getEncryptionMode())
@@ -134,8 +133,8 @@ public class SourcesPut extends JsonWrap {
                 }
                 EncryptionKey existingKey = encryptionKey();
 
-                SourceResponse sourceDefinition = ServiceManagerImpl.retry(() ->
-                        serviceManager.getClient().getSource(request.getSourceId()));
+                SourceResponse sourceDefinition = serviceManager.call(null, (api) -> api
+                        .getSource(request.getSourceId()));
 
                 String identity = InstanceFactory.getInstance(CommandLineModule.INSTALLATION_IDENTITY);
 

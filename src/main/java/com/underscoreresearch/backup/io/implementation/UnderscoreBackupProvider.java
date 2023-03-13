@@ -13,6 +13,7 @@ import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -27,8 +28,8 @@ import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
 import com.underscoreresearch.backup.service.api.model.ResponseUrl;
@@ -46,6 +47,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     private String sourceId;
     private String shareId;
     private ServiceManager serviceManager;
+    private static HashSet<String> verifiedSources = new HashSet<>();
 
     public UnderscoreBackupProvider(BackupDestination destination) {
         region = destination.getEndpointUri();
@@ -67,9 +69,32 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
-    private static <T> T callRetry(Callable<T> callable) throws IOException {
+    private <T> T callRetry(ServiceManager.ApiFunction<T> callable) throws IOException {
         try {
-            return ServiceManagerImpl.retryApi(callable);
+            return getServiceManager().callApi(region, new ServiceManager.ApiFunction<T>() {
+                @Override
+                public boolean shouldRetryMissing(String region) {
+                    synchronized (verifiedSources) {
+                        if (verifiedSources.contains(getVerifiedKey()))
+                            return false;
+                    }
+                    return region != null && !region.equals("us-west");
+                }
+
+                @Override
+                public boolean shouldRetry() {
+                    return callable.shouldRetry();
+                }
+
+                @Override
+                public T call(BackupApi api) throws ApiException {
+                    T ret = callable.call(api);
+                    synchronized (verifiedSources) {
+                        verifiedSources.add(getVerifiedKey());
+                    }
+                    return ret;
+                }
+            });
         } catch (ApiException e) {
             if (e.getCode() == 404)
                 throw new IOException("Source no longer exists in service");
@@ -94,7 +119,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     @Override
     public List<String> availableLogs(String lastSyncedFile) throws IOException {
         debug(() -> log.debug("Getting available logs"));
-        FileListResponse response = callRetry(() -> getServiceManager().getClient(region).listLogFiles(getSourceId(), lastSyncedFile, shareId));
+        FileListResponse response = callRetry((api) -> api.listLogFiles(getSourceId(), lastSyncedFile, shareId));
 
         // Almost all backups will be less than one page, so we can optimize for that case
         if (response.getCompleted()) {
@@ -104,7 +129,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         // Lots of log files so lets go through all the pages.
         List<String> ret = Lists.newArrayList(response.getFiles());
         do {
-            response = callRetry(() -> getServiceManager().getClient(region).listLogFiles(getSourceId(), ret.get(ret.size() - 1), shareId));
+            response = callRetry((api) -> api.listLogFiles(getSourceId(), ret.get(ret.size() - 1), shareId));
             ret.addAll(response.getFiles());
         } while (!response.getCompleted());
         return ret;
@@ -121,7 +146,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     public boolean rebuildAvailable() throws IOException {
         debug(() -> log.debug("Checking rebuild available"));
         if (getServiceManager().getToken() != null) {
-            SourceResponse sourceResponse = callRetry(() -> getServiceManager().getClient(region).getSource(getSourceId()));
+            SourceResponse sourceResponse = callRetry((api) -> api.getSource(getSourceId()));
             return sourceResponse.getEncryptionMode() != null && sourceResponse.getDestination() != null && sourceResponse.getKey() != null;
         } else {
             return false;
@@ -145,7 +170,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         debug(() -> log.debug("Uploading " + useKey));
 
         Stopwatch timer = Stopwatch.createStarted();
-        ResponseUrl response = callRetry(() -> getServiceManager().getClient(region).uploadFile(getSourceId(), useKey, hash, size, shareId));
+        ResponseUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
         if (response.getLocation() != null) {
             s3Retry(() -> {
                 if (timer.elapsed(TimeUnit.MINUTES) > 2) {
@@ -193,7 +218,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         final String useKey = normalizeKey(key);
         debug(() -> log.debug("Downloading " + useKey));
 
-        ResponseUrl response = callRetry(() -> getServiceManager().getClient(region).getFile(getSourceId(), useKey, shareId));
+        ResponseUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
         return s3Retry(() -> {
             URL url = new URL(response.getLocation());
             HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
@@ -214,7 +239,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         final String useKey = normalizeKey(key);
         debug(() -> log.debug("Deleting " + useKey));
 
-        callRetry(() -> getServiceManager().getClient(region).deleteFile(getSourceId(), useKey, shareId));
+        callRetry((api) -> api.deleteFile(getSourceId(), useKey, shareId));
     }
 
     @Override
@@ -225,12 +250,42 @@ public class UnderscoreBackupProvider implements IOIndex {
                 throw new IOException("No active subscription");
             }
             if (shareId != null) {
-                getServiceManager().getClient(region).getShare(getSourceId(), shareId);
+                getServiceManager().callApi(region, new ServiceManager.ApiFunction<>() {
+                    public boolean shouldRetry() {
+                        return false;
+                    }
+
+                    @Override
+                    public Object call(BackupApi api) throws ApiException {
+                        return api.getShare(getSourceId(), shareId);
+                    }
+                });
             } else {
-                getServiceManager().getClient(region).getSource(getSourceId());
+                getServiceManager().callApi(region, new ServiceManager.ApiFunction<>() {
+                    @Override
+                    public boolean shouldRetry() {
+                        return false;
+                    }
+
+                    @Override
+                    public Object call(BackupApi api) throws ApiException {
+                        return api.getSource(getSourceId());
+                    }
+                });
+            }
+            synchronized (verifiedSources) {
+                verifiedSources.add(getVerifiedKey());
             }
         } catch (ApiException e) {
             throw new IOException(e);
         }
+    }
+
+    private String getVerifiedKey() {
+        String ret = region + "." + getSourceId();
+        if (shareId != null) {
+            return ret + "." + shareId;
+        }
+        return ret;
     }
 }

@@ -278,7 +278,7 @@ public class CommandLineModule extends AbstractModule {
                     return additionalSource;
                 }
                 if (serviceManager.getToken() != null) {
-                    ListSourcesResponse serviceSources = ServiceManagerImpl.retry(() -> serviceManager.getClient().listSources());
+                    ListSourcesResponse serviceSources = serviceManager.call(null, (api) -> api.listSources());
                     Optional<SourceResponse> service = serviceSources.getSources().stream()
                             .filter((source) -> source.getSourceId().equals(additionalSource)
                                     || source.getName().equals(additionalSource)).findAny();

@@ -69,7 +69,7 @@ public class SourcesPost extends JsonWrap {
                     InstanceFactory.getInstance(ManifestManager.class).updateServiceSourceData(key);
                 } else {
                     String identity = InstanceFactory.getInstance(CommandLineModule.INSTALLATION_IDENTITY);
-                    SourceResponse ret = ServiceManagerImpl.retry(() -> serviceManager.getClient().createSource(new SourceRequest()
+                    SourceResponse ret = serviceManager.call(null, (api) -> api.createSource(new SourceRequest()
                             .name(serviceManager.getSourceName())
                             .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                             .identity(identity)));

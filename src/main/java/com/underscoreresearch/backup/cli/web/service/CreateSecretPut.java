@@ -75,7 +75,7 @@ public class CreateSecretPut extends JsonWrap {
                 String secret = ENCRYPTION_KEY_WRITER.writeValueAsString(secretKey);
                 String emailHash = Hash.hash64(request.getEmail().getBytes(StandardCharsets.UTF_8));
 
-                ServiceManagerImpl.retry(() -> serviceManager.getClient(request.getRegion()).createSecret(serviceManager.getSourceId(),
+                serviceManager.call(request.getRegion(), (api) -> api.createSecret(serviceManager.getSourceId(),
                         new SecretRequest().secret(secret).emailHash(emailHash)));
 
                 return messageJson(200, "Saved secret");
