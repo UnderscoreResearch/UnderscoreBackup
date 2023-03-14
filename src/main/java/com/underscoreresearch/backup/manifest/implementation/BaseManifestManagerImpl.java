@@ -7,6 +7,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -72,7 +73,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final boolean forceIdentity;
     @Getter(AccessLevel.PROTECTED)
     private final ServiceManager serviceManager;
-    private boolean activated;
+    protected Closeable operationTask;
     @Getter
     private boolean shutdown;
 

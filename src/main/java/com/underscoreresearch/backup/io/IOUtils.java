@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.io;
 
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -13,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
@@ -62,7 +64,7 @@ public final class IOUtils {
 
     public static <T> T waitForInternet(Callable<T> callable) throws Exception {
         boolean clearFlag = false;
-        try {
+        try (Closeable ignore = UIManager.registerTask("Waiting for internet to continue")) {
             for (int i = 0; true; i++) {
                 try {
                     if (InstanceFactory.isShutdown()) {

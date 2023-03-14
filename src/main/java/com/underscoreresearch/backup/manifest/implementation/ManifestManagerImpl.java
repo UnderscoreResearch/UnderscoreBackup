@@ -42,6 +42,7 @@ import org.jetbrains.annotations.NotNull;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
+import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -552,6 +553,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         log.info(operation);
         synchronized (operationLock) {
             this.operation = operation;
+            this.operationTask = UIManager.registerTask(operation);
             operationDuration = Stopwatch.createStarted();
         }
     }
@@ -724,6 +726,15 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                 processedFiles = null;
                 processedOperations = null;
                 operationDuration = null;
+                if (operationTask != null) {
+                    try {
+                        operationTask.close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    } finally {
+                        operationTask = null;
+                    }
+                }
                 getLock().notifyAll();
             }
         }

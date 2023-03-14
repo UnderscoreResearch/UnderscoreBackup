@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.file.implementation;
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -203,29 +204,31 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         String message = String.format("Started scanning %s for %s", set.getAllRoots(), set.getId());
                         log.info(message);
                         UIManager.displayInfoMessage(message);
-                        if (scanner.startScanning(set)) {
-                            anyRan = true;
-                            synchronized (scheduledTimes) {
-                                Date date = scheduledTimes.get(set.getId());
-                                if (date == null || date.after(new Date())) {
-                                    try {
-                                        repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
-                                    } catch (IOException e) {
-                                        log.warn("Failed saving next scheduled time for backup set {}", set.getId());
+                        try (Closeable task = UIManager.registerTask("Backing up " + set.getId())) {
+                            if (scanner.startScanning(set)) {
+                                anyRan = true;
+                                synchronized (scheduledTimes) {
+                                    Date date = scheduledTimes.get(set.getId());
+                                    if (date == null || date.after(new Date())) {
+                                        try {
+                                            repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
+                                        } catch (IOException e) {
+                                            log.warn("Failed saving next scheduled time for backup set {}", set.getId());
+                                        }
                                     }
                                 }
+                                pendingSets[i] = false;
+                                i++;
+                                if (set.getRetention() != null) {
+                                    statistics = trimmer.trimRepository(shouldOnlyDoFileTrim());
+                                    trimmer.resetStatus();
+                                }
+                            } else {
+                                while (!shutdown && !scheduledRestart && !IOUtils.hasInternet()) {
+                                    Thread.sleep(1000);
+                                }
+                                i = 0;
                             }
-                            pendingSets[i] = false;
-                            i++;
-                            if (set.getRetention() != null) {
-                                statistics = trimmer.trimRepository(shouldOnlyDoFileTrim());
-                                trimmer.resetStatus();
-                            }
-                        } else {
-                            while (!shutdown && !scheduledRestart && !IOUtils.hasInternet()) {
-                                Thread.sleep(1000);
-                            }
-                            i = 0;
                         }
                         scheduledRestart = false;
                     } catch (Exception exc) {
@@ -261,16 +264,27 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
 
                     checkNewVersion();
 
+                    Closeable task;
                     if (fileChangeWatcher.active()) {
                         log.info("Waiting for filesystem changes");
+                        task = UIManager.registerTask("Waiting for filesystem changes");
                     } else {
                         log.info("Paused for next scheduled scan");
+                        task = UIManager.registerTask("Paused for next scheduled scan");
                     }
-                    continuousBackup.start();
-                    System.gc();
-                    running = false;
-                    condition.await();
-                    continuousBackup.shutdown();
+                    try {
+                        continuousBackup.start();
+                        System.gc();
+                        running = false;
+                        condition.await();
+                        continuousBackup.shutdown();
+                    } finally {
+                        try {
+                            task.close();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
                 } catch (InterruptedException e) {
                     log.error("Failed to wait", e);
                 }

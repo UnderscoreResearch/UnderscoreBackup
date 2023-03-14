@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -13,7 +14,9 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
@@ -38,24 +41,30 @@ public class RestoreExecutor {
                              boolean recursive,
                              boolean overwrite) throws IOException {
         String commonRoot = findCommonRoot(rootPaths);
-        for (BackupSetRoot root : rootPaths) {
-            String currentDestination = destination;
-            String rootPath = normalizePath(root.getPath());
-            if (currentDestination != null) {
-                if (!isNullFile(currentDestination)) {
-                    currentDestination = PathNormalizer.normalizePath(currentDestination);
-                    if (!currentDestination.endsWith(PATH_SEPARATOR)) {
-                        currentDestination += PATH_SEPARATOR;
-                    }
-                    if (rootPaths.size() != 1) {
-                        currentDestination += stripCommonAndDrive(commonRoot, rootPath);
+        try (Closeable ignored = UIManager.registerTask("Restoring from " + rootPaths.stream()
+                .map(BackupSetRoot::getPath)
+                .map(PathNormalizer::physicalPath)
+                .collect(Collectors.joining(", ")))) {
+
+            for (BackupSetRoot root : rootPaths) {
+                String currentDestination = destination;
+                String rootPath = normalizePath(root.getPath());
+                if (currentDestination != null) {
+                    if (!isNullFile(currentDestination)) {
+                        currentDestination = PathNormalizer.normalizePath(currentDestination);
+                        if (!currentDestination.endsWith(PATH_SEPARATOR)) {
+                            currentDestination += PATH_SEPARATOR;
+                        }
+                        if (rootPaths.size() != 1) {
+                            currentDestination += stripCommonAndDrive(commonRoot, rootPath);
+                        }
                     }
                 }
+                restorePaths(root, BackupFile.builder().path(rootPath).build(), currentDestination, recursive,
+                        overwrite, rootPaths.size() == 1, commonRoot);
             }
-            restorePaths(root, BackupFile.builder().path(rootPath).build(), currentDestination, recursive,
-                    overwrite, rootPaths.size() == 1, commonRoot);
+            scheduler.waitForCompletion();
         }
-        scheduler.waitForCompletion();
         StateLogger logger = InstanceFactory.getInstance(StateLogger.class);
         logger.logInfo();
         logger.reset();

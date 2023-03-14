@@ -3,15 +3,19 @@ package com.underscoreresearch.backup.cli;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
 import javax.imageio.ImageIO;
-import javax.swing.*;
 import java.awt.*;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.SystemUtils;
@@ -24,6 +28,20 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class UIManager {
+
+    private static List<CloseableTask> activeTasks = new ArrayList<>();
+
+    @AllArgsConstructor
+    private static class CloseableTask implements Closeable {
+        @Getter
+        private String message;
+
+        @Override
+        public void close() throws IOException {
+            removeTask(this);
+        }
+    }
+
     private static final Duration MINIMUM_WAIT_DURATION = Duration.ofSeconds(20);
     private static TrayIcon trayIcon;
     private static Instant lastMessage;
@@ -37,13 +55,10 @@ public class UIManager {
             } catch (Exception e) {
                 log.error("Failed to launch tray component", e);
             }
+            updateTooltip();
         } else {
             if (trayIcon == null) {
-                SwingUtilities.invokeLater(new Runnable() {
-                    public void run() {
-                        createAndShowGUI();
-                    }
-                });
+                EventQueue.invokeLater(() -> createAndShowGUI());
             }
         }
     }
@@ -96,6 +111,7 @@ public class UIManager {
         trayIcon.addActionListener((e) -> {
             InstanceFactory.getInstance(WebServer.class).launchPage();
         });
+        updateTooltipTrayIcon();
 
         try {
             tray.add(trayIcon);
@@ -170,5 +186,49 @@ public class UIManager {
         } catch (IOException e) {
             log.warn("Failed to open folder {}", path.toString(), e);
         }
+    }
+
+    public static Closeable registerTask(String message) {
+        var task = new CloseableTask(message);
+        synchronized (activeTasks) {
+            activeTasks.add(task);
+        }
+        updateTooltip();
+        return task;
+    }
+
+    private static void updateTooltipTrayIcon() {
+        synchronized (activeTasks) {
+            String message;
+            if (activeTasks.size() == 0) {
+                message = "Underscore Backup - Idle";
+            } else {
+                message = "Underscore Backup - " + activeTasks.get(activeTasks.size() - 1).getMessage();
+            }
+            trayIcon.setToolTip(message);
+        }
+    }
+
+    private static void updateTooltip() {
+        if (trayIcon != null) {
+            EventQueue.invokeLater(() -> updateTooltipTrayIcon());
+        } else if (SystemUtils.IS_OS_MAC_OSX) {
+            synchronized (activeTasks) {
+                String message;
+                if (activeTasks.size() == 0) {
+                    message = "Underscore Backup - Idle";
+                } else {
+                    message = "Underscore Backup - " + activeTasks.get(activeTasks.size() - 1).getMessage();
+                }
+                writeOsxNotification("tooltip", message);
+            }
+        }
+    }
+
+    private static void removeTask(CloseableTask task) {
+        synchronized (activeTasks) {
+            activeTasks.remove(task);
+        }
+        updateTooltip();
     }
 }

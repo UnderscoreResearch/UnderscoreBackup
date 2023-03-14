@@ -22,7 +22,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         super.awakeFromNib()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem?.button?.title = "Underscore Backup"
         statusItem?.menu = menu;
         
         let itemImage = NSImage(named: "trayicon")
@@ -93,6 +92,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 let contents = try String(contentsOf: path, encoding: .utf8);
                 try FileManager.default.removeItem(at: path);
                 displayNotification(error: true, message: contents);
+            } catch {
+            }
+            path = dir.appendingPathComponent("tooltip");
+            do {
+                let contents = try String(contentsOf: path, encoding: .utf8);
+                statusItem?.button?.toolTip = contents;
             } catch {
             }
         }

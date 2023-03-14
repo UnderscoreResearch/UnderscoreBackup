@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -36,6 +37,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -115,7 +117,7 @@ public class RepositoryTrimmer implements StatusLogger {
         File tempFile = File.createTempFile("block", ".db");
 
         manifestManager.setDisabledFlushing(true);
-        try {
+        try (Closeable ignored2 = UIManager.registerTask("Trimming repository")) {
             tempFile.delete();
 
             Statistics statistics = new Statistics();
