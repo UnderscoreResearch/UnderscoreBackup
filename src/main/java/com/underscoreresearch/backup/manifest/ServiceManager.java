@@ -11,18 +11,6 @@ import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 
 public interface ServiceManager {
-    interface ApiFunction<T> {
-        default boolean shouldRetryMissing(String region) {
-            return false;
-        }
-
-        default boolean shouldRetry() {
-            return true;
-        }
-
-        T call(BackupApi api) throws ApiException;
-    }
-
     boolean activeSubscription() throws IOException;
 
     ReleaseResponse checkVersion();
@@ -58,4 +46,16 @@ public interface ServiceManager {
     <T> T call(String region, ApiFunction<T> callable) throws IOException;
 
     <T> T callApi(String region, ApiFunction<T> callable) throws ApiException;
+
+    interface ApiFunction<T> {
+        default boolean shouldRetryMissing(String region) {
+            return false;
+        }
+
+        default boolean shouldRetry() {
+            return true;
+        }
+
+        T call(BackupApi api) throws ApiException;
+    }
 }

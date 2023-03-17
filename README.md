@@ -4,8 +4,8 @@ Serverless backup solution with client side encryption with the following featur
   server running the backup.
 
 * Ties into [a free service](https://underscorebackup.com/) that helps coordination of your backup sources, optional
-  encryption key recovery, and coordination of sharing of backup data. However, all online services are optional, and 
- you can run the backup software without an online account.
+  encryption key recovery, and coordination of sharing of backup data. However, all online services are optional, and
+  you can run the backup software without an online account.
 
 * Provides optional [paid-for storage service](https://underscorebackup.com/pricing) as part of the service offering.
   This is also entirely optional, and you can use any supported storage service you wish.
@@ -41,8 +41,8 @@ Getting Started
 
 ## Download the binary or build it from the source
 
-Download one of the releases and unpack it somewhere where it can be run. 
-On either Windows or MacOS you can simply run the installer and you will be prompted with 
+Download one of the releases and unpack it somewhere where it can be run.
+On either Windows or MacOS you can simply run the installer and you will be prompted with
 a web page for completing the setup. On these, systems the software will run as a user process
 that automatically launches at log-in.
 
@@ -58,7 +58,8 @@ the software manually.
 ## Disaster has struck and my entire filesystem is gone. How do I restore it?
 
 Start by installing Underscore Backup from scratch. Simply reinstall the application and in the setup point it to the
-destination that you used for your repository metadata. The setup wizard will detect that an installation exists there and
+destination that you used for your repository metadata. The setup wizard will detect that an installation exists there
+and
 rebuild the local repository and allow you to start a restore of your files.
 
 ## Using the command line

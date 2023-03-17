@@ -23,7 +23,6 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.service.api.model.SecretRequest;
 
 public class CreateSecretPut extends JsonWrap {

@@ -960,7 +960,8 @@ export default function MainApp() {
         const backendState = await getState();
         setState((oldState) => ({
             ...oldState,
-            backendState: backendState
+            backendState: backendState,
+            destinationsValid: backendState.validDestinations
         }));
     }
 

@@ -30,7 +30,6 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.service.api.model.GetSecretRequest;
 import com.underscoreresearch.backup.service.api.model.GetSecretResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;

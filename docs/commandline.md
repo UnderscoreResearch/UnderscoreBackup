@@ -10,7 +10,8 @@ Now you can just execute the backup from the command line using the following co
 
 This command will only exit if you have no backup sets with schedules and when a full backup of all of your included
 files. You can start the service by using `systemctl start underscorebackup` and stop it with
-`systemctl stop underscorebackup`. The logs for the backup will be written to `/var/log/underscorebackup.log` by default.
+`systemctl stop underscorebackup`. The logs for the backup will be written to `/var/log/underscorebackup.log` by
+default.
 
 ## Browse your backup
 
@@ -19,7 +20,8 @@ You can check the contents of your repository by issuing the following command.
     > underscorebackup ls
 
 This will show the contents of the backup for the path you are currently on. You can specify a path to list the location
-for that path. Use the `-R` flag for listing the contents of subdirectories and the `-h` flag for getting humanly readable
+for that path. Use the `-R` flag for listing the contents of subdirectories and the `-h` flag for getting humanly
+readable
 sizes.
 
 ## Restoring files from backup
@@ -39,8 +41,10 @@ phrase such as "1 hour ago", "Last Thursday at noon" or just a timestamp all wor
 
 ## Disaster has struck and my entire filesystem is gone. How do I restore it?
 
-If you prefer a more manual approach you have to reconstruct your configuration file for the backup manifest destination.
-From there on you can run the following command which will download your original configuration files and encryption keys.
+If you prefer a more manual approach you have to reconstruct your configuration file for the backup manifest
+destination.
+From there on you can run the following command which will download your original configuration files and encryption
+keys.
 
     > backup download-config
 

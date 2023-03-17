@@ -16,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;

@@ -3,8 +3,8 @@ module.exports = function (grunt) {
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
 
-        clean : {
-            src : [
+        clean: {
+            src: [
                 "../src/main/resources/web/**",
                 ".parcel-cache",
                 "build"

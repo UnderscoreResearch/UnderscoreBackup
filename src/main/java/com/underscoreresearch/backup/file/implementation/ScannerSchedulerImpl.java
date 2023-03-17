@@ -204,7 +204,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         String message = String.format("Started scanning %s for %s", set.getAllRoots(), set.getId());
                         log.info(message);
                         UIManager.displayInfoMessage(message);
-                        try (Closeable task = UIManager.registerTask("Backing up " + set.getId())) {
+                        try (Closeable ignored = UIManager.registerTask("Backing up " + set.getId())) {
                             if (scanner.startScanning(set)) {
                                 anyRan = true;
                                 synchronized (scheduledTimes) {

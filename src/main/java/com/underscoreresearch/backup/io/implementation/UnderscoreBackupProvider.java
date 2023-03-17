@@ -43,11 +43,11 @@ public class UnderscoreBackupProvider implements IOIndex {
     private static String cachedIdentityKey;
     private static Instant cachedIdentityTimeout;
     private static byte[] cachedIdentity;
+    private static HashSet<String> verifiedSources = new HashSet<>();
     private String region;
     private String sourceId;
     private String shareId;
     private ServiceManager serviceManager;
-    private static HashSet<String> verifiedSources = new HashSet<>();
 
     public UnderscoreBackupProvider(BackupDestination destination) {
         region = destination.getEndpointUri();

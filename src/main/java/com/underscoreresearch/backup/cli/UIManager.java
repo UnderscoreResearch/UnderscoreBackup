@@ -2,7 +2,6 @@ package com.underscoreresearch.backup.cli;
 
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.io.Closeable;
 import java.io.File;
@@ -13,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -29,20 +29,8 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 @Slf4j
 public class UIManager {
 
-    private static List<CloseableTask> activeTasks = new ArrayList<>();
-
-    @AllArgsConstructor
-    private static class CloseableTask implements Closeable {
-        @Getter
-        private String message;
-
-        @Override
-        public void close() throws IOException {
-            removeTask(this);
-        }
-    }
-
     private static final Duration MINIMUM_WAIT_DURATION = Duration.ofSeconds(20);
+    private static List<CloseableTask> activeTasks = new ArrayList<>();
     private static TrayIcon trayIcon;
     private static Instant lastMessage;
 
@@ -142,7 +130,7 @@ public class UIManager {
             log.warn("Failed to write notification message", e);
         }
         try {
-            ConfigurationPost.setReadOnlyFilePermissions(file);
+            ConfigurationPost.setOwnerOnlyPermissions(file);
         } catch (IOException e) {
             log.warn("Failed to make notification message read only", e);
         }
@@ -230,5 +218,16 @@ public class UIManager {
             activeTasks.remove(task);
         }
         updateTooltip();
+    }
+
+    @AllArgsConstructor
+    private static class CloseableTask implements Closeable {
+        @Getter
+        private String message;
+
+        @Override
+        public void close() throws IOException {
+            removeTask(this);
+        }
     }
 }

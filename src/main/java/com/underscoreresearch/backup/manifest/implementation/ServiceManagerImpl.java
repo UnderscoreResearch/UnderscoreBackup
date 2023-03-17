@@ -82,6 +82,12 @@ public class ServiceManagerImpl implements ServiceManager {
         throw exc;
     }
 
+    private static String getShareDestinationString(String sourceId, BackupShare share, EncryptionKey publicKey) throws JsonProcessingException {
+        String destination = Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
+                BACKUP_DESTINATION_WRITER.writeValueAsBytes(share.getDestination().strippedDestination(sourceId, publicKey.getPublicKey())), publicKey));
+        return destination;
+    }
+
     public <T> T call(String region, ApiFunction<T> callable) throws IOException {
         try {
             return callApi(region, callable);
@@ -113,12 +119,6 @@ public class ServiceManagerImpl implements ServiceManager {
         }
     }
 
-    private static String getShareDestinationString(String sourceId, BackupShare share, EncryptionKey publicKey) throws JsonProcessingException {
-        String destination = Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
-                BACKUP_DESTINATION_WRITER.writeValueAsBytes(share.getDestination().strippedDestination(sourceId, publicKey.getPublicKey())), publicKey));
-        return destination;
-    }
-
     public File getDataFile() {
         return Paths.get(manifestLocation, "service.json").toFile();
     }
@@ -130,7 +130,7 @@ public class ServiceManagerImpl implements ServiceManager {
             file.getParentFile().mkdirs();
             WRITER.writeValue(getDataFile(), data);
             if (!exists)
-                ConfigurationPost.setReadOnlyFilePermissions(file);
+                ConfigurationPost.setOwnerOnlyPermissions(file);
         } catch (IOException exc) {
             throw new RuntimeException(exc);
         }
@@ -195,7 +195,9 @@ public class ServiceManagerImpl implements ServiceManager {
             if (!release.getVersion().equals(lastVersion)) {
                 data.setLastRelease(release);
                 saveFile();
-                return release;
+                if (!release.getVersion().equals(VersionCommand.getVersion())) {
+                    return release;
+                }
             }
             return null;
         } catch (ApiException e) {

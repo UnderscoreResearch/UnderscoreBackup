@@ -29,7 +29,7 @@ public class ChangePasswordCommand extends Command {
         ENCRYPTION_KEY_WRITER.writeValue(keyFile,
                 encryptionKey.publicOnly());
 
-        ConfigurationPost.setReadOnlyFilePermissions(keyFile);
+        ConfigurationPost.setOwnerOnlyPermissions(keyFile);
 
         return keyFile.getAbsolutePath();
     }

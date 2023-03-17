@@ -37,7 +37,6 @@ import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
@@ -98,13 +97,13 @@ public class SourcesPut extends JsonWrap {
         if (!Objects.equals(serviceManager.getSourceName(), sourceName)
                 || !Objects.equals(identity, sourceDefinition.getIdentity())) {
             serviceManager.call(null, (api) -> api.updateSource(sourceDefinition.getSourceId(), new SourceRequest()
-                            .name(sourceName)
-                            .identity(identity)
-                            .encryptionMode(sourceDefinition.getEncryptionMode())
-                            .destination(sourceDefinition.getDestination())
-                            .sharingKey(sourceDefinition.getSharingKey())
-                            .version(VersionCommand.getVersion() + VersionCommand.getEdition())
-                            .key(sourceDefinition.getKey())));
+                    .name(sourceName)
+                    .identity(identity)
+                    .encryptionMode(sourceDefinition.getEncryptionMode())
+                    .destination(sourceDefinition.getDestination())
+                    .sharingKey(sourceDefinition.getSharingKey())
+                    .version(VersionCommand.getVersion() + VersionCommand.getEdition())
+                    .key(sourceDefinition.getKey())));
         }
         serviceManager.setSourceId(sourceDefinition.getSourceId());
         serviceManager.setSourceName(sourceName);

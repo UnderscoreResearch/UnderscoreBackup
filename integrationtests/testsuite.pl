@@ -207,7 +207,7 @@ sub executeUnderscoreBackupWithOutput {
     my @args = &executeUnderscoreBackupParameters();
     push(@args, @_);
 
-    my $cmd = "\"".join("\" \"", @args)."\"";
+    my $cmd = "\"" . join("\" \"", @args) . "\"";
     print "Executing $cmd\n";
     return `$cmd`;
 }
@@ -223,7 +223,7 @@ sub executeUnderscoreBackupStdin {
         my $pid = open2('>&STDOUT', my $chld_in, @args);
 
         for my $line (split(/\n/, $input)) {
-            syswrite($chld_in, $line."\n");
+            syswrite($chld_in, $line . "\n");
             sleep(5);
         }
         waitpid($pid, 0);
@@ -231,7 +231,8 @@ sub executeUnderscoreBackupStdin {
             die "Failed executing: $?";
         }
         close $chld_in;
-    } elsif (system(@args) != 0) {
+    }
+    elsif (system(@args) != 0) {
         die "Failed executing: $?";
     }
 
@@ -273,7 +274,7 @@ __EOF__
     my $shareDefinition = "";
 
     if ($sharedPublicKey) {
-      $shareDefinition = <<"__EOF__";
+        $shareDefinition = <<"__EOF__";
   "shares": {
     "$sharedPublicKey": {
       "name": "share",
@@ -423,7 +424,7 @@ sub validateAnswer {
 
 sub killInteractive {
     if ($ENV{"CYPRESS_CONFIG_INTERFACE"}) {
-        system("curl ".$ENV{"CYPRESS_CONFIG_INTERFACE"}."api/shutdown");
+        system("curl " . $ENV{"CYPRESS_CONFIG_INTERFACE"} . "api/shutdown");
     }
 }
 
@@ -435,10 +436,10 @@ sub executeCypressTest {
         "cypress",
         "run",
         "--headless",
-        "--spec", File::Spec->catdir("cypress", File::Spec->catdir("e2e", $script. ".cy.ts"))
+        "--spec", File::Spec->catdir("cypress", File::Spec->catdir("e2e", $script . ".cy.ts"))
     );
     if ($ENV{"GITHUB_TARGET"}) {
-        push(@args, "--tag", $ENV{"GITHUB_TARGET"}.",$script");
+        push(@args, "--tag", $ENV{"GITHUB_TARGET"} . ",$script");
     }
     if ($ENV{"CYPRESS_RECORD_KEY"}) {
         push(@args, "--record");
@@ -458,11 +459,11 @@ sub executeCypressTest {
     $ENV{"CYPRESS_TEST_BACKUP"} = $backupRoot;
     $ENV{"CYPRESS_TEST_SHARE"} = $shareRoot;
 
-#    @args = (
-#        "npx",
-#        "cypress",
-#        "open"
-#        );
+    # @args = (
+    #     "npx",
+    #     "cypress",
+    #     "open"
+    #    );
 
     print "Executing " . join(" ", @args) . "\n";
 

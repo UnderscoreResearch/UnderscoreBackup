@@ -32,6 +32,7 @@ import com.underscoreresearch.backup.cli.ConfigurationValidator;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupShare;
@@ -41,6 +42,7 @@ public class ConfigurationPost extends JsonWrap {
 
     private static BackupConfiguration cachedValidDestinationConfig;
     private static boolean cachedValidDestinationResult;
+    private static String cachedServiceToken;
 
     public ConfigurationPost() {
         super(new Implementation());
@@ -81,7 +83,7 @@ public class ConfigurationPost extends JsonWrap {
         }
 
         if (!exists)
-            setReadOnlyFilePermissions(file);
+            setOwnerOnlyPermissions(file);
     }
 
     /**
@@ -92,6 +94,8 @@ public class ConfigurationPost extends JsonWrap {
      * @throws IOException Errors found.
      */
     public static synchronized void validateDestinations(BackupConfiguration configuration) throws IOException {
+        cachedValidDestinationConfig = configuration;
+        cachedServiceToken = InstanceFactory.getInstance(ServiceManager.class).getToken();
         try {
             if (configuration.getDestinations() != null) {
                 for (Map.Entry<String, BackupDestination> entry : configuration.getDestinations().entrySet()) {
@@ -108,10 +112,8 @@ public class ConfigurationPost extends JsonWrap {
                     IOProviderFactory.getProvider(entry.getValue().getDestination()).checkCredentials(false);
                 }
             }
-            cachedValidDestinationConfig = configuration;
             cachedValidDestinationResult = true;
         } catch (Exception exc) {
-            cachedValidDestinationConfig = configuration;
             cachedValidDestinationResult = false;
             throw exc;
         }
@@ -126,7 +128,8 @@ public class ConfigurationPost extends JsonWrap {
      */
     public static synchronized boolean isValidatesDestinations(BackupConfiguration sourceConfig) {
         try {
-            if (Objects.equals(sourceConfig, cachedValidDestinationConfig)) {
+            ServiceManager manager = InstanceFactory.getInstance(ServiceManager.class);
+            if (Objects.equals(sourceConfig, cachedValidDestinationConfig) && Objects.equals(manager.getToken(), cachedServiceToken)) {
                 return cachedValidDestinationResult;
             }
             validateDestinations(sourceConfig);
@@ -145,10 +148,10 @@ public class ConfigurationPost extends JsonWrap {
         File configFile = new File(InstanceFactory.getInstance(SOURCE_CONFIG_LOCATION));
         configFile.getParentFile().mkdirs();
         BACKUP_CONFIGURATION_WRITER.writeValue(configFile, configuration);
-        setReadOnlyFilePermissions(configFile);
+        setOwnerOnlyPermissions(configFile);
     }
 
-    public static void setReadOnlyFilePermissions(File file) throws IOException {
+    public static void setOwnerOnlyPermissions(File file) throws IOException {
         if (!SystemUtils.IS_OS_WINDOWS) {
             HashSet<PosixFilePermission> set = new HashSet<PosixFilePermission>();
 

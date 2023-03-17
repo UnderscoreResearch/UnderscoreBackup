@@ -23,7 +23,6 @@ import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;

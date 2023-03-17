@@ -29,7 +29,10 @@ public class BackupCommand extends SimpleCommand {
         UploadScheduler uploadScheduler = InstanceFactory.getInstance(UploadScheduler.class);
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         try {
-            manifestManager.validateIdentity();
+            IOUtils.waitForInternet(() -> {
+                manifestManager.validateIdentity();
+                return null;
+            });
         } catch (Exception exc) {
             if (exc.getCause() instanceof ParseException)
                 log.error(exc.getCause().getMessage());

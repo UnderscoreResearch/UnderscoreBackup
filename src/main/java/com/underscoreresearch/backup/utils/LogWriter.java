@@ -1,17 +1,22 @@
 package com.underscoreresearch.backup.utils;
 
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setReadOnlyFilePermissions;
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.LOG_FILE;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +42,9 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 @Slf4j
 public class LogWriter extends AbstractAppender {
     private static final long MAXIMUM_FILE_AGE = Duration.ofDays(7).toMillis();
+    private static final Pattern LOG_TIMESTAMP = Pattern.compile("^\\d{4}-\\d{2}-\\d{2} \\d{2}\\:\\d{2}\\:\\d{2}");
+    private final static DateTimeFormatter LOG_FILE_FORMATTER
+            = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     long creationDate;
     private FileOutputStream stream;
     private boolean initialized;
@@ -55,12 +63,14 @@ public class LogWriter extends AbstractAppender {
 
     private synchronized void setup() {
         if (stream != null) {
-            if (creationDate + MAXIMUM_FILE_AGE < System.currentTimeMillis()) {
+            if (logExpired()) {
                 initialized = false;
                 try {
                     stream.close();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
+                } finally {
+                    stream = null;
                 }
 
                 rotateLogs();
@@ -89,8 +99,23 @@ public class LogWriter extends AbstractAppender {
                         try {
                             FileTime creationTime = (FileTime) Files.getAttribute(file.toPath(), "creationTime");
                             creationDate = creationTime.toMillis();
+                            if (logExpired()) {
+                                // Doing this extra check to see if we can see the first actual log line timestamp
+                                // because it seems creation timestamps are not reliable on all systems.
+                                // Looking at your Windows.
+                                try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+                                    String line = reader.readLine();
+                                    Matcher match = LOG_TIMESTAMP.matcher(line);
+                                    if (match.find()) {
+                                        try {
+                                            LocalDateTime time = LOG_FILE_FORMATTER.parse(match.group(), LocalDateTime::from);
+                                            creationDate = time.toEpochSecond(OffsetDateTime.now().getOffset()) * 1000;
+                                        } catch (Exception e) {
+                                        }
+                                    }
+                                }
+                            }
                         } catch (IOException ex) {
-                            log.error("Failed to read log timestamp", ex);
                             creationDate = System.currentTimeMillis();
                         }
                     }
@@ -98,7 +123,7 @@ public class LogWriter extends AbstractAppender {
                     stream = new FileOutputStream(fileName, true);
 
                     if (!exists) {
-                        setReadOnlyFilePermissions(new File(fileName));
+                        setOwnerOnlyPermissions(new File(fileName));
                     }
                 }
             } catch (IOException e) {
@@ -106,6 +131,10 @@ public class LogWriter extends AbstractAppender {
                 e.printStackTrace(System.err);
             }
         }
+    }
+
+    private boolean logExpired() {
+        return creationDate + MAXIMUM_FILE_AGE < System.currentTimeMillis();
     }
 
     private void rotateLogs() {

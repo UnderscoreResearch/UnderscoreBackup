@@ -39,7 +39,8 @@ The configuration file is a JSON file with the following root fields.
 * **properties** - Custom additional properties.
 * **missingRetention** - If specified used for retention of files not covered by any set. See the set retention
   documentation for more information.
-* **additionalSources** - A map of backup destinations for the manifest of secondary backup sources (Not needed if using service).
+* **additionalSources** - A map of backup destinations for the manifest of secondary backup sources (Not needed if using
+  service).
 
 ### Backup set definitions
 
@@ -50,7 +51,8 @@ Backup set definitions have the following fields.
 * **exclusions** - A list of regular expressions for files to exclude. The regular expression is applied to the full
   normalized path of any file. This can be used for instance remove specific file extensions from your backup (Don't
   forget the $ character at the end of the expression in this case).
-* **destinations** - A list of destination identifiers to which this backup set should be backed up to. If more than one is
+* **destinations** - A list of destination identifiers to which this backup set should be backed up to. If more than one
+  is
   listed a copy of the backup will be created on all listed destinations.
 * **schedule** - A cron-tab expression that defines how often the backup set should be refreshed. The example above runs
   the backup at 6 AM every day.
@@ -62,7 +64,8 @@ Backup set definitions have the following fields.
       same type as their parent filter.
 * **retention** - Define how to keep track of old versions in your backup. By default, if not specified any files not in
   the source, will be deleted once the backup completes.
-    * **retainDeleted** - A timespan for how long to keep files in the backup repository after they have been deleted on the
+    * **retainDeleted** - A timespan for how long to keep files in the backup repository after they have been deleted on
+      the
       source. If not specified files will be removed immediately.
         * **unit** - Unit of timestamp (FOREVER, IMMEDIATE, SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS, or YEARS).
         * **duration** - How many units for the timespan?
@@ -97,7 +100,8 @@ the following keys.
 * **endpointUri** - Endpoint URI. Where the root of this destination is located.
 * **principal** - Username or access key for the destination.
 * **credential** - Credential for principal.
-* **maxRetention** - Refresh any data stored at this destination that is older than this retention. Only applies to block
+* **maxRetention** - Refresh any data stored at this destination that is older than this retention. Only applies to
+  block
   data, not other backup metadata.
     * **unit** - Unit of timestamp (FOREVER, IMMEDIATE, SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS, or YEARS).
     * **duration** - How many units for the timespan?
@@ -122,7 +126,8 @@ Contains information of how the backup repository is managed.
   storage.
 * **configUsername** - Username required to log into the config web interface.
 * **configPassword** - Password required to log into the config web interface.
-* **scheduleRandomize** - Amount of time to randomly add to any scheduled time to jitter the start of next scheduled run.
+* **scheduleRandomize** - Amount of time to randomly add to any scheduled time to jitter the start of next scheduled
+  run.
     * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS, or YEARS).
     * **duration** - How many units for the timespan?
 * **pauseOnBattery** - Pause backups when running on battery. Defaults to on if not specified.

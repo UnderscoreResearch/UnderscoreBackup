@@ -3,7 +3,7 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.cli.commands.DownloadConfigCommand.storeKeyData;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setReadOnlyFilePermissions;
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.validateDestinations;
 import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
@@ -49,7 +49,6 @@ import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupManifest;
@@ -134,7 +133,7 @@ public class SourceSelectPost extends JsonWrap {
             outputStream.write(ENCRYPTION_KEY_WRITER.writeValueAsString(usedPrivateKey));
         }
 
-        setReadOnlyFilePermissions(keyFile);
+        setOwnerOnlyPermissions(keyFile);
     }
 
     public static String downloadSourceConfig(String source, SourceResponse sourceDefinition, EncryptionKey.PrivateKey privateKey) {

@@ -73,7 +73,6 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
             busy: true
         });
         try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
             await deleteToken();
             props.updatedToken();
         } finally {

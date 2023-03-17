@@ -1,7 +1,7 @@
 package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setReadOnlyFilePermissions;
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.downloadKeyData;
 import static com.underscoreresearch.backup.cli.web.SourceSelectPost.downloadSourceConfig;
 import static com.underscoreresearch.backup.cli.web.SourceSelectPost.validatePrivateKey;
@@ -38,7 +38,7 @@ public class DownloadConfigCommand extends Command {
         try (FileOutputStream outputStream = new FileOutputStream(keyFile)) {
             outputStream.write(keyData);
         }
-        setReadOnlyFilePermissions(keyFile);
+        setOwnerOnlyPermissions(keyFile);
     }
 
     @Override

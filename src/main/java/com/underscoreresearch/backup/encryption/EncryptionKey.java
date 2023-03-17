@@ -4,8 +4,6 @@ import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_
 import static com.underscoreresearch.backup.encryption.AesEncryptor.applyKeyData;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
 
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -14,6 +12,8 @@ import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.Objects;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

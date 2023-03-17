@@ -23,7 +23,6 @@ import org.takes.Response;
 import org.takes.Take;
 import org.takes.facets.auth.Identity;
 import org.takes.facets.auth.Pass;
-import org.takes.facets.auth.PsBasic;
 import org.takes.facets.auth.PsChain;
 import org.takes.facets.auth.TkAuth;
 import org.takes.facets.fork.FkMethods;
@@ -223,14 +222,12 @@ public class WebServer {
                             ),
                             new PsChain(
                                     new PsNoAuthConfigured(),
-                                    new PsBasic("backup", (user, pwd) -> {
+                                    new PsDigest("backup", (user) -> {
                                         BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
-                                        String configUser = config.getManifest().getConfigUser();
-                                        String configPassword = config.getManifest().getConfigPassword();
-                                        if (!configUser.equals(user) || !configPassword.equals(pwd)) {
-                                            return new Opt.Empty<Identity>();
+                                        if (user.equals(config.getManifest().getConfigUser())) {
+                                            return new Opt.Single<>(config.getManifest().getConfigPassword());
                                         }
-                                        return AUTHENTICATED;
+                                        return new Opt.Empty<>();
                                     })
                             )
                     )
@@ -259,7 +256,7 @@ public class WebServer {
                     writer.write(configUrl.toString());
                     writer.write("\n");
                 }
-                ConfigurationPost.setReadOnlyFilePermissions(urlFile);
+                ConfigurationPost.setOwnerOnlyPermissions(urlFile);
             } catch (Exception exc) {
                 log.warn("Failed to write configuration location to disk", exc);
             }
