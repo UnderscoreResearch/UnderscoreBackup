@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
 import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
@@ -96,17 +97,29 @@ public class SourcesPut extends JsonWrap {
                                      SourceResponse sourceDefinition, String identity) throws IOException {
         if (!Objects.equals(serviceManager.getSourceName(), sourceName)
                 || !Objects.equals(identity, sourceDefinition.getIdentity())) {
+            String configurationUrl = safeGetConfigUrl();
             serviceManager.call(null, (api) -> api.updateSource(sourceDefinition.getSourceId(), new SourceRequest()
                     .name(sourceName)
                     .identity(identity)
                     .encryptionMode(sourceDefinition.getEncryptionMode())
                     .destination(sourceDefinition.getDestination())
                     .sharingKey(sourceDefinition.getSharingKey())
+                    .applicationUrl(configurationUrl)
                     .version(VersionCommand.getVersion() + VersionCommand.getEdition())
                     .key(sourceDefinition.getKey())));
         }
         serviceManager.setSourceId(sourceDefinition.getSourceId());
         serviceManager.setSourceName(sourceName);
+    }
+
+    private static String safeGetConfigUrl() {
+        String configurationUrl;
+        try {
+            configurationUrl = getConfigurationUrl();
+        } catch (IOException exc) {
+            configurationUrl = null;
+        }
+        return configurationUrl;
     }
 
     @Data

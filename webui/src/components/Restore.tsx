@@ -327,7 +327,7 @@ export default function Restore(props: RestoreProps) {
                         <DateTimePicker
                             disabled={state.current}
                             value={state.timestamp ? state.timestamp : new Date()}
-                            onChange={handleChangedDate}/>}
+                            onChange={handleChangedDate}
                         />
                         <FormControlLabel control={<Checkbox checked={state.includeDeleted} onChange={(e) => {
                             updateState({

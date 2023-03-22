@@ -18,6 +18,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -149,14 +150,14 @@ public class MapdbMetadataRepository implements MetadataRepository {
         openLock.lock();
         try {
             if (open) {
+                additionalBlockDb.commit();
                 blockDb.commit();
                 fileDb.commit();
-                directoryDb.commit();
                 partsDb.commit();
+                directoryDb.commit();
                 activePathDb.commit();
                 pendingSetDb.commit();
                 partialFileDb.commit();
-                additionalBlockDb.commit();
                 updatedFilesDb.commit();
                 updatedPendingFilesDb.commit();
             }
@@ -377,28 +378,27 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
         commit();
 
+        additionalBlockMap.close();
         blockMap.close();
         fileMap.close();
+        partsMap.close();
         directoryMap.close();
         activePathMap.close();
-        partsMap.close();
         pendingSetMap.close();
         partialFileMap.close();
-        additionalBlockMap.close();
+        updatedFilesMap.close();
+        updatedPendingFilesMap.close();
 
+        additionalBlockDb.close();
         blockDb.close();
         fileDb.close();
-        directoryDb.close();
         partsDb.close();
+        directoryDb.close();
         activePathDb.close();
         pendingSetDb.close();
         partialFileDb.close();
-        additionalBlockDb.close();
-
-        updatedPendingFilesMap.close();
-        updatedFilesMap.close();
-        updatedPendingFilesDb.close();
         updatedFilesDb.close();
+        updatedPendingFilesDb.close();
     }
 
     @Override
@@ -1155,7 +1155,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         private String lastSyncedLogEntry;
     }
 
-    public static class TreeOrSink {
+    public static class TreeOrSink implements Closeable {
         private BTreeMap<Object[], byte[]> tree;
         private DB.TreeMapSink<Object[], byte[]> sink;
         private Object[] lastKey;
@@ -1203,6 +1203,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             }
         }
 
+        @Override
         public void close() {
             if (tree == null) {
                 closeSink();

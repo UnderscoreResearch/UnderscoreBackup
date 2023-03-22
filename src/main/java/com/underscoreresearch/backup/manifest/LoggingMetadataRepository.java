@@ -200,14 +200,18 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
             for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
                 BackupShare share = shares.get(entry.getKey());
                 if (share != null && share.getContents().includeFile(file.getPath())) {
-                    if (file.getLocations() != null) {
-                        for (BackupLocation location : file.getLocations()) {
-                            for (BackupFilePart part : location.getParts()) {
-                                shareBlocks(entry.getKey(), entry.getValue(), part.getBlockHash());
+                    try {
+                        if (file.getLocations() != null) {
+                            for (BackupLocation location : file.getLocations()) {
+                                for (BackupFilePart part : location.getParts()) {
+                                    shareBlocks(entry.getKey(), entry.getValue(), part.getBlockHash());
+                                }
                             }
                         }
+                        writeLogEntry(entry.getValue(), "file", file);
+                    } catch (Exception e) {
+                        log.error("Failed to share file " + file.getPath(), e);
                     }
-                    writeLogEntry(entry.getValue(), "file", file);
                 }
             }
         }
@@ -218,7 +222,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     private void shareBlocks(String publicKey, ShareManifestManager shareManager, String blockHash) throws IOException {
         BackupBlockAdditional additional = repository.additionalBlock(publicKey, blockHash);
         if (additional == null) {
-            throw new RuntimeException("Missing block for share");
+            throw new IOException(String.format("Missing block %s for share key %s", blockHash, publicKey));
         }
         if (!additional.isUsed()) {
             additional.setUsed(true);
