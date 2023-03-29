@@ -87,13 +87,13 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
                     return true;
                 }
             } catch (IOException exc) {
-                log.warn("Failed to read file {}: {}", file.getPath(), exc.getMessage());
+                log.warn("Failed to read file {}: {}", PathNormalizer.physicalPath(file.getPath()), exc.getMessage());
                 completionFuture.completed(null);
                 return true;
             }
             internalAssignBlock(set, buffer, completionFuture);
         } catch (Exception e) {
-            log.error("Failed to create block for " + file.getPath(), e);
+            log.error("Failed to create block for " + PathNormalizer.physicalPath(file.getPath()), e);
             completionFuture.completed(null);
         }
 

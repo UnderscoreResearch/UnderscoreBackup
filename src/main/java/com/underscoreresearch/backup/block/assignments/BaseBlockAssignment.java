@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 
 import com.underscoreresearch.backup.block.FileBlockAssignment;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupBlockCompletion;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupPartialFile;
@@ -43,7 +44,7 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Status
                 if (duration.toSeconds() > 5) {
                     return new StatusLine(getClass(),
                             "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
-                            "Currently uploading " + partial.getFile().getPath(),
+                            "Currently uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
                             completed,
                             partial.getFile().getLength(),
                             readableSize(completed) + " / "
@@ -53,7 +54,7 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Status
                 } else {
                     return new StatusLine(getClass(),
                             "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
-                            "Currently uploading " + partial.getFile().getPath(),
+                            "Currently uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
                             completed,
                             partial.getFile().getLength(),
                             readableSize(completed) + " / "

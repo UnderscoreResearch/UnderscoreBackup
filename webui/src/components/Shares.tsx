@@ -97,9 +97,13 @@ function validState(state: ShareItemState): boolean {
 }
 
 function externalShare(state: ShareItemState): BackupShare {
-    return {
-        ...state.share,
-        targetEmail: state.serviceSharing ? state.share.targetEmail : undefined
+    if (state.serviceSharing) {
+        return {
+            ...state.share,
+            targetEmail: state.share.targetEmail
+        };
+    } else {
+        return state.share;
     }
 }
 

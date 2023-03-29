@@ -274,7 +274,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
             if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                 lastHeartbeat = stopwatch.elapsed();
-                log.info("Processing path {}", file.getPath());
+                log.info("Processing path {}", PathNormalizer.physicalPath(file.getPath()));
             }
 
             processedSteps.incrementAndGet();
@@ -382,7 +382,7 @@ public class RepositoryTrimmer implements StatusLogger {
     }
 
     private void deleteDirectory(BackupDirectory directory, Statistics statistics) throws IOException {
-        debug(() -> log.debug("Removing " + directory.getPath() + " from "
+        debug(() -> log.debug("Removing " + PathNormalizer.physicalPath(directory.getPath()) + " from "
                 + LogUtil.formatTimestamp(directory.getAdded())));
         metadataRepository.deleteDirectory(directory.getPath(), directory.getAdded());
         statistics.addDeletedDirectoryVersions(1);
@@ -402,7 +402,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
         if (retention == null) {
             if (!force) {
-                log.warn("File not in set {}, use force flag to delete", files.get(0).getPath());
+                log.warn("File not in set {}, use force flag to delete", PathNormalizer.physicalPath(files.get(0).getPath()));
                 boolean anyFound = false;
                 for (BackupFile file : files) {
                     markFileBlocks(usedBlockMap, filesOnly, file, true);
@@ -415,7 +415,7 @@ public class RepositoryTrimmer implements StatusLogger {
                 statistics.addFileVersions(files.size());
                 statistics.addFiles(1);
             } else {
-                log.warn("File not in set, deleting {}", files.get(0).getPath());
+                log.warn("File not in set, deleting {}", PathNormalizer.physicalPath(files.get(0).getPath()));
                 for (BackupFile file : files) {
                     metadataRepository.deleteFile(file);
                     markFileBlocks(usedBlockMap, filesOnly, file, false);
@@ -461,7 +461,7 @@ public class RepositoryTrimmer implements StatusLogger {
                     statistics.addTotalSize(file.getLength());
                     statistics.addFileVersions(1);
                 } else {
-                    debug(() -> log.debug("Removing " + file.getPath() + " from "
+                    debug(() -> log.debug("Removing " + PathNormalizer.physicalPath(file.getPath()) + " from "
                             + LogUtil.formatTimestamp(file.getAdded())));
                     metadataRepository.deleteFile(file);
                     markFileBlocks(usedBlockMap, filesOnly, file, false);

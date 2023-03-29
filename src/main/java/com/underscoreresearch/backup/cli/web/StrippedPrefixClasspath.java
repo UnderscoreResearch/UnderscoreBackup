@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -27,7 +29,7 @@ public final class StrippedPrefixClasspath extends TkWrap {
                         String path = new RqHref.Base(request).href().path();
                         if (path.startsWith(strip)) {
                             path = path.substring(strip.length());
-                            if (path.equals("/")) {
+                            if (path.equals(PATH_SEPARATOR)) {
                                 path = "";
                             }
                         }

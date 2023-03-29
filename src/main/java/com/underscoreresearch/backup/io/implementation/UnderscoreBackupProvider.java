@@ -157,10 +157,11 @@ public class UnderscoreBackupProvider implements IOIndex {
     public String upload(String suggestedKey, byte[] data) throws IOException {
         if (IDENTITY_MANIFEST_LOCATION.equals(suggestedKey)) {
             synchronized (this) {
-                cachedIdentityKey = String.format("%s/%s", sourceId, region);
+                cachedIdentityKey = String.format("%s/%s", getSourceId(), region);
                 cachedIdentity = data;
                 cachedIdentityTimeout = Instant.now().plus(IDENTITY_TIMEOUT);
             }
+            debug(() -> log.debug("Identity cached for {} {} until {}", getSourceId(), region, cachedIdentityTimeout));
         }
 
         String hash = Hash.hash(data);
@@ -207,15 +208,18 @@ public class UnderscoreBackupProvider implements IOIndex {
     public byte[] download(String key) throws IOException {
         // This is needed because it is quite common to read this immediately after writing it and
         // the service only has eventual consistency.
+        final String useKey = normalizeKey(key);
+
         if (IDENTITY_MANIFEST_LOCATION.equals(key)) {
-            String identityKey = String.format("%s/%s", sourceId, region);
+            String identityKey = String.format("%s/%s", getSourceId(), region);
+            debug(() -> log.debug("Identity cache check {} {} until {}", region, getSourceId(), cachedIdentityTimeout));
             synchronized (this) {
                 if (identityKey.equals(cachedIdentityKey) && Instant.now().isBefore(cachedIdentityTimeout)) {
+                    debug(() -> log.debug("Downloading cached " + useKey));
                     return cachedIdentity;
                 }
             }
         }
-        final String useKey = normalizeKey(key);
         debug(() -> log.debug("Downloading " + useKey));
 
         ResponseUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));

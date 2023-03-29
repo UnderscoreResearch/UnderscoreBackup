@@ -24,8 +24,8 @@ public class MemoryIOProvider implements IOProvider, IOIndex {
 
     @Override
     public List<String> availableKeys(String prefix) throws IOException {
-        if (!prefix.endsWith("/")) {
-            prefix = prefix + "/";
+        if (!prefix.endsWith(PATH_SEPARATOR)) {
+            prefix = prefix + PATH_SEPARATOR;
         }
         Set<String> ret = new TreeSet<>();
         for (Map.Entry<String, byte[]> entry : contents.entrySet()) {

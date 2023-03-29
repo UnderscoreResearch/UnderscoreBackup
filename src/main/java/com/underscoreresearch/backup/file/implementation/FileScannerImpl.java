@@ -268,7 +268,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                         try {
                             existingFile = repository.lastFile(file.getPath());
                         } catch (IOException e) {
-                            log.error("Failed to read metadata about file for {}. Backing up again to be sure. Consider doing rebuild-repository.", file.getPath(), e);
+                            log.error("Failed to read metadata about file for {}. Backing up again to be sure. Consider doing rebuild-repository.", PathNormalizer.physicalPath(file.getPath()), e);
                             existingFile = null;
                         }
 
@@ -279,7 +279,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                                 || !existingFile.getLength().equals(file.getLength())
                                 || (needStorageValidation && invalidStorage(existingFile, set))) {
                             lock.unlock();
-                            log.info("Backing up {} ({})", file.getPath(), readableSize(file.getLength()));
+                            log.info("Backing up {} ({})", PathNormalizer.physicalPath(file.getPath()), readableSize(file.getLength()));
                             outstandingFiles.incrementAndGet();
                             pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCOMPLETE);
 
@@ -318,7 +318,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         for (BackupActiveFile file : pendingFiles.getFiles()) {
             if (file.getStatus() == null) {
                 file.setStatus(BackupActiveStatus.EXCLUDED);
-                debug(() -> log.debug("File " + file.getPath() + " missing"));
+                debug(() -> log.debug("File " + PathNormalizer.physicalPath(file.getPath()) + " missing"));
             }
         }
 
@@ -355,12 +355,12 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                             }
 
                             if (destinations.size() > 0) {
-                                log.warn("Missing destinations for existing {}", existingFile.getPath());
+                                log.warn("Missing destinations for existing {}", PathNormalizer.physicalPath(existingFile.getPath()));
                                 return true;
                             }
                         }
                     } catch (IOException e) {
-                        log.error("Failed to get block for existing file {}", existingFile.getPath(), e);
+                        log.error("Failed to get block for existing file {}", PathNormalizer.physicalPath(existingFile.getPath()), e);
                         return true;
                     }
                 }

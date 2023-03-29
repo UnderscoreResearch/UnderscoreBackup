@@ -279,7 +279,7 @@ public class WebServer {
                 Desktop.getDesktop().browse(uri);
             }
         } catch (IOException | HeadlessException e) {
-            log.error("Can't launch browser", e);
+            log.warn("Can't launch browser", e);
         }
     }
 

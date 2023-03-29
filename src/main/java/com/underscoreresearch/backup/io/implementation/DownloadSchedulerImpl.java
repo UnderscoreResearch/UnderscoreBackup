@@ -133,7 +133,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                 log.info("Restoring {} to {} ({})", PathNormalizer.physicalPath(file.getPath()),
                         destination, readableSize(file.getLength()));
                 fileDownloader.downloadFile(file, destination, password);
-                debug(() -> log.debug("Restored " + file.getPath()));
+                debug(() -> log.debug("Restored " + PathNormalizer.physicalPath(file.getPath())));
                 totalSize.addAndGet(file.getLength());
                 totalCount.incrementAndGet();
             } catch (Exception e) {

@@ -51,6 +51,7 @@ import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOIndex;
@@ -505,7 +506,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
             ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                     getConfiguration().getManifest().getOptimizeSchedule());
 
-            log.info("Deleting old log files");
+            log.info("Deleting old log files ({})", existingLogs.size());
             deleteLogFiles(existingLogs);
         } finally {
             resetStatus();
@@ -680,7 +681,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                             processedOperations.incrementAndGet();
                             copyRepository.addDirectory(dir);
                         } catch (IOException e) {
-                            log.error("Failed to write file {}", dir.getPath(), e);
+                            log.error("Failed to write file {}", PathNormalizer.physicalPath(dir.getPath()), e);
                         }
                     });
 

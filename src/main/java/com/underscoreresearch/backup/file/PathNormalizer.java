@@ -41,7 +41,7 @@ public final class PathNormalizer {
     }
 
     private static String resolveRelative(String ret) {
-        return RESOLVE_RELATIVE.matcher(ret).replaceAll("/");
+        return RESOLVE_RELATIVE.matcher(ret).replaceAll(PATH_SEPARATOR);
     }
 
     public static String physicalPath(final String normalizedPath) {

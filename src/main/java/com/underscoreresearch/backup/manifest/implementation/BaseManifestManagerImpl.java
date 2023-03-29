@@ -126,29 +126,6 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         this.encryptor = encryptor;
     }
 
-    protected static List<String> getListOfLogFiles(LogConsumer consumer, IOIndex index, String parent, boolean partial)
-            throws IOException {
-        final String parentPrefix;
-        if (!parent.endsWith(PATH_SEPARATOR)) {
-            parentPrefix = parent + PATH_SEPARATOR;
-        } else {
-            parentPrefix = parent;
-        }
-        List<String> files = index.availableKeys(parent).stream().map(file -> parentPrefix + file)
-                .sorted().collect(Collectors.toList());
-
-        String lastSyncedFile = consumer.lastSyncedLogFile();
-
-        if (lastSyncedFile != null) {
-            files = files.stream()
-                    .filter(file -> file.compareTo(lastSyncedFile.length() > file.length() ?
-                            lastSyncedFile.substring(0, file.length()) :
-                            lastSyncedFile) >= (partial ? 0 : 1))
-                    .collect(Collectors.toList());
-        }
-        return files;
-    }
-
     protected void uploadKeyData(EncryptionKey key) throws IOException {
         EncryptionKey publicKey = key.publicOnly();
 
@@ -253,17 +230,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     @Override
     public List<String> getExistingLogs() throws IOException {
         IOIndex index = (IOIndex) getProvider();
-        List<String> existingLogs = new ArrayList<>();
-        for (String day : index.availableKeys(LOG_ROOT)) {
-            for (String file : index.availableKeys(LOG_ROOT + PATH_SEPARATOR + day)) {
-                String path = LOG_ROOT + PATH_SEPARATOR + day;
-                if (!path.endsWith(PATH_SEPARATOR)) {
-                    path += PATH_SEPARATOR;
-                }
-                existingLogs.add(path + file);
-            }
-        }
-        return existingLogs;
+        return index.availableLogs(null);
     }
 
     protected void uploadConfigData(String filename, InputStream inputStream, boolean encrypt) throws IOException {

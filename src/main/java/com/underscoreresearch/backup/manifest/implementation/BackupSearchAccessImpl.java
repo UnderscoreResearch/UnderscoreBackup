@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
+import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -106,7 +108,7 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
 
     private boolean deletedFile(BackupFile file) {
         String path = file.getPath();
-        String parent = "/";
+        String parent = ROOT;
         int ind = path.indexOf(PathNormalizer.PATH_SEPARATOR, 1);
         do {
             String child = path.substring(0, ind + 1);

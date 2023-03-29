@@ -163,7 +163,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                     }
                     if (start / GB != end / GB) {
                         log.info("Processed {} / {} for {}", readableSize(end), readableSize(file.getLength()),
-                                file.getPath());
+                                PathNormalizer.physicalPath(file.getPath()));
                         machineState.waitForPower();
                     }
                 }
@@ -191,7 +191,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 metadataRepository.deletePartialFile(backupPartialFile);
             } catch (IOException e) {
                 log.error("Failed to remove partial file data for {}",
-                        backupPartialFile.getFile().getPath());
+                        PathNormalizer.physicalPath(backupPartialFile.getFile().getPath()));
             }
             if (locationRef.get() != null) {
                 completionFuture.completed(success.get()

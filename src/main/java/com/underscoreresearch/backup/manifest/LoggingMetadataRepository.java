@@ -210,7 +210,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                         }
                         writeLogEntry(entry.getValue(), "file", file);
                     } catch (Exception e) {
-                        log.error("Failed to share file " + file.getPath(), e);
+                        log.error("Failed to share file " + PathNormalizer.physicalPath(file.getPath()), e);
                     }
                 }
             }
@@ -484,8 +484,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
                     BackupShare share = shares.get(entry.getKey());
                     String parent = directory.getPath();
-                    if (!parent.endsWith("/"))
-                        parent += "/";
+                    if (!parent.endsWith(PATH_SEPARATOR))
+                        parent += PATH_SEPARATOR;
 
                     if (share != null && share.getContents().includeForShare(parent)) {
                         NavigableSet<String> newContents = new TreeSet<>();
@@ -585,17 +585,21 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
-        flushLogging();
+        flushActivePaths();
         return repository.getActivePaths(setId);
     }
 
-    @Override
-    public void flushLogging() throws IOException {
+    private void flushActivePaths() {
         synchronized (pendingActivePaths) {
             submitPendingActivePaths(Duration.ofMillis(0));
             pendingActivePaths.clear();
             missingActivePaths.clear();
         }
+    }
+
+    @Override
+    public void flushLogging() throws IOException {
+        flushActivePaths();
 
         repository.flushLogging();
     }

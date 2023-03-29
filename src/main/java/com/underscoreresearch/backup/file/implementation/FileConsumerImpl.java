@@ -60,7 +60,7 @@ public class FileConsumerImpl implements FileConsumer {
             repository.addFile(file);
             completionPromise.completed(true);
         } catch (IOException e) {
-            log.error("Failed to add file " + file.getPath(), e);
+            log.error("Failed to add file " + PathNormalizer.physicalPath(file.getPath()), e);
             completionPromise.completed(false);
         }
     }

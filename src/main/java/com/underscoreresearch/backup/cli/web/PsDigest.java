@@ -1,26 +1,3 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2014-2022 Yegor Bugayenko
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package com.underscoreresearch.backup.cli.web;
 
 import java.io.IOException;
@@ -45,6 +22,7 @@ import org.takes.facets.auth.Identity;
 import org.takes.facets.auth.Pass;
 import org.takes.facets.flash.RsFlash;
 import org.takes.facets.forward.RsForward;
+import org.takes.misc.Href;
 import org.takes.misc.Opt;
 import org.takes.rq.RqHeaders;
 import org.takes.rq.RqHref;
@@ -54,11 +32,8 @@ import org.takes.rs.RsWithHeader;
 
 @EqualsAndHashCode
 public final class PsDigest implements Pass {
-
-    /**
-     * Pattern for basic authorization name.
-     */
     private static final Pattern PARSE_PARAMETER = Pattern.compile("\\s*([a-z]+)\\s*\\=\\s*(?:(?:\\\"([^\\\"]*)\\\")|([^\\s,]+))\\s*(?:,|$)");
+    private static final Pattern PATH_PATTERN = Pattern.compile("^.*\\:\\/\\/[^\\/]+(.*)$");
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final MessageDigest MD5;
@@ -70,8 +45,6 @@ public final class PsDigest implements Pass {
             throw new RuntimeException(e);
         }
     }
-
-    ;
 
     /**
      * Entry to validate user information.
@@ -87,11 +60,11 @@ public final class PsDigest implements Pass {
      * Ctor.
      *
      * @param rlm   Realm
-     * @param basic Entry
+     * @param entry Entry
      */
-    public PsDigest(final String rlm, final PsDigest.Entry basic) {
+    public PsDigest(final String rlm, final PsDigest.Entry entry) {
         this.realm = rlm;
-        this.entry = basic;
+        this.entry = entry;
     }
 
     @Override
@@ -106,14 +79,14 @@ public final class PsDigest implements Pass {
 
         Map<String, String> parsedHeader = parseHeader(headerValue, request);
 
-        final Opt<Identity> identity = validateUser(parsedHeader);
+        final Opt<Identity> identity = validateUser(parsedHeader, request);
         if (!identity.has()) {
             rejectNotAuthed(request, new RsFlash("access denied", Level.WARNING));
         }
         return identity;
     }
 
-    private Opt<Identity> validateUser(Map<String, String> params) {
+    private Opt<Identity> validateUser(Map<String, String> params, Request request) throws IOException {
         String username = params.get("username");
         String realm = params.get("realm");
         String nonce = params.get("nonce");
@@ -129,6 +102,12 @@ public final class PsDigest implements Pass {
             return new Opt.Empty<>();
         }
 
+        Href href = new RqHref.Base(request).href();
+        Matcher matcher = PATH_PATTERN.matcher(href.toString());
+
+        if (!matcher.matches() || !matcher.group(1).equals(uri)) {
+            return new Opt.Empty<>();
+        }
 
         final Opt<String> password = this.entry.passwordForUser(params.get("username"));
         if (!password.has()) {
@@ -140,13 +119,16 @@ public final class PsDigest implements Pass {
         String ha1 = Hex.encodeHexString(MD5.digest(ha1str.getBytes(StandardCharsets.UTF_8)));
         String ha2 = Hex.encodeHexString(MD5.digest(ha2str.getBytes(StandardCharsets.UTF_8)));
 
-        String hashStr = String.format("%s:%s:%s:%s:%s:%s", ha1, nonce, nc, cnonce, qop, ha2);
+        String hashStr;
+        if ("auth".equals(qop))
+            hashStr = String.format("%s:%s:%s:%s:%s:%s", ha1, nonce, nc, cnonce, qop, ha2);
+        else
+            hashStr = String.format("%s:%s:%s", ha1, nonce, ha2);
         String hash = Hex.encodeHexString(MD5.digest(hashStr.getBytes(StandardCharsets.UTF_8)));
 
         if (hash.equals(response))
             return new Opt.Single<>(new Identity.Simple(username));
         return new Opt.Empty<>();
-
     }
 
     private void rejectNotAuthed(Request request, Response response) throws IOException {
@@ -159,7 +141,7 @@ public final class PsDigest implements Pass {
                 new RsWithHeader(
                         response,
                         String.format(
-                                "WWW-Authenticate: Digest realm=\"%s\", qop=\"auth,auth-int\", nonce=\"%s\", opaque=\"%s\"",
+                                "WWW-Authenticate: Digest realm=\"%s\", qop=\"auth\", nonce=\"%s\", opaque=\"%s\"",
                                 this.realm,
                                 nonceStr,
                                 opaqueStr

@@ -905,7 +905,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
             try {
                 ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
             } catch (IOException exc) {
-                log.error("Invalid partialFile {} reprocessing entire file", file.getFile().getPath(), exc);
+                log.error("Invalid partialFile {} reprocessing entire file",
+                        PathNormalizer.physicalPath(file.getFile().getPath()), exc);
                 return null;
             }
             if (file.getFile().getLength() == null) {

@@ -1036,6 +1036,10 @@ export function IDriveDestination(props: DestinationProps) {
     });
 }
 
+function removeUndefined(destination: BackupDestination) : BackupDestination {
+    return Object.fromEntries(Object.entries(destination).filter(([_, v]) => v != null)) as BackupDestination;
+}
+
 export default function Destination(props: DestinationProps) {
 
     const [state, setState] = React.useState(() => {
@@ -1141,7 +1145,7 @@ export default function Destination(props: DestinationProps) {
     }
 
     useEffect(() => {
-        props.destinationUpdated(state.activeValid, state.activeDestination);
+        props.destinationUpdated(state.activeValid, removeUndefined(state.activeDestination));
     }, [state.activeDestination, state.activeValid]);
 
     return <Paper sx={{p: 2}}>

@@ -131,12 +131,12 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                                         offset += fileData.length;
                                         if ((offset - fileData.length) / GB != offset / GB) {
                                             log.info("Processed {} / {} for {}", readableSize(offset), readableSize(source.getLength()),
-                                                    source.getPath());
+                                                    PathNormalizer.physicalPath(source.getPath()));
                                         }
 
                                         progress.setCompleted(offset);
                                     } catch (Exception exc) {
-                                        throw new IOException("Failed to download " + source.getPath()
+                                        throw new IOException("Failed to download " + PathNormalizer.physicalPath(source.getPath())
                                                 + " because missing or corrupt block " + block.getHash(), exc);
                                     }
                                 }
