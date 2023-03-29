@@ -330,7 +330,9 @@ public class ServiceManagerImpl implements ServiceManager {
             final ListSharingKeysResponse keys = callApi(null, (api) -> api.listSharingKeys(new ListSharingKeysRequest().
                     targetAccountEmailHash(targetAccountHash)));
 
-            if (!response.getPrivateKeys().stream().anyMatch(key -> keys.getPublicKeys().contains(key.getPublicKey()))) {
+            if (keys.getPublicKeys().stream().anyMatch(publicKey ->
+                    !response.getPrivateKeys().stream().anyMatch(entry -> entry.getPublicKey().equals(publicKey)))) {
+
                 if (privateKey != null) {
                     EncryptionKey publicKey = EncryptionKey.createWithPublicKey(shareId);
                     EncryptionKey shareKey = privateKey.getAdditionalKeyManager().findMatchingPrivateKey(publicKey);
