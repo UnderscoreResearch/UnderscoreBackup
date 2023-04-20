@@ -1,6 +1,11 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
+import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.getRegion;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
+
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,6 +17,7 @@ import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
 public class ConfigurationGet extends JsonWrap {
@@ -27,6 +33,14 @@ public class ConfigurationGet extends JsonWrap {
                 if (InstanceFactory.hasConfiguration(false)) {
                     BackupConfiguration config = InstanceFactory.getInstance(CommandLineModule.SOURCE_CONFIG,
                             BackupConfiguration.class);
+                    if (InstanceFactory.getAdditionalSource() != null && config.getDestinations() != null) {
+                        config = BACKUP_CONFIGURATION_READER.readValue(BACKUP_CONFIGURATION_WRITER
+                                .writeValueAsString(config));
+                        for (Map.Entry<String, BackupDestination> entry : config.getDestinations().entrySet()) {
+                            if (UB_TYPE.equals(entry.getValue().getType()))
+                                entry.getValue().setEndpointUri(getRegion(entry.getValue().getEndpointUri()));
+                        }
+                    }
                     return new RsText(BACKUP_CONFIGURATION_WRITER.writeValueAsString(config));
                 } else if (InstanceFactory.getAdditionalSource() != null) {
                     log.warn("Have a source but an invalid configuration {}, bailing",

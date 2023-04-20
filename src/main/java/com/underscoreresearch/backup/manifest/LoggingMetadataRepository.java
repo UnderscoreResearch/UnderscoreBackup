@@ -220,24 +220,36 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     private void shareBlocks(String publicKey, ShareManifestManager shareManager, String blockHash) throws IOException {
-        BackupBlockAdditional additional = repository.additionalBlock(publicKey, blockHash);
-        if (additional == null) {
-            throw new IOException(String.format("Missing block %s for share key %s", blockHash, publicKey));
-        }
-        if (!additional.isUsed()) {
-            additional.setUsed(true);
+        if (BackupBlock.isSuperBlock(blockHash)) {
             BackupBlock block = repository.block(blockHash);
-            if (block.isSuperBlock()) {
-                for (String otherHash : block.getHashes())
-                    shareBlocks(publicKey, shareManager, otherHash);
-            } else if (block.getStorage() != null) {
-                for (BackupBlockStorage storage : block.getStorage())
-                    shareManager.addUsedDestinations(storage.getDestination());
+            if (block != null && block.getHashes() != null) {
+                for (String partHash : block.getHashes()) {
+                    shareBlocks(publicKey, shareManager, partHash);
+                }
+                writeLogEntry(shareManager, "block", block);
+            } else {
+                throw new IOException(String.format("Missing superblock %s for share key %s", blockHash, publicKey));
             }
-            BackupBlock additionalBlock = block.createAdditionalBlock(additional);
-            writeLogEntry(shareManager, "block", additionalBlock);
+        } else {
+            BackupBlockAdditional additional = repository.additionalBlock(publicKey, blockHash);
+            if (additional == null) {
+                throw new IOException(String.format("Missing block %s for share key %s", blockHash, publicKey));
+            }
+            if (!additional.isUsed()) {
+                additional.setUsed(true);
+                BackupBlock block = repository.block(blockHash);
+                if (block.isSuperBlock()) {
+                    for (String otherHash : block.getHashes())
+                        shareBlocks(publicKey, shareManager, otherHash);
+                } else if (block.getStorage() != null) {
+                    for (BackupBlockStorage storage : block.getStorage())
+                        shareManager.addUsedDestinations(storage.getDestination());
+                }
+                BackupBlock additionalBlock = block.createAdditionalBlock(additional);
+                writeLogEntry(shareManager, "block", additionalBlock);
 
-            repository.addAdditionalBlock(additional);
+                repository.addAdditionalBlock(additional);
+            }
         }
     }
 

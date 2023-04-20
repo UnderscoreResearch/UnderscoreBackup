@@ -12,6 +12,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.expa
 import static com.underscoreresearch.backup.configuration.CommandLineModule.getSourceConfigLocation;
 import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
 import static com.underscoreresearch.backup.encryption.EncryptionKey.DISPLAY_PREFIX;
+import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
@@ -91,10 +92,12 @@ public class SourceSelectPost extends JsonWrap {
                     usedPrivateKey));
 
             String sourceSharePath = share.getSourceId() + "." + share.getShareId();
-            File file = new File(getSourceConfigLocation(InstanceFactory.getInstance(MANIFEST_LOCATION), sourceSharePath));
-            if (file.exists()) {
-                BackupConfiguration sourceConfig = BACKUP_CONFIGURATION_READER.readValue(file);
-                destination = sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination());
+            if (!UB_TYPE.equals(destination.getType())) {
+                File file = new File(getSourceConfigLocation(InstanceFactory.getInstance(MANIFEST_LOCATION), sourceSharePath));
+                if (file.exists()) {
+                    BackupConfiguration sourceConfig = BACKUP_CONFIGURATION_READER.readValue(file);
+                    destination = sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination());
+                }
             }
 
             try {

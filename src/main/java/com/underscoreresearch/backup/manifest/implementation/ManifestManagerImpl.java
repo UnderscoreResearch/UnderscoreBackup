@@ -69,6 +69,7 @@ import com.underscoreresearch.backup.manifest.ShareActivateMetadataRepository;
 import com.underscoreresearch.backup.manifest.ShareManifestManager;
 import com.underscoreresearch.backup.model.BackupActivatedShare;
 import com.underscoreresearch.backup.model.BackupActivePath;
+import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -617,42 +618,39 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
                     log.info("Calculating new block storage keys if needed");
 
-                    HashSet<String> usedDestinations = new HashSet<>();
-
                     repository.allBlocks().forEach((block) -> {
                         if (isShutdown()) {
                             throw new CancellationException();
                         }
                         for (Map.Entry<EncryptionKey, ShareManifestManager> entry : pendingShareManagers.entrySet()) {
                             processedOperations.incrementAndGet();
-                            List<BackupBlockStorage> newStorage =
-                                    block.getStorage().stream()
-                                            .map((storage) -> {
-                                                usedDestinations.add(storage.getDestination());
-                                                return EncryptorFactory.getEncryptor(storage.getEncryption())
-                                                        .reKeyStorage(storage, privateKey, entry.getKey());
-                                            })
-                                            .collect(Collectors.toList());
-                            BackupBlockAdditional blockAdditional = BackupBlockAdditional.builder()
-                                    .publicKey(entry.getKey().getPublicKey())
-                                    .used(false)
-                                    .hash(block.getHash())
-                                    .properties(new ArrayList<>())
-                                    .build();
-                            for (int i = 0; i < newStorage.size(); i++) {
-                                Map<String, String> oldProperties = block.getStorage().get(i).getProperties();
-                                blockAdditional.getProperties().add(newStorage
-                                        .get(i)
-                                        .getProperties()
-                                        .entrySet()
-                                        .stream()
-                                        .filter((check) -> !check.getValue().equals(oldProperties.get(check.getKey())))
-                                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
-                            }
-                            try {
-                                repository.addAdditionalBlock(blockAdditional);
-                            } catch (IOException e) {
-                                throw new RuntimeException("Failed to create share", e);
+                            if (!BackupBlock.isSuperBlock(block.getHash())) {
+                                List<BackupBlockStorage> newStorage =
+                                        block.getStorage().stream()
+                                                .map((storage) -> EncryptorFactory.getEncryptor(storage.getEncryption())
+                                                        .reKeyStorage(storage, privateKey, entry.getKey()))
+                                                .toList();
+                                BackupBlockAdditional blockAdditional = BackupBlockAdditional.builder()
+                                        .publicKey(entry.getKey().getPublicKey())
+                                        .used(false)
+                                        .hash(block.getHash())
+                                        .properties(new ArrayList<>())
+                                        .build();
+                                for (int i = 0; i < newStorage.size(); i++) {
+                                    Map<String, String> oldProperties = block.getStorage().get(i).getProperties();
+                                    blockAdditional.getProperties().add(newStorage
+                                            .get(i)
+                                            .getProperties()
+                                            .entrySet()
+                                            .stream()
+                                            .filter((check) -> !check.getValue().equals(oldProperties.get(check.getKey())))
+                                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                                }
+                                try {
+                                    repository.addAdditionalBlock(blockAdditional);
+                                } catch (IOException e) {
+                                    throw new RuntimeException("Failed to create share", e);
+                                }
                             }
                         }
                     });
@@ -687,7 +685,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
                     log.info("Deleting any existing log files");
 
-                    totalFiles = new AtomicLong(existingLogs.values().stream().map(t -> t.size()).reduce(0, (a, b) -> a + b));
+                    totalFiles = new AtomicLong(existingLogs.values().stream().map(List::size).reduce(0, Integer::sum));
                     processedFiles = new AtomicLong();
                     for (Map.Entry<EncryptionKey, ShareManifestManager> entry : pendingShareManagers.entrySet()) {
                         entry.getValue().flushLog();

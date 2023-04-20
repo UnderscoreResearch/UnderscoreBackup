@@ -34,12 +34,15 @@ import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
 import com.underscoreresearch.backup.service.api.model.ResponseUrl;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import com.underscoreresearch.backup.utils.RetryUtils;
 
 @IOPlugin(UB_TYPE)
 @Slf4j
 public class UnderscoreBackupProvider implements IOIndex {
     public static final String UB_TYPE = "UB";
     private static final Duration IDENTITY_TIMEOUT = Duration.ofSeconds(30);
+    private static final String TIMEOUT_MESSAGE = "Failed to upload file in proscribed 2 minutes";
+    private static final int S3_UPLOAD_TIMEOUT = (int) Duration.ofSeconds(10).toMillis();
     private static String cachedIdentityKey;
     private static Instant cachedIdentityTimeout;
     private static byte[] cachedIdentity;
@@ -48,6 +51,22 @@ public class UnderscoreBackupProvider implements IOIndex {
     private String sourceId;
     private String shareId;
     private ServiceManager serviceManager;
+
+    public static String getRegion(String endpointUri) {
+        if (endpointUri == null)
+            return null;
+
+        String region = endpointUri;
+        String[] parts = region.split("/");
+        if (parts.length == 3) {
+            region = parts[0];
+        }
+        return region;
+    }
+
+    public static String createEndpointUri(String region, String sourceId, String shareId) {
+        return region + "/" + sourceId + "/" + shareId;
+    }
 
     public UnderscoreBackupProvider(BackupDestination destination) {
         region = destination.getEndpointUri();
@@ -170,28 +189,39 @@ public class UnderscoreBackupProvider implements IOIndex {
         final String useKey = normalizeKey(suggestedKey);
         debug(() -> log.debug("Uploading " + useKey));
 
-        Stopwatch timer = Stopwatch.createStarted();
-        ResponseUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
-        if (response.getLocation() != null) {
-            s3Retry(() -> {
+        try {
+            RetryUtils.retry(() -> {
+                Stopwatch timer = Stopwatch.createStarted();
+                ResponseUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
+                if (response.getLocation() != null) {
+                    s3Retry(() -> {
+                        if (timer.elapsed(TimeUnit.MINUTES) > 2) {
+                            return null;
+                        }
+                        URL url = new URL(response.getLocation());
+                        HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                        httpCon.setDoOutput(true);
+                        httpCon.setConnectTimeout(S3_UPLOAD_TIMEOUT);
+                        httpCon.setReadTimeout(S3_UPLOAD_TIMEOUT);
+                        httpCon.setRequestMethod("PUT");
+                        try (OutputStream stream = httpCon.getOutputStream()) {
+                            stream.write(data);
+                        }
+                        if (httpCon.getResponseCode() != 200) {
+                            throw new IOException("Failed to upload data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                        }
+                        return null;
+                    });
+                }
                 if (timer.elapsed(TimeUnit.MINUTES) > 2) {
-                    return null;
-                }
-                URL url = new URL(response.getLocation());
-                HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
-                httpCon.setDoOutput(true);
-                httpCon.setRequestMethod("PUT");
-                try (OutputStream stream = httpCon.getOutputStream()) {
-                    stream.write(data);
-                }
-                if (httpCon.getResponseCode() != 200) {
-                    throw new IOException("Failed to upload data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                    throw new IOException(TIMEOUT_MESSAGE);
                 }
                 return null;
-            });
-        }
-        if (timer.elapsed(TimeUnit.MINUTES) > 2) {
-            throw new IOException("Failed to upload file in proscribed 2 minutes");
+            }, (exc) -> (exc instanceof IOException) && TIMEOUT_MESSAGE.equals(exc.getMessage()));
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return useKey;
     }

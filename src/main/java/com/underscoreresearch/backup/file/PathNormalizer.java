@@ -14,6 +14,7 @@ public final class PathNormalizer {
     public static final String PATH_SEPARATOR = "/";
     public static final String ROOT = "/";
     private static Pattern RESOLVE_RELATIVE = Pattern.compile("/(([^/]+/\\.\\.(/|$))|(\\.(/|$)))+");
+    private static Pattern ROOTED = Pattern.compile("^([a-z0-9]\\:)?(\\\\|\\/)", Pattern.CASE_INSENSITIVE);
 
     public static String normalizePath(final String path) {
         if (path.equals(ROOT) || path.equals(File.separator)) {
@@ -23,7 +24,7 @@ public final class PathNormalizer {
         String ret;
         boolean directory = path.endsWith(File.separator);
         File file = new File(path);
-        if (!file.isAbsolute() && !path.startsWith(File.separator))
+        if (!ROOTED.matcher(path).find())
             file = new File(System.getProperty("user.dir"), path);
         if (file.exists()) {
             directory = file.isDirectory();

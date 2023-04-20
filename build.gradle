@@ -13,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.0rc8'
+version '2.0.0rc10'
 
 def archiveName = 'underscorebackup'
 def edition = ''
@@ -132,7 +132,7 @@ tasks.jpackageImage.doLast {
         copy {
             from "."
             include "README.md"
-            into "build/jpackage/${rootProject.name}/"
+            into "build/jpackage/underscorebackup/"
         }
     }
 

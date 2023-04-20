@@ -64,14 +64,21 @@ public class ServiceManagerImpl implements ServiceManager {
     private Map<String, BackupApi> clients = new HashMap<>();
 
     public ServiceManagerImpl(@Named(MANIFEST_LOCATION) String manifestLocation) throws IOException {
-        this.manifestLocation = manifestLocation;
+        this(manifestLocation, createData(manifestLocation));
+    }
 
-        File file = getDataFile();
+    private static ServiceManagerData createData(String manifestLocation) throws IOException {
+        File file = getDataFile(manifestLocation);
         if (file.exists()) {
-            data = READER.readValue(file);
+            return READER.readValue(file);
         } else {
-            data = new ServiceManagerData();
+            return new ServiceManagerData();
         }
+    }
+
+    public ServiceManagerImpl(String manifestLocation, ServiceManagerData data) {
+        this.manifestLocation = manifestLocation;
+        this.data = data;
     }
 
     public static RsWithStatus sendApiFailureOn(IOException exc) throws IOException {
@@ -101,14 +108,17 @@ public class ServiceManagerImpl implements ServiceManager {
         }
     }
 
-    public <T> T callApi(String region, ApiFunction<T> callable) throws ApiException {
+    static <T> T callApi(BackupApi client, String region, ApiFunction<T> callable) throws ApiException {
         try {
-            return RetryUtils.retry(() -> callable.call(getClient(region)), (exc) -> {
+            return RetryUtils.retry(() -> callable.call(client), (exc) -> {
                 if (exc instanceof ApiException) {
                     int code = ((ApiException) exc).getCode();
-                    if (callable.shouldRetryMissing(region) && code == 404)
-                        return true;
-                    return callable.shouldRetry() && code >= 500;
+                    if (code >= 400 && code < 500) {
+                        if (code == 404 && callable.shouldRetryMissing(region)) {
+                            return true;
+                        }
+                        return false;
+                    }
                 }
                 return callable.shouldRetry();
             });
@@ -119,8 +129,16 @@ public class ServiceManagerImpl implements ServiceManager {
         }
     }
 
-    public File getDataFile() {
+    public <T> T callApi(String region, ApiFunction<T> callable) throws ApiException {
+        return callApi(getClient(region), region, callable);
+    }
+
+    private static File getDataFile(String manifestLocation) {
         return Paths.get(manifestLocation, "service.json").toFile();
+    }
+
+    public File getDataFile() {
+        return getDataFile(manifestLocation);
     }
 
     private void saveFile() {
