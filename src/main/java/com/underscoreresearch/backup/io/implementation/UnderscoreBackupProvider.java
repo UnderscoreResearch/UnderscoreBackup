@@ -41,7 +41,9 @@ import com.underscoreresearch.backup.utils.RetryUtils;
 public class UnderscoreBackupProvider implements IOIndex {
     public static final String UB_TYPE = "UB";
     private static final Duration IDENTITY_TIMEOUT = Duration.ofSeconds(30);
-    private static final String TIMEOUT_MESSAGE = "Failed to upload file in proscribed 2 minutes";
+    private static final String TIMEOUT_MESSAGE = "Failed to transfer file in proscribed time";
+    private static final long START_TIMEOUT_MINUTES = 1;
+    private static final long MAX_TIMEOUT_MINUTES = 1;
     private static final int S3_UPLOAD_TIMEOUT = (int) Duration.ofSeconds(10).toMillis();
     private static String cachedIdentityKey;
     private static Instant cachedIdentityTimeout;
@@ -193,37 +195,47 @@ public class UnderscoreBackupProvider implements IOIndex {
             RetryUtils.retry(() -> {
                 Stopwatch timer = Stopwatch.createStarted();
                 ResponseUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
-                if (response.getLocation() != null) {
-                    s3Retry(() -> {
-                        if (timer.elapsed(TimeUnit.MINUTES) > 2) {
-                            return null;
-                        }
-                        URL url = new URL(response.getLocation());
-                        HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
-                        httpCon.setDoOutput(true);
-                        httpCon.setConnectTimeout(S3_UPLOAD_TIMEOUT);
-                        httpCon.setReadTimeout(S3_UPLOAD_TIMEOUT);
-                        httpCon.setRequestMethod("PUT");
-                        try (OutputStream stream = httpCon.getOutputStream()) {
-                            stream.write(data);
-                        }
-                        if (httpCon.getResponseCode() != 200) {
-                            throw new IOException("Failed to upload data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
-                        }
+                String ret = s3Retry(() -> {
+                    if (timer.elapsed(TimeUnit.MINUTES) > START_TIMEOUT_MINUTES) {
                         return null;
-                    });
-                }
-                if (timer.elapsed(TimeUnit.MINUTES) > 2) {
+                    }
+                    URL url = new URL(response.getLocation());
+                    HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                    httpCon.setDoOutput(true);
+                    httpCon.setConnectTimeout(S3_UPLOAD_TIMEOUT);
+                    httpCon.setReadTimeout(S3_UPLOAD_TIMEOUT);
+                    httpCon.setRequestMethod("PUT");
+                    try (OutputStream stream = httpCon.getOutputStream()) {
+                        stream.write(data);
+                    }
+                    if (httpCon.getResponseCode() == 403) {
+                        return null;
+                    }
+                    if (httpCon.getResponseCode() != 200) {
+                        throw new IOException("Failed to upload data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                    }
+                    return "success";
+                });
+                if (ret == null || timer.elapsed(TimeUnit.MINUTES) > MAX_TIMEOUT_MINUTES) {
                     throw new IOException(TIMEOUT_MESSAGE);
                 }
                 return null;
-            }, (exc) -> (exc instanceof IOException) && TIMEOUT_MESSAGE.equals(exc.getMessage()));
+            }, this::retrySignedException);
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         return useKey;
+    }
+
+    private boolean retrySignedException(Exception exc) {
+        if (exc instanceof IOException) {
+            if (TIMEOUT_MESSAGE.equals(exc.getMessage())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String normalizeKey(String suggestedKey) {
@@ -252,20 +264,39 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
         debug(() -> log.debug("Downloading " + useKey));
 
-        ResponseUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
-        return s3Retry(() -> {
-            URL url = new URL(response.getLocation());
-            HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
-            httpCon.setDoInput(true);
-            byte[] data;
-            try (InputStream stream = httpCon.getInputStream()) {
-                data = IOUtils.readAllBytes(stream);
-            }
-            if (httpCon.getResponseCode() != 200) {
-                throw new IOException("Failed to download data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
-            }
-            return data;
-        });
+        try {
+            return RetryUtils.retry(() -> {
+                Stopwatch timer = Stopwatch.createStarted();
+                ResponseUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
+                byte[] ret = s3Retry(() -> {
+                    if (timer.elapsed(TimeUnit.MINUTES) > START_TIMEOUT_MINUTES) {
+                        return null;
+                    }
+                    URL url = new URL(response.getLocation());
+                    HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                    httpCon.setDoInput(true);
+                    byte[] data;
+                    try (InputStream stream = httpCon.getInputStream()) {
+                        data = IOUtils.readAllBytes(stream);
+                    }
+                    if (httpCon.getResponseCode() == 403) {
+                        return null;
+                    }
+                    if (httpCon.getResponseCode() != 200) {
+                        throw new IOException("Failed to download data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                    }
+                    return data;
+                });
+                if (ret == null) {
+                    throw new IOException(TIMEOUT_MESSAGE);
+                }
+                return ret;
+            }, this::retrySignedException);
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
     }
 
     @Override

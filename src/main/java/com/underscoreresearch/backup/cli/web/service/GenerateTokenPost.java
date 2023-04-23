@@ -67,7 +67,7 @@ public class GenerateTokenPost extends JsonWrap {
                 } else if (InstanceFactory.hasConfiguration(false) && encryptionKey() != null) {
                     SourceResponse created = serviceManager.call(null, (api) -> api
                             .createSource(new SourceRequest().name(serviceManager.getSourceName())
-                                    .version(VersionCommand.getVersion() + VersionCommand.getEdition())
+                                    .version(VersionCommand.getVersionEdition())
                                     .identity(identity)));
                     serviceManager.setSourceId(created.getSourceId());
                 }

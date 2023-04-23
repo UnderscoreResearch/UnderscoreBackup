@@ -105,7 +105,7 @@ public class SourcesPut extends JsonWrap {
                     .destination(sourceDefinition.getDestination())
                     .sharingKey(sourceDefinition.getSharingKey())
                     .applicationUrl(configurationUrl)
-                    .version(VersionCommand.getVersion() + VersionCommand.getEdition())
+                    .version(VersionCommand.getVersionEdition())
                     .key(sourceDefinition.getKey())));
         }
         serviceManager.setSourceId(sourceDefinition.getSourceId());

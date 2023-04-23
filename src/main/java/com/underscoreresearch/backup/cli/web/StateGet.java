@@ -204,7 +204,7 @@ public class StateGet extends JsonWrap {
 
                 return new RsText(WRITER.writeValueAsString(StateResponse.builder()
                         .defaultSet(set)
-                        .version(VersionCommand.getVersion() + VersionCommand.getEdition())
+                        .version(VersionCommand.getVersionEdition())
                         .validDestinations(validDestinations)
                         .serviceConnected(serviceConnected)
                         .activeSubscription(activeSubscription)

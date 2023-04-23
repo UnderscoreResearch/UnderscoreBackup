@@ -386,7 +386,11 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             String filename = currentLogLock.getFilename();
             boolean uploaded = false;
             try (InputStream stream = Channels.newInputStream(currentLogLock.getLockedChannel())) {
-                uploadLogFile(filename, stream);
+                try {
+                    uploadLogFile(filename, stream);
+                } catch (IOException exc) {
+                    throw new IOException(String.format("Failed to upload log file %s", filename), exc);
+                }
                 uploaded = true;
             } finally {
                 try {

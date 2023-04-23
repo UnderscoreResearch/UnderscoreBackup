@@ -202,7 +202,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                             .applicationUrl(getApplicationUrl())
                             .encryptionMode(destination.getEncryption())
                             .key(keyData)
-                            .version(VersionCommand.getVersion() + VersionCommand.getEdition())
+                            .version(VersionCommand.getVersionEdition())
                             .sharingKey(encryptionKey.getSharingPublicKey())));
         }
     }
