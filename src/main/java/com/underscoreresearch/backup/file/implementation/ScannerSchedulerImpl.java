@@ -207,17 +207,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         try (Closeable ignored = UIManager.registerTask("Backing up " + set.getId())) {
                             if (scanner.startScanning(set)) {
                                 anyRan = true;
-                                synchronized (scheduledTimes) {
-                                    Date date = scheduledTimes.get(set.getId());
-                                    if (date == null || date.after(new Date())) {
-                                        try {
-                                            repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
-                                        } catch (IOException e) {
-                                            log.warn("Failed saving next scheduled time for backup set {}", set.getId());
-                                        }
-                                    }
-                                }
-                                pendingSets[i] = false;
+                                rescheduleCompletedSet(i, set);
                                 i++;
                                 if (set.getRetention() != null) {
                                     statistics = trimmer.trimRepository(shouldOnlyDoFileTrim());
@@ -232,7 +222,9 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         }
                         scheduledRestart = false;
                     } catch (Exception exc) {
-                        log.error("Failed processing set " + set.getId(), exc);
+                        log.error("Failed processing set {}", set.getId(), exc);
+                        rescheduleCompletedSet(i, set);
+                        i++;
                     }
                     lock.lock();
                 } else {
@@ -302,6 +294,20 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         stateLogger.reset();
 
         checkNewVersion();
+    }
+
+    private void rescheduleCompletedSet(int i, BackupSet set) {
+        synchronized (scheduledTimes) {
+            Date date = scheduledTimes.get(set.getId());
+            if (date == null || date.after(new Date())) {
+                try {
+                    repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
+                } catch (IOException e) {
+                    log.warn("Failed saving next scheduled time for backup set {}", set.getId());
+                }
+            }
+        }
+        pendingSets[i] = false;
     }
 
     private void checkNewVersion() {

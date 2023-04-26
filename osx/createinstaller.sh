@@ -5,6 +5,7 @@ mkdir -p build/installer
 cp -r build/image build/installer/UnderscoreBackup
 cp -r "osx/Underscore Backup.app" build/installer/UnderscoreBackup
 cp osx/preinstall build/installer
+chmod a+x build/installer/preinstall
 cp osx/com.underscoreresearch.UnderscoreBackup.plist build/installer
 
 export ARCHITECTURE=`uname -m`
