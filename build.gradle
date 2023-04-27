@@ -4,7 +4,7 @@ plugins {
     id 'java'
     id 'application'
     id 'distribution'
-    id 'org.beryx.runtime' version '1.12.7'
+    id 'org.beryx.runtime' version '1.13.0'
 }
 
 application {
@@ -13,8 +13,8 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.1.0'
-def releaseType = ''
+version '2.0.2.0'
+def releaseType = 'pre'
 
 def archiveName = 'underscorebackup'
 def edition = ''
@@ -136,17 +136,25 @@ tasks.jpackageImage.doLast {
             into "build/jpackage/underscorebackup/"
         }
     }
-
 }
 
+tasks.distTar.doLast {
+    ant.move file:"build/distributions/${archiveName}-${rootProject.version}.tar",
+            tofile:"build/distributions/${archiveName}-${rootProject.version}${releaseType}.tar"
+}
+
+tasks.distZip.doLast {
+    ant.move file:"build/distributions/${archiveName}-${rootProject.version}.zip",
+            tofile:"build/distributions/${archiveName}-${rootProject.version}${releaseType}.zip"
+}
 
 dependencies {
 
     implementation(
-            'com.cronutils:cron-utils:9.2.0',
+            'com.cronutils:cron-utils:9.2.1',
             'com.dropbox.core:dropbox-core-sdk:5.4.4',
-            'com.fasterxml.jackson.core:jackson-databind:2.14.2',
-            'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.2',
+            'com.fasterxml.jackson.core:jackson-databind:2.15.0',
+            'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.0',
             'com.google.guava:guava:31.1-jre',
             'com.google.inject:guice:5.1.0',
             'com.hierynomus:smbj:0.11.5',
@@ -154,7 +162,7 @@ dependencies {
             'commons-cli:commons-cli:1.5.0',
             'commons-codec:commons-codec:1.15',
             'de.mkammerer:argon2-jvm:2.11',
-            'io.swagger:swagger-annotations:1.6.8',
+            'io.swagger:swagger-annotations:1.6.9',
             'javax.xml.bind:jaxb-api:2.3.1',
             'org.apache.commons:commons-lang3:3.12.0',
             'commons-net:commons-net:3.9.0',
@@ -165,15 +173,15 @@ dependencies {
             'org.openapitools:jackson-databind-nullable:0.2.6',
             'org.projectlombok:lombok:1.18.26',
             'org.reflections:reflections:0.10.2',
-            'org.slf4j:slf4j-api:2.0.5',
+            'org.slf4j:slf4j-api:2.0.7',
             'org.takes:takes:1.24.4',
-            'software.amazon.awssdk:s3control:2.20.18'
+            'software.amazon.awssdk:s3control:2.20.52'
     )
 
     testImplementation(
             'org.hamcrest:hamcrest:2.2',
             'org.junit.jupiter:junit-jupiter:5.9.2',
-            'org.mockito:mockito-junit-jupiter:5.1.1'
+            'org.mockito:mockito-junit-jupiter:5.3.1'
     )
 
     testRuntimeOnly(

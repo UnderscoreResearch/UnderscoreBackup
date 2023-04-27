@@ -410,10 +410,12 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     fileMap.prefixSubMap(new Object[]{path});
             List<BackupFile> files = null;
             for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
-                if (files == null) {
-                    files = new ArrayList<>();
+                if (entry != null) {
+                    if (files == null) {
+                        files = new ArrayList<>();
+                    }
+                    files.add(decodeFile(entry));
                 }
-                files.add(decodeFile(entry));
             }
             return files;
         }
@@ -670,11 +672,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     directoryMap.prefixSubMap(new Object[]{path});
             List<BackupDirectory> directories = null;
             for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
-                if (directories == null) {
-                    directories = new ArrayList<>();
-                }
+                if (entry != null) {
+                    if (directories == null) {
+                        directories = new ArrayList<>();
+                    }
 
-                directories.add(decodeDirectory(entry));
+                    directories.add(decodeDirectory(entry));
+                }
             }
             return directories;
         }
@@ -699,7 +703,11 @@ public class MapdbMetadataRepository implements MetadataRepository {
                     directoryMap.prefixSubMap(new Object[]{path});
             if (query.size() > 0) {
                 Map.Entry<Object[], byte[]> entry = query.lastEntry();
-                return decodeDirectory(entry);
+                if (entry != null) {
+                    return decodeDirectory(entry);
+                } else {
+                    log.warn("Got empty last entry from query for {}", path);
+                }
             }
             return null;
         }

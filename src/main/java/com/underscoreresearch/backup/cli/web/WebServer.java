@@ -35,6 +35,7 @@ import org.takes.http.BkParallel;
 import org.takes.http.BkSafe;
 import org.takes.http.FtBasic;
 import org.takes.misc.Opt;
+import org.takes.rq.RqHref;
 import org.takes.tk.TkWithType;
 
 import com.underscoreresearch.backup.cli.web.service.BestRegionGet;
@@ -221,7 +222,7 @@ public class WebServer {
                                             ))
                             ),
                             new PsChain(
-                                    new PsNoAuthConfigured(),
+                                    new PsNoAuthConfigured(base),
                                     new PsDigest("backup", (user) -> {
                                         BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
                                         if (user.equals(config.getManifest().getConfigUser())) {
@@ -310,18 +311,29 @@ public class WebServer {
 
     private static class PsNoAuthConfigured implements Pass {
 
+        private final String base;
+        private final String pingPath;
+
+        public PsNoAuthConfigured(String base) {
+            this.base = base + "/";
+            this.pingPath = base + "/api/ping";
+        }
+
         @Override
         public Opt<Identity> enter(Request request) throws Exception {
-            try {
-                if (InstanceFactory.hasConfiguration(false)) {
-                    BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
-                    String configUser = config.getManifest().getConfigUser();
-                    String configPassword = config.getManifest().getConfigPassword();
-                    if (configUser != null && configPassword != null) {
-                        return new Opt.Empty<Identity>();
+            String path = new RqHref.Base(request).href().path();
+            if (path.startsWith(base) && !pingPath.equals(path)) {
+                try {
+                    if (InstanceFactory.hasConfiguration(false)) {
+                        BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+                        String configUser = config.getManifest().getConfigUser();
+                        String configPassword = config.getManifest().getConfigPassword();
+                        if (configUser != null && configPassword != null) {
+                            return new Opt.Empty<Identity>();
+                        }
                     }
+                } catch (Exception exc) {
                 }
-            } catch (Exception exc) {
             }
             return AUTHENTICATED;
         }
