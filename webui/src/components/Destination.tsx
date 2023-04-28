@@ -1036,7 +1036,7 @@ export function IDriveDestination(props: DestinationProps) {
     });
 }
 
-function removeUndefined(destination: BackupDestination) : BackupDestination {
+function removeUndefined(destination: BackupDestination): BackupDestination {
     return Object.fromEntries(Object.entries(destination).filter(([_, v]) => v != null)) as BackupDestination;
 }
 

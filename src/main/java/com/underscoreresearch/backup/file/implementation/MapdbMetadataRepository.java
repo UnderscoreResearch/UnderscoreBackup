@@ -743,13 +743,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public String lastSyncedLogFile() throws IOException {
-        return repositoryInfo.getLastSyncedLogEntry();
+    public String lastSyncedLogFile(String share) throws IOException {
+        return repositoryInfo.getLastSyncedLogFile(share);
     }
 
     @Override
-    public void setLastSyncedLogFile(String entry) throws IOException {
-        repositoryInfo.setLastSyncedLogEntry(entry);
+    public void setLastSyncedLogFile(String share, String entry) throws IOException {
+        repositoryInfo.setLastSyncedLogFile(share, entry);
         saveRepositoryInfo();
     }
 
@@ -1191,6 +1191,28 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static class RepositoryInfo {
         private int version;
         private String lastSyncedLogEntry;
+        private Map<String, String> shareLastSyncedLogEntry;
+
+        public String getLastSyncedLogFile(String share) {
+            if (share != null) {
+                if (shareLastSyncedLogEntry != null) {
+                    return shareLastSyncedLogEntry.get(share);
+                }
+                return null;
+            }
+            return lastSyncedLogEntry;
+        }
+
+        public void setLastSyncedLogFile(String share, String entry) {
+            if (share != null) {
+                if (shareLastSyncedLogEntry == null) {
+                    shareLastSyncedLogEntry = new HashMap<>();
+                }
+                shareLastSyncedLogEntry.put(share, entry);
+            } else {
+                lastSyncedLogEntry = entry;
+            }
+        }
     }
 
     public static class TreeOrSink implements Closeable {

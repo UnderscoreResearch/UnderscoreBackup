@@ -10,7 +10,10 @@ function createExclusionControl(item: string, itemUpdated: (item: string) => voi
     />
 }
 
-export default function ExclusionList(props: { exclusions: string[] | undefined, exclusionsChanged: (items: string[]) => void }) {
+export default function ExclusionList(props: {
+    exclusions: string[] | undefined,
+    exclusionsChanged: (items: string[]) => void
+}) {
     return EditableList<string>({
         createItem: createExclusionControl,
         items: (props.exclusions ? props.exclusions : []) as string[],

@@ -159,7 +159,9 @@ export async function availableSecret(region: string, email: string): Promise<{ 
 }
 
 export async function restoreSecret(region: string, sourceId: string, email: string, code: string,
-                                    codeVerifier: string, password: string): Promise<{ installing: boolean } | undefined> {
+                                    codeVerifier: string, password: string): Promise<{
+    installing: boolean
+} | undefined> {
     return await makeApiCall("service/secrets", {
         method: 'POST',
         headers: {

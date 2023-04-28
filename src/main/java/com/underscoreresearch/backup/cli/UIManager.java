@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.cli;
 
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.io.Closeable;
 import java.io.File;
@@ -12,7 +13,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import javax.imageio.ImageIO;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

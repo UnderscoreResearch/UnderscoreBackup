@@ -139,6 +139,7 @@ class ManifestManagerImplTest {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any(), any());
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
                 rateLimitController, serviceManager, "id", null, false, publickKey);
+        manifestManager.initialize(Mockito.mock(LogConsumer.class), true);
         manifestManager.addLogEntry("doh", "doh");
         assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
     }

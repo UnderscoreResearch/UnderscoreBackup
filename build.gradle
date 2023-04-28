@@ -13,8 +13,8 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.2.0'
-def releaseType = 'pre'
+version '2.0.2.1'
+def releaseType = 'rc'
 
 def archiveName = 'underscorebackup'
 def edition = ''
@@ -139,13 +139,13 @@ tasks.jpackageImage.doLast {
 }
 
 tasks.distTar.doLast {
-    ant.move file:"build/distributions/${archiveName}-${rootProject.version}.tar",
-            tofile:"build/distributions/${archiveName}-${rootProject.version}${releaseType}.tar"
+    ant.move file: "build/distributions/${archiveName}-${rootProject.version}.tar",
+            tofile: "build/distributions/${archiveName}-${rootProject.version}${releaseType}.tar"
 }
 
 tasks.distZip.doLast {
-    ant.move file:"build/distributions/${archiveName}-${rootProject.version}.zip",
-            tofile:"build/distributions/${archiveName}-${rootProject.version}${releaseType}.zip"
+    ant.move file: "build/distributions/${archiveName}-${rootProject.version}.zip",
+            tofile: "build/distributions/${archiveName}-${rootProject.version}${releaseType}.zip"
 }
 
 dependencies {

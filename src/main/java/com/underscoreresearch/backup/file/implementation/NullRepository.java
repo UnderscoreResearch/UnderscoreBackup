@@ -37,12 +37,12 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public String lastSyncedLogFile() throws IOException {
+    public String lastSyncedLogFile(String share) throws IOException {
         return null;
     }
 
     @Override
-    public void setLastSyncedLogFile(String entry) throws IOException {
+    public void setLastSyncedLogFile(String share, String entry) throws IOException {
 
     }
 

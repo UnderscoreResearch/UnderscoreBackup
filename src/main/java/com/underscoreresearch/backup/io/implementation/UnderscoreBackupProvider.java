@@ -54,6 +54,16 @@ public class UnderscoreBackupProvider implements IOIndex {
     private String shareId;
     private ServiceManager serviceManager;
 
+    public UnderscoreBackupProvider(BackupDestination destination) {
+        region = destination.getEndpointUri();
+        String[] parts = region.split("/");
+        if (parts.length == 3) {
+            region = parts[0];
+            sourceId = parts[1];
+            shareId = parts[2];
+        }
+    }
+
     public static String getRegion(String endpointUri) {
         if (endpointUri == null)
             return null;
@@ -68,16 +78,6 @@ public class UnderscoreBackupProvider implements IOIndex {
 
     public static String createEndpointUri(String region, String sourceId, String shareId) {
         return region + "/" + sourceId + "/" + shareId;
-    }
-
-    public UnderscoreBackupProvider(BackupDestination destination) {
-        region = destination.getEndpointUri();
-        String[] parts = region.split("/");
-        if (parts.length == 3) {
-            region = parts[0];
-            sourceId = parts[1];
-            shareId = parts[2];
-        }
     }
 
     public static <T> T s3Retry(Callable<T> callable) throws IOException {

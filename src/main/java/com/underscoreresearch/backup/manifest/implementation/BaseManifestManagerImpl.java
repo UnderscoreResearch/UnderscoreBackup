@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -123,6 +124,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         if (!(provider instanceof IOIndex)) {
             throw new IllegalArgumentException("Manifest destination must be able to support listing files");
         }
+
         this.encryptor = encryptor;
     }
 
@@ -136,15 +138,22 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
     protected abstract void uploadPending(LogConsumer logConsumer) throws IOException;
 
+    protected String getShare() {
+        return null;
+    }
+
     protected void uploadLogFile(String file, InputStream stream) throws IOException {
         String uploadFilename = transformLogFilename(file);
-        uploadConfigData(uploadFilename, stream, true);
-        if (logConsumer != null) {
-            if (logConsumer.lastSyncedLogFile() != null && logConsumer.lastSyncedLogFile().compareTo(uploadFilename) > 0) {
-                log.warn("Uploaded log file {} out of order, already uploaded {}", uploadFilename,
-                        logConsumer.lastSyncedLogFile());
-            } else {
-                logConsumer.setLastSyncedLogFile(uploadFilename);
+        try {
+            uploadConfigData(uploadFilename, stream, true);
+        } finally {
+            if (logConsumer != null) {
+                if (logConsumer.lastSyncedLogFile(getShare()) != null && logConsumer.lastSyncedLogFile(getShare()).compareTo(uploadFilename) > 0) {
+                    log.warn("Uploaded log file {} out of order, already uploaded {}", uploadFilename,
+                            logConsumer.lastSyncedLogFile(getShare()));
+                } else {
+                    logConsumer.setLastSyncedLogFile(getShare(), uploadFilename);
+                }
             }
         }
     }
@@ -169,12 +178,22 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
+    protected byte[] downloadData(String file) throws IOException {
+        byte[] data = provider.download(file);
+        rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
+        return data;
+    }
+
+    protected void uploadData(String file, byte[] data) throws IOException {
+        provider.upload(file, data);
+        rateLimitController.acquireUploadPermits(manifestDestination, data.length);
+    }
+
     public void validateIdentity() {
         byte[] data;
         try {
             debug(() -> log.debug("Validating manifest installation identity"));
-            data = provider.download(IDENTITY_MANIFEST_LOCATION);
-            rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
+            data = downloadData(IDENTITY_MANIFEST_LOCATION);
         } catch (Exception exc) {
             storeIdentity();
             return;
@@ -199,8 +218,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         log.info("Updating manifest installation identity");
         try {
             byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
-            provider.upload(IDENTITY_MANIFEST_LOCATION, data);
-            rateLimitController.acquireUploadPermits(manifestDestination, data.length);
+            uploadData(IDENTITY_MANIFEST_LOCATION, data);
         } catch (IOException e) {
             throw new RuntimeException(String.format("Failed to save identity to target: %s", e.getMessage()), e);
         }
@@ -243,8 +261,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             data = IOUtils.readAllBytes(inputStream);
         }
         log.info("Uploading {} ({})", filename, readableSize(data.length));
-        rateLimitController.acquireUploadPermits(manifestDestination, data.length);
-        provider.upload(filename, data);
+        uploadData(filename, data);
     }
 
     public byte[] encryptConfigData(InputStream inputStream) throws IOException {
@@ -270,12 +287,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 if (currentLogLock == null) {
                     createNewLogFile();
                 }
-                byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(StandardCharsets.UTF_8);
-                currentLogLock.getLockedChannel().write(ByteBuffer.wrap(data));
-                if (!disabledFlushing) {
-                    currentLogLock.getLockedChannel().force(false);
-                }
-                currentLogLength += data.length;
+                writeLogEntry(type, jsonDefinition);
 
                 if (!currentlyClosingLog.get()
                         && currentLogLength > configuration.getManifest().getMaximumUnsyncedSize()) {
@@ -305,6 +317,15 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 log.error("Failed to flush log");
             }
         }
+    }
+
+    private void writeLogEntry(String type, String jsonDefinition) throws IOException {
+        byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(StandardCharsets.UTF_8);
+        currentLogLock.getLockedChannel().write(ByteBuffer.wrap(data));
+        if (!disabledFlushing) {
+            currentLogLock.getLockedChannel().force(false);
+        }
+        currentLogLength += data.length;
     }
 
     protected void flushLogging() throws IOException {
@@ -344,6 +365,12 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         lastLogFilename = filename;
         currentLogLock.lock(true);
 
+        String lastUploadFile = logConsumer.lastSyncedLogFile(getShare());
+        if (lastUploadFile != null) {
+            writeLogEntry("previousFile", MAPPER.writeValueAsString(lastUploadFile));
+            debug(() -> log.debug("Registering previous log file {} for {}", lastUploadFile, lastLogFilename));
+        }
+
         File dir = new File(filename).getParentFile();
         if (!dir.isDirectory())
             dir.mkdirs();
@@ -354,7 +381,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                         synchronized (lock) {
                             if (currentLogLock != null && currentLogLength > 0 && logName.equals(currentLogLock.getFilename())) {
                                 try {
-                                    createNewLogFile();
+                                    closeLogFile();
                                 } catch (IOException exc) {
                                     log.error("Failed to create new log file", exc);
                                 }

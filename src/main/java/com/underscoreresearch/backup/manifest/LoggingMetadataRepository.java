@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.manifest;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DIRECTORY_READER;
@@ -109,6 +110,15 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 .put("path", (json) -> {
                     PushActivePath activePath = PUSH_ACTIVE_PATH_READER.readValue(json);
                     repository.pushActivePath(activePath.getSetId(), activePath.getPath(), activePath.getActivePath());
+                })
+                .put("previousFile", (json) -> {
+                    String lastFile = MAPPER.readValue(json, String.class);
+                    if (!lastFile.equals(repository.lastSyncedLogFile(null))) {
+                        log.error("Expected previous log file to be {} but got {}, could mean either missing data or backup tampering", lastFile,
+                                repository.lastSyncedLogFile(null));
+                    } else {
+                        debug(() -> log.debug("Validated previous log file {}", lastFile));
+                    }
                 });
 
         if (noDeleteReplay) {
@@ -261,13 +271,13 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public String lastSyncedLogFile() throws IOException {
-        return repository.lastSyncedLogFile();
+    public String lastSyncedLogFile(String share) throws IOException {
+        return repository.lastSyncedLogFile(share);
     }
 
     @Override
-    public void setLastSyncedLogFile(String entry) throws IOException {
-        repository.setLastSyncedLogFile(entry);
+    public void setLastSyncedLogFile(String share, String entry) throws IOException {
+        repository.setLastSyncedLogFile(share, entry);
     }
 
     @Override

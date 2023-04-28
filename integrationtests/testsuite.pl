@@ -9,9 +9,9 @@ use IPC::Open2;
 use POSIX qw(strftime);
 
 my $originalRoot = getcwd();
-my $root = shift(@ARGV);
+my $parentRoot = shift(@ARGV);
 
-if (!$root) {
+if (!$parentRoot) {
     die;
 }
 
@@ -28,6 +28,12 @@ if (!$underscoreBackup) {
     die;
 }
 
+if (!-d $parentRoot) {
+    mkdir($parentRoot) || die;
+}
+
+my $root = File::Spec->catdir($parentRoot, "root");
+
 if (!-d $root) {
     mkdir($root) || die;
 }
@@ -39,7 +45,7 @@ my $backupRoot2 = File::Spec->catdir($root, "backup2");
 my $shareRoot = File::Spec->catdir($root, "share");
 my $configFile = File::Spec->catdir($root, "config.json");
 my $keyFile = File::Spec->catdir($root, "key");
-my $logFile = File::Spec->catdir($root, "output.log");
+my $logFile = File::Spec->catdir($parentRoot, "output.log");
 my $sharedPublicKey;
 
 my @directories = (

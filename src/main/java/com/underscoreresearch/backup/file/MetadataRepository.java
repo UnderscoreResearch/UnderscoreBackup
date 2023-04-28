@@ -91,9 +91,9 @@ public interface MetadataRepository {
 
     void clear() throws IOException;
 
-    String lastSyncedLogFile() throws IOException;
+    String lastSyncedLogFile(String share) throws IOException;
 
-    void setLastSyncedLogFile(String entry) throws IOException;
+    void setLastSyncedLogFile(String share, String entry) throws IOException;
 
     void addAdditionalBlock(BackupBlockAdditional block) throws IOException;
 

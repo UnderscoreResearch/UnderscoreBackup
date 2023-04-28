@@ -25,7 +25,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -125,23 +124,33 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         try {
             processedFiles = new AtomicLong(0);
             totalFiles = new AtomicLong(2);
+
+            EncryptionKey existingPublicKey = null;
             try {
-                EncryptionKey existingPublicKey = ENCRYPTION_KEY_READER
-                        .readValue(getProvider().download("publickey.json"));
-                if (!encryptionKey.getSalt().equals(existingPublicKey.getSalt())
-                        || !encryptionKey.getPublicKey().equals(existingPublicKey.getPublicKey())) {
-                    throw new IOException("Public key that exist in destination does not match current public key");
-                }
+                existingPublicKey = ENCRYPTION_KEY_READER
+                        .readValue(downloadData("publickey.json"));
             } catch (Exception exc) {
-                if (!IOUtils.hasInternet()) {
-                    throw exc;
+                try {
+                    getProvider().checkCredentials(false);
+                } catch (IOException e) {
+                    if (!IOUtils.hasInternet()) {
+                        throw exc;
+                    }
                 }
                 log.info("Public key does not exist");
-                uploadConfigData("publickey.json",
-                        new ByteArrayInputStream(ENCRYPTION_KEY_WRITER.writeValueAsBytes(encryptionKey)),
-                        false);
+                uploadPublicKey(encryptionKey);
             } finally {
                 processedFiles.incrementAndGet();
+            }
+
+            if (existingPublicKey != null) {
+                if (!encryptionKey.getPublicKey().equals(existingPublicKey.getPublicKey())) {
+                    throw new IOException("Public key that exist in destination does not match current public key");
+                }
+                if (!encryptionKey.getSalt().equals(existingPublicKey.getSalt())) {
+                    log.info("Public key needs to be updated");
+                    uploadPublicKey(encryptionKey);
+                }
             }
 
             uploadConfigData("configuration.json",
@@ -178,6 +187,12 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         } finally {
             resetStatus();
         }
+    }
+
+    private void uploadPublicKey(EncryptionKey encryptionKey) throws IOException {
+        uploadConfigData("publickey.json",
+                new ByteArrayInputStream(ENCRYPTION_KEY_WRITER.writeValueAsBytes(encryptionKey)),
+                false);
     }
 
     public void updateServiceSourceData(EncryptionKey encryptionKey) throws IOException {
@@ -233,20 +248,20 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
         startOperation("Replay log");
 
-        if (consumer.lastSyncedLogFile() != null) {
-            log.info("Continuing rebuild from after file {}", getLogConsumer().lastSyncedLogFile());
+        if (consumer.lastSyncedLogFile(getShare()) != null) {
+            log.info("Continuing rebuild from after file {}", getLogConsumer().lastSyncedLogFile(getShare()));
         }
 
         try {
             IOIndex index = (IOIndex) getProvider();
-            List<String> files = index.availableLogs(consumer.lastSyncedLogFile());
+            List<String> files = index.availableLogs(consumer.lastSyncedLogFile(getShare()));
 
             totalFiles = new AtomicLong(files.size());
             processedFiles = new AtomicLong(0L);
             processedOperations = new AtomicLong(0L);
 
             for (String file : files) {
-                byte[] data = getProvider().download(file);
+                byte[] data = downloadData(file);
 
                 try {
                     log.info("Processing log file {}", file);
@@ -257,7 +272,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                             processLogInputStream(consumer, gzipInputStream);
                         }
                     }
-                    consumer.setLastSyncedLogFile(file);
+                    consumer.setLastSyncedLogFile(getShare(), file);
                 } catch (Exception exc) {
                     log.error("Failed to read log file " + file, exc);
                 }
@@ -437,6 +452,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
         try (CloseableLock ignored = existingRepository.acquireLock()) {
             LoggingMetadataRepository copyRepository = new LoggingMetadataRepository(new NullRepository(), this, false);
+            logConsumer.setLastSyncedLogFile(getShare(), null);
 
             internalInitialize();
 
@@ -579,7 +595,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         MetadataRepository repository = (MetadataRepository) consumer;
 
         if (getConfiguration().getShares() != null) {
-            Map<EncryptionKey, ShareManifestManager> pendingShareManagers = new HashMap<>();
+            Map<EncryptionKey, ShareManifestManagerImpl> pendingShareManagers = new HashMap<>();
             Map<String, BackupShare> pendingShares = new HashMap<>();
 
             for (Map.Entry<String, BackupShare> entry : getConfiguration().getShares().entrySet()) {
@@ -604,9 +620,11 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                     log.info("Fetching existing logs");
 
                     Map<String, List<String>> existingLogs = new HashMap<>();
-                    for (Map.Entry<EncryptionKey, ShareManifestManager> entry : pendingShareManagers.entrySet()) {
+                    for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
                         entry.getValue().validateIdentity();
                         existingLogs.put(entry.getKey().getPublicKey(), entry.getValue().getExistingLogs());
+                        repository.setLastSyncedLogFile(entry.getKey().getPublicKey(), null);
+                        entry.getValue().initialize(consumer, false);
                     }
 
                     ShareActivateMetadataRepository copyRepository = new ShareActivateMetadataRepository(repository,
@@ -622,7 +640,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                         if (isShutdown()) {
                             throw new CancellationException();
                         }
-                        for (Map.Entry<EncryptionKey, ShareManifestManager> entry : pendingShareManagers.entrySet()) {
+                        for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
                             processedOperations.incrementAndGet();
                             if (!BackupBlock.isSuperBlock(block.getHash())) {
                                 List<BackupBlockStorage> newStorage =
@@ -687,7 +705,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
                     totalFiles = new AtomicLong(existingLogs.values().stream().map(List::size).reduce(0, Integer::sum));
                     processedFiles = new AtomicLong();
-                    for (Map.Entry<EncryptionKey, ShareManifestManager> entry : pendingShareManagers.entrySet()) {
+                    for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
                         entry.getValue().flushLog();
                         entry.getValue().deleteLogFiles(existingLogs.get(entry.getKey().getPublicKey()));
                         processedFiles.addAndGet(existingLogs.get(entry.getKey().getPublicKey()).size());

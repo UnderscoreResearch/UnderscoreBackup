@@ -1,6 +1,6 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 

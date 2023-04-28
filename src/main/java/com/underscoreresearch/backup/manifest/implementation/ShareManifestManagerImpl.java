@@ -73,6 +73,11 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     }
 
     @Override
+    protected String getShare() {
+        return getPublicKey().getPublicKey();
+    }
+
+    @Override
     public void storeIdentity() {
         // Service shares are validated by their parent.
         if (!serviceShare()) {
@@ -81,17 +86,22 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     }
 
     protected void uploadPending(LogConsumer logConsumer) throws IOException {
+        EncryptionKey existingPublicKey = null;
         try {
-            EncryptionKey existingPublicKey = ENCRYPTION_KEY_READER.readValue(getProvider().download("publickey.json"));
-            if (!getPublicKey().getPublicKey().equals(existingPublicKey.getPublicKey())) {
-                throw new IOException("Public key that exist in destination does not match current public key");
-            }
+            existingPublicKey = ENCRYPTION_KEY_READER.readValue(getProvider().download("publickey.json"));
         } catch (Exception exc) {
-            if (!IOUtils.hasInternet()) {
-                throw exc;
+            try {
+                getProvider().checkCredentials(false);
+            } catch (IOException e) {
+                if (!IOUtils.hasInternet()) {
+                    throw exc;
+                }
             }
             log.info("Public key does not exist");
             uploadKeyData(getPublicKey());
+        }
+        if (existingPublicKey != null && !getPublicKey().getPublicKey().equals(existingPublicKey.getPublicKey())) {
+            throw new IOException("Public key that exist in destination does not match current public key");
         }
 
         if (activated) {

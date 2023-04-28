@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.utils.RetryUtils;
 
 @Slf4j
 public final class IOUtils {
@@ -52,12 +53,15 @@ public final class IOUtils {
             if (internetSuccessfulUntil != null && Instant.now().isBefore(internetSuccessfulUntil)) {
                 return true;
             }
-            URL url = new URL("https://www.example.com");
-            URLConnection connection = url.openConnection();
-            connection.connect();
+            RetryUtils.retry(3, RetryUtils.DEFAULT_BASE, () -> {
+                URL url = new URL("https://www.example.com");
+                URLConnection connection = url.openConnection();
+                connection.connect();
+                return null;
+            }, (exc) -> exc instanceof IOException);
             internetSuccessfulUntil = Instant.now().plus(INTERNET_SUCCESS_CACHE);
             return true;
-        } catch (IOException e) {
+        } catch (Exception e) {
             return false;
         }
     }

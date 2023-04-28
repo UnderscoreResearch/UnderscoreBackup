@@ -67,6 +67,11 @@ public class ServiceManagerImpl implements ServiceManager {
         this(manifestLocation, createData(manifestLocation));
     }
 
+    public ServiceManagerImpl(String manifestLocation, ServiceManagerData data) {
+        this.manifestLocation = manifestLocation;
+        this.data = data;
+    }
+
     private static ServiceManagerData createData(String manifestLocation) throws IOException {
         File file = getDataFile(manifestLocation);
         if (file.exists()) {
@@ -74,11 +79,6 @@ public class ServiceManagerImpl implements ServiceManager {
         } else {
             return new ServiceManagerData();
         }
-    }
-
-    public ServiceManagerImpl(String manifestLocation, ServiceManagerData data) {
-        this.manifestLocation = manifestLocation;
-        this.data = data;
     }
 
     public static RsWithStatus sendApiFailureOn(IOException exc) throws IOException {
@@ -93,19 +93,6 @@ public class ServiceManagerImpl implements ServiceManager {
         String destination = Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
                 BACKUP_DESTINATION_WRITER.writeValueAsBytes(share.getDestination().strippedDestination(sourceId, publicKey.getPublicKey())), publicKey));
         return destination;
-    }
-
-    public <T> T call(String region, ApiFunction<T> callable) throws IOException {
-        try {
-            return callApi(region, callable);
-        } catch (ApiException exc) {
-            throw new IOException(exc);
-        } catch (Exception exc) {
-            if (exc.getCause() instanceof IOException) {
-                throw (IOException) exc.getCause();
-            }
-            throw new IOException(exc.getMessage(), exc.getCause());
-        }
     }
 
     static <T> T callApi(BackupApi client, String region, ApiFunction<T> callable) throws ApiException {
@@ -129,12 +116,25 @@ public class ServiceManagerImpl implements ServiceManager {
         }
     }
 
-    public <T> T callApi(String region, ApiFunction<T> callable) throws ApiException {
-        return callApi(getClient(region), region, callable);
-    }
-
     private static File getDataFile(String manifestLocation) {
         return Paths.get(manifestLocation, "service.json").toFile();
+    }
+
+    public <T> T call(String region, ApiFunction<T> callable) throws IOException {
+        try {
+            return callApi(region, callable);
+        } catch (ApiException exc) {
+            throw new IOException(exc);
+        } catch (Exception exc) {
+            if (exc.getCause() instanceof IOException) {
+                throw (IOException) exc.getCause();
+            }
+            throw new IOException(exc.getMessage(), exc.getCause());
+        }
+    }
+
+    public <T> T callApi(String region, ApiFunction<T> callable) throws ApiException {
+        return callApi(getClient(region), region, callable);
     }
 
     public File getDataFile() {
