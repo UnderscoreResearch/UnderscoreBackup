@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -22,8 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -33,7 +34,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   ListSharingKeysRequest.JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class ListSharingKeysRequest {
   public static final String JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH = "targetAccountEmailHash";
   private String targetAccountEmailHash;
@@ -51,7 +52,6 @@ public class ListSharingKeysRequest {
    * @return targetAccountEmailHash
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Target account of email hash (Base64 URL encoded).")
   @JsonProperty(JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -107,5 +107,44 @@ public class ListSharingKeysRequest {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `targetAccountEmailHash` to the URL query string
+    if (getTargetAccountEmailHash() != null) {
+      joiner.add(String.format("%stargetAccountEmailHash%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getTargetAccountEmailHash()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    return joiner.toString();
+  }
 }
 

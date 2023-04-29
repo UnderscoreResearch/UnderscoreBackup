@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -23,8 +26,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -36,7 +37,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   ListSourcesResponse.JSON_PROPERTY_SOURCES
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class ListSourcesResponse {
   public static final String JSON_PROPERTY_SOURCES = "sources";
   private List<SourceResponse> sources = new ArrayList<>();
@@ -50,6 +51,9 @@ public class ListSourcesResponse {
   }
 
   public ListSourcesResponse addSourcesItem(SourceResponse sourcesItem) {
+    if (this.sources == null) {
+      this.sources = new ArrayList<>();
+    }
     this.sources.add(sourcesItem);
     return this;
   }
@@ -59,7 +63,6 @@ public class ListSourcesResponse {
    * @return sources
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "List of sources.")
   @JsonProperty(JSON_PROPERTY_SOURCES)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -115,5 +118,49 @@ public class ListSourcesResponse {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `sources` to the URL query string
+    if (getSources() != null) {
+      for (int i = 0; i < getSources().size(); i++) {
+        if (getSources().get(i) != null) {
+          joiner.add(getSources().get(i).toUrlQueryString(String.format("%ssources%s%s", prefix, suffix,
+          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+        }
+      }
+    }
+
+    return joiner.toString();
+  }
 }
 

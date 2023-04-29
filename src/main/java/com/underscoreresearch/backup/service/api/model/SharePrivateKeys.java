@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -22,8 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -34,7 +35,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SharePrivateKeys.JSON_PROPERTY_PUBLIC_KEY,
   SharePrivateKeys.JSON_PROPERTY_ENCRYPTED_KEY
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class SharePrivateKeys {
   public static final String JSON_PROPERTY_PUBLIC_KEY = "publicKey";
   private String publicKey;
@@ -55,7 +56,6 @@ public class SharePrivateKeys {
    * @return publicKey
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Public encryption key with which the encrypted private key is encrypted.")
   @JsonProperty(JSON_PROPERTY_PUBLIC_KEY)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -81,7 +81,6 @@ public class SharePrivateKeys {
    * @return encryptedKey
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Encryption of private key used to encrypt share.")
   @JsonProperty(JSON_PROPERTY_ENCRYPTED_KEY)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -139,5 +138,49 @@ public class SharePrivateKeys {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `publicKey` to the URL query string
+    if (getPublicKey() != null) {
+      joiner.add(String.format("%spublicKey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getPublicKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `encryptedKey` to the URL query string
+    if (getEncryptedKey() != null) {
+      joiner.add(String.format("%sencryptedKey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getEncryptedKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    return joiner.toString();
+  }
 }
 

@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -22,8 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -35,7 +36,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   ListSharingKeysResponse.JSON_PROPERTY_PUBLIC_KEYS
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class ListSharingKeysResponse {
   public static final String JSON_PROPERTY_PUBLIC_KEYS = "publicKeys";
   private List<String> publicKeys = new ArrayList<>();
@@ -49,6 +50,9 @@ public class ListSharingKeysResponse {
   }
 
   public ListSharingKeysResponse addPublicKeysItem(String publicKeysItem) {
+    if (this.publicKeys == null) {
+      this.publicKeys = new ArrayList<>();
+    }
     this.publicKeys.add(publicKeysItem);
     return this;
   }
@@ -58,7 +62,6 @@ public class ListSharingKeysResponse {
    * @return publicKeys
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "List of public keys to encrypt with for given target account.")
   @JsonProperty(JSON_PROPERTY_PUBLIC_KEYS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -114,5 +117,48 @@ public class ListSharingKeysResponse {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `publicKeys` to the URL query string
+    if (getPublicKeys() != null) {
+      for (int i = 0; i < getPublicKeys().size(); i++) {
+        joiner.add(String.format("%spublicKeys%s%s=%s", prefix, suffix,
+            "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix),
+            URLEncoder.encode(String.valueOf(getPublicKeys().get(i)), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+      }
+    }
+
+    return joiner.toString();
+  }
 }
 

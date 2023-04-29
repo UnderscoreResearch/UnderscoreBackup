@@ -31,9 +31,10 @@ import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
+import com.underscoreresearch.backup.service.api.model.DownloadUrl;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
-import com.underscoreresearch.backup.service.api.model.ResponseUrl;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import com.underscoreresearch.backup.service.api.model.UploadUrl;
 import com.underscoreresearch.backup.utils.RetryUtils;
 
 @IOPlugin(UB_TYPE)
@@ -194,30 +195,32 @@ public class UnderscoreBackupProvider implements IOIndex {
         try {
             RetryUtils.retry(() -> {
                 Stopwatch timer = Stopwatch.createStarted();
-                ResponseUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
-                String ret = s3Retry(() -> {
-                    if (timer.elapsed(TimeUnit.MINUTES) > START_TIMEOUT_MINUTES) {
-                        return null;
+                UploadUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
+                if (response.getLocation() != null) {
+                    String ret = s3Retry(() -> {
+                        if (timer.elapsed(TimeUnit.MINUTES) > START_TIMEOUT_MINUTES) {
+                            return null;
+                        }
+                        URL url = new URL(response.getLocation());
+                        HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                        httpCon.setDoOutput(true);
+                        httpCon.setConnectTimeout(S3_UPLOAD_TIMEOUT);
+                        httpCon.setReadTimeout(S3_UPLOAD_TIMEOUT);
+                        httpCon.setRequestMethod("PUT");
+                        try (OutputStream stream = httpCon.getOutputStream()) {
+                            stream.write(data);
+                        }
+                        if (httpCon.getResponseCode() == 403) {
+                            return null;
+                        }
+                        if (httpCon.getResponseCode() != 200) {
+                            throw new IOException("Failed to upload data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                        }
+                        return "success";
+                    });
+                    if (ret == null || timer.elapsed(TimeUnit.MINUTES) > MAX_TIMEOUT_MINUTES) {
+                        throw new IOException(TIMEOUT_MESSAGE);
                     }
-                    URL url = new URL(response.getLocation());
-                    HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
-                    httpCon.setDoOutput(true);
-                    httpCon.setConnectTimeout(S3_UPLOAD_TIMEOUT);
-                    httpCon.setReadTimeout(S3_UPLOAD_TIMEOUT);
-                    httpCon.setRequestMethod("PUT");
-                    try (OutputStream stream = httpCon.getOutputStream()) {
-                        stream.write(data);
-                    }
-                    if (httpCon.getResponseCode() == 403) {
-                        return null;
-                    }
-                    if (httpCon.getResponseCode() != 200) {
-                        throw new IOException("Failed to upload data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
-                    }
-                    return "success";
-                });
-                if (ret == null || timer.elapsed(TimeUnit.MINUTES) > MAX_TIMEOUT_MINUTES) {
-                    throw new IOException(TIMEOUT_MESSAGE);
                 }
                 return null;
             }, this::retrySignedException);
@@ -267,7 +270,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         try {
             return RetryUtils.retry(() -> {
                 Stopwatch timer = Stopwatch.createStarted();
-                ResponseUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
+                DownloadUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
                 byte[] ret = s3Retry(() -> {
                     if (timer.elapsed(TimeUnit.MINUTES) > START_TIMEOUT_MINUTES) {
                         return null;

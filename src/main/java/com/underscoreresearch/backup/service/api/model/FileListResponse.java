@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -22,8 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -36,7 +37,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   FileListResponse.JSON_PROPERTY_FILES,
   FileListResponse.JSON_PROPERTY_COMPLETED
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class FileListResponse {
   public static final String JSON_PROPERTY_FILES = "files";
   private List<String> files = new ArrayList<>();
@@ -53,6 +54,9 @@ public class FileListResponse {
   }
 
   public FileListResponse addFilesItem(String filesItem) {
+    if (this.files == null) {
+      this.files = new ArrayList<>();
+    }
     this.files.add(filesItem);
     return this;
   }
@@ -62,7 +66,6 @@ public class FileListResponse {
    * @return files
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "List of files.")
   @JsonProperty(JSON_PROPERTY_FILES)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -88,7 +91,6 @@ public class FileListResponse {
    * @return completed
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "If false there are more files to be fetched. Use the last file of the previous response as the start parameter to fetch the next page.")
   @JsonProperty(JSON_PROPERTY_COMPLETED)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -146,5 +148,53 @@ public class FileListResponse {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `files` to the URL query string
+    if (getFiles() != null) {
+      for (int i = 0; i < getFiles().size(); i++) {
+        joiner.add(String.format("%sfiles%s%s=%s", prefix, suffix,
+            "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix),
+            URLEncoder.encode(String.valueOf(getFiles().get(i)), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+      }
+    }
+
+    // add `completed` to the URL query string
+    if (getCompleted() != null) {
+      joiner.add(String.format("%scompleted%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCompleted()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    return joiner.toString();
+  }
 }
 

@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -23,8 +26,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.underscoreresearch.backup.service.api.model.SourceUsage;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +51,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SourceResponse.JSON_PROPERTY_KEY,
   SourceResponse.JSON_PROPERTY_SHARING_KEY
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class SourceResponse {
   public static final String JSON_PROPERTY_SOURCE_ID = "sourceId";
   private String sourceId;
@@ -80,10 +81,10 @@ public class SourceResponse {
   private String lastUsage;
 
   public static final String JSON_PROPERTY_DAILY_USAGE = "dailyUsage";
-  private List<SourceUsage> dailyUsage = null;
+  private List<SourceUsage> dailyUsage;
 
   public static final String JSON_PROPERTY_PERIOD_USAGE = "periodUsage";
-  private List<SourceUsage> periodUsage = null;
+  private List<SourceUsage> periodUsage;
 
   public static final String JSON_PROPERTY_APPLICATION_URL = "applicationUrl";
   private String applicationUrl;
@@ -107,7 +108,6 @@ public class SourceResponse {
    * @return sourceId
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Unique identifier of source.")
   @JsonProperty(JSON_PROPERTY_SOURCE_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -133,7 +133,6 @@ public class SourceResponse {
    * @return name
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Descriptive name of source.")
   @JsonProperty(JSON_PROPERTY_NAME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -159,7 +158,6 @@ public class SourceResponse {
    * @return created
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Timestamp of when source was created.")
   @JsonProperty(JSON_PROPERTY_CREATED)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -185,7 +183,6 @@ public class SourceResponse {
    * @return identity
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Unique identity of source.")
   @JsonProperty(JSON_PROPERTY_IDENTITY)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -211,7 +208,6 @@ public class SourceResponse {
    * @return destination
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Destination of manifest for source (Encrypted and base64 encoded).")
   @JsonProperty(JSON_PROPERTY_DESTINATION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -237,7 +233,6 @@ public class SourceResponse {
    * @return encryptionMode
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Mode of encryption used for destination data.")
   @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -263,7 +258,6 @@ public class SourceResponse {
    * @return secretRegion
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Region secret should be stored in.")
   @JsonProperty(JSON_PROPERTY_SECRET_REGION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -289,7 +283,6 @@ public class SourceResponse {
    * @return version
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Application version for source.")
   @JsonProperty(JSON_PROPERTY_VERSION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -315,7 +308,6 @@ public class SourceResponse {
    * @return lastUsage
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Last time anything was changed on this source")
   @JsonProperty(JSON_PROPERTY_LAST_USAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -349,7 +341,6 @@ public class SourceResponse {
    * @return dailyUsage
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Usage per day for the last month.")
   @JsonProperty(JSON_PROPERTY_DAILY_USAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -383,7 +374,6 @@ public class SourceResponse {
    * @return periodUsage
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Usage per billing period over the last 2 years.")
   @JsonProperty(JSON_PROPERTY_PERIOD_USAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -409,7 +399,6 @@ public class SourceResponse {
    * @return applicationUrl
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "URL to application for source.")
   @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -435,7 +424,6 @@ public class SourceResponse {
    * @return key
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Public key data for source")
   @JsonProperty(JSON_PROPERTY_KEY)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -461,7 +449,6 @@ public class SourceResponse {
    * @return sharingKey
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Base32 encoding of public key to use for encrypting share information")
   @JsonProperty(JSON_PROPERTY_SHARING_KEY)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -543,5 +530,119 @@ public class SourceResponse {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `sourceId` to the URL query string
+    if (getSourceId() != null) {
+      joiner.add(String.format("%ssourceId%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSourceId()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `name` to the URL query string
+    if (getName() != null) {
+      joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getName()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `created` to the URL query string
+    if (getCreated() != null) {
+      joiner.add(String.format("%screated%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCreated()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `identity` to the URL query string
+    if (getIdentity() != null) {
+      joiner.add(String.format("%sidentity%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getIdentity()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `destination` to the URL query string
+    if (getDestination() != null) {
+      joiner.add(String.format("%sdestination%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getDestination()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `encryptionMode` to the URL query string
+    if (getEncryptionMode() != null) {
+      joiner.add(String.format("%sencryptionMode%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getEncryptionMode()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `secretRegion` to the URL query string
+    if (getSecretRegion() != null) {
+      joiner.add(String.format("%ssecretRegion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSecretRegion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `version` to the URL query string
+    if (getVersion() != null) {
+      joiner.add(String.format("%sversion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getVersion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `lastUsage` to the URL query string
+    if (getLastUsage() != null) {
+      joiner.add(String.format("%slastUsage%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getLastUsage()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `dailyUsage` to the URL query string
+    if (getDailyUsage() != null) {
+      for (int i = 0; i < getDailyUsage().size(); i++) {
+        if (getDailyUsage().get(i) != null) {
+          joiner.add(getDailyUsage().get(i).toUrlQueryString(String.format("%sdailyUsage%s%s", prefix, suffix,
+          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+        }
+      }
+    }
+
+    // add `periodUsage` to the URL query string
+    if (getPeriodUsage() != null) {
+      for (int i = 0; i < getPeriodUsage().size(); i++) {
+        if (getPeriodUsage().get(i) != null) {
+          joiner.add(getPeriodUsage().get(i).toUrlQueryString(String.format("%speriodUsage%s%s", prefix, suffix,
+          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+        }
+      }
+    }
+
+    // add `applicationUrl` to the URL query string
+    if (getApplicationUrl() != null) {
+      joiner.add(String.format("%sapplicationUrl%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getApplicationUrl()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `key` to the URL query string
+    if (getKey() != null) {
+      joiner.add(String.format("%skey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `sharingKey` to the URL query string
+    if (getSharingKey() != null) {
+      joiner.add(String.format("%ssharingKey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSharingKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    return joiner.toString();
+  }
 }
 

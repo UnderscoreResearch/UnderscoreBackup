@@ -18,6 +18,7 @@ import com.underscoreresearch.backup.service.api.invoker.ApiResponse;
 import com.underscoreresearch.backup.service.api.invoker.Pair;
 
 import com.underscoreresearch.backup.service.api.model.DeleteTokenRequest;
+import com.underscoreresearch.backup.service.api.model.DownloadUrl;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
 import com.underscoreresearch.backup.service.api.model.GenerateTokenRequest;
 import com.underscoreresearch.backup.service.api.model.GetSecretRequest;
@@ -29,19 +30,26 @@ import com.underscoreresearch.backup.service.api.model.ListSharingKeysResponse;
 import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.MessageResponse;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
-import com.underscoreresearch.backup.service.api.model.ResponseUrl;
 import com.underscoreresearch.backup.service.api.model.ScopedTokenResponse;
 import com.underscoreresearch.backup.service.api.model.SecretRequest;
 import com.underscoreresearch.backup.service.api.model.ShareRequest;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import com.underscoreresearch.backup.service.api.model.UploadUrl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.http.HttpRequest;
+import java.nio.channels.Channels;
+import java.nio.channels.Pipe;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -55,7 +63,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class BackupApi {
   private final HttpClient memberVarHttpClient;
   private final ObjectMapper memberVarObjectMapper;
@@ -129,8 +137,7 @@ public class BackupApi {
         return new ApiResponse<MessageResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -216,8 +223,7 @@ public class BackupApi {
         return new ApiResponse<ShareResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -304,8 +310,7 @@ public class BackupApi {
         return new ApiResponse<SourceResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<SourceResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<SourceResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -380,8 +385,7 @@ public class BackupApi {
         return new ApiResponse<ReleaseResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ReleaseResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ReleaseResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -452,8 +456,7 @@ public class BackupApi {
         return new ApiResponse<MessageResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -482,12 +485,19 @@ public class BackupApi {
         .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
 
     List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "path";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+    localVarQueryParameterBaseName = "shareId";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
 
-    if (!localVarQueryParams.isEmpty()) {
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");
       localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
     } else {
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
@@ -541,8 +551,7 @@ public class BackupApi {
         return new ApiResponse<MessageResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -619,8 +628,7 @@ public class BackupApi {
         return new ApiResponse<MessageResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -692,8 +700,7 @@ public class BackupApi {
         return new ApiResponse<MessageResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -770,8 +777,7 @@ public class BackupApi {
         return new ApiResponse<ScopedTokenResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ScopedTokenResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ScopedTokenResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -819,11 +825,11 @@ public class BackupApi {
    * @param sourceId Unique source identifier (required)
    * @param path Path of file in source URI safe encoded (required)
    * @param shareId Share identifier (optional)
-   * @return ResponseUrl
+   * @return DownloadUrl
    * @throws ApiException if fails to make API call
    */
-  public ResponseUrl getFile(String sourceId, String path, String shareId) throws ApiException {
-    ApiResponse<ResponseUrl> localVarResponse = getFileWithHttpInfo(sourceId, path, shareId);
+  public DownloadUrl getFile(String sourceId, String path, String shareId) throws ApiException {
+    ApiResponse<DownloadUrl> localVarResponse = getFileWithHttpInfo(sourceId, path, shareId);
     return localVarResponse.getData();
   }
 
@@ -833,10 +839,10 @@ public class BackupApi {
    * @param sourceId Unique source identifier (required)
    * @param path Path of file in source URI safe encoded (required)
    * @param shareId Share identifier (optional)
-   * @return ApiResponse&lt;ResponseUrl&gt;
+   * @return ApiResponse&lt;DownloadUrl&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ResponseUrl> getFileWithHttpInfo(String sourceId, String path, String shareId) throws ApiException {
+  public ApiResponse<DownloadUrl> getFileWithHttpInfo(String sourceId, String path, String shareId) throws ApiException {
     HttpRequest.Builder localVarRequestBuilder = getFileRequestBuilder(sourceId, path, shareId);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
@@ -849,11 +855,10 @@ public class BackupApi {
         if (localVarResponse.statusCode()/ 100 != 2) {
           throw getApiException("getFile", localVarResponse);
         }
-        return new ApiResponse<ResponseUrl>(
+        return new ApiResponse<DownloadUrl>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ResponseUrl>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<DownloadUrl>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -882,12 +887,19 @@ public class BackupApi {
         .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
 
     List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "path";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+    localVarQueryParameterBaseName = "shareId";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
 
-    if (!localVarQueryParams.isEmpty()) {
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");
       localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
     } else {
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
@@ -941,8 +953,7 @@ public class BackupApi {
         return new ApiResponse<GetSecretResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSecretResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSecretResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1026,8 +1037,7 @@ public class BackupApi {
         return new ApiResponse<ShareResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1104,8 +1114,7 @@ public class BackupApi {
         return new ApiResponse<SourceResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<SourceResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<SourceResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1175,8 +1184,7 @@ public class BackupApi {
         return new ApiResponse<GetSubscriptionResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSubscriptionResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSubscriptionResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1247,8 +1255,7 @@ public class BackupApi {
         return new ApiResponse<FileListResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<FileListResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<FileListResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1273,12 +1280,19 @@ public class BackupApi {
         .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
 
     List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "lastFile";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("lastFile", lastFile));
+    localVarQueryParameterBaseName = "shareId";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
 
-    if (!localVarQueryParams.isEmpty()) {
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");
       localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
     } else {
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
@@ -1328,8 +1342,7 @@ public class BackupApi {
         return new ApiResponse<ListSharesResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharesResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharesResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1396,8 +1409,7 @@ public class BackupApi {
         return new ApiResponse<ListSharingKeysResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharingKeysResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharingKeysResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1474,8 +1486,7 @@ public class BackupApi {
         return new ApiResponse<ListSharesResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharesResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharesResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1545,8 +1556,7 @@ public class BackupApi {
         return new ApiResponse<ListSourcesResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSourcesResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSourcesResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1611,8 +1621,7 @@ public class BackupApi {
         return new ApiResponse<ReleaseResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ReleaseResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ReleaseResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1683,8 +1692,7 @@ public class BackupApi {
         return new ApiResponse<ShareResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1773,8 +1781,7 @@ public class BackupApi {
         return new ApiResponse<MessageResponse>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1829,11 +1836,11 @@ public class BackupApi {
    * @param objectHash Base32 encoded hash of object data (RFC4648 format) (required)
    * @param size Size of object in bytes (required)
    * @param shareId Share identifier (optional)
-   * @return ResponseUrl
+   * @return UploadUrl
    * @throws ApiException if fails to make API call
    */
-  public ResponseUrl uploadFile(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
-    ApiResponse<ResponseUrl> localVarResponse = uploadFileWithHttpInfo(sourceId, path, objectHash, size, shareId);
+  public UploadUrl uploadFile(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
+    ApiResponse<UploadUrl> localVarResponse = uploadFileWithHttpInfo(sourceId, path, objectHash, size, shareId);
     return localVarResponse.getData();
   }
 
@@ -1845,10 +1852,10 @@ public class BackupApi {
    * @param objectHash Base32 encoded hash of object data (RFC4648 format) (required)
    * @param size Size of object in bytes (required)
    * @param shareId Share identifier (optional)
-   * @return ApiResponse&lt;ResponseUrl&gt;
+   * @return ApiResponse&lt;UploadUrl&gt;
    * @throws ApiException if fails to make API call
    */
-  public ApiResponse<ResponseUrl> uploadFileWithHttpInfo(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
+  public ApiResponse<UploadUrl> uploadFileWithHttpInfo(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
     HttpRequest.Builder localVarRequestBuilder = uploadFileRequestBuilder(sourceId, path, objectHash, size, shareId);
     try {
       HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
@@ -1861,11 +1868,10 @@ public class BackupApi {
         if (localVarResponse.statusCode()/ 100 != 2) {
           throw getApiException("uploadFile", localVarResponse);
         }
-        return new ApiResponse<ResponseUrl>(
+        return new ApiResponse<UploadUrl>(
           localVarResponse.statusCode(),
           localVarResponse.headers().map(),
-          memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ResponseUrl>() {}) // closes the InputStream
-          
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<UploadUrl>() {}) // closes the InputStream
         );
       } finally {
       }
@@ -1902,14 +1908,23 @@ public class BackupApi {
         .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
 
     List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "path";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+    localVarQueryParameterBaseName = "shareId";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
+    localVarQueryParameterBaseName = "objectHash";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("objectHash", objectHash));
+    localVarQueryParameterBaseName = "size";
     localVarQueryParams.addAll(ApiClient.parameterToPairs("size", size));
 
-    if (!localVarQueryParams.isEmpty()) {
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
       StringJoiner queryJoiner = new StringJoiner("&");
       localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
     } else {
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));

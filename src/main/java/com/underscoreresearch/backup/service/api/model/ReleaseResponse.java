@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -23,8 +26,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +43,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   ReleaseResponse.JSON_PROPERTY_CHANGE_LOG,
   ReleaseResponse.JSON_PROPERTY_FILES
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class ReleaseResponse {
   public static final String JSON_PROPERTY_RELEASE_DATE = "releaseDate";
   private BigDecimal releaseDate;
@@ -75,7 +76,6 @@ public class ReleaseResponse {
    * @return releaseDate
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "When was this released..")
   @JsonProperty(JSON_PROPERTY_RELEASE_DATE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -101,7 +101,6 @@ public class ReleaseResponse {
    * @return name
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Title of release.")
   @JsonProperty(JSON_PROPERTY_NAME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -127,7 +126,6 @@ public class ReleaseResponse {
    * @return version
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Version of release.")
   @JsonProperty(JSON_PROPERTY_VERSION)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -153,7 +151,6 @@ public class ReleaseResponse {
    * @return body
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Description of release.")
   @JsonProperty(JSON_PROPERTY_BODY)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -179,7 +176,6 @@ public class ReleaseResponse {
    * @return changeLog
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Link to change log.")
   @JsonProperty(JSON_PROPERTY_CHANGE_LOG)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -201,6 +197,9 @@ public class ReleaseResponse {
   }
 
   public ReleaseResponse addFilesItem(ReleaseFileItem filesItem) {
+    if (this.files == null) {
+      this.files = new ArrayList<>();
+    }
     this.files.add(filesItem);
     return this;
   }
@@ -210,7 +209,6 @@ public class ReleaseResponse {
    * @return files
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Files for release.")
   @JsonProperty(JSON_PROPERTY_FILES)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -276,5 +274,74 @@ public class ReleaseResponse {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `releaseDate` to the URL query string
+    if (getReleaseDate() != null) {
+      joiner.add(String.format("%sreleaseDate%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getReleaseDate()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `name` to the URL query string
+    if (getName() != null) {
+      joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getName()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `version` to the URL query string
+    if (getVersion() != null) {
+      joiner.add(String.format("%sversion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getVersion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `body` to the URL query string
+    if (getBody() != null) {
+      joiner.add(String.format("%sbody%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getBody()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `changeLog` to the URL query string
+    if (getChangeLog() != null) {
+      joiner.add(String.format("%schangeLog%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getChangeLog()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `files` to the URL query string
+    if (getFiles() != null) {
+      for (int i = 0; i < getFiles().size(); i++) {
+        if (getFiles().get(i) != null) {
+          joiner.add(getFiles().get(i).toUrlQueryString(String.format("%sfiles%s%s", prefix, suffix,
+          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+        }
+      }
+    }
+
+    return joiner.toString();
+  }
 }
 

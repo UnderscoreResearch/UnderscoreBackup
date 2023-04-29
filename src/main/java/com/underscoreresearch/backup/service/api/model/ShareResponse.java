@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -23,8 +26,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.underscoreresearch.backup.service.api.model.SharePrivateKeys;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -40,7 +41,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   ShareResponse.JSON_PROPERTY_DESTINATION,
   ShareResponse.JSON_PROPERTY_PRIVATE_KEYS
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class ShareResponse {
   public static final String JSON_PROPERTY_NAME = "name";
   private String name;
@@ -70,7 +71,6 @@ public class ShareResponse {
    * @return name
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Name of share.")
   @JsonProperty(JSON_PROPERTY_NAME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -96,7 +96,6 @@ public class ShareResponse {
    * @return shareId
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Unique identifier of share.")
   @JsonProperty(JSON_PROPERTY_SHARE_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -122,7 +121,6 @@ public class ShareResponse {
    * @return sourceId
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Unique identifier of source being shared.")
   @JsonProperty(JSON_PROPERTY_SOURCE_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -148,7 +146,6 @@ public class ShareResponse {
    * @return destination
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Base64 URL encoding of encrypted destination of share.")
   @JsonProperty(JSON_PROPERTY_DESTINATION)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -170,6 +167,9 @@ public class ShareResponse {
   }
 
   public ShareResponse addPrivateKeysItem(SharePrivateKeys privateKeysItem) {
+    if (this.privateKeys == null) {
+      this.privateKeys = new ArrayList<>();
+    }
     this.privateKeys.add(privateKeysItem);
     return this;
   }
@@ -179,7 +179,6 @@ public class ShareResponse {
    * @return privateKeys
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "List of private keys to the destination encrypted by different public keys.")
   @JsonProperty(JSON_PROPERTY_PRIVATE_KEYS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -243,5 +242,69 @@ public class ShareResponse {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `name` to the URL query string
+    if (getName() != null) {
+      joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getName()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `shareId` to the URL query string
+    if (getShareId() != null) {
+      joiner.add(String.format("%sshareId%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getShareId()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `sourceId` to the URL query string
+    if (getSourceId() != null) {
+      joiner.add(String.format("%ssourceId%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSourceId()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `destination` to the URL query string
+    if (getDestination() != null) {
+      joiner.add(String.format("%sdestination%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getDestination()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `privateKeys` to the URL query string
+    if (getPrivateKeys() != null) {
+      for (int i = 0; i < getPrivateKeys().size(); i++) {
+        if (getPrivateKeys().get(i) != null) {
+          joiner.add(getPrivateKeys().get(i).toUrlQueryString(String.format("%sprivateKeys%s%s", prefix, suffix,
+          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+        }
+      }
+    }
+
+    return joiner.toString();
+  }
 }
 

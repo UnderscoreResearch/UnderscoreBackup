@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -22,8 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -36,7 +37,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   GetSecretRequest.JSON_PROPERTY_CODE_VERIFIER,
   GetSecretRequest.JSON_PROPERTY_EMAIL_HASH
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
 public class GetSecretRequest {
   public static final String JSON_PROPERTY_CLIENT_ID = "clientId";
   private String clientId;
@@ -63,7 +64,6 @@ public class GetSecretRequest {
    * @return clientId
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Client ID of authentication request. Required if you wish to retrieve secret.")
   @JsonProperty(JSON_PROPERTY_CLIENT_ID)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -89,7 +89,6 @@ public class GetSecretRequest {
    * @return code
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "Code returned by a previous call to getSecretCode.")
   @JsonProperty(JSON_PROPERTY_CODE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -115,7 +114,6 @@ public class GetSecretRequest {
    * @return codeVerifier
   **/
   @javax.annotation.Nullable
-  @ApiModelProperty(value = "The original string that was used to generate the codeChallenge in the previous getSecretCode request.")
   @JsonProperty(JSON_PROPERTY_CODE_VERIFIER)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -141,7 +139,6 @@ public class GetSecretRequest {
    * @return emailHash
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Base64url encoding of hash of email that will be used to decrypt secret.")
   @JsonProperty(JSON_PROPERTY_EMAIL_HASH)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -203,5 +200,59 @@ public class GetSecretRequest {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `clientId` to the URL query string
+    if (getClientId() != null) {
+      joiner.add(String.format("%sclientId%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getClientId()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `code` to the URL query string
+    if (getCode() != null) {
+      joiner.add(String.format("%scode%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCode()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `codeVerifier` to the URL query string
+    if (getCodeVerifier() != null) {
+      joiner.add(String.format("%scodeVerifier%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCodeVerifier()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `emailHash` to the URL query string
+    if (getEmailHash() != null) {
+      joiner.add(String.format("%semailHash%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getEmailHash()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    return joiner.toString();
+  }
 }
 

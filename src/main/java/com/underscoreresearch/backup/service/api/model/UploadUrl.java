@@ -25,61 +25,50 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.underscoreresearch.backup.service.api.model.ShareResponse;
-import java.util.ArrayList;
-import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
 /**
- * ListSharesResponse
+ * UploadUrl
  */
 @JsonPropertyOrder({
-  ListSharesResponse.JSON_PROPERTY_SHARES
+  UploadUrl.JSON_PROPERTY_LOCATION
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
-public class ListSharesResponse {
-  public static final String JSON_PROPERTY_SHARES = "shares";
-  private List<ShareResponse> shares = new ArrayList<>();
+public class UploadUrl {
+  public static final String JSON_PROPERTY_LOCATION = "location";
+  private String location;
 
-  public ListSharesResponse() { 
+  public UploadUrl() { 
   }
 
-  public ListSharesResponse shares(List<ShareResponse> shares) {
-    this.shares = shares;
-    return this;
-  }
-
-  public ListSharesResponse addSharesItem(ShareResponse sharesItem) {
-    if (this.shares == null) {
-      this.shares = new ArrayList<>();
-    }
-    this.shares.add(sharesItem);
+  public UploadUrl location(String location) {
+    this.location = location;
     return this;
   }
 
    /**
-   * List of shares of response.
-   * @return shares
+   * Get location
+   * @return location
   **/
-  @javax.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_SHARES)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_LOCATION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public List<ShareResponse> getShares() {
-    return shares;
+  public String getLocation() {
+    return location;
   }
 
 
-  @JsonProperty(JSON_PROPERTY_SHARES)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setShares(List<ShareResponse> shares) {
-    this.shares = shares;
+  @JsonProperty(JSON_PROPERTY_LOCATION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setLocation(String location) {
+    this.location = location;
   }
 
 
   /**
-   * Return true if this ListSharesResponse object is equal to o.
+   * Return true if this UploadUrl object is equal to o.
    */
   @Override
   public boolean equals(Object o) {
@@ -89,20 +78,20 @@ public class ListSharesResponse {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ListSharesResponse listSharesResponse = (ListSharesResponse) o;
-    return Objects.equals(this.shares, listSharesResponse.shares);
+    UploadUrl uploadUrl = (UploadUrl) o;
+    return Objects.equals(this.location, uploadUrl.location);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(shares);
+    return Objects.hash(location);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class ListSharesResponse {\n");
-    sb.append("    shares: ").append(toIndentedString(shares)).append("\n");
+    sb.append("class UploadUrl {\n");
+    sb.append("    location: ").append(toIndentedString(location)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -150,14 +139,9 @@ public class ListSharesResponse {
 
     StringJoiner joiner = new StringJoiner("&");
 
-    // add `shares` to the URL query string
-    if (getShares() != null) {
-      for (int i = 0; i < getShares().size(); i++) {
-        if (getShares().get(i) != null) {
-          joiner.add(getShares().get(i).toUrlQueryString(String.format("%sshares%s%s", prefix, suffix,
-          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
-        }
-      }
+    // add `location` to the URL query string
+    if (getLocation() != null) {
+      joiner.add(String.format("%slocation%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getLocation()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
     return joiner.toString();

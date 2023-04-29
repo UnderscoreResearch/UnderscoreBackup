@@ -13,6 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.StringJoiner;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
@@ -22,26 +25,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
 /**
- * ResponseUrl
+ * DownloadUrl
  */
 @JsonPropertyOrder({
-  ResponseUrl.JSON_PROPERTY_LOCATION
+  DownloadUrl.JSON_PROPERTY_LOCATION
 })
-@javax.annotation.processing.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-03-08T21:58:23.489056400-08:00[America/Los_Angeles]")
-public class ResponseUrl {
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+public class DownloadUrl {
   public static final String JSON_PROPERTY_LOCATION = "location";
   private String location;
 
-  public ResponseUrl() { 
+  public DownloadUrl() { 
   }
 
-  public ResponseUrl location(String location) {
+  public DownloadUrl location(String location) {
     this.location = location;
     return this;
   }
@@ -51,7 +52,6 @@ public class ResponseUrl {
    * @return location
   **/
   @javax.annotation.Nonnull
-  @ApiModelProperty(example = "URL of location to either download or upload file to. Will be valid for 60 seconds.", required = true, value = "")
   @JsonProperty(JSON_PROPERTY_LOCATION)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -68,7 +68,7 @@ public class ResponseUrl {
 
 
   /**
-   * Return true if this ResponseUrl object is equal to o.
+   * Return true if this DownloadUrl object is equal to o.
    */
   @Override
   public boolean equals(Object o) {
@@ -78,8 +78,8 @@ public class ResponseUrl {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    ResponseUrl responseUrl = (ResponseUrl) o;
-    return Objects.equals(this.location, responseUrl.location);
+    DownloadUrl downloadUrl = (DownloadUrl) o;
+    return Objects.equals(this.location, downloadUrl.location);
   }
 
   @Override
@@ -90,7 +90,7 @@ public class ResponseUrl {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class ResponseUrl {\n");
+    sb.append("class DownloadUrl {\n");
     sb.append("    location: ").append(toIndentedString(location)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -107,5 +107,44 @@ public class ResponseUrl {
     return o.toString().replace("\n", "\n    ");
   }
 
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
+    }
+
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `location` to the URL query string
+    if (getLocation() != null) {
+      joiner.add(String.format("%slocation%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getLocation()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    return joiner.toString();
+  }
 }
 
