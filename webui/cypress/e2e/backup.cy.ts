@@ -39,7 +39,7 @@ it('backup', function () {
             '    }\n' +
             '  },\n' +
             '  "manifest": {\n' +
-            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true\n' +
+            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true, "maximumUnsyncedSeconds": 1\n' +
             '  },\n' +
             '  "properties": { "largeBlockAssignment.maximumSize": "262144" }\n' +
             '}', {force: true, parseSpecialCharSequences: false})

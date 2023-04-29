@@ -9,8 +9,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -79,6 +77,8 @@ public class LogWriter extends AbstractAppender {
             }
         }
 
+        Exception initError = null;
+
         if (!initialized) {
             initialized = true;
             String fileName;
@@ -97,25 +97,29 @@ public class LogWriter extends AbstractAppender {
                         creationDate = System.currentTimeMillis();
                     } else {
                         try {
-                            FileTime creationTime = (FileTime) Files.getAttribute(file.toPath(), "creationTime");
-                            creationDate = creationTime.toMillis();
-                            if (logExpired()) {
-                                // Doing this extra check to see if we can see the first actual log line timestamp
-                                // because it seems creation timestamps are not reliable on all systems.
-                                // Looking at your Windows.
-                                try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+                            // It seems creation timestamps are not reliable on all systems.
+                            // Just going to parse the first timestamp in the log instead.
+                            creationDate = 0;
+                            try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+                                while (creationDate == 0L) {
                                     String line = reader.readLine();
+                                    if (line == null) {
+                                        creationDate = System.currentTimeMillis();
+                                        break;
+                                    }
                                     Matcher match = LOG_TIMESTAMP.matcher(line);
                                     if (match.find()) {
                                         try {
                                             LocalDateTime time = LOG_FILE_FORMATTER.parse(match.group(), LocalDateTime::from);
                                             creationDate = time.toEpochSecond(OffsetDateTime.now().getOffset()) * 1000;
                                         } catch (Exception e) {
+                                            initError = e;
                                         }
                                     }
                                 }
                             }
                         } catch (IOException ex) {
+                            initError = ex;
                             creationDate = System.currentTimeMillis();
                         }
                     }
@@ -127,9 +131,13 @@ public class LogWriter extends AbstractAppender {
                     }
                 }
             } catch (IOException e) {
-                System.err.println(String.format("Can't open %s for writing, disabling file logging", fileName));
+                System.err.printf("Can't open %s for writing, disabling file logging%n", fileName);
                 e.printStackTrace(System.err);
             }
+        }
+
+        if (initError != null) {
+            log.warn("Encountered issue initializing log", initError);
         }
     }
 
@@ -173,6 +181,12 @@ public class LogWriter extends AbstractAppender {
             }
         } catch (IOException e) {
             log.error("Failed to write to compress log", e);
+        }
+
+        try {
+            setOwnerOnlyPermissions(new File(baseFileName + ".1.gz"));
+        } catch (IOException e) {
+            log.error("Failed to set compressed log file read only");
         }
 
         File file = new File(baseFileName);

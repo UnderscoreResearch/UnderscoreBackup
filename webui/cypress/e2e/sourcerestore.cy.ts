@@ -39,7 +39,7 @@ it('sourcerestore', function () {
             '    }\n' +
             '  },\n' +
             '  "manifest": {\n' +
-            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true\n' +
+            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true, "maximumUnsyncedSeconds": 1\n' +
             '  }\n' +
             '}', {force: true, parseSpecialCharSequences: false})
         .blur({force: true});

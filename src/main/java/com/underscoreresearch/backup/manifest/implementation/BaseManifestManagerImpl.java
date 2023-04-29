@@ -168,7 +168,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
     public void initialize(LogConsumer logConsumer, boolean immediate) {
         synchronized (lock) {
-            if (logConsumer != null) {
+            if (this.logConsumer == null) {
                 this.logConsumer = logConsumer;
             }
 
