@@ -42,6 +42,8 @@ public class EncryptionKey {
     public static final String DISPLAY_PREFIX = "=";
     private static final int LEGACY_ITERATIONS = 64 * 1024;
     private static final String CURRENT_ALGORITHM = "ARGON2";
+
+    private String publicKeyHash;
     private byte[] publicKey;
     private byte[] sharingPublicKey;
     private byte[] salt;
@@ -121,7 +123,6 @@ public class EncryptionKey {
         privateKey[0] = (byte) (privateKey[0] | 7);
         privateKey[31] = (byte) (privateKey[31] & 63);
         privateKey[31] = (byte) (privateKey[31] | 128);
-
     }
 
     private static byte[] getPasswordDerivative(String algorithm, String password, byte[] saltData) throws NoSuchAlgorithmException, InvalidKeySpecException {
@@ -231,6 +232,11 @@ public class EncryptionKey {
                         throw new InvalidKeyException();
                     }
                 } else {
+                    if (this.publicKeyHash != null) {
+                        if (!Hash.hash64(publicKey).equals(this.publicKeyHash)) {
+                            throw new InvalidKeyException();
+                        }
+                    }
                     this.publicKey = publicKey;
                 }
 
@@ -255,6 +261,21 @@ public class EncryptionKey {
             this.publicKey = Hash.decodeBytes(publicKey);
         else
             this.publicKey = null;
+    }
+
+    @JsonProperty
+    public String getPublicKeyHash() {
+        if (publicKey != null)
+            publicKeyHash = Hash.hash64(publicKey);
+        return publicKeyHash;
+    }
+
+    @JsonProperty
+    public void setPublicKeyHash(String publicKeyHash) {
+        if (publicKeyHash != null)
+            this.publicKeyHash = publicKeyHash;
+        else
+            this.publicKeyHash = null;
     }
 
     @JsonProperty
@@ -310,8 +331,14 @@ public class EncryptionKey {
     }
 
     public EncryptionKey publicOnly() {
-        EncryptionKey ret = new EncryptionKey();
+        EncryptionKey ret = publicOnlyHash();
         ret.publicKey = publicKey;
+        return ret;
+    }
+
+    public EncryptionKey publicOnlyHash() {
+        EncryptionKey ret = new EncryptionKey();
+        ret.publicKeyHash = getPublicKeyHash();
         ret.salt = salt;
         ret.passwordKey = passwordKey;
         ret.keyData = keyData;

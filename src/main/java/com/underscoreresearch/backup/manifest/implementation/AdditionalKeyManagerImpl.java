@@ -83,7 +83,7 @@ public class AdditionalKeyManagerImpl implements AdditionalKeyManager {
     @Override
     public EncryptionKey findMatchingPrivateKey(EncryptionKey publicKey) {
         for (EncryptionKey key : keys) {
-            if (key.getPublicKey().equals(publicKey.getPublicKey())) {
+            if (key.getPublicKeyHash().equals(publicKey.getPublicKeyHash())) {
                 return key;
             }
         }

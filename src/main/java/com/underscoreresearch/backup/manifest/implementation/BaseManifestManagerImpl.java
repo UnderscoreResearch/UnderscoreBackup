@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.manifest.implementation;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -129,10 +130,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected void uploadKeyData(EncryptionKey key) throws IOException {
-        EncryptionKey publicKey = key.publicOnly();
-
         uploadConfigData("publickey.json",
-                new ByteArrayInputStream(ENCRYPTION_KEY_WRITER.writeValueAsBytes(publicKey)),
+                new ByteArrayInputStream(encryptionKeyForUpload(key)),
                 false);
     }
 
@@ -249,6 +248,55 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     public List<String> getExistingLogs() throws IOException {
         IOIndex index = (IOIndex) getProvider();
         return index.availableLogs(null);
+    }
+
+    protected byte[] encryptionKeyForUpload(EncryptionKey encryptionKey) throws IOException {
+        return ENCRYPTION_KEY_WRITER.writeValueAsBytes(encryptionKey.publicOnlyHash());
+    }
+
+    protected void syncDestinationKey() throws IOException {
+        byte[] keyData = null;
+        try {
+            keyData = downloadData("publickey.json");
+        } catch (Exception exc) {
+            try {
+                getProvider().checkCredentials(false);
+            } catch (IOException e) {
+                if (!IOUtils.hasInternet()) {
+                    throw exc;
+                }
+            }
+            log.info("Public key does not exist");
+            uploadPublicKey(getPublicKey());
+        }
+
+        if (keyData != null) {
+            EncryptionKey existingPublicKey = null;
+            try {
+                existingPublicKey = ENCRYPTION_KEY_READER
+                        .readValue(keyData);
+            } catch (IOException exc) {
+                log.error("Failed to read destination public key, replacing with local copy", exc);
+                uploadPublicKey(getPublicKey());
+            }
+
+            if (existingPublicKey != null) {
+                if (!getPublicKey().getPublicKeyHash().equals(existingPublicKey.getPublicKeyHash())) {
+                    throw new IOException("Public key that exist in destination does not match current public key");
+                }
+                if (existingPublicKey.getPublicKey() != null ||
+                        (getPublicKey().getSalt() != null && !getPublicKey().getSalt().equals(existingPublicKey.getSalt()))) {
+                    log.info("Public key needs to be updated");
+                    uploadPublicKey(getPublicKey());
+                }
+            }
+        }
+    }
+
+    private void uploadPublicKey(EncryptionKey encryptionKey) throws IOException {
+        uploadConfigData("publickey.json",
+                new ByteArrayInputStream(encryptionKeyForUpload(encryptionKey)),
+                false);
     }
 
     protected void uploadConfigData(String filename, InputStream inputStream, boolean encrypt) throws IOException {

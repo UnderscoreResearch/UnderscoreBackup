@@ -86,23 +86,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     }
 
     protected void uploadPending(LogConsumer logConsumer) throws IOException {
-        EncryptionKey existingPublicKey = null;
-        try {
-            existingPublicKey = ENCRYPTION_KEY_READER.readValue(getProvider().download("publickey.json"));
-        } catch (Exception exc) {
-            try {
-                getProvider().checkCredentials(false);
-            } catch (IOException e) {
-                if (!IOUtils.hasInternet()) {
-                    throw exc;
-                }
-            }
-            log.info("Public key does not exist");
-            uploadKeyData(getPublicKey());
-        }
-        if (existingPublicKey != null && !getPublicKey().getPublicKey().equals(existingPublicKey.getPublicKey())) {
-            throw new IOException("Public key that exist in destination does not match current public key");
-        }
+        syncDestinationKey();
 
         if (activated) {
             uploadConfigurationFile();

@@ -119,46 +119,21 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
     }
 
     protected void uploadPending(LogConsumer logConsumer) throws IOException {
-        EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
         startOperation("Upload pending");
         try {
             processedFiles = new AtomicLong(0);
             totalFiles = new AtomicLong(2);
 
-            EncryptionKey existingPublicKey = null;
-            try {
-                existingPublicKey = ENCRYPTION_KEY_READER
-                        .readValue(downloadData("publickey.json"));
-            } catch (Exception exc) {
-                try {
-                    getProvider().checkCredentials(false);
-                } catch (IOException e) {
-                    if (!IOUtils.hasInternet()) {
-                        throw exc;
-                    }
-                }
-                log.info("Public key does not exist");
-                uploadPublicKey(encryptionKey);
-            } finally {
-                processedFiles.incrementAndGet();
-            }
+            syncDestinationKey();
 
-            if (existingPublicKey != null) {
-                if (!encryptionKey.getPublicKey().equals(existingPublicKey.getPublicKey())) {
-                    throw new IOException("Public key that exist in destination does not match current public key");
-                }
-                if (!encryptionKey.getSalt().equals(existingPublicKey.getSalt())) {
-                    log.info("Public key needs to be updated");
-                    uploadPublicKey(encryptionKey);
-                }
-            }
+            processedFiles.incrementAndGet();
 
             uploadConfigData("configuration.json",
                     new ByteArrayInputStream(InstanceFactory.getInstance(CONFIG_DATA).getBytes(Charset.forName("UTF-8"))),
                     true);
             processedFiles.incrementAndGet();
 
-            updateServiceSourceData(encryptionKey);
+            updateServiceSourceData(getPublicKey());
 
             List<File> files = existingLogFiles();
 
@@ -189,12 +164,6 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
         }
     }
 
-    private void uploadPublicKey(EncryptionKey encryptionKey) throws IOException {
-        uploadConfigData("publickey.json",
-                new ByteArrayInputStream(ENCRYPTION_KEY_WRITER.writeValueAsBytes(encryptionKey)),
-                false);
-    }
-
     public void updateServiceSourceData(EncryptionKey encryptionKey) throws IOException {
         if (getServiceManager().getToken() != null
                 && getServiceManager().getSourceName() != null
@@ -208,7 +177,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
                     destinationData = BaseEncoding.base64Url().encode(encryptConfigData(inputStream)).replace("=", "");
                 }
             }
-            String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.publicOnly());
+            String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.publicOnlyHash());
             getServiceManager().call(null, (api) -> api.updateSource(getServiceManager().getSourceId(),
                     new SourceRequest()
                             .identity(getInstallationIdentity())
@@ -563,7 +532,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Mani
 
         ENCRYPTION_KEY_WRITER.writeValue(new File(InstanceFactory.getInstance(CommandLineModule.KEY_FILE_NAME)),
                 publicKey);
-        uploadKeyData(key);
+        uploadKeyData(publicKey);
         updateServiceSourceData(key);
     }
 

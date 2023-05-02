@@ -104,7 +104,7 @@ public class GetSecretPost extends JsonWrap {
                 EncryptionKey sourceKey;
                 try {
                     sourceKey = ENCRYPTION_KEY_READER.readValue(sourceResponse.getKey());
-                    if (!sourceKey.getPublicKey().equals(newKey.getPublicKey())) {
+                    if (!sourceKey.getPublicKeyHash().equals(newKey.getPublicKeyHash())) {
                         log.error("Restored key does not match existing public key");
                         return messageJson(500, "Key mismatch with restore");
                     }

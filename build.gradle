@@ -13,7 +13,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.0.2.3'
+version '2.0.3.0'
 def releaseType = ''
 
 def archiveName = 'underscorebackup'
@@ -92,7 +92,7 @@ runtime {
 tasks.named("compileJava").get().dependsOn("webui")
 
 tasks.withType(JavaCompile) {
-    options.compilerArgs += ['-Xlint:unchecked', '-Xlint:deprecation']
+    options.compilerArgs += ['-Xlint:unchecked', '-Xlint:deprecation', '-encoding', 'UTF-8']
 }
 
 task webuiinstall(type: Exec) {
