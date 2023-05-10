@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.IOException;
 
+import org.hamcrest.Matchers;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -67,8 +68,7 @@ class EncryptionKeyTest {
                 seeded1
         );
 
-
-        String publicOnlyKey = ENCRYPTION_KEY_WRITER.writeValueAsString(seeded2.publicOnly());
+        String publicOnlyKey = ENCRYPTION_KEY_WRITER.writeValueAsString(seeded2.publicOnlyHash());
         EncryptionKey rebuilt = ENCRYPTION_KEY_READER.readValue(publicOnlyKey);
 
         String seeded1Private = seeded1.getPrivateKey("seed").getAdditionalKeyManager().findMatchingPrivateKey(additionalKey).getPrivateKey(null).getDisplayPrivateKey();
@@ -77,6 +77,33 @@ class EncryptionKeyTest {
 
         assertThat(seeded1Private, Is.is(seeded2Private));
         assertThat(seeded1Private, Is.is(rebuildPrivate));
+        assertThat(seeded1.getPrivateKey("seed").getDisplayPrivateKey(), Matchers.is(seeded2.getPrivateKey("another").getDisplayPrivateKey()));
+        assertThat(seeded1.getBlockHashSalt(), Matchers.is(seeded2.getBlockHashSalt()));
+    }
+
+
+    @Test
+    public void testNewPrivateKey() throws IOException {
+        EncryptionKey seeded1 = EncryptionKey.generateKeyWithPassword("seed");
+        EncryptionKey additionalKey = EncryptionKey.generateKeys();
+        seeded1.getPrivateKey("seed").getAdditionalKeyManager().addNewKey(additionalKey, Mockito.mock(ManifestManager.class));
+
+        EncryptionKey seeded2 = EncryptionKey.changeEncryptionPasswordWithNewPrivateKey(
+                "another",
+                seeded1.getPrivateKey("seed")
+        );
+
+        String publicOnlyKey = ENCRYPTION_KEY_WRITER.writeValueAsString(seeded2.publicOnlyHash());
+        EncryptionKey rebuilt = ENCRYPTION_KEY_READER.readValue(publicOnlyKey);
+
+        String seeded1Private = seeded1.getPrivateKey("seed").getAdditionalKeyManager().findMatchingPrivateKey(additionalKey).getPrivateKey(null).getDisplayPrivateKey();
+        String seeded2Private = seeded2.getPrivateKey("another").getAdditionalKeyManager().findMatchingPrivateKey(additionalKey).getPrivateKey(null).getDisplayPrivateKey();
+        String rebuildPrivate = rebuilt.getPrivateKey("another").getAdditionalKeyManager().findMatchingPrivateKey(additionalKey).getPrivateKey(null).getDisplayPrivateKey();
+
+        assertThat(seeded1Private, Is.is(seeded2Private));
+        assertThat(seeded1Private, Is.is(rebuildPrivate));
+        assertThat(seeded1.getPrivateKey("seed").getDisplayPrivateKey(), Matchers.not(seeded2.getPrivateKey("another").getDisplayPrivateKey()));
+        assertThat(seeded1.getBlockHashSalt(), Matchers.is(seeded2.getBlockHashSalt()));
     }
 
     @Test

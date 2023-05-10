@@ -13,4 +13,6 @@ public interface AdditionalKeyManager {
     EncryptionKey findMatchingPrivateKey(EncryptionKey publicKey);
 
     EncryptionKey[] getKeys();
+
+    void writeAdditionalKeys(EncryptionKey.PrivateKey otherKey) throws IOException;
 }

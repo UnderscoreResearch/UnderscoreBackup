@@ -64,13 +64,37 @@ class AesEncryptorGcmTest {
             byte[] decryptedData = decryptor.decodeBlock(storage, encryptedData, 1, key.getPrivateKey("Seed"));
             assertNotNull(storage.getProperties().get("p"));
 
+            assertTrue(validEncryptor.validStorage(storage));
+
+            assertThat(decryptedData, Is.is(data));
+
+            assertThat(new AesEncryptorGcm().decodeBlock(
+                    validEncryptor.reKeyStorage(storage, key.getPrivateKey("Seed"), otherKey),
+                    encryptedData, 1, otherKey.getPrivateKey("OtherSeed")), Is.is(data));
+        }
+    }
+
+    @Test
+    public void withStorageBackfill() {
+        SecureRandom random = new SecureRandom();
+        for (int i = 1; i < 256; i++) {
+            byte[] data = new byte[i];
+            random.nextBytes(data);
+
+            BackupBlockStorage storage = new BackupBlockStorage();
+            assertFalse(validEncryptor.validStorage(storage));
+            byte[] encryptedData = new AesEncryptorGcm() {
+                @Override
+                protected boolean randomizeKeyData() {
+                    return false;
+                }
+            }.encryptBlock(storage, data, key);
+
             BackupBlockStorage otherStorage = new BackupBlockStorage();
             decryptor.backfillEncryption(otherStorage, encryptedData, 1);
             assertEquals(otherStorage, storage);
 
             assertTrue(validEncryptor.validStorage(storage));
-
-            assertThat(decryptedData, Is.is(data));
 
             assertThat(new AesEncryptorGcm().decodeBlock(
                     validEncryptor.reKeyStorage(storage, key.getPrivateKey("Seed"), otherKey),

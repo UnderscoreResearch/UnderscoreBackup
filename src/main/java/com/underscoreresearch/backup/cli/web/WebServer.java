@@ -110,6 +110,12 @@ public class WebServer {
             Take serviceTake = new TkForward(
                     new TkAuth(
                             new TkFork(
+                                    new FkRegex(base + "/api/ping", new TkFork(
+                                            new FkMethods("GET", new PingGet()),
+                                            new FkMethods("OPTIONS", new PingOptions()),
+                                            new FkMethods("POST", new PingPost())
+                                    )),
+
                                     new FkRegex(base + "/api", new TkFork(
                                             new FkMethods("DELETE", new ResetDelete()))),
                                     new FkRegex(base + "/api/activity", new TkFork(
@@ -152,10 +158,6 @@ public class WebServer {
                                             new FkMethods("POST", new RemoteRestorePost()))),
                                     new FkRegex(base + "/api/remote-configuration", new TkFork(
                                             new FkMethods("GET", new RemoteConfigurationGet())
-                                    )),
-                                    new FkRegex(base + "/api/ping", new TkFork(
-                                            new FkMethods("GET", new PingGet()),
-                                            new FkMethods("OPTIONS", new PingOptions())
                                     )),
                                     new FkRegex(base + "/api/restore", new TkFork(
                                             new FkMethods("POST", new RestorePost()))),

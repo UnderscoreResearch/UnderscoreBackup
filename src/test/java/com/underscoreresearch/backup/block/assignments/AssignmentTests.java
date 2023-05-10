@@ -26,6 +26,7 @@ import org.mockito.Mockito;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -43,6 +44,7 @@ class AssignmentTests {
     private FileSystemAccess access;
     private FileBlockUploader uploader;
     private Map<String, byte[]> uploadedData;
+    private EncryptionKey encryptionKey;
     private String expectedFormat;
     private MetadataRepository repository;
     private boolean registerPart;
@@ -53,6 +55,8 @@ class AssignmentTests {
         access = Mockito.mock(FileSystemAccess.class);
         uploader = Mockito.mock(FileBlockUploader.class);
         repository = Mockito.mock(MetadataRepository.class);
+        encryptionKey = EncryptionKey.generateKeys();
+        encryptionKey.generateBlockHashSalt(encryptionKey.getPrivateKey(null));
         uploadedData = new HashMap<>();
         registerPart = false;
         set.setDestinations(Lists.newArrayList("destination"));
@@ -79,7 +83,11 @@ class AssignmentTests {
                 byte[] data = new byte[read];
                 for (int i = 0; i < buffer.length; i++)
                     data[i] = buffer[i];
-                String hash = Hash.hash(data);
+
+                Hash partHasher = new Hash();
+                encryptionKey.addBlockHashSalt(partHasher);
+                partHasher.addBytes(data);
+                String hash = partHasher.getHash();
                 Mockito.when(repository.existingFilePart(hash)).thenReturn(Lists
                         .newArrayList(BackupFilePart.builder().blockHash("block").blockIndex(read).build()));
             }
@@ -117,7 +125,7 @@ class AssignmentTests {
     public void rawUpload() throws InterruptedException {
         RawLargeFileBlockAssignment largeFileBlockAssignment = new RawLargeFileBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class), access,
-                Mockito.mock(MetadataRepository.class), new MachineState(true), 50);
+                Mockito.mock(MetadataRepository.class), new MachineState(true), encryptionKey, 50);
         expectedFormat = "RAW";
 
         AtomicBoolean failed = new AtomicBoolean();
@@ -155,7 +163,7 @@ class AssignmentTests {
     public void gzipUpload() throws InterruptedException {
         GzipLargeFileBlockAssignment largeFileBlockAssignment = new GzipLargeFileBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class), access,
-                Mockito.mock(MetadataRepository.class), new MachineState(true), 50);
+                Mockito.mock(MetadataRepository.class), new MachineState(true), encryptionKey, 50);
         expectedFormat = "GZIP";
 
         AtomicBoolean failed = new AtomicBoolean();
@@ -201,7 +209,7 @@ class AssignmentTests {
     public void zipUpload() throws InterruptedException {
         SmallFileBlockAssignment fileBlockAssignment = new ZipSmallBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class),
-                repository, access, 150, 300);
+                repository, access, encryptionKey, 150, 300);
         expectedFormat = "ZIP";
 
         AtomicBoolean failed = new AtomicBoolean();
@@ -254,17 +262,16 @@ class AssignmentTests {
 
     @Test
     public void zipUploadExists() throws InterruptedException {
-        SmallFileBlockAssignment largeFileBlockAssignment = new ZipSmallBlockAssignment(uploader,
+        SmallFileBlockAssignment smallBlockAssignment = new EncryptedSmallBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class),
-                repository, access, 150, 300);
-        expectedFormat = "ZIP";
+                repository, access, encryptionKey, 150, 300);
         registerPart = true;
 
         AtomicBoolean failed = new AtomicBoolean();
         for (int i = 1; i <= 10; i++) {
             BackupFile file = BackupFile.builder().path(i + "").length((long) i).lastChanged((long) i).build();
             int size = i;
-            assertThat(largeFileBlockAssignment.assignBlocks(set, file, (locations) -> {
+            assertThat(smallBlockAssignment.assignBlocks(set, file, (locations) -> {
                 try {
                     synchronized (uploadedData) {
                         for (BackupFilePart part : locations.get(0).getParts()) {
@@ -279,7 +286,7 @@ class AssignmentTests {
                 }
             }), Is.is(true));
         }
-        largeFileBlockAssignment.flushAssignments();
+        smallBlockAssignment.flushAssignments();
 
         assertThat(uploadedData.size(), Is.is(0));
 
@@ -289,7 +296,7 @@ class AssignmentTests {
     @Test
     public void zipUploadExistsWrongDestination() throws InterruptedException {
         SmallFileBlockAssignment largeFileBlockAssignment = new ZipSmallBlockAssignment(uploader,
-                Mockito.mock(BlockDownloader.class), repository, access, 150, 300);
+                Mockito.mock(BlockDownloader.class), repository, access, encryptionKey, 150, 300);
         expectedFormat = "ZIP";
         registerPart = true;
         set.setDestinations(Lists.newArrayList("destination", "other"));
@@ -314,7 +321,7 @@ class AssignmentTests {
         Mockito.when(downloader.downloadBlock(Mockito.anyString(), Mockito.eq("pwd"))).thenAnswer((t) ->
                 uploadedData.get(t.getArgument(0)));
         SmallFileBlockAssignment fileBlockAssignment = new EncryptedSmallBlockAssignment(uploader,
-                downloader, repository, access, 150, 300);
+                downloader, repository, access, encryptionKey, 150, 300);
         expectedFormat = "ENC";
 
         AtomicBoolean failed = new AtomicBoolean();

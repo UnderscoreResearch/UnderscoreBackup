@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -51,6 +52,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
     private final BlockDownloader blockDownloader;
     private final MetadataRepository repository;
     private final FileSystemAccess access;
+    private final EncryptionKey encryptionKey;
     private final int maximumFileSize;
     @Getter(AccessLevel.PROTECTED)
     private final int targetSize;
@@ -188,11 +190,18 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         private List<BackupCompletion> completions = new ArrayList<>();
 
         public PendingFile() {
+            encryptionKey.addBlockHashSalt(hash);
             hash.addBytes(SmallFileBlockAssignment.this.getClass().getName().getBytes(StandardCharsets.UTF_8));
         }
 
         public synchronized void addData(byte[] data, BackupSet set, BackupBlockCompletion completion) throws IOException {
-            String partHash = Hash.hash(data);
+            String partHash;
+            {
+                Hash partHasher = new Hash();
+                encryptionKey.addBlockHashSalt(partHasher);
+                partHasher.addBytes(data);
+                partHash = partHasher.getHash();
+            }
 
             List<BackupFilePart> existingParts = repository.existingFilePart(partHash);
             if (existingParts != null && existingParts.size() > 0) {

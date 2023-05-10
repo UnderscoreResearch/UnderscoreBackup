@@ -27,6 +27,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 public class GenerateKeyCommand extends Command {
     public static String generateAndSaveNewKey(CommandLine commandLine, String firstTry) throws IOException {
         EncryptionKey encryptionKey = EncryptionKey.generateKeyWithPassword(firstTry);
+        encryptionKey.generateBlockHashSalt(encryptionKey.getPrivateKey(firstTry));
 
         File keyFile = getDefaultEncryptionFileName(commandLine);
 

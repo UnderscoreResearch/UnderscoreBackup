@@ -22,6 +22,8 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -96,6 +98,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private static final int CURRENT_VERSION = 1;
     private static final String FILE_STORE = "files.db";
     private static final String BLOCK_STORE = "blocks.db";
+    private static final String BLOCK_OLD_STORE = "blocks.old.db";
+    private static final String BLOCK_TMP_STORE = "blocks.tmp.db";
     private static final String PARTS_STORE = "parts.db";
     private static final String DIRECTORY_STORE = "directories.db";
     private static final String ACTIVE_PATH_STORE = "paths.db";
@@ -113,6 +117,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
     private boolean readOnly;
     private RepositoryInfo repositoryInfo;
     private DB blockDb;
+    private DB blockTmpDb;
     private DB fileDb;
     private DB directoryDb;
     private DB partsDb;
@@ -125,6 +130,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
     private AccessLock fileLock;
     private HTreeMap<String, byte[]> blockMap;
+    private HTreeMap<String, byte[]> blockTmpMap;
     private TreeOrSink additionalBlockMap;
     private TreeOrSink fileMap;
     private TreeOrSink directoryMap;
@@ -160,6 +166,10 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 partialFileDb.commit();
                 updatedFilesDb.commit();
                 updatedPendingFilesDb.commit();
+
+                if (blockTmpDb != null) {
+                    blockTmpDb.commit();
+                }
             }
         } finally {
             openLock.unlock();
@@ -182,8 +192,8 @@ public class MapdbMetadataRepository implements MetadataRepository {
                 this.readOnly = readOnly;
 
                 if (readOnly) {
-                    File requestFile = Paths.get(dataPath, REQUEST_LOCK_FILE).toFile();
-                    fileLock = new AccessLock(Paths.get(dataPath, LOCK_FILE).toString());
+                    File requestFile = getPath(REQUEST_LOCK_FILE).toFile();
+                    fileLock = new AccessLock(getPath(LOCK_FILE).toString());
 
                     AccessLock requestLock = new AccessLock(requestFile.getAbsolutePath());
                     if (!fileLock.tryLock(false)) {
@@ -194,7 +204,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
 
                     requestLock.release();
                 } else {
-                    fileLock = new AccessLock(Paths.get(dataPath, LOCK_FILE).toString());
+                    fileLock = new AccessLock(getPath(LOCK_FILE).toString());
                     if (!fileLock.tryLock(true)) {
                         log.info("Waiting for repository access from other process");
                         fileLock.lock(true);
@@ -217,6 +227,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
         }
 
         readRepositoryInfo(readOnly);
+
+        Path blockTmpPath = getPath(BLOCK_OLD_STORE);
+        if (blockTmpPath.toFile().exists()) {
+            if (!getPath(BLOCK_STORE).toFile().exists()) {
+                Files.move(blockTmpPath, getPath(BLOCK_STORE));
+            }
+        }
 
         blockDb = createDb(readOnly, BLOCK_STORE);
         fileDb = createDb(readOnly, FILE_STORE);
@@ -251,6 +268,22 @@ public class MapdbMetadataRepository implements MetadataRepository {
         pendingSetMap = openHashMap(pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         partialFileMap = openHashMap(partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         updatedFilesMap = openHashMap(updatedFilesDb.hashMap(UPDATED_FILES_STORE, Serializer.STRING, Serializer.LONG));
+
+        File blockTmpFile = getPath(BLOCK_TMP_STORE).toFile();
+        if (blockTmpFile.exists()) {
+            if (!blockTmpFile.delete()) {
+                log.error("Failed to delete old temporary new block file");
+            }
+        }
+    }
+
+    private HTreeMap<String, byte[]> getBlockTmpMap() throws IOException {
+        if (blockTmpMap == null) {
+            blockTmpDb = createDb(readOnly, BLOCK_TMP_STORE);
+            // Need to be BLOCK_STORE here, as we are copying from BLOCK_TMP_STORE to BLOCK_STORE eventually.
+            blockTmpMap = openHashMap(blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
+        }
+        return blockTmpMap;
     }
 
     private TreeOrSink openTreeMap(DB db, DB.TreeMapMaker<Object[], byte[]> maker) throws IOException {
@@ -288,11 +321,11 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private void readRepositoryInfo(boolean readonly) throws IOException {
-        File file = Paths.get(dataPath, INFO_STORE).toFile();
+        File file = getPath(INFO_STORE).toFile();
         if (file.exists()) {
             repositoryInfo = REPOSITORY_INFO_READER.readValue(file);
         } else {
-            if (Paths.get(dataPath, FILE_STORE).toFile().exists()) {
+            if (getPath(FILE_STORE).toFile().exists()) {
                 repositoryInfo = RepositoryInfo.builder().version(INITIAL_VERSION).build();
             } else {
                 repositoryInfo = RepositoryInfo.builder().version(CURRENT_VERSION).build();
@@ -304,13 +337,13 @@ public class MapdbMetadataRepository implements MetadataRepository {
     }
 
     private void saveRepositoryInfo() throws IOException {
-        File file = Paths.get(dataPath, INFO_STORE).toFile();
+        File file = getPath(INFO_STORE).toFile();
         REPOSITORY_INFO_WRITER.writeValue(file, repositoryInfo);
     }
 
     private DB createDb(boolean readOnly, String blockStore) {
         DBMaker.Maker maker = DBMaker
-                .fileDB(Paths.get(dataPath, blockStore).toString())
+                .fileDB(getPath(blockStore).toString())
                 .fileMmapEnableIfSupported()
                 .fileMmapPreclearDisable()
                 .transactionEnable();
@@ -328,7 +361,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
             return;
         }
         try {
-            AccessLock requestLock = new AccessLock(Paths.get(dataPath, REQUEST_LOCK_FILE).toString());
+            AccessLock requestLock = new AccessLock(getPath(REQUEST_LOCK_FILE).toString());
 
             if (!requestLock.tryLock(true)) {
                 log.info("Detected request for access to metadata from other process");
@@ -399,6 +432,15 @@ public class MapdbMetadataRepository implements MetadataRepository {
         partialFileDb.close();
         updatedFilesDb.close();
         updatedPendingFilesDb.close();
+
+        if (blockTmpMap != null) {
+            blockTmpMap.close();
+            blockTmpMap = null;
+        }
+        if (blockTmpDb != null) {
+            blockTmpDb.close();
+            blockTmpDb = null;
+        }
     }
 
     @Override
@@ -772,6 +814,45 @@ public class MapdbMetadataRepository implements MetadataRepository {
             ensureOpen();
 
             blockMap.put(block.getHash(), encodeData(BACKUP_BLOCK_WRITER, stripCopy(block)));
+        }
+    }
+
+    @Override
+    public void addTemporaryBlock(BackupBlock block) throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            getBlockTmpMap().put(block.getHash(), encodeData(BACKUP_BLOCK_WRITER, stripCopy(block)));
+        }
+    }
+
+    private Path getPath(String file) {
+        return Paths.get(dataPath, file);
+    }
+
+    @Override
+    public void installTemporaryBlocks() throws IOException {
+        try (MapDbRepositoryLock ignored = new MapDbRepositoryLock()) {
+            ensureOpen();
+
+            closeAllDataFiles();
+
+            Path oldPath = getPath(BLOCK_OLD_STORE);
+            try {
+                Files.move(getPath(BLOCK_STORE), oldPath);
+                Files.move(getPath(BLOCK_TMP_STORE), getPath(BLOCK_STORE));
+                if (!oldPath.toFile().delete()) {
+                    log.error("Failed to delete old block store");
+                }
+            } catch (Exception exc) {
+                try {
+                    Files.move(oldPath, getPath(BLOCK_STORE));
+                } catch (IOException e) {
+                    log.error("Failed to restore block store from backup", e);
+                }
+                throw exc;
+            }
+            openAllDataFiles(readOnly);
         }
     }
 

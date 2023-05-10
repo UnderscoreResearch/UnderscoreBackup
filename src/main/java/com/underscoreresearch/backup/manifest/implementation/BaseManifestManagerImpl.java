@@ -293,7 +293,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
-    private void uploadPublicKey(EncryptionKey encryptionKey) throws IOException {
+    protected void uploadPublicKey(EncryptionKey encryptionKey) throws IOException {
         uploadConfigData("publickey.json",
                 new ByteArrayInputStream(encryptionKeyForUpload(encryptionKey)),
                 false);

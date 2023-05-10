@@ -2,7 +2,6 @@ package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_WRITER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.ByteArrayInputStream;
@@ -10,7 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +23,6 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -113,7 +111,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
 
     private void uploadConfigurationFile() throws IOException {
         uploadConfigData("configuration.json",
-                new ByteArrayInputStream(getConfigurationData().getBytes(Charset.forName("UTF-8"))),
+                new ByteArrayInputStream(getConfigurationData().getBytes(StandardCharsets.UTF_8)),
                 true);
     }
 

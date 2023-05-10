@@ -125,8 +125,10 @@ public class BackupModule extends AbstractModule {
                                                           BlockDownloader blockDownloader,
                                                           MetadataRepository metadataRepository,
                                                           FileBlockUploader fileBlockUploader,
-                                                          FileSystemAccess fileSystemAccess) {
+                                                          FileSystemAccess fileSystemAccess,
+                                                          EncryptionKey encryptionKey) {
         return new ZipSmallBlockAssignment(fileBlockUploader, blockDownloader, metadataRepository, fileSystemAccess,
+                encryptionKey,
                 configuration.getProperty("smallFileBlockAssignment.maximumSize", DEFAULT_SMALL_FILE_MAXIMUM_SIZE),
                 configuration.getProperty("smallFileBlockAssignment.targetSize", DEFAULT_SMALL_FILE_TARGET_SIZE));
     }
@@ -137,8 +139,10 @@ public class BackupModule extends AbstractModule {
                                                                        BlockDownloader blockDownloader,
                                                                        MetadataRepository metadataRepository,
                                                                        FileBlockUploader fileBlockUploader,
-                                                                       FileSystemAccess fileSystemAccess) {
+                                                                       FileSystemAccess fileSystemAccess,
+                                                                       EncryptionKey encryptionKey) {
         return new EncryptedSmallBlockAssignment(fileBlockUploader, blockDownloader, metadataRepository, fileSystemAccess,
+                encryptionKey,
                 configuration.getProperty("smallFileBlockAssignment.maximumSize", DEFAULT_SMALL_FILE_MAXIMUM_SIZE),
                 configuration.getProperty("smallFileBlockAssignment.targetSize", DEFAULT_SMALL_FILE_TARGET_SIZE));
     }
@@ -196,10 +200,11 @@ public class BackupModule extends AbstractModule {
                                                                      FileBlockUploader fileBlockUploader,
                                                                      BlockDownloader blockDownloader,
                                                                      FileSystemAccess fileSystemAccess,
-                                                                     MachineState machineState) {
+                                                                     MachineState machineState,
+                                                                     EncryptionKey encryptionKey) {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
         return new GzipLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
-                metadataRepository, machineState, maxSize);
+                metadataRepository, machineState, encryptionKey, maxSize);
     }
 
     @Provides
@@ -219,10 +224,11 @@ public class BackupModule extends AbstractModule {
                                                                    FileBlockUploader fileBlockUploader,
                                                                    BlockDownloader blockDownloader,
                                                                    FileSystemAccess fileSystemAccess,
-                                                                   MachineState machineState) {
+                                                                   MachineState machineState,
+                                                                   EncryptionKey encryptionKey) {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
         return new RawLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
-                metadataRepository, machineState, maxSize);
+                metadataRepository, machineState, encryptionKey, maxSize);
     }
 
     @Singleton

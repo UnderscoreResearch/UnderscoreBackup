@@ -60,4 +60,8 @@ public class Hash {
         }
         return hash;
     }
+
+    public byte[] getHashBytes() {
+        return hasher.hash().asBytes();
+    }
 }

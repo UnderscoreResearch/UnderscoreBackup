@@ -24,7 +24,7 @@ public abstract class AesEncryptorFormat {
     public static final String KEY_DATA = "k";
     protected static final int PUBLIC_KEY_SIZE = 32;
     protected static final String KEY_ALGORITHM = "AES";
-    private static SecureRandom random = new SecureRandom();
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     protected abstract String getKeyAlgorithm();
 
@@ -44,15 +44,24 @@ public abstract class AesEncryptorFormat {
 
     public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key) {
         byte[] iv = new byte[getIvSize()];
-        synchronized (random) {
-            random.nextBytes(iv);
+        synchronized (RANDOM) {
+            RANDOM.nextBytes(iv);
         }
         EncryptionKey privateKey = EncryptionKey.generateKeys();
         byte[] combinedKey = EncryptionKey.combinedSecret(privateKey.getPrivateKey(null), key);
+        byte[] encryptionKey;
+        if (storage != null && randomizeKeyData()) {
+            encryptionKey = new byte[combinedKey.length];
+            RANDOM.nextBytes(encryptionKey);
+            byte[] keyData = AesEncryptor.applyKeyData(encryptionKey, combinedKey);
+            storage.addProperty(KEY_DATA, Hash.encodeBytes(keyData));
+        } else {
+            encryptionKey = combinedKey;
+        }
 
-        applyAdditionalStorageKeyData(combinedKey, storage, privateKey);
+        applyAdditionalStorageKeyData(encryptionKey, storage, privateKey);
 
-        SecretKeySpec secretKeySpec = new SecretKeySpec(combinedKey, KEY_ALGORITHM);
+        SecretKeySpec secretKeySpec = new SecretKeySpec(encryptionKey, KEY_ALGORITHM);
         try {
             Cipher cipher = Cipher.getInstance(getKeyAlgorithm());
 
@@ -83,6 +92,10 @@ public abstract class AesEncryptorFormat {
                  InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
+    }
+
+    protected boolean randomizeKeyData() {
+        return true;
     }
 
     public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset, EncryptionKey.PrivateKey key) {

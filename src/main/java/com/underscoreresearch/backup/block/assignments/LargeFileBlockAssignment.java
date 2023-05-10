@@ -19,6 +19,7 @@ import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -43,6 +44,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
     private final FileSystemAccess access;
     private final MetadataRepository metadataRepository;
     private final MachineState machineState;
+    private final EncryptionKey encryptionKey;
     private final int maximumBlockSize;
 
     @Override
@@ -99,6 +101,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 }
 
                 final Hash hashCalc = new Hash();
+                encryptionKey.addBlockHashSalt(hashCalc);
                 hashCalc.addBytes(getClass().getName().getBytes(StandardCharsets.UTF_8));
                 hashCalc.addBytes(buffer);
                 final String hash = hashCalc.getHash();

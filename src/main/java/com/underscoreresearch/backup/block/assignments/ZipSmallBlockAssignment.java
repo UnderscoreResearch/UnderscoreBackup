@@ -22,6 +22,7 @@ import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.BlockFormatPlugin;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOUtils;
@@ -35,9 +36,10 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
                                    BlockDownloader blockDownloader,
                                    MetadataRepository repository,
                                    FileSystemAccess access,
+                                   EncryptionKey encryptionKey,
                                    int maximumFileSize,
                                    int targetSize) {
-        super(uploader, blockDownloader, repository, access, maximumFileSize, targetSize);
+        super(uploader, blockDownloader, repository, access, encryptionKey, maximumFileSize, targetSize);
     }
 
     @Override

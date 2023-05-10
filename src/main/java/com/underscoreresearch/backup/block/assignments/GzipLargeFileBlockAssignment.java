@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.BlockFormatPlugin;
 import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOUtils;
@@ -22,8 +23,8 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 public class GzipLargeFileBlockAssignment extends LargeFileBlockAssignment {
     public GzipLargeFileBlockAssignment(FileBlockUploader uploader, BlockDownloader blockDownloader,
                                         FileSystemAccess access, MetadataRepository metadataRepository,
-                                        MachineState machineState, int maximumBlockSize) {
-        super(uploader, blockDownloader, access, metadataRepository, machineState, maximumBlockSize);
+                                        MachineState machineState, EncryptionKey encryptionKey, int maximumBlockSize) {
+        super(uploader, blockDownloader, access, metadataRepository, machineState, encryptionKey, maximumBlockSize);
     }
 
     @Override

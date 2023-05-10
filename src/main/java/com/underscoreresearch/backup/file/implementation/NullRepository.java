@@ -121,6 +121,14 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
+    public void addTemporaryBlock(BackupBlock block) throws IOException {
+    }
+
+    @Override
+    public void installTemporaryBlocks() throws IOException {
+    }
+
+    @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
     }
 

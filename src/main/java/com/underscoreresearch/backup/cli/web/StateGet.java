@@ -210,7 +210,7 @@ public class StateGet extends JsonWrap {
                         .activeSubscription(activeSubscription)
                         .serviceSourceId(serviceSourceId)
                         .sourceName(sourceName)
-                        .siteUrl(getSiteUrl())
+                        .siteUrl(getSiteUrl(null))
                         .source(InstanceFactory.getAdditionalSource())
                         .newVersion(NewVersion.fromRelease(serviceManager.newVersion()))
                         .pathSeparator(File.separator)

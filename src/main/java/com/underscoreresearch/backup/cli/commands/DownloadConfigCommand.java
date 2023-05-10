@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.downloadKeyData;
@@ -81,6 +82,8 @@ public class DownloadConfigCommand extends Command {
                 ConfigurationPost.updateSourceConfiguration(config, false);
                 log.info("Successfully downloaded and the configuration file for {}", sourceResponse.getName());
             }
+
+            reloadIfRunning();
         } catch (Exception exc) {
             log.error("Failed to download and replace config", exc);
         }

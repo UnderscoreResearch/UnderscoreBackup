@@ -480,6 +480,16 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public void addTemporaryBlock(BackupBlock block) throws IOException {
+        repository.addTemporaryBlock(block);
+    }
+
+    @Override
+    public void installTemporaryBlocks() throws IOException {
+        repository.installTemporaryBlocks();
+    }
+
+    @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
         BackupDirectory currentData;
         if (Instant.now().toEpochMilli() - directory.getAdded() < CURRENT_SPAN)

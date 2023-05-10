@@ -1,5 +1,6 @@
-package com.underscoreresearch.backup.manifest.implementation;
+package com.underscoreresearch.backup.encryption;
 
+import static com.underscoreresearch.backup.encryption.EncryptionKey.ENCRYPTOR;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
@@ -13,9 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.underscoreresearch.backup.encryption.AesEncryptor;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
-import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.manifest.AdditionalKeyManager;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
@@ -25,7 +23,6 @@ public class AdditionalKeyManagerImpl implements AdditionalKeyManager {
     });
     private final static ObjectWriter WRITER = MAPPER.writerFor(new TypeReference<List<String>>() {
     });
-    private static AesEncryptor ENCRYPTOR = new AesEncryptor();
     private final List<EncryptionKey> keys;
     private final EncryptionKey.PrivateKey privateKey;
 
@@ -34,8 +31,15 @@ public class AdditionalKeyManagerImpl implements AdditionalKeyManager {
         keys = new ArrayList<>();
 
         if (privateKey.getParent().getEncryptedAdditionalKeys() != null) {
-            List<String> privateKeys = READER.readValue(ENCRYPTOR.decodeBlock(null,
-                    Hash.decodeBytes(privateKey.getParent().getEncryptedAdditionalKeys()), privateKey));
+            List<String> privateKeys;
+            try {
+                privateKeys = READER.readValue(ENCRYPTOR.decodeBlock(null,
+                        Hash.decodeBytes64(privateKey.getParent().getEncryptedAdditionalKeys()), privateKey));
+            } catch (Exception exc) {
+                // This is only for backwards compatability.
+                privateKeys = READER.readValue(ENCRYPTOR.decodeBlock(null,
+                        Hash.decodeBytes(privateKey.getParent().getEncryptedAdditionalKeys()), privateKey));
+            }
             for (String key : privateKeys) {
                 try {
                     keys.add(EncryptionKey.createWithPrivateKey(key));
@@ -69,11 +73,15 @@ public class AdditionalKeyManagerImpl implements AdditionalKeyManager {
         return true;
     }
 
-    private void updateKeys(ManifestManager manifestManager) throws IOException {
-        privateKey.getParent().setEncryptedAdditionalKeys(Hash.encodeBytes(ENCRYPTOR.encryptBlock(null,
+    public void writeAdditionalKeys(EncryptionKey.PrivateKey otherKey) throws IOException {
+        otherKey.getParent().setEncryptedAdditionalKeys(Hash.encodeBytes64(ENCRYPTOR.encryptBlock(null,
                 WRITER.writeValueAsBytes(keys.stream().map(key -> key.getPrivateKey(null)
                         .getDisplayPrivateKey()).collect(Collectors.toList())),
-                privateKey.getParent())));
+                otherKey.getParent())));
+    }
+
+    private void updateKeys(ManifestManager manifestManager) throws IOException {
+        writeAdditionalKeys(privateKey);
 
         if (manifestManager != null) {
             manifestManager.updateKeyData(privateKey.getParent());

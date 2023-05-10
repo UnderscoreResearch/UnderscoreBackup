@@ -274,14 +274,14 @@ export default function Restore(props: RestoreProps) {
                                     <MenuItem key={str} value={str}>{str}</MenuItem>
                                 )}
                                 {state.serviceSources && state.serviceSources.length > 0 &&
-                                    <Divider>Services Sources</Divider>
+                                    <Divider>Service Sources</Divider>
                                 }
                                 {(state.serviceSources ? state.serviceSources : [])
                                     .map((source) =>
                                         <MenuItem key={source.sourceId} value={source.sourceId}>{source.name}</MenuItem>
                                     )}
                                 {state.serviceShares && state.serviceShares.length > 0 &&
-                                    <Divider>Services Shares</Divider>
+                                    <Divider>Service Shares</Divider>
                                 }
                                 {(state.serviceShares ? state.serviceShares : [])
                                     .map((share) =>

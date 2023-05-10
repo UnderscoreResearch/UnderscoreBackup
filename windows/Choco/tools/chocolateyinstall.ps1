@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop' # stop on all errors
 $toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-$url64      = 'https://github.com/UnderscoreResearch/UnderscoreBackup/releases/download/2.0.2.3/underscorebackup-2.0.3.0.exe' # 64bit URL here (HTTPS preferred) or remove - if installer contains both (very rare), use $url
+$url64      = 'https://github.com/UnderscoreResearch/UnderscoreBackup/releases/download/2.0.2.3/underscorebackup-2.0.4.0.exe' # 64bit URL here (HTTPS preferred) or remove - if installer contains both (very rare), use $url
 
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName

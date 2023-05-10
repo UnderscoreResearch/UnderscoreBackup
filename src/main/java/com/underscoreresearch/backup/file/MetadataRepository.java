@@ -35,6 +35,10 @@ public interface MetadataRepository {
 
     boolean deleteBlock(BackupBlock block) throws IOException;
 
+    void addTemporaryBlock(BackupBlock block) throws IOException;
+
+    void installTemporaryBlocks() throws IOException;
+
     void addDirectory(BackupDirectory directory) throws IOException;
 
     List<BackupDirectory> directory(String path) throws IOException;

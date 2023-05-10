@@ -30,7 +30,6 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.x25519.X25519;
 import com.underscoreresearch.backup.manifest.AdditionalKeyManager;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.manifest.implementation.AdditionalKeyManagerImpl;
 
 import de.mkammerer.argon2.Argon2Advanced;
 import de.mkammerer.argon2.Argon2Factory;
@@ -42,7 +41,8 @@ public class EncryptionKey {
     public static final String DISPLAY_PREFIX = "=";
     private static final int LEGACY_ITERATIONS = 64 * 1024;
     private static final String CURRENT_ALGORITHM = "ARGON2";
-
+    private static final SecureRandom RANDOM = new SecureRandom();
+    static AesEncryptor ENCRYPTOR = new AesEncryptor();
     private String publicKeyHash;
     private byte[] publicKey;
     private byte[] sharingPublicKey;
@@ -55,6 +55,10 @@ public class EncryptionKey {
     @Getter
     @Setter
     private String encryptedAdditionalKeys;
+    private byte[] blockHashSalt;
+    @Getter
+    @Setter
+    private String blockHashSaltEncrypted;
     @JsonIgnore
     private PrivateKey cachedPrivateKey;
 
@@ -87,14 +91,28 @@ public class EncryptionKey {
         ret.cachedPrivateKey.keyManager = oldPrivateKey.keyManager;
         ret.encryptedAdditionalKeys = key.encryptedAdditionalKeys;
         ret.sharingPublicKey = key.sharingPublicKey;
+        ret.blockHashSalt = key.blockHashSalt;
+        ret.blockHashSaltEncrypted = key.blockHashSaltEncrypted;
+        return ret;
+    }
+
+    public static EncryptionKey changeEncryptionPasswordWithNewPrivateKey(String newPassword,
+                                                                          PrivateKey oldPrivateKey) throws IOException {
+        EncryptionKey ret = generateKeyWithPassword(newPassword);
+        PrivateKey newPrivateKey = ret.getPrivateKey(newPassword);
+        ret.generateBlockHashSalt(newPrivateKey);
+        oldPrivateKey.getAdditionalKeyManager().writeAdditionalKeys(newPrivateKey);
+        newPrivateKey.keyManager = null;
+        ret.sharingPublicKey = oldPrivateKey.getParent().sharingPublicKey;
+        ret.blockHashSalt = oldPrivateKey.getParent().blockHashSalt;
+        ret.updateEncryptedBlockHashSalt(newPrivateKey);
         return ret;
     }
 
     public static EncryptionKey generateKeyWithPassword(String password) {
         try {
             byte[] saltData = new byte[32];
-            SecureRandom random = new SecureRandom();
-            random.nextBytes(saltData);
+            RANDOM.nextBytes(saltData);
 
             EncryptionKey ret = new EncryptionKey();
             ret.algorithm = CURRENT_ALGORITHM;
@@ -102,7 +120,7 @@ public class EncryptionKey {
             byte[] bytes = getPasswordDerivative(ret.algorithm, password, saltData);
 
             ret.keyData = new byte[bytes.length];
-            random.nextBytes(ret.keyData);
+            RANDOM.nextBytes(ret.keyData);
             byte[] privateKey = applyKeyData(ret.keyData, bytes);
             makePrivateKey(privateKey);
             ret.cachedPrivateKey = new PrivateKey(password, privateKey, ret);
@@ -192,6 +210,43 @@ public class EncryptionKey {
             keyData = null;
     }
 
+    @JsonProperty("blockHashSalt")
+    public String getBlockHashSalt() {
+        if (blockHashSalt != null)
+            return Hash.encodeBytes64(blockHashSalt);
+        return null;
+    }
+
+    @JsonProperty("blockHashSalt")
+    public void setBlockHashSalt(String salt) {
+        if (salt != null)
+            blockHashSalt = Hash.decodeBytes64(salt);
+        else
+            blockHashSalt = null;
+    }
+
+    @JsonIgnore
+    public void generateBlockHashSalt(PrivateKey privateKey) {
+        if (blockHashSalt == null) {
+            blockHashSalt = new byte[32];
+            RANDOM.nextBytes(blockHashSalt);
+            updateEncryptedBlockHashSalt(privateKey);
+        }
+    }
+
+    private void updateEncryptedBlockHashSalt(PrivateKey privateKey) {
+        if (blockHashSalt != null)
+            blockHashSaltEncrypted = Hash.encodeBytes64(ENCRYPTOR.encryptBlock(null, blockHashSalt, this));
+        else
+            blockHashSaltEncrypted = null;
+    }
+
+    @JsonIgnore
+    public void addBlockHashSalt(Hash hash) {
+        if (blockHashSalt != null)
+            hash.addBytes(blockHashSalt);
+    }
+
     @JsonIgnore
     public PrivateKey getPrivateKey(String password) {
         if (cachedPrivateKey == null || !Objects.equals(cachedPrivateKey.getPassword(), password)) {
@@ -241,6 +296,10 @@ public class EncryptionKey {
                 }
 
                 cachedPrivateKey = new PrivateKey(password, bytes, this);
+                if (blockHashSaltEncrypted != null) {
+                    blockHashSalt = ENCRYPTOR.decodeBlock(null, Hash.decodeBytes64(blockHashSaltEncrypted),
+                            cachedPrivateKey);
+                }
             } catch (InvalidKeyException | NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
                 throw new IllegalArgumentException("Could not unpack private key with password");
             }
@@ -333,6 +392,7 @@ public class EncryptionKey {
     public EncryptionKey publicOnly() {
         EncryptionKey ret = publicOnlyHash();
         ret.publicKey = publicKey;
+        ret.blockHashSalt = blockHashSalt;
         return ret;
     }
 
@@ -343,6 +403,7 @@ public class EncryptionKey {
         ret.passwordKey = passwordKey;
         ret.keyData = keyData;
         ret.algorithm = algorithm;
+        ret.blockHashSaltEncrypted = blockHashSaltEncrypted;
         ret.encryptedAdditionalKeys = encryptedAdditionalKeys;
         ret.sharingPublicKey = sharingPublicKey;
         return ret;

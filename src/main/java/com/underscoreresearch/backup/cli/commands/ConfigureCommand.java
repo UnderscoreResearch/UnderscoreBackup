@@ -7,7 +7,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,6 +37,23 @@ public class ConfigureCommand extends Command {
             String url = reader.readLine();
 
             return url.trim();
+        }
+    }
+
+    public static void reloadIfRunning() throws IOException {
+        try {
+            String configurationUrl = getConfigurationUrl();
+
+            URL url = new URL(configurationUrl + "/ping");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.connect();
+            if (connection.getResponseCode() != 200) {
+                log.error("Failed to reload configuration for running backup, restart manually");
+            } else {
+                log.info("Reloaded configuration for background application");
+            }
+        } catch (ConfigurationUrlException exc) {
         }
     }
 

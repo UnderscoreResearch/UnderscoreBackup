@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
@@ -168,5 +169,7 @@ public class RebuildRepositoryCommand extends Command {
         }
 
         rebuildFromLog(getPassword(), false);
+
+        reloadIfRunning();
     }
 }

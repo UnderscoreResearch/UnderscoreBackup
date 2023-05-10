@@ -797,6 +797,8 @@ print "Generation 6 incremental\n";
 print "Test changing password\n";
 
 &executeUnderscoreBackupStdin("$SECOND_PASSWORD\n$SECOND_PASSWORD", "change-password", "--password", $FIRST_PASSWORD);
+&executeUnderscoreBackup("download-config", "--password", $SECOND_PASSWORD);
+&executeUnderscoreBackup("rebuild-repository", "--password", $SECOND_PASSWORD);
 
 finddepth { wanted => \&zapFile, no_chdir => 1 }, $backupRoot;
 

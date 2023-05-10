@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import java.nio.charset.StandardCharsets;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
@@ -26,7 +28,7 @@ public class RemoteConfigurationGet extends JsonWrap {
                 IOProvider provider = IOProviderFactory.getProvider(configuration.getDestinations()
                         .get(configuration.getManifest().getDestination()));
                 try {
-                    return new RsText(new String(provider.download("/configuration.json"), "UTF-8"));
+                    return new RsText(new String(provider.download("/configuration.json"), StandardCharsets.UTF_8));
                 } catch (Exception exc) {
                     return JsonWrap.messageJson(400, "Couldn't fetch remote configuration");
                 }

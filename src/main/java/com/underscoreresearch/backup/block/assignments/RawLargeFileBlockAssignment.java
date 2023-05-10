@@ -5,6 +5,7 @@ import java.io.IOException;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.BlockFormatPlugin;
 import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.model.BackupFilePart;
@@ -14,8 +15,8 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 public class RawLargeFileBlockAssignment extends LargeFileBlockAssignment {
     public RawLargeFileBlockAssignment(FileBlockUploader uploader, BlockDownloader downloader, FileSystemAccess access,
                                        MetadataRepository metadataRepository, MachineState machineState,
-                                       int maximumBlockSize) {
-        super(uploader, downloader, access, metadataRepository, machineState, maximumBlockSize);
+                                       EncryptionKey encryptionKey, int maximumBlockSize) {
+        super(uploader, downloader, access, metadataRepository, machineState, encryptionKey, maximumBlockSize);
     }
 
     protected byte[] processBuffer(byte[] buffer) throws IOException {

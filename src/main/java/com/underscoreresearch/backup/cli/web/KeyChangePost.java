@@ -63,7 +63,7 @@ public class KeyChangePost extends JsonWrap {
                 return messageJson(403, "Invalid password provided");
             }
 
-            ChangePasswordCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
+            ChangePasswordCommand.changePrivateKeyPassword(InstanceFactory.getInstance(CommandLine.class),
                     request.getPassword(),
                     request.getNewPassword());
 
