@@ -85,10 +85,11 @@ public class RepositoryBackfiller {
                 BackfillDownloader backfillDownloader = new BackfillDownloader(knownSizes);
 
                 try (CloseableLock ignore = repository.acquireLock()) {
-                    log.info("Backfilling file block offsets");
+                    log.info("Collecting all known block sizes");
                     repository.allFiles(true).forEach(file -> {
                         backfillDownloader.addInferredBlockSizes(file);
                     });
+                    log.info("Backfilling file block offsets");
                     repository.allFiles(true).forEach(file -> {
                         backfillDownloader.backfillFilePartOffsets(file, password);
                         long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);

@@ -162,6 +162,11 @@ public class InteractiveCommand extends Command {
                 }
                 throw exc;
             }
+            if (configuration.getSets() == null
+                    || configuration.getSets().size() == 0
+                    || configuration.getSets().stream().noneMatch(set -> set.getRoots().size() > 0)) {
+                throw new ParseException("No backup sets configured");
+            }
         } catch (Exception exc) {
             if (!commandLine.hasOption(DEVELOPER_MODE) && !"TRUE".equals(System.getenv("UNDERSCORE_SUPPRESS_OPEN"))) {
                 server.launchPage();

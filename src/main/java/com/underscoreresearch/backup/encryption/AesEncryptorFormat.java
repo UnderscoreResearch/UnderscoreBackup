@@ -44,9 +44,7 @@ public abstract class AesEncryptorFormat {
 
     public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key) {
         byte[] iv = new byte[getIvSize()];
-        synchronized (RANDOM) {
-            RANDOM.nextBytes(iv);
-        }
+        RANDOM.nextBytes(iv);
         EncryptionKey privateKey = EncryptionKey.generateKeys();
         byte[] combinedKey = EncryptionKey.combinedSecret(privateKey.getPrivateKey(null), key);
         byte[] encryptionKey;

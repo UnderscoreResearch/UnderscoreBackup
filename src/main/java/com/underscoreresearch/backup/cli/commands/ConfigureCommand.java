@@ -44,7 +44,8 @@ public class ConfigureCommand extends Command {
         try {
             String configurationUrl = getConfigurationUrl();
 
-            URL url = new URL(configurationUrl + "/ping");
+            String pingUrl = configurationUrl + "api/ping";
+            URL url = new URL(pingUrl);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
             connection.connect();
