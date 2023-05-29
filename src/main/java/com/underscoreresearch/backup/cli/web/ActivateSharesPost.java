@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,6 +18,31 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 public class ActivateSharesPost extends JsonWrap {
     public ActivateSharesPost() {
         super(new Implementation());
+    }
+
+    public static void startAsyncManagerOperation(ManifestManager manager, Runnable runnable, String name) {
+        AtomicBoolean completed = new AtomicBoolean();
+        Thread thread = new Thread(() -> {
+            try {
+                runnable.run();
+            } catch (Exception e) {
+                log.error("Failed to activate shares", e);
+            } finally {
+                completed.set(true);
+                InstanceFactory.reloadConfiguration(InteractiveCommand::startBackupIfAvailable);
+            }
+        }, name);
+
+        thread.start();
+
+        // Wait for thread to start before we return the call
+        while (thread.isAlive() && !manager.isBusy() && !completed.get()) {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                log.warn("Failed to wait", e);
+            }
+        }
     }
 
     private static class Implementation extends ExclusiveImplementation {
@@ -40,28 +66,14 @@ public class ActivateSharesPost extends JsonWrap {
                         }
                     });
 
-                    Thread thread = new Thread(() -> {
+                    startAsyncManagerOperation(manager, () -> {
                         try {
                             manager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
                                     privateKey);
-                        } catch (Exception e) {
-                            log.error("Failed to activate shares", e);
-                        } finally {
-                            InstanceFactory.reloadConfiguration(
-                                    () -> InteractiveCommand.startBackupIfAvailable());
+                        } catch (IOException exc) {
+                            throw new RuntimeException(exc);
                         }
                     }, "ActivatingShares");
-
-                    thread.start();
-
-                    // Wait for thread to start before we return the call
-                    while (thread.isAlive() && !manager.isBusy()) {
-                        try {
-                            Thread.sleep(1);
-                        } catch (InterruptedException e) {
-                            log.warn("Failed to wait", e);
-                        }
-                    }
                 });
 
                 return messageJson(200, "Started share activation");

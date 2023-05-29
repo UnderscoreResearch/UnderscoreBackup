@@ -4,26 +4,20 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.CONF
 import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
 
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.utils.ActivityAppender;
 
 @Slf4j
 public class ResetDelete extends JsonWrap {
-    private static ObjectWriter WRITER = MAPPER.writerFor(KeyResponse.class);
-
     public ResetDelete() {
         super(new Implementation());
     }
@@ -47,12 +41,6 @@ public class ResetDelete extends JsonWrap {
                 }
             }
         }
-    }
-
-    @Data
-    @AllArgsConstructor
-    public static class KeyResponse {
-        private Boolean specified;
     }
 
     private static class Implementation extends ExclusiveImplementation {

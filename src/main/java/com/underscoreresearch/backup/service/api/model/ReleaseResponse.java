@@ -43,7 +43,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   ReleaseResponse.JSON_PROPERTY_CHANGE_LOG,
   ReleaseResponse.JSON_PROPERTY_FILES
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ReleaseResponse {
   public static final String JSON_PROPERTY_RELEASE_DATE = "releaseDate";
   private BigDecimal releaseDate;
@@ -75,7 +75,7 @@ public class ReleaseResponse {
    * When was this released..
    * @return releaseDate
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_RELEASE_DATE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -100,7 +100,7 @@ public class ReleaseResponse {
    * Title of release.
    * @return name
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_NAME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -125,7 +125,7 @@ public class ReleaseResponse {
    * Version of release.
    * @return version
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_VERSION)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -150,7 +150,7 @@ public class ReleaseResponse {
    * Description of release.
    * @return body
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_BODY)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -175,7 +175,7 @@ public class ReleaseResponse {
    * Link to change log.
    * @return changeLog
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_CHANGE_LOG)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -208,7 +208,7 @@ public class ReleaseResponse {
    * Files for release.
    * @return files
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_FILES)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

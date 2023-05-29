@@ -4,7 +4,6 @@ import {
     BackupGlobalLimits,
     BackupManifest,
     BackupRetention,
-    BackupState,
     changeEncryptionKey,
     PropertyMap,
     resetSettings
@@ -37,13 +36,7 @@ import Typography from "@mui/material/Typography";
 import Timespan from "./Timespan";
 import PasswordStrengthBar from "../3rdparty/react-password-strength-bar";
 import SupportBundleDialog from "./SupportBundleDialog";
-
-export interface SettingsProps {
-    config: BackupConfiguration,
-    backendState: BackupState,
-    onChange: (newConfig: BackupConfiguration) => void,
-    updatedToken: () => Promise<void>
-}
+import {useApplication} from "../utils/ApplicationContext";
 
 interface SettingsState {
     manifest: BackupManifest,
@@ -81,8 +74,9 @@ function createInitialState(config: BackupConfiguration): SettingsState {
     }
 }
 
-export default function Settings(props: SettingsProps) {
-    const [state, setState] = React.useState(createInitialState(props.config));
+export default function Settings() {
+    const appContext = useApplication();
+    const [state, setState] = React.useState(createInitialState(appContext.currentConfiguration));
 
     function updateState(newState: SettingsState) {
 
@@ -96,7 +90,7 @@ export default function Settings(props: SettingsProps) {
         }
 
         const sendState = {
-            ...props.config,
+            ...appContext.currentConfiguration,
             properties: newState.properties,
             missingRetention: newState.missingRetention,
             limits: newState.limits,
@@ -113,7 +107,10 @@ export default function Settings(props: SettingsProps) {
             sendState.properties = undefined;
         if (sendState.limits && Object.keys(sendState.limits).length == 0)
             sendState.limits = undefined;
-        props.onChange(sendState);
+        appContext.setState((oldState) => ({
+            ...oldState,
+            currentConfiguration: sendState
+        }));
     }
 
     function handleShowConfig() {
@@ -127,15 +124,18 @@ export default function Settings(props: SettingsProps) {
         setState({
             ...state,
             showConfig: false,
-            configData: JSON.stringify(props.config, null, 2)
+            configData: JSON.stringify(appContext.currentConfiguration, null, 2)
         });
     }
 
     function handleConfigSubmit() {
         try {
-            const newConfig = JSON.parse(state.configData);
+            const newConfig = JSON.parse(state.configData) as BackupConfiguration;
             setState(createInitialState(newConfig));
-            props.onChange(newConfig);
+            appContext.setState((oldState) => ({
+                ...oldState,
+                currentConfiguration: newConfig
+            }));
         } catch (e: any) {
             DisplayMessage(e.toString());
         }
@@ -210,8 +210,8 @@ export default function Settings(props: SettingsProps) {
                 </Grid>
                 <ServiceAuthentication includeSkip={false}
                                        needSubscription={false}
-                                       backendState={props.backendState}
-                                       updatedToken={() => props.updatedToken()}/>
+                                       backendState={appContext.backendState}
+                                       updatedToken={() => appContext.updateBackendState()}/>
             </Grid>
         </Paper>
         <UIAuthentication manifest={state.manifest} onChange={(manifest) => updateState({
@@ -578,7 +578,7 @@ export default function Settings(props: SettingsProps) {
                 </Button>
             </DialogActions>
         </Dialog>
-        <SupportBundleDialog open={state.showSupportBundle} backendState={props.backendState}
+        <SupportBundleDialog open={state.showSupportBundle} backendState={appContext.backendState}
                              onClose={() => setState({...state, showSupportBundle: false})}/>
     </Stack>
 }

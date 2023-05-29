@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getD
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
 import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -51,7 +52,7 @@ public class RemoteRestorePost extends JsonWrap {
                 throw new ParseException("Invalid password provided for restore");
             }
         }
-        return keyData;
+        return ENCRYPTION_KEY_WRITER.writeValueAsBytes(encryptionKey.publicOnly());
     }
 
     public static IOProvider getIoProvider(String source) {
@@ -97,7 +98,7 @@ public class RemoteRestorePost extends JsonWrap {
                     try {
                         String config = RebuildRepositoryCommand.downloadRemoteConfiguration(null, password);
 
-                        updateConfiguration(config, true, true);
+                        updateConfiguration(config, true, true, true);
                     } catch (Exception exc) {
                         log.error("Failed to download configuration", exc);
                         privateKeyFile.delete();

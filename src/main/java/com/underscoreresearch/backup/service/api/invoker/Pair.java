@@ -13,7 +13,7 @@
 
 package com.underscoreresearch.backup.service.api.invoker;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class Pair {
     private String name = "";
     private String value = "";

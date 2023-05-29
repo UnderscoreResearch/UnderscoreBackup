@@ -17,64 +17,54 @@ function MyListItemButton(props: {
     page: string,
     id: string,
     disabled: boolean,
+    currentPage: string,
     children: JSX.Element[]
 }) {
-    var currentPage = location.href;
-    if (currentPage.endsWith("/")) {
-        currentPage += "status";
-    }
     return <ListItemButton id={props.id} disabled={props.disabled} component={Link} to={props.page}
-                           selected={currentPage.endsWith(props.page)}>
+                           selected={props.currentPage === props.page}>
         {props.children}
     </ListItemButton>
 }
 
 export interface NavigationProps {
     unresponsive: boolean,
-    loading: boolean,
-    firstTime: boolean,
     status: boolean,
     sets: boolean,
     destinations: boolean,
     settings: boolean,
     sources: boolean,
     share: boolean,
-    restore: boolean
+    restore: boolean,
+    currentPage: string
 }
 
 export default function NavigationMenu(props: NavigationProps) {
-    if (props.firstTime) {
-        return <List component="nav">
-            <ListItemButton selected={true} disabled={props.unresponsive}>
-                <ListItemIcon>
-                    <Settings/>
-                </ListItemIcon>
-                <ListItemText primary="Initial Setup"/>
-            </ListItemButton>
-        </List>
-    }
     return <List component="nav">
-        <MyListItemButton page="status" disabled={!props.status || props.unresponsive || props.loading} id="pageStatus">
+        <MyListItemButton page="status" currentPage={props.currentPage} disabled={!props.status || props.unresponsive}
+                          id="pageStatus">
             <ListItemIcon>
                 <Dashboard/>
             </ListItemIcon>
             <ListItemText primary="Status"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="sets" disabled={!props.sets || props.unresponsive || props.loading} id="pageSets">
+        <MyListItemButton page="sets" currentPage={props.currentPage} disabled={!props.sets || props.unresponsive}
+                          id="pageSets">
             <ListItemIcon>
                 <AccountTree/>
             </ListItemIcon>
             <ListItemText primary="Backup Sets"/>
         </MyListItemButton>
-        <MyListItemButton page="destinations" disabled={!props.destinations || props.unresponsive || props.loading}
+        <MyListItemButton page="destinations" currentPage={props.currentPage}
+                          disabled={!props.destinations || props.unresponsive}
                           id="pageDestinations">
             <ListItemIcon>
                 <CloudUpload/>
             </ListItemIcon>
             <ListItemText primary="Destinations"/>
         </MyListItemButton>
-        <MyListItemButton page="settings" disabled={!props.settings || props.unresponsive || props.loading}
+        <MyListItemButton page="settings" currentPage={props.currentPage}
+                          disabled={!props.settings || props.unresponsive}
                           id="pageSettings">
             <ListItemIcon>
                 <Settings/>
@@ -82,21 +72,22 @@ export default function NavigationMenu(props: NavigationProps) {
             <ListItemText primary="Settings"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="sources" disabled={!props.sources || props.unresponsive || props.loading}
+        <MyListItemButton page="sources" currentPage={props.currentPage} disabled={!props.sources || props.unresponsive}
                           id="pageSources">
             <ListItemIcon>
                 <AutoAwesomeMotion/>
             </ListItemIcon>
             <ListItemText primary="Other Sources"/>
         </MyListItemButton>
-        <MyListItemButton page="share" disabled={!props.share || props.unresponsive || props.loading} id="pageShare">
+        <MyListItemButton page="share" currentPage={props.currentPage} disabled={!props.share || props.unresponsive}
+                          id="pageShare">
             <ListItemIcon>
                 <Share/>
             </ListItemIcon>
             <ListItemText primary="Shares"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
-        <MyListItemButton page="restore" disabled={!props.restore || props.unresponsive || props.loading}
+        <MyListItemButton page="restore" currentPage={props.currentPage} disabled={!props.restore || props.unresponsive}
                           id="pageRestore">
             <ListItemIcon>
                 <CloudDownload/>

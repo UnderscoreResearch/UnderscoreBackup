@@ -1,16 +1,17 @@
 import * as React from "react";
-import {BackupSet, BackupSetRoot, BackupState, getLocalFiles, restartSets} from "../api";
+import {BackupSet, BackupSetRoot, getLocalFiles, restartSets} from "../api";
 import FileTreeView from './FileTreeView'
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import Cron from "../3rdparty/react-js-cron-mui";
 import {Checkbox, FormControlLabel, FormGroup, Paper, Tab, Tabs, TextField, Tooltip} from "@mui/material";
-import {DestinationProp} from "./Destinations";
+import {DestinationProp, useApplication} from "../utils/ApplicationContext";
 import Box from "@mui/material/Box";
 import Retention from "./Retention";
 import {expandRoots} from "../api/utils";
 import ExclusionList from "./ExclusionList";
 import IconButton from "@mui/material/IconButton";
 import {PlayArrow} from "@mui/icons-material";
+import {useActivity} from "../utils/ActivityContext";
 
 export interface SetState {
     set: BackupSet,
@@ -21,7 +22,6 @@ export interface SetProps {
     set: BackupSet,
     allowReset: boolean,
     destinations: DestinationProp[],
-    backendState: BackupState,
     setUpdated: (valid: boolean, val: BackupSet) => void
 }
 
@@ -56,10 +56,12 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function SetConfig(props: SetProps) {
+    const appContext = useApplication();
+    const activityContext = useActivity();
     const [state, setState] = React.useState(() => {
         return {
             tab: 0,
-            set: expandRoots(props.set, props.backendState) as BackupSet
+            set: expandRoots(props.set, appContext.backendState) as BackupSet
         } as SetState
     });
 
@@ -115,7 +117,10 @@ export default function SetConfig(props: SetProps) {
             <Tooltip
                 title="Backup this set now">
                 <IconButton style={{float: "right"}} onClick={() => {
-                    restartSets([props.set.id]);
+                    appContext.busyOperation(async () => {
+                        await restartSets([props.set.id]);
+                        await activityContext.update();
+                    });
                 }
                 }><PlayArrow/></IconButton>
             </Tooltip>
@@ -128,7 +133,7 @@ export default function SetConfig(props: SetProps) {
         <TabPanel value={state.tab} index={0}>
             <FileTreeView
                 fileFetcher={getLocalFiles}
-                backendState={props.backendState}
+                backendState={appContext.backendState}
                 roots={state.set.roots}
                 stateValue={""}
                 onChange={fileSelectionChanged}
@@ -149,13 +154,12 @@ export default function SetConfig(props: SetProps) {
 
                 <Cron disabled={state.set.schedule === undefined}
                       value={state.set.schedule ? state.set.schedule : "0 3 * * *"} setValue={changedSchedule}
-                      clockFormat='12-hour-clock'
                       clearButton={false}/>
 
                 <FormControlLabel control={<Checkbox
                     disabled={state.set.schedule === undefined}
                     checked={state.set.continuous && state.set.schedule !== undefined}
-                    onChange={(e) => updateState({
+                    onChange={() => updateState({
                         ...state,
                         set: {
                             ...state.set,

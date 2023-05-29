@@ -58,9 +58,8 @@ export function authorizationRedirect(siteUrl: string, location: string, additio
     const redirectSource = window.location.href.substring(0, window.location.href.lastIndexOf('/'))
         + `/authorizeaccept?nonce=${encodeURIComponent(nonce)}&${additionalReturnArgs}`;
 
-    const authUrl = `${siteUrl}/authorize?clientId=DEFAULT_CLIENT&challenge=${
+    window.location.href = `${siteUrl}/authorize?clientId=DEFAULT_CLIENT&challenge=${
         encodeURIComponent(hash(code))}&redirectUrl=${
         encodeURIComponent(redirectSource)}&` + additionalArgs;
-    window.location.href = authUrl;
 }
 

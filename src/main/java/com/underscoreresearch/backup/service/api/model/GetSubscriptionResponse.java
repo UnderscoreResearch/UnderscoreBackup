@@ -34,7 +34,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   GetSubscriptionResponse.JSON_PROPERTY_ACTIVE
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class GetSubscriptionResponse {
   public static final String JSON_PROPERTY_ACTIVE = "active";
   private Boolean active;
@@ -51,7 +51,7 @@ public class GetSubscriptionResponse {
    * True if subscription active.
    * @return active
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_ACTIVE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

@@ -40,6 +40,7 @@ import org.takes.tk.TkWithType;
 
 import com.underscoreresearch.backup.cli.web.service.BestRegionGet;
 import com.underscoreresearch.backup.cli.web.service.CreateSecretPut;
+import com.underscoreresearch.backup.cli.web.service.DeleteSecretPost;
 import com.underscoreresearch.backup.cli.web.service.GenerateTokenPost;
 import com.underscoreresearch.backup.cli.web.service.GetSecretPost;
 import com.underscoreresearch.backup.cli.web.service.SharesGet;
@@ -189,11 +190,13 @@ public class WebServer {
                                             new FkMethods("GET", new SharesGet()))),
                                     new FkRegex(base + "/api/service/secrets", new TkFork(
                                             new FkMethods("POST", new GetSecretPost()),
+                                            new FkMethods("DELETE", new DeleteSecretPost()),
                                             new FkMethods("PUT", new CreateSecretPut()))),
                                     new FkRegex(base + "/api/service/support", new TkFork(
                                             new FkMethods("POST", new SupportBundlePost()))),
 
                                     createIndexPath(base),
+
                                     createIndexPath(base + "/destinations"),
                                     createIndexPath(base + "/restore"),
                                     createIndexPath(base + "/sets"),
@@ -201,6 +204,13 @@ public class WebServer {
                                     createIndexPath(base + "/settings"),
                                     createIndexPath(base + "/share"),
                                     createIndexPath(base + "/sources"),
+
+                                    createIndexPath(base + "/connect"),
+                                    createIndexPath(base + "/source"),
+                                    createIndexPath(base + "/destination"),
+                                    createIndexPath(base + "/security"),
+                                    createIndexPath(base + "/contents"),
+
                                     createIndexPath(base + "/authorizeaccept"),
 
                                     createFiletypePath("css", "text/css"),

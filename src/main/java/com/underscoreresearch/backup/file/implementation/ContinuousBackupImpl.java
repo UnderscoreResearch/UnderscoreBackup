@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.io.IOUtils.INTERNET_WAIT;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
@@ -48,6 +49,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
     private final AtomicLong processedFiles = new AtomicLong(0);
     private final AtomicLong processedSize = new AtomicLong(0);
     private final HashSet<String> pendingFiles = new HashSet<>();
+    private BackupFile lastProcessed;
     private boolean shutdown;
     private boolean retry;
     private Thread thread;
@@ -65,13 +67,14 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
     public void resetStatus() {
         processedFiles.set(0);
         processedSize.set(0);
+        lastProcessed = null;
     }
 
     @Override
     public List<StatusLine> status() {
         if (thread != null) {
             synchronized (pendingFiles) {
-                return Lists.newArrayList(
+                List<StatusLine> ret = Lists.newArrayList(
                         new StatusLine(getClass(), "CONTINUOUS_BACKUP_FILES", "Continuous files processed",
                                 processedFiles.get(), readableNumber(processedFiles.get())),
                         new StatusLine(getClass(), "CONTINUOUS_OUTSTANDING_FILES", "Continuous outstanding files",
@@ -79,6 +82,8 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
                         new StatusLine(getClass(), "CONTINUOUS_BACKUP_SIZE", "Continuous files size processed",
                                 processedSize.get(), readableSize(processedSize.get()))
                 );
+                lastProcessedPath(getClass(), ret, lastProcessed, "PROCESSED_PATH");
+                return ret;
             }
         }
         return new ArrayList<>();
@@ -183,6 +188,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
         synchronized (pendingFiles) {
             pendingFiles.add(updatedFile.getPath());
         }
+        lastProcessed = backupFile;
 
         fileConsumer.backupFile(set, backupFile, success -> {
             synchronized (pendingFiles) {

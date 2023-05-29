@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryComman
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.validateDestinations;
 import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
+import static com.underscoreresearch.backup.cli.web.service.SourcesPut.destinationDecode;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.expandSourceManifestDestination;
@@ -88,7 +89,7 @@ public class SourceSelectPost extends JsonWrap {
         try {
             Encryptor encryptor = EncryptorFactory.getEncryptor(AES_ENCRYPTION);
             BackupDestination destination = BACKUP_DESTINATION_READER.readValue(encryptor.decodeBlock(null,
-                    BaseEncoding.base64Url().decode(share.getDestination()),
+                    destinationDecode(share.getDestination()),
                     usedPrivateKey));
 
             String sourceSharePath = share.getSourceId() + "." + share.getShareId();
@@ -143,11 +144,11 @@ public class SourceSelectPost extends JsonWrap {
         try {
             BackupDestination destination = BACKUP_DESTINATION_READER.readValue(unpackConfigData(
                     sourceDefinition.getEncryptionMode(), privateKey,
-                    BaseEncoding.base64Url().decode(sourceDefinition.getDestination())));
+                    destinationDecode(sourceDefinition.getDestination())));
 
             String config = downloadRemoteConfiguration(destination, privateKey);
 
-            writeSourceKey(source, EncryptionKey.createWithPublicKey(sourceDefinition.getKey()));
+            writeSourceKey(source, privateKey.getParent().publicOnly());
 
             return BACKUP_CONFIGURATION_WRITER.writeValueAsString(
                     expandSourceManifestDestination(BACKUP_CONFIGURATION_READER.readValue(config),

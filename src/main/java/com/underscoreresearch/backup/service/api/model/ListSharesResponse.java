@@ -37,7 +37,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   ListSharesResponse.JSON_PROPERTY_SHARES
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ListSharesResponse {
   public static final String JSON_PROPERTY_SHARES = "shares";
   private List<ShareResponse> shares = new ArrayList<>();
@@ -62,7 +62,7 @@ public class ListSharesResponse {
    * List of shares of response.
    * @return shares
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_SHARES)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

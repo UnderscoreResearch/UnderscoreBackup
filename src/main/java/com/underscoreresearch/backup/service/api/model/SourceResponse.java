@@ -51,7 +51,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SourceResponse.JSON_PROPERTY_KEY,
   SourceResponse.JSON_PROPERTY_SHARING_KEY
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class SourceResponse {
   public static final String JSON_PROPERTY_SOURCE_ID = "sourceId";
   private String sourceId;
@@ -107,7 +107,7 @@ public class SourceResponse {
    * Unique identifier of source.
    * @return sourceId
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_SOURCE_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -132,7 +132,7 @@ public class SourceResponse {
    * Descriptive name of source.
    * @return name
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_NAME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -157,7 +157,7 @@ public class SourceResponse {
    * Timestamp of when source was created.
    * @return created
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_CREATED)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -182,7 +182,7 @@ public class SourceResponse {
    * Unique identity of source.
    * @return identity
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_IDENTITY)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -207,7 +207,7 @@ public class SourceResponse {
    * Destination of manifest for source (Encrypted and base64 encoded).
    * @return destination
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_DESTINATION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -232,7 +232,7 @@ public class SourceResponse {
    * Mode of encryption used for destination data.
    * @return encryptionMode
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -257,7 +257,7 @@ public class SourceResponse {
    * Region secret should be stored in.
    * @return secretRegion
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_SECRET_REGION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -282,7 +282,7 @@ public class SourceResponse {
    * Application version for source.
    * @return version
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_VERSION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -307,7 +307,7 @@ public class SourceResponse {
    * Last time anything was changed on this source
    * @return lastUsage
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_LAST_USAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -340,7 +340,7 @@ public class SourceResponse {
    * Usage per day for the last month.
    * @return dailyUsage
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_DAILY_USAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -373,7 +373,7 @@ public class SourceResponse {
    * Usage per billing period over the last 2 years.
    * @return periodUsage
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_PERIOD_USAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -398,7 +398,7 @@ public class SourceResponse {
    * URL to application for source.
    * @return applicationUrl
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -423,7 +423,7 @@ public class SourceResponse {
    * Public key data for source
    * @return key
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_KEY)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -448,7 +448,7 @@ public class SourceResponse {
    * Base32 encoding of public key to use for encrypting share information
    * @return sharingKey
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_SHARING_KEY)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 

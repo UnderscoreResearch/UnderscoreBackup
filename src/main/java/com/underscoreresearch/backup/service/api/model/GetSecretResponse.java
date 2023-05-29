@@ -35,7 +35,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   GetSecretResponse.JSON_PROPERTY_AVAILABLE,
   GetSecretResponse.JSON_PROPERTY_SECRET
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class GetSecretResponse {
   public static final String JSON_PROPERTY_AVAILABLE = "available";
   private Boolean available;
@@ -55,7 +55,7 @@ public class GetSecretResponse {
    * True if the secret is available to be fetched using the emailHash provided.
    * @return available
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_AVAILABLE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -80,7 +80,7 @@ public class GetSecretResponse {
    * Actual secret if collected using called with valid code and codeVerifier.
    * @return secret
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_SECRET)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 

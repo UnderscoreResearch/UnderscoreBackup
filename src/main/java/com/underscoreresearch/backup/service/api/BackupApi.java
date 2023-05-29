@@ -63,7 +63,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class BackupApi {
   private final HttpClient memberVarHttpClient;
   private final ObjectMapper memberVarObjectMapper;
@@ -502,6 +502,78 @@ public class BackupApi {
     } else {
       localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
     }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Delete an existing secret.
+   * @param sourceId Unique source identifier (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse deleteSecret(String sourceId) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = deleteSecretWithHttpInfo(sourceId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Delete an existing secret.
+   * @param sourceId Unique source identifier (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> deleteSecretWithHttpInfo(String sourceId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = deleteSecretRequestBuilder(sourceId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("deleteSecret", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder deleteSecretRequestBuilder(String sourceId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteSecret");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/secrets/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
 
     localVarRequestBuilder.header("Accept", "application/json");
 

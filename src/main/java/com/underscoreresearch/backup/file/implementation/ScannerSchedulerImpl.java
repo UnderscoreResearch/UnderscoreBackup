@@ -563,7 +563,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                     .stream()
                     .map(item ->
                             new StatusLine(getClass(), "SCHEDULED_BACKUP_" + item.getKey(),
-                                    String.format("Scheduled next run of set %d (%s)",
+                                    String.format("Next run of set %d (%s)",
                                             indexOfSet(item.getKey()), item.getKey()),
                                     item.getValue().getTime(),
                                     formatTimestamp(item.getValue().getTime())))

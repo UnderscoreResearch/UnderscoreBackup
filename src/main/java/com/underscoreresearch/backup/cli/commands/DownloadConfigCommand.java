@@ -61,7 +61,7 @@ public class DownloadConfigCommand extends Command {
                 InstanceFactory.reloadConfigurationWithSource();
                 String config = downloadRemoteConfiguration(source, key);
                 if (source == null) {
-                    ConfigurationPost.updateConfiguration(config, false, false);
+                    ConfigurationPost.updateConfiguration(config, false, false, false);
 
                     log.info("Successfully downloaded and replaced the configuration file");
                 } else {

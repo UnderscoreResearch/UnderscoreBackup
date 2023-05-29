@@ -1,15 +1,12 @@
 import * as React from "react";
-import {BackupSet, BackupState} from "../api";
+import {BackupSet} from "../api";
 import {EditableList} from "./EditableList";
 import SetConfig from "./SetConfig";
-import {DestinationProp} from "./Destinations";
+import {destinationList, useApplication} from "../utils/ApplicationContext";
 
 export interface SetsProps {
-    sets: BackupSet[],
     allowReset: boolean,
-    backendState: BackupState,
-    destinations: DestinationProp[],
-    configurationUpdated: (valid: boolean, destinations: BackupSet[]) => void
+    setsUpdated: (valid: boolean) => void
 }
 
 interface SetState {
@@ -18,15 +15,18 @@ interface SetState {
 }
 
 export default function Sets(props: SetsProps) {
-    const [state, setState] = React.useState(props.sets.map(dest => {
+    const appContext = useApplication();
+    const [state, setState] = React.useState(appContext.currentConfiguration.sets.map(dest => {
         return {
             valid: true,
             set: dest,
         } as SetState
     }));
 
+    const destList = destinationList(appContext);
+
     function findNewId() {
-        var i = 1;
+        let i = 1;
         while (state.some(item => item.set.id === "s" + i)) {
             i++;
         }
@@ -34,11 +34,11 @@ export default function Sets(props: SetsProps) {
     }
 
     function createEmptySet(): SetState {
-        const useState = props.sets.length > 0 ? state[0].set : props.backendState.defaultSet;
+        const useState = appContext.currentConfiguration.sets.length > 0 ? state[0].set : appContext.backendState.defaultSet;
         return {
             set: {
                 id: findNewId(),
-                destinations: props.backendState.defaultSet.destinations,
+                destinations: appContext.backendState.defaultSet.destinations,
                 roots: [],
                 exclusions: useState.exclusions,
                 retention: useState.retention,
@@ -51,12 +51,17 @@ export default function Sets(props: SetsProps) {
     function sendUpdate(newState: SetState[]) {
         const ids: string[] = newState.map(t => t.set.id.toLowerCase());
         // @ts-ignore
-        const deduped = [...new Set(ids)];
+        const deDuped = [...new Set(ids)];
 
-        props.configurationUpdated(
-            deduped.length == newState.length && !newState.some(item => !item.valid),
-            newState.map(item => item.set)
-        );
+        appContext.setState((oldState) => ({
+            ...oldState,
+            currentConfiguration: {
+                ...oldState.currentConfiguration,
+                sets: newState.map(item => item.set)
+            }
+        }));
+
+        props.setsUpdated(deDuped.length == newState.length && !newState.some(item => !item.valid));
     }
 
     function setsChanged(items: SetState[]) {
@@ -67,15 +72,14 @@ export default function Sets(props: SetsProps) {
     return EditableList<SetState>({
         deleteBelow: true,
         createNewItem: createEmptySet,
-        allowDrop: (item) => state.length > 1,
+        allowDrop: () => state.length > 1,
         onItemChanged: setsChanged,
         allowReorder: true,
         items: state,
         createItem: (item, itemUpdated: (item: SetState) => void) => {
             return <SetConfig set={item.set}
-                              destinations={props.destinations}
+                              destinations={destList}
                               allowReset={props.allowReset}
-                              backendState={props.backendState}
                               setUpdated={(valid, set) => {
                                   itemUpdated({valid: valid, set: set});
                               }}/>

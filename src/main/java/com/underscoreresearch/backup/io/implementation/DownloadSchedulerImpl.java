@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.io.implementation;
 
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
+import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
 import static com.underscoreresearch.backup.utils.LogUtil.readableDuration;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
@@ -39,6 +40,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
     private AtomicLong totalCount = new AtomicLong();
     private AtomicLong failedCount = new AtomicLong();
     private AtomicLong pendingOutstanding = new AtomicLong();
+    private BackupFile lastProcessed;
     private Stopwatch duration;
     private DB fileDb;
     private BTreeMap<Object[], String> fileMap;
@@ -136,6 +138,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                 debug(() -> log.debug("Restored " + PathNormalizer.physicalPath(file.getPath())));
                 totalSize.addAndGet(file.getLength());
                 totalCount.incrementAndGet();
+                lastProcessed = file;
             } catch (Exception e) {
                 if (!isShutdown()) {
                     log.error("Failed to restore file {}", PathNormalizer.physicalPath(file.getPath()), e);
@@ -151,6 +154,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
         totalSize.set(0);
         failedCount.set(0);
         duration = null;
+        lastProcessed = null;
     }
 
     @Override
@@ -159,6 +163,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                 duration != null ? duration.elapsed() : Duration.ZERO);
         if (duration != null) {
             ret.add(new StatusLine(getClass(), "RESTORE_DURATION", "Total duration", duration.elapsed().toMillis(), readableDuration(duration.elapsed())));
+            lastProcessedPath(getClass(), ret, lastProcessed, "PROCESSED_PATH");
         }
         if (failedCount.get() > 0) {
             ret.add(new StatusLine(getClass(), "RESTORED_OBJECTS_FAILED", "Failed to restore files", failedCount.get()));

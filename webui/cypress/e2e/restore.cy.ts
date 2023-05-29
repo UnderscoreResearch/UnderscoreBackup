@@ -8,11 +8,12 @@ it('restore', function () {
     cy.get('#typeLocalDirectory').click();
     cy.get('#localFileText').clear();
     cy.get('#localFileText').type(backupLocation);
-    cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
+    cy.get('#next').should("be.visible").and('not.be.disabled').click();
     cy.get('#restorePassword').clear();
     cy.get('#restorePassword').type('bYisMYVs9Qdw');
-    cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
-    cy.get('#currentProgress').contains("Currently Inactive", {timeout: 60 * 1000});
+    cy.get('#next').should("be.visible").and('not.be.disabled').click();
+    cy.wait(5000);
+    cy.get('#exit').should("be.visible").and('not.be.disabled').click();
     cy.wait(1000);
     cy.get('#pageSettings > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('#showChangePassword').click();

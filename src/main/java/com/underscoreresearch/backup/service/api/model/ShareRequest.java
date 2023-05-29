@@ -40,7 +40,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   ShareRequest.JSON_PROPERTY_DESTINATION,
   ShareRequest.JSON_PROPERTY_PRIVATE_KEYS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ShareRequest {
   public static final String JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH = "targetAccountEmailHash";
   private String targetAccountEmailHash;
@@ -66,7 +66,7 @@ public class ShareRequest {
    * Target account of email hash (Base64 URL encoded).
    * @return targetAccountEmailHash
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -91,7 +91,7 @@ public class ShareRequest {
    * Name of share.
    * @return name
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_NAME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -116,7 +116,7 @@ public class ShareRequest {
    * Base64 URL encoding of encrypted destination of share.
    * @return destination
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_DESTINATION)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -149,7 +149,7 @@ public class ShareRequest {
    * List of private keys to the destination encrypted by different public keys.
    * @return privateKeys
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_PRIVATE_KEYS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

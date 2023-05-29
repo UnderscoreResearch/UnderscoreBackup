@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.helpers;
 import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
@@ -72,6 +73,7 @@ public class RepositoryTrimmer implements StatusLogger {
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private AtomicLong processedSteps = new AtomicLong();
     private AtomicLong totalSteps = new AtomicLong();
+    private BackupFile lastProcessed;
     private Duration lastHeartbeat;
     private LoadingCache<String, NavigableSet<String>> directoryCache = CacheBuilder
             .newBuilder()
@@ -91,6 +93,7 @@ public class RepositoryTrimmer implements StatusLogger {
     public void resetStatus() {
         stopwatch.reset();
         processedSteps.set(0L);
+        lastProcessed = null;
     }
 
     @Override
@@ -99,15 +102,18 @@ public class RepositoryTrimmer implements StatusLogger {
             long elapsedMilliseconds = stopwatch.elapsed().toMillis();
             if (elapsedMilliseconds > 0) {
                 long throughput = 1000 * processedSteps.get() / elapsedMilliseconds;
-                return Lists.newArrayList(
+
+                List<StatusLine> ret = Lists.newArrayList(
                         new StatusLine(getClass(), "TRIMMING_THROUGHPUT", "Trimming throughput",
                                 throughput, readableNumber(throughput) + " steps/s"),
-                        new StatusLine(getClass(), "TRIMMING_STEPS", "Trimming steps completed",
+                        new StatusLine(getClass(), "TRIMMING_STEPS", "Trimming repository",
                                 processedSteps.get(), totalSteps.get(),
                                 readableNumber(processedSteps.get()) + " / "
                                         + readableNumber(totalSteps.get()) + " steps"
                                         + readableEta(processedSteps.get(), totalSteps.get(),
                                         Duration.ofMillis(elapsedMilliseconds))));
+                lastProcessedPath(getClass(), ret, lastProcessed, "TRIMMING_PROCESSED_PATH");
+                return ret;
             }
         }
         return new ArrayList<>();
@@ -276,6 +282,7 @@ public class RepositoryTrimmer implements StatusLogger {
                 lastHeartbeat = stopwatch.elapsed();
                 log.info("Processing path {}", PathNormalizer.physicalPath(file.getPath()));
             }
+            lastProcessed = file;
 
             processedSteps.incrementAndGet();
 
@@ -532,7 +539,7 @@ public class RepositoryTrimmer implements StatusLogger {
 
     @Override
     public void filterItems(List<StatusLine> lines, boolean temporal) {
-        if (stopwatch.isRunning() && temporal == temporal()) {
+        if (stopwatch.isRunning() && temporal == isTemporal()) {
             for (int i = 0; i < lines.size(); ) {
                 String code = lines.get(i).getCode();
                 if (code.startsWith("TRIMMING_") || code.startsWith("HEAP_")) {

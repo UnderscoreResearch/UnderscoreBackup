@@ -37,7 +37,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   GetSecretRequest.JSON_PROPERTY_CODE_VERIFIER,
   GetSecretRequest.JSON_PROPERTY_EMAIL_HASH
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class GetSecretRequest {
   public static final String JSON_PROPERTY_CLIENT_ID = "clientId";
   private String clientId;
@@ -63,7 +63,7 @@ public class GetSecretRequest {
    * Client ID of authentication request. Required if you wish to retrieve secret.
    * @return clientId
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_CLIENT_ID)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -88,7 +88,7 @@ public class GetSecretRequest {
    * Code returned by a previous call to getSecretCode.
    * @return code
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_CODE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -113,7 +113,7 @@ public class GetSecretRequest {
    * The original string that was used to generate the codeChallenge in the previous getSecretCode request.
    * @return codeVerifier
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_CODE_VERIFIER)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
@@ -138,7 +138,7 @@ public class GetSecretRequest {
    * Base64url encoding of hash of email that will be used to decrypt secret.
    * @return emailHash
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_EMAIL_HASH)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

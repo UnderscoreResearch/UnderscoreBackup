@@ -35,7 +35,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SecretRequest.JSON_PROPERTY_EMAIL_HASH,
   SecretRequest.JSON_PROPERTY_SECRET
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class SecretRequest {
   public static final String JSON_PROPERTY_EMAIL_HASH = "emailHash";
   private String emailHash;
@@ -55,7 +55,7 @@ public class SecretRequest {
    * Base64url encoding of SHA256 hash of email used to encrypt the secret.
    * @return emailHash
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_EMAIL_HASH)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -80,7 +80,7 @@ public class SecretRequest {
    * Encrypted secret.
    * @return secret
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_SECRET)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

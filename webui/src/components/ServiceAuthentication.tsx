@@ -9,6 +9,7 @@ import {deleteToken, updateSource} from "../api/service";
 export interface ServiceAuthenticationProps {
     backendState: BackupState,
     includeSkip: boolean,
+    authRedirectLocation?: string,
     needSubscription: boolean,
     updatedToken: () => void
     onSkip?: () => void
@@ -33,7 +34,7 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
             busy: true
         });
         try {
-            authorizationRedirect(props.backendState.siteUrl, location.pathname,
+            authorizationRedirect(props.backendState.siteUrl, props.authRedirectLocation ?? location.pathname,
                 `name=${encodeURIComponent(props.backendState.sourceName)}`,
                 `sourceName=${encodeURIComponent(props.backendState.sourceName)}`);
         } finally {

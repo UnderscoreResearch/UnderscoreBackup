@@ -37,7 +37,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   ListSourcesResponse.JSON_PROPERTY_SOURCES
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ListSourcesResponse {
   public static final String JSON_PROPERTY_SOURCES = "sources";
   private List<SourceResponse> sources = new ArrayList<>();
@@ -62,7 +62,7 @@ public class ListSourcesResponse {
    * List of sources.
    * @return sources
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_SOURCES)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

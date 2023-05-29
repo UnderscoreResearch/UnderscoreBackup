@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.io.IOProviderFactory.removeOldProvid
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -37,6 +38,7 @@ public abstract class InstanceFactory {
     private static BackupConfiguration cachedConfig;
     private static boolean cachedHasConfig;
     private static String additionalSource;
+    private static AtomicBoolean currentlyCleaningUp = new AtomicBoolean(false);
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -118,30 +120,38 @@ public abstract class InstanceFactory {
 
     public static void reloadConfiguration(String source, String sourceName, Runnable startup) {
         synchronized (shutdownHooks) {
-            executeOrderedCleanupHook();
-            MetadataRepository repository = null;
-            try {
-                repository = InstanceFactory.getInstance(MetadataRepository.class);
-            } catch (ProvisionException e) {
+            if (currentlyCleaningUp.get()) {
+                throw new IllegalStateException("Cannot reload configuration recursively");
             }
+            currentlyCleaningUp.set(true);
             try {
-                if (repository != null) {
-                    repository.close();
+                executeOrderedCleanupHook();
+                MetadataRepository repository = null;
+                try {
+                    repository = InstanceFactory.getInstance(MetadataRepository.class);
+                } catch (ProvisionException e) {
                 }
-            } catch (IOException e) {
-                log.error("Failed to close metadata repository");
-            }
-            initialize(initialArguments, source, sourceName);
-            if (hasConfiguration(true)) {
-                ConfigurationValidator.validateConfiguration(
-                        getInstance(SOURCE_CONFIG, BackupConfiguration.class),
-                        true,
-                        source != null);
-            }
-            removeOldProviders();
+                try {
+                    if (repository != null) {
+                        repository.close();
+                    }
+                } catch (IOException e) {
+                    log.error("Failed to close metadata repository");
+                }
+                initialize(initialArguments, source, sourceName);
+                if (hasConfiguration(true)) {
+                    ConfigurationValidator.validateConfiguration(
+                            getInstance(SOURCE_CONFIG, BackupConfiguration.class),
+                            true,
+                            source != null);
+                }
+                removeOldProviders();
 
-            if (startup != null) {
-                startup.run();
+                if (startup != null) {
+                    startup.run();
+                }
+            } finally {
+                currentlyCleaningUp.set(false);
             }
         }
     }

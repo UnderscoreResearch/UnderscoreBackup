@@ -36,7 +36,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   ListSharingKeysResponse.JSON_PROPERTY_PUBLIC_KEYS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ListSharingKeysResponse {
   public static final String JSON_PROPERTY_PUBLIC_KEYS = "publicKeys";
   private List<String> publicKeys = new ArrayList<>();
@@ -61,7 +61,7 @@ public class ListSharingKeysResponse {
    * List of public keys to encrypt with for given target account.
    * @return publicKeys
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_PUBLIC_KEYS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

@@ -15,7 +15,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 public class KeyPost extends JsonWrap {
-    private static ObjectWriter WRITER = MAPPER
+    private static final ObjectWriter WRITER = MAPPER
             .writerFor(KeyResponse.class);
 
     public KeyPost() {
@@ -25,7 +25,7 @@ public class KeyPost extends JsonWrap {
     @Data
     @AllArgsConstructor
     public static class KeyResponse {
-        private Boolean specified;
+        private Boolean isSpecified;
     }
 
     private static class Implementation extends BaseImplementation {

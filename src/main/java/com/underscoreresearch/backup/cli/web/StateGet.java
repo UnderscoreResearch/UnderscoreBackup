@@ -26,9 +26,11 @@ import org.takes.rs.RsText;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.inject.ProvisionException;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupFilter;
@@ -94,9 +96,11 @@ public class StateGet extends JsonWrap {
         private BackupSet defaultSet;
         private NewVersion newVersion;
         private String defaultRestoreFolder;
+        private boolean repositoryReady;
     }
 
     private static class Implementation extends BaseImplementation {
+
         @Override
         public Response actualAct(Request req) throws Exception {
             try {
@@ -152,6 +156,9 @@ public class StateGet extends JsonWrap {
                         "/\\.cpan/",
                         "/build/");
 
+                if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC_OSX) {
+                    exclusions.add("/OfficeFileCache/");
+                }
                 if (!SystemUtils.IS_OS_WINDOWS) {
                     exclusions.add("/lost\\+found/");
                     exclusions.add("/.config/google-chrome/");
@@ -198,6 +205,14 @@ public class StateGet extends JsonWrap {
                     }
                 }
 
+                boolean repositoryReady = false;
+                if (validDestinations) {
+                    try {
+                        repositoryReady = InstanceFactory.getInstance(ManifestManager.class).isRepositoryReady();
+                    } catch (ProvisionException exc) {
+                    }
+                }
+
                 String sourceName = InstanceFactory.getAdditionalSource() != null
                         ? InstanceFactory.getAdditionalSourceName()
                         : InstanceFactory.getInstance(ServiceManager.class).getSourceName();
@@ -214,6 +229,7 @@ public class StateGet extends JsonWrap {
                         .source(InstanceFactory.getAdditionalSource())
                         .newVersion(NewVersion.fromRelease(serviceManager.newVersion()))
                         .pathSeparator(File.separator)
+                        .repositoryReady(repositoryReady)
                         .defaultRestoreFolder(defaultRestore).build()));
             } catch (Exception exc) {
                 log.warn("Failed to read existing config", exc);

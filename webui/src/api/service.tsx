@@ -63,14 +63,17 @@ export async function deleteToken(): Promise<boolean> {
         method: 'DELETE'
     });
 
-    if (ret === undefined) {
-        return false;
-    }
-    return true;
+    return ret !== undefined;
 }
 
 export async function listSources(excludeSelf: boolean): Promise<ListSourcesResponse> {
     return await makeApiCall("service/sources?excludeSelf=" + (excludeSelf ? "true" : "false"), {
+        method: 'GET'
+    });
+}
+
+export async function getSource(): Promise<ListSourcesResponse> {
+    return await makeApiCall("service/sources?onlySelf=true", {
         method: 'GET'
     });
 }
@@ -142,6 +145,16 @@ export async function createSecret(password: string, region: string, email: stri
             region: region,
             password: password
         })
+    });
+}
+
+export async function deleteSecret(): Promise<AdditionalKeys | undefined> {
+    return await makeApiCall("service/secrets", {
+        method: 'DELETE',
+        headers: {
+            'content-type': 'application/json;charset=UTF-8',
+        },
+        body: JSON.stringify({})
     });
 }
 

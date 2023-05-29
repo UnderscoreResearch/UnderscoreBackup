@@ -59,7 +59,7 @@ public class SourcesPut extends JsonWrap {
                                             EncryptionKey.PrivateKey privateKey) throws IOException {
         BackupDestination destination = BACKUP_DESTINATION_READER.readValue(unpackConfigData(
                 sourceDefinition.getEncryptionMode(), privateKey,
-                BaseEncoding.base64().decode(sourceDefinition.getDestination())));
+                destinationDecode(sourceDefinition.getDestination())));
 
         File privateKeyFile = getDefaultEncryptionFileName(InstanceFactory
                 .getInstance(CommandLine.class));
@@ -75,7 +75,7 @@ public class SourcesPut extends JsonWrap {
                     writer.write(ENCRYPTION_KEY_WRITER.writeValueAsBytes(privateKey.getParent().publicOnly()));
                 }
 
-                updateConfiguration(config, true, true);
+                updateConfiguration(config, true, true, true);
             } catch (Exception exc) {
                 serviceManager.setSourceId(oldSourceId);
                 throw exc;
@@ -90,6 +90,14 @@ public class SourcesPut extends JsonWrap {
             log.error("Failed to download configuration", exc);
             privateKeyFile.delete();
             return false;
+        }
+    }
+
+    public static byte[] destinationDecode(String destination) {
+        try {
+            return BaseEncoding.base64Url().decode(destination);
+        } catch (IllegalArgumentException exc) {
+            return BaseEncoding.base64().decode(destination);
         }
     }
 

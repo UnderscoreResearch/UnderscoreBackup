@@ -22,6 +22,7 @@ public class BackupManifest {
     private Boolean interactiveBackup;
     private Boolean pauseOnBattery;
     private Boolean hideNotifications;
+    private Boolean initialSetup;
     private Boolean versionCheck;
     private BackupTimespan scheduleRandomize;
 

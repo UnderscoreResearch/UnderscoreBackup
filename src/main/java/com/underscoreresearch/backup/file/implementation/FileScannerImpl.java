@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.file.implementation;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
+import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
 import static com.underscoreresearch.backup.utils.LogUtil.readableDuration;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
@@ -68,6 +69,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     private Condition pendingDirectoriesUpdated = lock.newCondition();
     private boolean shutdown;
     private Stopwatch duration;
+    private BackupFile lastProcessed;
 
     private Duration lastPath;
 
@@ -191,17 +193,19 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         completedFiles.set(0);
         outstandingFiles.set(0);
         duration = null;
+        lastProcessed = null;
     }
 
     @Override
     public List<StatusLine> status() {
-        List<StatusLine> ret = getThroughputStatus(getClass(), "Finished", "files",
+        List<StatusLine> ret = getThroughputStatus(getClass(), "Completed", "files",
                 completedFiles.get(), completedSize.get(),
                 duration != null ? duration.elapsed() : Duration.ZERO);
 
         if (duration != null) {
             ret.add(new StatusLine(getClass(), "BACKUP_DURATION", "Total duration", duration.elapsed().toMillis(),
                     readableDuration(duration.elapsed())));
+            lastProcessedPath(getClass(), ret, lastProcessed, "PROCESSED_PATH");
         }
 
         if (outstandingFiles.get() > 0 && debug) {
@@ -283,6 +287,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
                             outstandingFiles.incrementAndGet();
                             pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCOMPLETE);
 
+                            lastProcessed = file;
                             consumer.backupFile(set, file, (success) -> {
                                 outstandingFiles.decrementAndGet();
                                 if (!success) {
@@ -397,7 +402,7 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
         pendingPaths.put(path, activePath);
 
         final String debugPath = path;
-        debug(() -> log.debug("Started processing {}", debugPath));
+        debug(() -> log.debug("Started processing {}", PathNormalizer.physicalPath(debugPath)));
         try {
             repository.pushActivePath(set.getId(), path, activePath);
         } catch (IOException e) {

@@ -1,5 +1,4 @@
-import * as React from 'react';
-import {useEffect} from 'react';
+import React, {useEffect} from 'react';
 import {
     Button,
     Checkbox,
@@ -20,9 +19,9 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import FileTreeView, {formatLastChange, formatSize, pathName} from "./FileTreeView"
 import {
+    BackupDestination,
     BackupFile,
     BackupSetRoot,
-    BackupState,
     downloadBackupFile,
     getBackupFiles,
     getBackupVersions,
@@ -38,32 +37,27 @@ import IconButton from "@mui/material/IconButton";
 import {Clear} from "@mui/icons-material";
 import Divider from "@mui/material/Divider";
 import {listShares, listSources, ShareResponse, SourceResponse} from "../api/service";
+import {ApplicationContext, DestinationProp, useApplication} from "../utils/ApplicationContext";
+import {useButton} from "../utils/ButtonContext";
 
 export interface RestorePropsChange {
     password: string,
     timestamp?: Date,
     roots: BackupSetRoot[],
-    source: string,
     destination?: string,
     overwrite: boolean,
+    source?: string,
     includeDeleted?: boolean
 }
 
 export interface RestoreProps {
     password?: string,
     timestamp?: Date,
-    defaultDestination: string,
     destination?: string,
     overwrite: boolean,
-    backendState: BackupState,
     roots: BackupSetRoot[],
-    sources: string[],
-    source: string,
-    activeSource: boolean,
-    onChange: (state: RestorePropsChange) => void,
-    onSubmit: () => void,
-    validatedPassword: boolean,
     includeDeleted?: boolean
+    restoreUpdated: (state: RestorePropsChange) => void
 }
 
 export interface RestoreState {
@@ -81,33 +75,52 @@ export interface RestoreState {
     serviceShares?: ShareResponse[]
 }
 
-function defaultState(props: RestoreProps) {
+function defaultState(appContext: ApplicationContext, props: RestoreProps): RestoreState {
     return {
         password: props.password ? props.password : "",
         roots: props.roots,
         timestamp: props.timestamp,
         search: "",
-        source: props.source ? props.source : "-",
+        source: appContext.selectedSource ? appContext.selectedSource : "-",
         showingSearch: "",
         current: !props.timestamp,
         overwrite: props.overwrite,
-        destination: props.destination ? props.destination : props.defaultDestination,
+        destination: props.destination ? props.destination : appContext.backendState.defaultRestoreFolder,
         includeDeleted: props.includeDeleted,
-        serviceSources: props.backendState.serviceConnected ? undefined : [],
-        serviceShares: props.backendState.serviceConnected ? undefined : []
+        serviceSources: appContext.backendState.serviceConnected ? undefined : [],
+        serviceShares: appContext.backendState.serviceConnected ? undefined : []
     }
 }
 
+function sourceList(appContext: ApplicationContext): DestinationProp[] {
+    if (appContext.originalConfiguration && appContext.originalConfiguration.additionalSources) {
+        const keys = Object.keys(appContext.originalConfiguration.additionalSources);
+        keys.sort();
+
+        return keys.map(key => {
+            return {
+                // @ts-ignore
+                destination: appContext.originalConfiguration.additionalSources[key] as BackupDestination,
+                id: key
+            }
+        });
+    }
+    return [];
+}
+
 export default function Restore(props: RestoreProps) {
-    const [state, setState] = React.useState<RestoreState>(() => defaultState(props));
+    const appContext = useApplication();
+    const buttonContext = useButton();
+    const [state, setState]
+        = React.useState(() => defaultState(appContext, props));
 
     function updateState(newState: RestoreState) {
         if (newState.password.length > 0) {
-            props.onChange({
+            props.restoreUpdated({
                 password: newState.password,
-                source: props.activeSource ? props.source : newState.source,
                 timestamp: newState.current ? undefined : newState.timestamp,
                 overwrite: newState.overwrite,
+                source: newState.source,
                 destination: newState.destination,
                 includeDeleted: newState.includeDeleted,
                 roots: newState.roots
@@ -142,11 +155,11 @@ export default function Restore(props: RestoreProps) {
 
     useEffect(() => {
         setState({
-            ...(defaultState(props)),
+            ...defaultState(appContext, props),
             serviceSources: state.serviceSources,
             serviceShares: state.serviceShares
         });
-    }, [props.source === "" ? "1" : ""])
+    }, [appContext.selectedSource === "" ? "1" : ""])
 
     function updateSelection(newRoots: BackupSetRoot[]) {
         updateState({
@@ -160,6 +173,11 @@ export default function Restore(props: RestoreProps) {
             ...state,
             timestamp: newValue ? newValue : undefined
         });
+    }
+
+    if (state.source !== "-" && (!state.serviceSources || !state.serviceShares)) {
+        fetchSources();
+        fetchShares();
     }
 
     async function fetchTooltipContents(path: string): Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
@@ -192,7 +210,7 @@ export default function Restore(props: RestoreProps) {
                                         <Button style={{marginLeft: "8px"}}
                                                 variant="contained"
                                                 disabled={!file.length || file.length > 1024 * 1024 * 1024}
-                                                onClick={(e) => {
+                                                onClick={() => {
                                                     downloadBackupFile(file.path,
                                                         file.added ? file.added : 0,
                                                         state.password);
@@ -212,16 +230,18 @@ export default function Restore(props: RestoreProps) {
 
     function fetchContents(path: string) {
         if (state.showingSearch) {
-            return searchBackup(state.showingSearch, state.includeDeleted ? true : false,
+            return searchBackup(state.showingSearch, !!state.includeDeleted,
                 state.current ? undefined : state.timestamp);
         } else {
             return getBackupFiles(path,
-                state.includeDeleted ? true : false,
+                !!state.includeDeleted,
                 state.current ? undefined : state.timestamp);
         }
     }
 
-    if (!props.password || !props.validatedPassword) {
+    const localSources = sourceList(appContext);
+
+    if (!props.password || !appContext.validatedPassword) {
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
                 p: 2
@@ -238,14 +258,15 @@ export default function Restore(props: RestoreProps) {
                      style={{marginTop: 4}}>
                     <FormControl fullWidth={true} style={{margin: "8px"}}>
                         <InputLabel id="source-id-label">Source</InputLabel>
-                        {props.activeSource ?
+                        {appContext.selectedSource ?
                             <Select
                                 labelId="source-id-label"
                                 value={state.source}
                                 label="Source"
                                 disabled={true}
                             >
-                                <MenuItem key={props.source} value={props.source}>{props.source}</MenuItem>
+                                <MenuItem key={appContext.selectedSource}
+                                          value={appContext.selectedSource}>{appContext.selectedSourceName}</MenuItem>
                             </Select>
                             :
                             <Select
@@ -267,11 +288,11 @@ export default function Restore(props: RestoreProps) {
                                 }}
                             >
                                 <MenuItem key="-" value={"-"}>Local</MenuItem>
-                                {props.sources && props.sources.length > 0 &&
+                                {localSources.length > 0 &&
                                     <Divider>Local Sources</Divider>
                                 }
-                                {props.sources.sort().map(str =>
-                                    <MenuItem key={str} value={str}>{str}</MenuItem>
+                                {localSources.sort().map(str =>
+                                    <MenuItem key={str.id} value={str.id}>{str.id}</MenuItem>
                                 )}
                                 {state.serviceSources && state.serviceSources.length > 0 &&
                                     <Divider>Service Sources</Divider>
@@ -299,7 +320,7 @@ export default function Restore(props: RestoreProps) {
                                type="password"
                                onKeyDown={(e) => {
                                    if (e.key === "Enter") {
-                                       props.onSubmit();
+                                       buttonContext.accept();
                                    }
                                }}
                                onChange={(e) => updateState({
@@ -363,11 +384,11 @@ export default function Restore(props: RestoreProps) {
                             <InputAdornment position={"end"}>
                                 {
                                     state.showingSearch &&
-                                    <IconButton onClick={(e) => setState({...state, showingSearch: "", search: ""})}>
+                                    <IconButton onClick={() => setState({...state, showingSearch: "", search: ""})}>
                                         <Clear/>
                                     </IconButton>
                                 }
-                                <IconButton onClick={(e) => setState({...state, showingSearch: state.search})}>
+                                <IconButton onClick={() => setState({...state, showingSearch: state.search})}>
                                     <Search/>
                                 </IconButton>
                             </InputAdornment>
@@ -375,7 +396,7 @@ export default function Restore(props: RestoreProps) {
                     }}
                 />
                 <FileTreeView roots={state.roots}
-                              backendState={props.backendState}
+                              backendState={appContext.backendState}
                               hideRoot={!!state.showingSearch}
                               rootName={state.showingSearch ? "Not found" : ""}
                               rootNameProcessing={state.showingSearch ? "Searching..." : ""}
@@ -402,7 +423,7 @@ export default function Restore(props: RestoreProps) {
                         } else {
                             updateState({
                                 ...state,
-                                destination: props.backendState.defaultRestoreFolder
+                                destination: appContext.backendState.defaultRestoreFolder
                             });
                         }
                     }}/>} label="Original location" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
@@ -411,7 +432,7 @@ export default function Restore(props: RestoreProps) {
                                fullWidth={true}
                                disabled={!state.destination || state.destination === "-" || state.destination === "="}
                                defaultValue={state.destination && state.destination !== "-" && state.destination !== "="
-                                   ? state.destination : props.backendState.defaultRestoreFolder}
+                                   ? state.destination : appContext.backendState.defaultRestoreFolder}
                                onBlur={(e) => updateState({
                                    ...state,
                                    destination: e.target.value
@@ -439,7 +460,7 @@ export default function Restore(props: RestoreProps) {
                             } else {
                                 updateState({
                                     ...state,
-                                    destination: props.backendState.defaultRestoreFolder
+                                    destination: appContext.backendState.defaultRestoreFolder
                                 });
                             }
                         }}/>} label="Only verify backup" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>

@@ -188,7 +188,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                 if (duration.toSeconds() > 5) {
                     return new StatusLine(getClass(),
                             "DOWNLOADED_ACTIVE_" + entry.getKey(),
-                            "Currently downloading " + entry.getKey(),
+                            "Downloading " + entry.getKey(),
                             entry.getValue().getCompleted(),
                             entry.getValue().getTotal(),
                             readableSize(entry.getValue().getCompleted()) + " / "
@@ -197,7 +197,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                 } else {
                     return new StatusLine(getClass(),
                             "DOWNLOADED_ACTIVE_" + entry.getKey(),
-                            "Currently downloading " + entry.getKey(),
+                            "Downloading " + entry.getKey(),
                             entry.getValue().getCompleted(),
                             entry.getValue().getTotal(),
                             readableSize(entry.getValue().getCompleted()) + " / "

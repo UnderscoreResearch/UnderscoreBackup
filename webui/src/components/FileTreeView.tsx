@@ -1,7 +1,6 @@
-import * as React from 'react';
-import {useEffect} from 'react';
+import React, {useEffect} from 'react';
 import {FixedSizeList as List} from "react-window";
-import AutoSizer from "react-virtualized-auto-sizer";
+import AutoSizer, {Size} from "react-virtualized-auto-sizer";
 import {Checkbox, CircularProgress, FormControlLabel, Tooltip} from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import {ChevronRight, KeyboardArrowDown, Menu} from "@mui/icons-material";
@@ -126,28 +125,22 @@ function shouldExpand(roots: BackupSetRoot[], path: string): boolean {
     const matchingRoot = roots.find(item => {
         if ((path + "/").startsWith(item.path) || item.path === "/")
             return true;
-        if (item.path === path || item.path.startsWith(path + "/"))
-            return true;
-        return false;
+        return item.path === path || item.path.startsWith(path + "/");
+
     });
 
     if (matchingRoot) {
         if (matchingRoot.path === path + "/" || matchingRoot.path === path) {
-            if (matchingRoot.filters) {
-                return true;
-            }
-            return false;
+            return !!matchingRoot.filters;
         }
         if (matchingRoot.path.startsWith(path + "/")) {
             return true;
         }
         const start = path.startsWith(matchingRoot.path) ? matchingRoot.path.length : 0;
         let filter = findFilter(path.substring(start), matchingRoot.filters);
-        if (filter.matchingChild || (filter.exactMatch && filter.filter &&
-            filter.filter.children && filter.filter.children.length > 0)) {
-            return true;
-        }
-        return false;
+
+        return !!(filter.matchingChild || (filter.exactMatch && filter.filter &&
+            filter.filter.children && filter.filter.children.length > 0));
     }
 
     return false;
@@ -252,9 +245,8 @@ export default function FileTreeView(props: SetTreeViewProps) {
         const matchingRoot = state.roots.find(item => {
             if ((path + "/").startsWith(item.path) || item.path === "/")
                 return true;
-            if (item.path === path || item.path.startsWith(path + "/"))
-                return true;
-            return false;
+
+            return item.path === path || item.path.startsWith(path + "/");
         })
 
         if (matchingRoot) {
@@ -545,17 +537,16 @@ export default function FileTreeView(props: SetTreeViewProps) {
             </span>
             <div style={{height: Math.min((state.items.length * 40 + 1), 500) + "px"}}>
                 <AutoSizer>
-                    {({height, width}: { height: number; width: number }) => (
-                        <List
-                            className="List fileTreeList"
-                            height={height}
-                            itemCount={state.items.length - (props.hideRoot && state.items.length > 1 ? 1 : 0)}
-                            itemSize={40}
-                            width={width}
-                        >
-                            {Row}
-                        </List>
-                    )}
+                    {({height, width} : Size) => <List
+                        className="List fileTreeList"
+                        height={height}
+                        itemCount={state.items.length - (props.hideRoot && state.items.length > 1 ? 1 : 0)}
+                        itemSize={40}
+                        width={width}
+                    >
+                        {Row}
+                    </List>
+                    }
                 </AutoSizer>
             </div>
         </div>

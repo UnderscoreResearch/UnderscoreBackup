@@ -36,8 +36,8 @@ $ yarn add react-password-strength-bar
 ```js
 import PasswordStrengthBar from 'react-password-strength-bar';
 
-const { password } = this.state;
-<PasswordStrengthBar password={password} />
+const {password} = this.state;
+<PasswordStrengthBar password={password}/>
 ```
 
 ## Props

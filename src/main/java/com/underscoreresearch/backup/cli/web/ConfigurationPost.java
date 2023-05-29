@@ -62,10 +62,14 @@ public class ConfigurationPost extends JsonWrap {
 
     public static BackupConfiguration updateConfiguration(String config,
                                                           boolean clearInteractiveBackup,
-                                                          boolean validateDestinations) throws IOException {
+                                                          boolean validateDestinations,
+                                                          boolean initialSetup) throws IOException {
         BackupConfiguration configuration = BACKUP_CONFIGURATION_READER.readValue(config);
-        if (clearInteractiveBackup) {
-            configuration.getManifest().setInteractiveBackup(null);
+        if (clearInteractiveBackup || initialSetup) {
+            if (clearInteractiveBackup)
+                configuration.getManifest().setInteractiveBackup(null);
+            if (initialSetup)
+                configuration.getManifest().setInitialSetup(true);
             config = BACKUP_CONFIGURATION_WRITER.writeValueAsString(configuration);
         }
         ConfigurationValidator.validateConfiguration(configuration, false, false);
@@ -196,7 +200,7 @@ public class ConfigurationPost extends JsonWrap {
                     if (InstanceFactory.getAdditionalSource() != null)
                         InstanceFactory.reloadConfiguration(null);
 
-                    BackupConfiguration newConfig = updateConfiguration(config, false, true);
+                    BackupConfiguration newConfig = updateConfiguration(config, false, true, false);
                     if (currentConfig != null && currentConfig.getAdditionalSources() != null) {
                         HashSet<String> abandonedSources = new HashSet<>(currentConfig.getAdditionalSources().keySet());
                         if (newConfig.getAdditionalSources() != null) {

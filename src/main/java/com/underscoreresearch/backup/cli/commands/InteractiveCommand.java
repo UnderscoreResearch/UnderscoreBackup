@@ -157,7 +157,7 @@ public class InteractiveCommand extends Command {
                         && configuration.getManifest().getInteractiveBackup()) {
                     log.warn("Resetting interactive backup parameter because key is missing");
                     ConfigurationPost.updateConfiguration(InstanceFactory.getInstance(CommandLineModule.CONFIG_DATA),
-                            true, true);
+                            true, true, true);
                     InstanceFactory.reloadConfiguration(null);
                 }
                 throw exc;

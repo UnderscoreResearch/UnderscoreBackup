@@ -35,7 +35,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SharePrivateKeys.JSON_PROPERTY_PUBLIC_KEY,
   SharePrivateKeys.JSON_PROPERTY_ENCRYPTED_KEY
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class SharePrivateKeys {
   public static final String JSON_PROPERTY_PUBLIC_KEY = "publicKey";
   private String publicKey;
@@ -55,7 +55,7 @@ public class SharePrivateKeys {
    * Public encryption key with which the encrypted private key is encrypted.
    * @return publicKey
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_PUBLIC_KEY)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -80,7 +80,7 @@ public class SharePrivateKeys {
    * Encryption of private key used to encrypt share.
    * @return encryptedKey
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_ENCRYPTED_KEY)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

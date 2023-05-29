@@ -36,7 +36,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   GenerateTokenRequest.JSON_PROPERTY_CODE,
   GenerateTokenRequest.JSON_PROPERTY_CODE_VERIFIER
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class GenerateTokenRequest {
   public static final String JSON_PROPERTY_CLIENT_ID = "clientId";
   private String clientId;
@@ -59,7 +59,7 @@ public class GenerateTokenRequest {
    * Client ID of authentication request.
    * @return clientId
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_CLIENT_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -84,7 +84,7 @@ public class GenerateTokenRequest {
    * Code returned by a previous call to clientAuthCode.
    * @return code
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_CODE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -109,7 +109,7 @@ public class GenerateTokenRequest {
    * The original string that was used to generate the codeChallenge in the previous clientAuthCode request.
    * @return codeVerifier
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_CODE_VERIFIER)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

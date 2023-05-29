@@ -19,11 +19,11 @@ it('sharerestore', function () {
     cy.get("#loading").should('not.be.visible');
     cy.get('#acceptButton').contains("Activate Shares").should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
+    cy.wait(100);
     cy.get('#currentProgress').contains("Currently Inactive");
 
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click()
-    cy.get("#cancelButton").should("be.visible").and('not.be.disabled').click();
-    cy.get("#loading").should('not.be.visible');
+    cy.get('#cancelButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#restoreSource").click();
     cy.get('ul > li[data-value="share"]').click()
     cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');

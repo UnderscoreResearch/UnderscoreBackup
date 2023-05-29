@@ -22,10 +22,25 @@ $ENV{"UNDERSCORE_SUPPRESS_OPEN"} = "TRUE";
 my $underscoreBackup = shift(@ARGV);
 my $webuiDir = shift(@ARGV);
 
-#$underscoreBackup = File::Spec->catdir(getcwd(), "../build/launch4j/underscorebackup");
-
 if (!$underscoreBackup) {
     die;
+}
+
+sub cleanPath {
+    my ($dir) = @_;
+
+    print "Cleaning $dir\n";
+    chdir($originalRoot);
+    if (!-d $dir) {
+        mkdir($dir) || die;
+    } else {
+        chdir($dir);
+
+        finddepth { wanted => \&zapFile, no_chdir => 1 }, $dir;
+        if (!-d $dir) {
+            mkdir($dir) || die;
+        }
+    }
 }
 
 if (!-d $parentRoot) {
@@ -34,17 +49,21 @@ if (!-d $parentRoot) {
 
 my $root = File::Spec->catdir($parentRoot, "root");
 
-if (!-d $root) {
-    mkdir($root) || die;
+my $appRoot = File::Spec->catdir($root, "app");
+
+sub cleanParentRoot {
+    &cleanPath($parentRoot);
+    &cleanPath($root);
+    &cleanPath($appRoot);
 }
 
-my $testRoot = File::Spec->catdir($root, "data");
-my $answerRoot = File::Spec->catdir($root, "answer");
 my $backupRoot = File::Spec->catdir($root, "backup");
 my $backupRoot2 = File::Spec->catdir($root, "backup2");
-my $shareRoot = File::Spec->catdir($root, "share");
-my $configFile = File::Spec->catdir($root, "config.json");
-my $keyFile = File::Spec->catdir($root, "key");
+my $testRoot = File::Spec->catdir($root, "data");
+my $answerRoot = File::Spec->catdir($root, "answer");
+my $shareRoot = File::Spec->catdir($appRoot, "share");
+my $configFile = File::Spec->catdir($appRoot, "config.json");
+my $keyFile = File::Spec->catdir($appRoot, "key");
 my $logFile = File::Spec->catdir($parentRoot, "output.log");
 my $sharedPublicKey;
 
@@ -202,7 +221,7 @@ sub executeUnderscoreBackupParameters {
         $underscoreBackup,
         "-k", $keyFile,
         "-c", $configFile,
-        "-m", $root,
+        "-m", $appRoot,
         "--log-file", $logFile,
         "-f", "-R", "-d"
     )
@@ -269,7 +288,7 @@ __EOF__
     }
     my $escapedTestRoot = $testRoot;
     $escapedTestRoot =~ s/\\/\\\\/g;
-    my $escapedRoot = $root;
+    my $escapedRoot = $appRoot;
     $escapedRoot =~ s/\\/\\\\/g;
     my $escapedBackupRoot = $backupRoot;
     $escapedBackupRoot =~ s/\\/\\\\/g;
@@ -363,13 +382,8 @@ __EOF__
 }
 
 sub cleanRunPath {
-    chdir($originalRoot);
-
-    finddepth { wanted => \&zapFile, no_chdir => 1 }, $root;
-    if (!-d $root) {
-        mkdir($root) || die;
-    }
-    chdir($root);
+    &cleanPath($root);
+    &cleanPath($appRoot);
 }
 
 sub prepareRunPath {
@@ -459,17 +473,19 @@ sub executeCypressTest {
     }
     print "Config location: $configLocation\n";
 
-    $ENV{"CYPRESS_TEST_ROOT"} = $root;
+    $ENV{"CYPRESS_TEST_ROOT"} = $appRoot;
     $ENV{"CYPRESS_CONFIG_INTERFACE"} = $configLocation;
     $ENV{"CYPRESS_TEST_DATA"} = $testRoot;
     $ENV{"CYPRESS_TEST_BACKUP"} = $backupRoot;
     $ENV{"CYPRESS_TEST_SHARE"} = $shareRoot;
 
-    # @args = (
-    #     "npx",
-    #     "cypress",
-    #     "open"
-    #    );
+    if (undef) {
+         @args = (
+             "npx",
+             "cypress",
+             "open"
+            );
+    }
 
     print "Executing " . join(" ", @args) . "\n";
 
@@ -480,14 +496,14 @@ sub executeCypressTest {
 }
 
 my $DELAY = 11;
-
+my $MAX_RETRY = 3;
 my @completionTimestamp;
 my $pid;
 
 print "Interactive & superblock test\n";
 
-for (my $retry = 0; 1; $retry++) {
-    &cleanRunPath();
+for (my $retry = 1; 1; $retry++) {
+    &cleanParentRoot();
     &prepareTestPath();
     &generateData(7, 1);
 
@@ -502,7 +518,7 @@ for (my $retry = 0; 1; $retry++) {
 
     if (!&executeCypressTest("backup")) {
         &killInteractive();
-        if ($retry == 2) {
+        if ($retry == $MAX_RETRY) {
             die "Failed to execute Cypress test";
         }
         print "Failed Cypress test retrying for the $retry time\n";
@@ -532,7 +548,7 @@ for (my $retry = 0; 1; $retry++) {
 
     if (!&executeCypressTest("restore")) {
         &killInteractive();
-        if ($retry == 3) {
+        if ($retry == $MAX_RETRY) {
             die "Failed to execute Cypress test";
         }
         print "Failed Cypress test retrying for the $retry time\n";
@@ -541,18 +557,15 @@ for (my $retry = 0; 1; $retry++) {
 
     &validateAnswer();
     &validateLog();
-    last;
-}
 
-print "Rebuild from other source\n";
-
-for (my $retry = 1; 1; $retry++) {
     &prepareTestPath();
     &generateData(7, 1, $answerRoot);
     chdir($root);
 
+    print "Rebuild from other source\n";
+
     if (!&executeCypressTest("sourcerestore")) {
-        if ($retry == 3) {
+        if ($retry == $MAX_RETRY) {
             &killInteractive();
             die "Failed to execute Cypress test";
         }
@@ -562,10 +575,7 @@ for (my $retry = 1; 1; $retry++) {
 
     &validateAnswer();
     &validateLog();
-    last;
-}
 
-for (my $retry = 1; 1; $retry++) {
     print "Activate share and restore\n";
 
     &prepareTestPath();
@@ -573,7 +583,7 @@ for (my $retry = 1; 1; $retry++) {
     chdir($root);
 
     if (!&executeCypressTest("sharerestore")) {
-        if ($retry == 3) {
+        if ($retry == $MAX_RETRY) {
             &killInteractive();
             die "Failed to execute Cypress test";
         }

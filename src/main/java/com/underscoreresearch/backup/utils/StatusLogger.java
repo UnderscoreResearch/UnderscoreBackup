@@ -5,7 +5,7 @@ import java.util.List;
 public interface StatusLogger {
     void resetStatus();
 
-    default boolean temporal() {
+    default boolean isTemporal() {
         return false;
     }
 

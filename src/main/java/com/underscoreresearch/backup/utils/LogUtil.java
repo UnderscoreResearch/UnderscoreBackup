@@ -65,6 +65,13 @@ public final class LogUtil {
         return NumberFormat.getNumberInstance().format(num);
     }
 
+    public static void lastProcessedPath(Class<?> clz, List<StatusLine> ret, BackupFile lastProcessed, String code) {
+        if (lastProcessed != null) {
+            ret.add(new StatusLine(clz, code, "Last processed path",
+                    null, PathNormalizer.physicalPath(lastProcessed.getPath())));
+        }
+    }
+
     public static String readableDuration(Duration duration) {
         long seconds = duration.getSeconds();
         if (duration.toDays() > 0) {

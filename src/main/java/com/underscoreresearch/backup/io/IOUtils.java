@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.io;
 
+import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_BASE;
+
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -16,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.utils.RetryUtils;
 
 @Slf4j
 public final class IOUtils {
@@ -53,12 +54,21 @@ public final class IOUtils {
             if (internetSuccessfulUntil != null && Instant.now().isBefore(internetSuccessfulUntil)) {
                 return true;
             }
-            RetryUtils.retry(3, RetryUtils.DEFAULT_BASE, () -> {
-                URL url = new URL("https://www.example.com");
-                URLConnection connection = url.openConnection();
-                connection.connect();
-                return null;
-            }, (exc) -> exc instanceof IOException);
+
+            for (int i = 0; true; i++) {
+                try {
+                    URL url = new URL("https://www.example.com");
+                    URLConnection connection = url.openConnection();
+                    connection.connect();
+                    break;
+                } catch (Exception exc) {
+                    if (3 == i || !(exc instanceof IOException)) {
+                        throw exc;
+                    }
+                    Thread.sleep((int) Math.pow(2, i) * DEFAULT_BASE);
+                }
+            }
+
             internetSuccessfulUntil = Instant.now().plus(INTERNET_SUCCESS_CACHE);
             return true;
         } catch (Exception e) {

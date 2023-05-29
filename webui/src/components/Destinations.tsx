@@ -1,8 +1,9 @@
 import * as React from "react";
-import {BackupDestination, BackupState} from '../api';
+import {BackupDestination, DestinationMap} from '../api';
 import Destination from './Destination';
 import {EditableList} from './EditableList';
 import {Alert, Stack} from "@mui/material";
+import {ApplicationContext, destinationList, useApplication} from "../utils/ApplicationContext";
 
 interface DestinationState {
     valid: boolean,
@@ -10,37 +11,39 @@ interface DestinationState {
     id: string
 }
 
-export interface DestinationProp {
-    id: string,
-    destination: BackupDestination
+export interface DestinationsProps {
+    destinationsUpdated: (destinationsValid: boolean) => void
 }
 
-export interface DestinationsProps {
-    destinations: DestinationProp[],
-    dontDelete: string[],
-    manifestDestination?: string,
-    backendState: BackupState,
-    configurationUpdated: (valid: boolean, destinations: DestinationProp[]) => void
+function getUsedDestinations(appContext: ApplicationContext) {
+    const allDestinations = [appContext.currentConfiguration.manifest.destination];
+    appContext.currentConfiguration.sets.forEach(set =>
+        set.destinations.forEach(destination => allDestinations.push(destination)))
+    // @ts-ignore
+    return [...new Set(allDestinations)];
 }
 
 export default function Destinations(props: DestinationsProps) {
+    const appContext = useApplication();
     const [state, setState] = React.useState(() => {
+        const destinations = destinationList(appContext);
+
         let destinationId: string | null = window.sessionStorage.getItem("destinationId");
         if (destinationId) {
             const pendingDestination = JSON.parse(window.sessionStorage.getItem("destination") as string);
-            for (let i = 0; i < props.destinations.length; i++) {
-                if (props.destinations[i].id === destinationId) {
-                    props.destinations[i].destination = pendingDestination;
+            for (let i = 0; i < destinations.length; i++) {
+                if (destinations[i].id === destinationId) {
+                    destinations[i].destination = pendingDestination;
                     destinationId = null;
                     break;
                 }
             }
             if (destinationId) {
-                props.destinations.push({destination: pendingDestination, id: destinationId});
+                destinations.push({destination: pendingDestination, id: destinationId});
             }
         }
 
-        return props.destinations.map(dest => {
+        return destinations.map(dest => {
             return {
                 valid: true,
                 destination: dest.destination,
@@ -48,17 +51,23 @@ export default function Destinations(props: DestinationsProps) {
             } as DestinationState
         })
     });
+    const dontDelete = getUsedDestinations(appContext);
 
     function sendUpdate(newState: DestinationState[]) {
-        props.configurationUpdated(
-            !newState.some(item => !item.valid),
-            newState.map(item => {
-                return {
-                    destination: item.destination,
-                    id: item.id
-                }
-            })
-        );
+        let newVal: DestinationMap = {};
+        newState.forEach((item) => {
+            newVal[item.id] = item.destination;
+        })
+
+        appContext.setState((oldState) => ({
+            ...oldState,
+            currentConfiguration: {
+                ...oldState.currentConfiguration,
+                destinations: newVal
+            }
+        }));
+
+        props.destinationsUpdated(!newState.some(item => !item.valid))
     }
 
     function destinationChanged(items: DestinationState[]) {
@@ -90,14 +99,14 @@ export default function Destinations(props: DestinationsProps) {
                     }
                 } as DestinationState
             },
-            allowDrop: (item) => !props.dontDelete.includes(item.id),
+            allowDrop: (item) => !dontDelete.includes(item.id),
             onItemChanged: destinationChanged,
             items: state,
             createItem: (item, itemUpdated: (item: DestinationState) => void) => {
                 return <Destination id={item.id}
-                                    backendState={props.backendState}
+                                    backendState={appContext.backendState}
                                     destination={item.destination}
-                                    manifestDestination={props.manifestDestination === item.id}
+                                    manifestDestination={appContext.currentConfiguration.manifest.destination === item.id}
                                     destinationUpdated={(valid, destination) => {
                                         itemUpdated({valid: valid, destination: destination, id: item.id});
                                     }

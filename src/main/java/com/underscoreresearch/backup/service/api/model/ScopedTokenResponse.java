@@ -38,7 +38,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   ScopedTokenResponse.JSON_PROPERTY_TOKEN,
   ScopedTokenResponse.JSON_PROPERTY_SCOPES
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ScopedTokenResponse {
   public static final String JSON_PROPERTY_ACCOUNT_ID = "accountId";
   private String accountId;
@@ -61,7 +61,7 @@ public class ScopedTokenResponse {
    * Unique identifier of the account.
    * @return accountId
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_ACCOUNT_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -86,7 +86,7 @@ public class ScopedTokenResponse {
    * Token that can be used for future calls to the API.
    * @return token
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_TOKEN)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -119,7 +119,7 @@ public class ScopedTokenResponse {
    * Scope of credentials returned.
    * @return scopes
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_SCOPES)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

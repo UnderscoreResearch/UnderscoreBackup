@@ -2,6 +2,9 @@ import Paper from "@mui/material/Paper";
 import * as React from "react";
 import {Fragment, useEffect} from "react";
 import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
     Autocomplete,
     Button,
     CircularProgress,
@@ -13,7 +16,8 @@ import {
     MenuItem,
     Select,
     SelectChangeEvent,
-    TextField
+    TextField,
+    Typography
 } from "@mui/material";
 import Box from "@mui/material/Box";
 import {BackupDestination, BackupLimits, BackupState, BackupTimespan, createAuthEndpoint, PropertyMap} from "../api";
@@ -22,6 +26,7 @@ import SpeedLimit from "./SpeedLimit";
 import Timespan from "./Timespan";
 import ServiceAuthentication from "./ServiceAuthentication";
 import {getBestRegion} from "../api/service";
+import {ExpandMore} from "@mui/icons-material";
 
 const DROPBOX_CLIENT_ID = 'tlt1aw0jc8wlcox';
 
@@ -188,106 +193,127 @@ function SharedProperties(props: {
     }
 
     return <Fragment>
-        <Grid item xs={12}>
-            <DividerWithText>Storage options</DividerWithText>
-        </Grid>
-        <Grid item md={6} xs={12}>
-            <FormControl fullWidth={true} style={{margin: "8px"}}>
-                <InputLabel id="encryption-id-label">Encryption</InputLabel>
-                <Select
-                    labelId="encryption-id-label"
-                    value={state.encryption}
-                    label="Encryption"
-                    onChange={(event: SelectChangeEvent) => {
-                        const newState = {
-                            ...state,
-                            encryption: event.target.value as string,
-                        }
-                        setState(newState);
-                        props.onChange(newState);
-                    }}>
-                    <MenuItem value={"NONE"}>None</MenuItem>
-                    <MenuItem value={"AES256"}>AES 256</MenuItem>
-                </Select>
-            </FormControl>
-        </Grid>
-        {!props.manifestDestination &&
-            <Grid item md={6} xs={12}>
-                <FormControl fullWidth={true} style={{margin: "8px"}}>
-                    <InputLabel id="errorcorrection-id-label">Error Correction</InputLabel>
-                    <Select
-                        labelId="errorcorrection-id-label"
-                        value={state.errorCorrection}
-                        label="Error Correction"
-                        onChange={(event: SelectChangeEvent) => {
-                            const newState = {
-                                ...state,
-                                errorCorrection: event.target.value as string,
-                            }
-                            setState(newState);
-                            props.onChange(newState);
-                        }}>
-                        <MenuItem value={"NONE"}>None</MenuItem>
-                        <MenuItem value={"RS"}>Reed Solomon</MenuItem>
-                    </Select>
-                </FormControl>
-            </Grid>
-        }
-        <Grid item xs={12}>
-            <DividerWithText>Limits</DividerWithText>
-        </Grid>
-        {!props.sourceDestination &&
-            <Grid item md={6} xs={12}>
-                <SpeedLimit
-                    speed={state.limits.maximumUploadBytesPerSecond}
-                    onChange={(newSpeed) => {
-                        const newState = {
-                            ...state,
-                            limits: {
-                                ...state.limits,
-                                maximumUploadBytesPerSecond: newSpeed
-                            }
-                        }
-                        setState(newState);
-                        updateLimitChange(newState);
-                    }} title={"Maximum upload speed"}/>
-            </Grid>
-        }
-        {!props.shareDestination &&
-            <Grid item md={6} xs={12}>
-                <SpeedLimit
-                    speed={state.limits.maximumDownloadBytesPerSecond}
-                    onChange={(newSpeed) => {
-                        const newState = {
-                            ...state,
-                            limits: {
-                                ...state.limits,
-                                maximumDownloadBytesPerSecond: newSpeed
-                            }
-                        }
-                        setState(newState);
-                        updateLimitChange(newState);
-                    }} title={"Maximum download speed"}/>
-            </Grid>
-        }
-        {!props.sourceDestination && !props.shareDestination &&
-            <Grid item xs={12}>
-                <DividerWithText>Maximum Retention</DividerWithText>
-            </Grid>
-        }
-        {!props.sourceDestination && !props.shareDestination &&
-            <Grid item xs={12}>
-                <Timespan timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
-                          onChange={(newTimespan) => {
-                              const sendState = {
-                                  ...state,
-                                  maxRetention: newTimespan
-                              };
-                              props.onChange(sendState);
-                          }}
-                          title={"Re-upload data to destination after "}/>
-            </Grid>
-        }
+        <Accordion
+            sx={{
+                // Remove shadow
+                boxShadow: "none",
+                // Remove default divider
+                "&:before": {
+                    display: "none",
+                }
+            }}>
+            <AccordionSummary expandIcon={<ExpandMore/>}>
+                <Typography>Advanced</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{
+                margin: 0,
+                padding: 0
+            }}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                        <DividerWithText>Storage options</DividerWithText>
+                    </Grid>
+                    <Grid item md={6} xs={12}>
+                        <FormControl fullWidth={true} style={{margin: "8px"}}>
+                            <InputLabel id="encryption-id-label">Encryption</InputLabel>
+                            <Select
+                                labelId="encryption-id-label"
+                                value={state.encryption}
+                                label="Encryption"
+                                onChange={(event: SelectChangeEvent) => {
+                                    const newState = {
+                                        ...state,
+                                        encryption: event.target.value as string,
+                                    }
+                                    setState(newState);
+                                    props.onChange(newState);
+                                }}>
+                                <MenuItem value={"NONE"}>None</MenuItem>
+                                <MenuItem value={"AES256"}>AES 256</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    {!props.manifestDestination &&
+                        <Grid item md={6} xs={12}>
+                            <FormControl fullWidth={true} style={{margin: "8px"}}>
+                                <InputLabel id="errorcorrection-id-label">Error Correction</InputLabel>
+                                <Select
+                                    labelId="errorcorrection-id-label"
+                                    value={state.errorCorrection}
+                                    label="Error Correction"
+                                    onChange={(event: SelectChangeEvent) => {
+                                        const newState = {
+                                            ...state,
+                                            errorCorrection: event.target.value as string,
+                                        }
+                                        setState(newState);
+                                        props.onChange(newState);
+                                    }}>
+                                    <MenuItem value={"NONE"}>None</MenuItem>
+                                    <MenuItem value={"RS"}>Reed Solomon</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                    }
+                    <Grid item xs={12}>
+                        <DividerWithText>Limits</DividerWithText>
+                    </Grid>
+                    {!props.sourceDestination &&
+                        <Grid item md={6} xs={12}>
+                            <SpeedLimit
+                                speed={state.limits.maximumUploadBytesPerSecond}
+                                onChange={(newSpeed) => {
+                                    const newState = {
+                                        ...state,
+                                        limits: {
+                                            ...state.limits,
+                                            maximumUploadBytesPerSecond: newSpeed
+                                        }
+                                    }
+                                    setState(newState);
+                                    updateLimitChange(newState);
+                                }} title={"Maximum upload speed"}/>
+                        </Grid>
+                    }
+                    {!props.shareDestination &&
+                        <Grid item md={6} xs={12}>
+                            <SpeedLimit
+                                speed={state.limits.maximumDownloadBytesPerSecond}
+                                onChange={(newSpeed) => {
+                                    const newState = {
+                                        ...state,
+                                        limits: {
+                                            ...state.limits,
+                                            maximumDownloadBytesPerSecond: newSpeed
+                                        }
+                                    }
+                                    setState(newState);
+                                    updateLimitChange(newState);
+                                }} title={"Maximum download speed"}/>
+                        </Grid>
+                    }
+                    {!props.sourceDestination && !props.shareDestination &&
+                        <Grid item xs={12}>
+                            <DividerWithText>Maximum Retention</DividerWithText>
+                        </Grid>
+                    }
+                    {!props.sourceDestination && !props.shareDestination &&
+                        <Grid item xs={12}>
+                            <Timespan
+                                timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
+                                onChange={(newTimespan) => {
+                                    const sendState = {
+                                        ...state,
+                                        maxRetention: newTimespan
+                                    };
+                                    props.onChange(sendState);
+                                }}
+                                title={"Re-upload data to destination after "}/>
+                        </Grid>
+                    }
+                </Grid>
+            </AccordionDetails>
+        </Accordion>
     </Fragment>
 }
 
@@ -338,19 +364,19 @@ function LocalFileDestination(props: DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <SharedProperties manifestDestination={props.manifestDestination}
-                              sourceDestination={props.sourceDestination}
-                              shareDestination={props.shareDestination}
-                              state={state} onChange={(newSate => updateState({
-                ...state,
-                ...newSate
-            }))}/>
         </Grid>
+        <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
+                          shareDestination={props.shareDestination}
+                          state={state} onChange={(newSate => updateState({
+            ...state,
+            ...newSate
+        }))}/>
     </>;
 }
 
 function loadDropbox(callback: () => void) {
-    if (document.getElementById("dropboxscript")) {
+    if (document.getElementById("dropboxScript")) {
         callback();
     } else {
         let script = document.createElement('script');
@@ -358,7 +384,7 @@ function loadDropbox(callback: () => void) {
             callback();
         };
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/dropbox.js/10.28.0/Dropbox-sdk.min.js';
-        script.id = "dropboxscript";
+        script.id = "dropboxScript";
         document.head.appendChild(script);
     }
 }
@@ -496,14 +522,14 @@ function DropboxDestination(props: DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <SharedProperties manifestDestination={props.manifestDestination}
-                              sourceDestination={props.sourceDestination}
-                              shareDestination={props.shareDestination}
-                              state={state} onChange={(newSate => updateState({
-                ...state,
-                ...newSate
-            }))}/>
         </Grid>
+        <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
+                          shareDestination={props.shareDestination}
+                          state={state} onChange={(newSate => updateState({
+            ...state,
+            ...newSate
+        }))}/>
     </>;
 }
 
@@ -623,14 +649,14 @@ function UnderscoreBackupDestination(props: DestinationProps) {
                     </Button>
                 </div>
             </Grid>
-            <SharedProperties manifestDestination={props.manifestDestination}
-                              sourceDestination={props.sourceDestination}
-                              shareDestination={props.shareDestination}
-                              state={state} onChange={(newSate => updateState({
-                ...state,
-                ...newSate
-            }))}/>
         </Grid>
+        <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
+                          shareDestination={props.shareDestination}
+                          state={state} onChange={(newSate => updateState({
+            ...state,
+            ...newSate
+        }))}/>
     </>;
 }
 
@@ -658,7 +684,7 @@ function WindowsShareDestination(props: DestinationProps) {
     }) {
         if (props.destinationUpdated) {
             const valid = !(!(newState.endpointUri && newState.username && newState.password));
-            var properties = {} as PropertyMap;
+            let properties = {} as PropertyMap;
             if (newState.domain) {
                 properties["domain"] = newState.domain;
             }
@@ -736,14 +762,14 @@ function WindowsShareDestination(props: DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <SharedProperties manifestDestination={props.manifestDestination}
-                              sourceDestination={props.sourceDestination}
-                              shareDestination={props.shareDestination}
-                              state={state} onChange={(newSate => updateState({
-                ...state,
-                ...newSate
-            }))}/>
         </Grid>
+        <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
+                          shareDestination={props.shareDestination}
+                          state={state} onChange={(newSate => updateState({
+            ...state,
+            ...newSate
+        }))}/>
     </>
 }
 
@@ -881,14 +907,14 @@ function BaseS3Destination(props: S3DestinationProps) {
                     </div>
                 </Grid>
             }
-            <SharedProperties manifestDestination={props.manifestDestination}
-                              sourceDestination={props.sourceDestination}
-                              shareDestination={props.shareDestination}
-                              state={state} onChange={(newSate => updateState({
-                ...state,
-                ...newSate
-            }))}/>
         </Grid>
+        <SharedProperties manifestDestination={props.manifestDestination}
+                          sourceDestination={props.sourceDestination}
+                          shareDestination={props.shareDestination}
+                          state={state} onChange={(newSate => updateState({
+            ...state,
+            ...newSate
+        }))}/>
     </>
 }
 
@@ -901,7 +927,7 @@ function expandProtocolIfMissing(endpoint: string): string {
 
 function decodeS3Bucket(endpointUri?: string): string {
     if (endpointUri) {
-        const match = endpointUri.match(/^s3\:\/\/([^\/]+)/);
+        const match = endpointUri.match(/^s3:\/\/([^\/]+)/);
         if (match && match && match[1]) {
             return match[1];
         }
@@ -911,7 +937,7 @@ function decodeS3Bucket(endpointUri?: string): string {
 
 function decodeS3Prefix(endpointUri?: string): string {
     if (endpointUri) {
-        const match = endpointUri.match(/^s3\:\/\/[^\/]+\/(.*)$/);
+        const match = endpointUri.match(/^s3:\/\/[^\/]+\/(.*)$/);
         if (match && match[1]) {
             return match[1];
         }
@@ -1043,11 +1069,11 @@ function removeUndefined(destination: BackupDestination): BackupDestination {
 export default function Destination(props: DestinationProps) {
 
     const [state, setState] = React.useState(() => {
-        var destinationByTab = new Map<number, TabState>();
+        let destinationByTab = new Map<number, TabState>();
 
-        var destination = props.destination;
+        let destination = props.destination;
 
-        var defaultType = 0;
+        let defaultType = 0;
         let valid: boolean = false;
         if (destination !== undefined) {
             switch (destination.type) {

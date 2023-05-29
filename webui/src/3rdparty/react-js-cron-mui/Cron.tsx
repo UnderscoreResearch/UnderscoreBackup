@@ -13,6 +13,15 @@ import {getCronStringFromValues, setValuesFromCronString} from './converter'
 
 import './styles.css'
 
+function localClockFormat(clockFormat: string | undefined) {
+    if (clockFormat)
+        return clockFormat;
+    const hours = Intl.DateTimeFormat(navigator.language, {
+        hour: 'numeric'
+    }).resolvedOptions().hourCycle;
+    return "h24" === hours ? "24-hour-clock" : "12-hour-clock";
+}
+
 export default function Cron(props: CronProps) {
     const {
         clearButton = true,
@@ -336,7 +345,7 @@ export default function Cron(props: CronProps) {
                                 disabled={disabled}
                                 readOnly={readOnly}
                                 leadingZero={leadingZero}
-                                clockFormat={clockFormat}
+                                clockFormat={localClockFormat(clockFormat)}
                                 period={periodForRender}
                                 {...selectProps}
                             />
@@ -352,7 +361,7 @@ export default function Cron(props: CronProps) {
                                 disabled={disabled}
                                 readOnly={readOnly}
                                 leadingZero={leadingZero}
-                                clockFormat={clockFormat}
+                                clockFormat={localClockFormat(clockFormat)}
                                 {...selectProps}
                             />
                         )}

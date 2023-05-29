@@ -28,7 +28,7 @@ export interface EditableListState<Type> {
     items: InternalItem<Type>[],
 }
 
-var counter = 1;
+let counter = 1;
 
 export function EditableList<Type>(props: EditableListProps<Type>): React.ReactElement {
     const [state, setState] = React.useState(() => {
@@ -44,7 +44,7 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
     );
 
     function deleteItem(key: string) {
-        var newItems = state.items.filter(t => t.key !== key);
+        let newItems = state.items.filter(t => t.key !== key);
         setState({
             items: newItems
         });
@@ -66,8 +66,8 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
         }
 
         function itemUpdated(newItem: Type) {
-            var newItems = [...state.items];
-            var ind = newItems.findIndex((t) => t.key == item.key);
+            let newItems = [...state.items];
+            let ind = newItems.findIndex((t) => t.key == item.key);
             if (ind >= 0) {
                 newItems.splice(ind, 1, {
                     ...item,
@@ -94,7 +94,7 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
         }
 
         if (props.deleteBelow) {
-            var dropElement: ReactElement | undefined;
+            let dropElement: ReactElement | undefined;
             if (allowDrop || allowUp || allowDown) {
                 dropElement =
                     <div style={{width: "100%"}}>
@@ -160,7 +160,7 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
     }
 
     function addItem() {
-        var newItems = [...state.items];
+        let newItems = [...state.items];
         newItems.push({
             key: (++counter) + "",
             item: props.createNewItem()

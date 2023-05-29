@@ -15,7 +15,7 @@ export interface RetentionProps {
     retentionUpdated: (val?: BackupRetention) => void
 }
 
-function AdditionalTimespans(props: {
+function AdditionalTimeSpans(props: {
     items: BackupRetentionAdditional[],
     state: RetentionState,
     updateState: (newState: RetentionState) => void
@@ -26,21 +26,21 @@ function AdditionalTimespans(props: {
             <Timespan
                 timespan={item.validAfter}
                 requireTime={true}
-                onChange={(newTimespace) => {
-                    if (newTimespace) {
+                onChange={(newTimeSpan) => {
+                    if (newTimeSpan) {
                         onItemUpdate({
-                            validAfter: newTimespace,
+                            validAfter: newTimeSpan,
                             frequency: item.frequency
                         });
                     }
                 }}
                 title={"After"}/>
             <Timespan timespan={item.frequency}
-                      onChange={(newTimespace) => {
-                          if (newTimespace) {
+                      onChange={(newTimeSpan) => {
+                          if (newTimeSpan) {
                               onItemUpdate({
                                   validAfter: item.validAfter,
-                                  frequency: newTimespace
+                                  frequency: newTimeSpan
                               });
                           }
                       }}
@@ -102,25 +102,25 @@ export default function Retention(props: RetentionProps) {
 
     return <Fragment>
         <Timespan timespan={state.retention ? state.retention.defaultFrequency : undefined}
-                  onChange={(newTimespace) => updateState({
+                  onChange={(newTimeSpan) => updateState({
                       ...state,
                       retention: {
                           ...state.retention,
-                          defaultFrequency: newTimespace
+                          defaultFrequency: newTimeSpan
                       }
                   })}
                   title={"Initially keep at most one version per "}/>
-        <AdditionalTimespans
+        <AdditionalTimeSpans
             items={state.retention && state.retention.older ? state.retention.older : []}
             state={state}
             updateState={updateState}/>
 
         <Timespan timespan={state.retention ? state.retention.retainDeleted : undefined}
-                  onChange={(newTimespace) => updateState({
+                  onChange={(newTimeSpan) => updateState({
                       ...state,
                       retention: {
                           ...state.retention,
-                          retainDeleted: newTimespace
+                          retainDeleted: newTimeSpan
                       }
                   })}
                   title={"Remove deleted files after "}/>

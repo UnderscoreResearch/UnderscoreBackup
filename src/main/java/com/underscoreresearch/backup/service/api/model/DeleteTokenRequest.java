@@ -34,7 +34,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   DeleteTokenRequest.JSON_PROPERTY_TOKEN
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class DeleteTokenRequest {
   public static final String JSON_PROPERTY_TOKEN = "token";
   private String token;
@@ -51,7 +51,7 @@ public class DeleteTokenRequest {
    * Token that should be deleted.
    * @return token
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_TOKEN)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lombok.AllArgsConstructor;
@@ -42,6 +43,7 @@ import com.underscoreresearch.backup.service.api.invoker.ApiClient;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.DeleteTokenRequest;
 import com.underscoreresearch.backup.service.api.model.GenerateTokenRequest;
+import com.underscoreresearch.backup.service.api.model.GetSubscriptionResponse;
 import com.underscoreresearch.backup.service.api.model.ListSharingKeysRequest;
 import com.underscoreresearch.backup.service.api.model.ListSharingKeysResponse;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
@@ -55,6 +57,7 @@ import com.underscoreresearch.backup.utils.RetryUtils;
 public class ServiceManagerImpl implements ServiceManager {
     public static final String CLIENT_ID = "DEFAULT_CLIENT";
     private static final Pattern PRE_RELEASE = Pattern.compile("[a-z]", Pattern.CASE_INSENSITIVE);
+    private static final Pattern VERSION_PARSER = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)\\S*$");
     private static final ObjectReader READER = MAPPER.readerFor(ServiceManagerData.class);
     private static final ObjectWriter WRITER = MAPPER.writerFor(ServiceManagerData.class);
 
@@ -97,7 +100,7 @@ public class ServiceManagerImpl implements ServiceManager {
 
     static <T> T callApi(BackupApi client, String region, ApiFunction<T> callable) throws ApiException {
         try {
-            return RetryUtils.retry(() -> callable.call(client), (exc) -> {
+            return RetryUtils.retry(RetryUtils.DEFAULT_RETRIES, RetryUtils.DEFAULT_BASE, () -> callable.call(client), (exc) -> {
                 if (exc instanceof ApiException) {
                     int code = ((ApiException) exc).getCode();
                     if (code >= 400 && code < 500) {
@@ -108,7 +111,7 @@ public class ServiceManagerImpl implements ServiceManager {
                     }
                 }
                 return callable.shouldRetry();
-            });
+            }, callable.waitForInternet());
         } catch (ApiException exc) {
             throw exc;
         } catch (Exception exc) {
@@ -118,6 +121,20 @@ public class ServiceManagerImpl implements ServiceManager {
 
     private static File getDataFile(String manifestLocation) {
         return Paths.get(manifestLocation, "service.json").toFile();
+    }
+
+    private static long[] parseVersion(String version) {
+        if (version != null) {
+            Matcher matcher = VERSION_PARSER.matcher(version);
+            if (matcher.find()) {
+                long[] ret = new long[matcher.groupCount()];
+                for (int i = 0; i < ret.length; i++) {
+                    ret[i] = Long.parseLong(matcher.group(i + 1));
+                }
+                return ret;
+            }
+        }
+        return null;
     }
 
     public <T> T call(String region, ApiFunction<T> callable) throws IOException {
@@ -158,7 +175,17 @@ public class ServiceManagerImpl implements ServiceManager {
     public boolean activeSubscription() throws IOException {
         if (data.getToken() != null) {
             try {
-                return call(null, (api) -> api.getSubscription()).getActive();
+                return call(null, new ApiFunction<GetSubscriptionResponse>() {
+                    @Override
+                    public GetSubscriptionResponse call(BackupApi api) throws ApiException {
+                        return api.getSubscription();
+                    }
+
+                    @Override
+                    public boolean waitForInternet() {
+                        return false;
+                    }
+                }).getActive();
             } catch (IOException exc) {
                 if (exc.getCause() instanceof ApiException) {
                     switch (((ApiException) exc.getCause()).getCode()) {
@@ -213,7 +240,7 @@ public class ServiceManagerImpl implements ServiceManager {
             if (!release.getVersion().equals(lastVersion)) {
                 data.setLastRelease(release);
                 saveFile();
-                if (!release.getVersion().equals(VersionCommand.getVersion())) {
+                if (!newerVersion(VersionCommand.getVersion(), release.getVersion())) {
                     return release;
                 }
             }
@@ -224,8 +251,29 @@ public class ServiceManagerImpl implements ServiceManager {
         return null;
     }
 
+    private boolean newerVersion(String version, String lastVersion) {
+        long[] currentVersion = parseVersion(version);
+        long[] newVersion = parseVersion(lastVersion);
+        if (currentVersion == null) {
+            return true;
+        }
+        if (newVersion == null) {
+            return false;
+        }
+        if (currentVersion.length == newVersion.length) {
+            for (int i = 0; i < currentVersion.length; i++) {
+                if (currentVersion[i] > newVersion[i]) {
+                    return false;
+                } else if (currentVersion[i] < newVersion[i]) {
+                    return true;
+                }
+            }
+        }
+        return true;
+    }
+
     public ReleaseResponse newVersion() {
-        if (data.getLastRelease() != null && !data.getLastRelease().getVersion().equals(VersionCommand.getVersion())) {
+        if (data.getLastRelease() != null && newerVersion(VersionCommand.getVersion(), data.getLastRelease().getVersion())) {
             return data.getLastRelease();
         }
         return null;

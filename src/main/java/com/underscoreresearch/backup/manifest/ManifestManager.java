@@ -22,6 +22,8 @@ public interface ManifestManager extends BaseManifestManager {
 
     boolean isBusy();
 
+    boolean isRepositoryReady();
+
     void updateKeyData(EncryptionKey key) throws IOException;
 
     void updateServiceSourceData(EncryptionKey encryptionKey) throws IOException;

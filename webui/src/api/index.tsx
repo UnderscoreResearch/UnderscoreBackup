@@ -4,8 +4,8 @@ function determineBaseApi(): string {
     if (window.location.pathname.startsWith("/fixed/")) {
         return "http://localhost:12345/fixed/api/";
     } else {
-        var basePath = window.location.pathname;
-        var ind = basePath.indexOf("/", 1);
+        let basePath = window.location.pathname;
+        let ind = basePath.indexOf("/", 1);
         if (ind >= 0) {
             basePath = basePath.substring(0, ind + 1);
         }
@@ -81,7 +81,8 @@ export interface BackupManifest {
     versionCheck?: boolean,
     configUser?: string
     configPassword?: string
-    interactiveBackup?: boolean
+    interactiveBackup?: boolean,
+    initialSetup?: boolean,
 }
 
 export interface BackupDestination {
@@ -163,7 +164,8 @@ export interface BackupState {
     sourceName: string,
     source?: string,
     siteUrl: string,
-    newVersion?: ReleaseResponse
+    newVersion?: ReleaseResponse,
+    repositoryReady: boolean
 }
 
 export interface StatusLine {
@@ -207,27 +209,31 @@ function reportError(errors: any) {
     DisplayMessage(errors.toString());
 }
 
-export async function makeApiCall(api: string, init?: RequestInit): Promise<any | undefined> {
+export async function makeApiCall(api: string, init?: RequestInit, silentError?: boolean): Promise<any | undefined> {
     try {
         const response = await fetch(baseApi + api, init);
         if (!response.ok) {
-            try {
-                if (response.status !== 404) {
-                    var json = await response.json();
-                    if (json.message) {
-                        reportError(json.message);
-                    } else {
-                        reportError(response.statusText);
+            if (!silentError) {
+                try {
+                    if (response.status !== 404) {
+                        let json = await response.json();
+                        if (json.message) {
+                            reportError(json.message);
+                        } else {
+                            reportError(response.statusText);
+                        }
                     }
+                } catch (error) {
+                    reportError(response.statusText);
                 }
-            } catch (error) {
-                reportError(response.statusText);
             }
             return undefined;
         }
         return await response.json();
     } catch (error) {
-        reportError(error);
+        if (!silentError) {
+            reportError(error);
+        }
         return undefined;
     }
 }
@@ -236,25 +242,30 @@ export async function getConfiguration(): Promise<BackupConfiguration | undefine
     return await makeApiCall("configuration");
 }
 
+export function getDefaultState(): BackupState {
+    return {
+        defaultRestoreFolder: "/",
+        pathSeparator: "/",
+        version: "",
+        sourceName: "",
+        siteUrl: "https://underscorebackup.com",
+        serviceConnected: false,
+        activeSubscription: false,
+        validDestinations: false,
+        defaultSet: {
+            id: "home",
+            roots: [],
+            destinations: [],
+            exclusions: []
+        },
+        repositoryReady: true
+    };
+}
+
 export async function getState(): Promise<BackupState> {
     const defaults = await makeApiCall("state");
     if (!defaults) {
-        return {
-            defaultRestoreFolder: "/",
-            pathSeparator: "/",
-            version: "",
-            sourceName: "",
-            siteUrl: "https://underscorebackup.com",
-            serviceConnected: false,
-            activeSubscription: false,
-            validDestinations: false,
-            defaultSet: {
-                id: "home",
-                roots: [],
-                destinations: [],
-                exclusions: []
-            }
-        };
+        return getDefaultState();
     }
     return defaults;
 }
@@ -285,7 +296,9 @@ export async function getBackupVersions(path: string): Promise<BackupFile[] | un
 }
 
 export async function getActivity(temporal: boolean): Promise<StatusLine[] | undefined> {
-    const ret = await makeApiCall("activity?temporal=" + (temporal ? "true" : "false")) as StatusResponse;
+    const ret = await makeApiCall(
+        "activity?temporal=" + (temporal ? "true" : "false"),
+        undefined, true) as StatusResponse;
     if (ret) {
         return ret.status;
     }
@@ -293,7 +306,7 @@ export async function getActivity(temporal: boolean): Promise<StatusLine[] | und
 }
 
 export async function rebuildAvailable(destination: string): Promise<boolean> {
-    return await makeApiCall("rebuild-available?destination=" + encodeURIComponent(destination)) ? true : false;
+    return !!(await makeApiCall("rebuild-available?destination=" + encodeURIComponent(destination)));
 }
 
 export async function createAuthEndpoint(): Promise<string | undefined> {
@@ -351,7 +364,7 @@ export async function getEncryptionKey(password?: string): Promise<boolean> {
     if (ret === undefined) {
         return false;
     }
-    return ret.specified;
+    return ret.isSpecified;
 }
 
 export async function selectSource(source: string, password?: string): Promise<string | undefined> {
@@ -398,10 +411,7 @@ export async function createEncryptionKey(password: string): Promise<boolean> {
         })
     });
 
-    if (ret === undefined) {
-        return false;
-    }
-    return true;
+    return ret !== undefined;
 }
 
 export async function createAdditionalEncryptionKey(password: string, privateKey?: string): Promise<AdditionalKey | undefined> {
@@ -430,7 +440,7 @@ export async function listAdditionalEncryptionKeys(password: string): Promise<Ad
 }
 
 export async function listActiveShares(): Promise<ActiveShares | undefined> {
-    return await makeApiCall("shares");
+    return await makeApiCall("shares", undefined, true);
 }
 
 export async function activateShares(password: string): Promise<AdditionalKeys | undefined> {
@@ -450,10 +460,7 @@ export async function resetSettings(): Promise<boolean> {
         method: 'DELETE'
     });
 
-    if (ret === undefined) {
-        return false;
-    }
-    return true;
+    return ret !== undefined;
 }
 
 export async function changeEncryptionKey(password: string, newPassword: string): Promise<boolean> {
@@ -468,10 +475,7 @@ export async function changeEncryptionKey(password: string, newPassword: string)
         })
     });
 
-    if (ret === undefined) {
-        return false;
-    }
-    return true;
+    return ret !== undefined;
 }
 
 export async function postConfiguration(config: BackupConfiguration): Promise<boolean> {

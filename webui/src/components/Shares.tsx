@@ -9,7 +9,8 @@ import {
     BackupState,
     createAdditionalEncryptionKey,
     getBackupFiles,
-    listAdditionalEncryptionKeys
+    listAdditionalEncryptionKeys,
+    ShareMap
 } from '../api';
 import Destination from './Destination';
 import {EditableList} from './EditableList';
@@ -42,6 +43,8 @@ import {AddCircle, ContentCopy} from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import {expandRoots} from "../api/utils";
 import ExclusionList from "./ExclusionList";
+import {ApplicationContext, useApplication} from "../utils/ApplicationContext";
+import {useButton} from "../utils/ButtonContext";
 
 interface ShareState {
     valid: boolean,
@@ -59,13 +62,8 @@ export interface ShareProps {
 }
 
 export interface SharesProps {
-    shares: ShareProps[],
-    backendState: BackupState,
     password?: string,
-    activeShares?: string[],
-    onSubmit: () => void,
-    validatedPassword: boolean,
-    configurationUpdated: (valid: boolean, password: string, shares: ShareProps[]) => void
+    sharesUpdated: (valid: boolean, password: string) => void
 }
 
 function validKey(encryptionKey: string): boolean {
@@ -88,7 +86,7 @@ interface ShareItemState {
     encryptionKey: string,
     destinationValid: boolean,
     missingUpdate: number
-};
+}
 
 function validState(state: ShareItemState): boolean {
     return state.destinationValid && !!state.share.name &&
@@ -105,6 +103,23 @@ function externalShare(state: ShareItemState): BackupShare {
     } else {
         return state.share;
     }
+}
+
+function getSharesList(appContext: ApplicationContext): ShareProps[] {
+    const keys = appContext.currentConfiguration.shares
+        ? Object.keys(appContext.currentConfiguration.shares)
+        : [];
+    // @ts-ignore
+    keys.sort((a, b) => appContext.currentConfiguration.shares[a].name.localeCompare(appContext.currentConfiguration.shares[b].name));
+
+    return keys.map(key => {
+        return {
+            share: (appContext.currentConfiguration.shares as ShareMap)[key] as BackupShare,
+            exists: (!!appContext.originalConfiguration.shares) &&
+                !!((appContext.originalConfiguration.shares as ShareMap)[key]),
+            id: key
+        }
+    });
 }
 
 function ShareItem(props: {
@@ -140,7 +155,7 @@ function ShareItem(props: {
                 destination: destination
             }
         }));
-    };
+    }
 
     useEffect(() => {
         props.shareUpdated(validState(state), state.encryptionKey, externalShare(state));
@@ -381,12 +396,14 @@ interface SharesState {
 }
 
 export default function Shares(props: SharesProps) {
+    const appContext = useApplication();
+    const buttonContext = useButton();
     const [state, setState] = React.useState(() => {
         return {
             password: props.password ? props.password : "",
             additionalKeys: undefined,
             showKeys: false,
-            shares: props.shares.map(share => {
+            shares: getSharesList(appContext).map(share => {
                 return {
                     valid: true,
                     share: share.share,
@@ -413,34 +430,37 @@ export default function Shares(props: SharesProps) {
     }
 
     useEffect(() => {
-        if (props.validatedPassword && props.password && state.additionalKeys === undefined) {
+        if (appContext.validatedPassword && props.password && state.additionalKeys === undefined) {
             fetchAdditionalKeys(props.password);
         }
-    }, [props.password, props.validatedPassword])
+    }, [props.password, appContext.validatedPassword])
 
     function updateState(newState: SharesState) {
         const ids: string[] = newState.shares.map(t => t.encryptionKey);
-        // @ts-ignore
-        const deduped = new Set(ids);
-        let shares = newState.shares.map(item => {
-            return {
-                share: item.share,
-                additionalKeys: state.additionalKeys,
-                exists: item.exists,
-                id: item.encryptionKey ? item.encryptionKey : item.id
-            }
+        const deDuped = new Set(ids);
+
+        let shares: ShareMap = {};
+        newState.shares.forEach(item => {
+            shares[item.encryptionKey ? item.encryptionKey : item.id] = item.share;
         })
 
         setState({
             ...newState
         });
 
-        props.configurationUpdated(
-            deduped.size == ids.length &&
+        props.sharesUpdated(
+            deDuped.size == ids.length &&
             !newState.shares.some(item => !item.valid),
-            newState.password ? newState.password : "",
-            shares
+            newState.password ? newState.password : ""
         );
+
+        appContext.setState((oldState) => ({
+            ...oldState,
+            currentConfiguration: {
+                ...oldState.currentConfiguration,
+                shares: shares
+            }
+        }));
     }
 
     function destinationChanged(items: ShareState[]) {
@@ -451,7 +471,7 @@ export default function Shares(props: SharesProps) {
     }
 
     function findNewId() {
-        var i = 1;
+        let i = 1;
         while (state.shares.some(item => item.id === "-d" + i)) {
             i++;
         }
@@ -487,7 +507,7 @@ export default function Shares(props: SharesProps) {
                 share: {
                     name: "",
                     destination: {
-                        type: !!props.backendState.serviceSourceId ? "UB" : "FILE",
+                        type: !!appContext.backendState.serviceSourceId ? "UB" : "FILE",
                         endpointUri: ''
                     },
                     contents: {
@@ -496,7 +516,7 @@ export default function Shares(props: SharesProps) {
                 }
             } as ShareState
         },
-        allowDrop: (item) => true,
+        allowDrop: () => true,
         onItemChanged: destinationChanged,
         items: state.shares,
         createItem: (item, itemUpdated: (item: ShareState) => void) => {
@@ -505,7 +525,7 @@ export default function Shares(props: SharesProps) {
                               exists={item.exists}
                               encryptionKey={item.encryptionKey}
                               additionalKeys={state.additionalKeys ? state.additionalKeys : []}
-                              backendState={props.backendState}
+                              backendState={appContext.backendState}
                               addNewKey={addNewKey}
                               shareUpdated={(valid, encryptionKey, share) => {
                                   itemUpdated({
@@ -521,7 +541,7 @@ export default function Shares(props: SharesProps) {
         }
     });
 
-    if (!props.password || !props.validatedPassword) {
+    if (!props.password || !appContext.validatedPassword) {
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
                 p: 2
@@ -545,7 +565,7 @@ export default function Shares(props: SharesProps) {
                                type="password"
                                onKeyDown={(e) => {
                                    if (e.key === "Enter") {
-                                       props.onSubmit();
+                                       buttonContext.accept();
                                    }
                                }}
                                onChange={(e) => {
@@ -553,7 +573,11 @@ export default function Shares(props: SharesProps) {
                                        ...state,
                                        password: e.target.value
                                    };
-                                   updateState(newState);
+                                   setState(newState);
+                                   props.sharesUpdated(
+                                       true,
+                                       newState.password ? newState.password : ""
+                                   );
                                }}/>
                 </Box>
             </Paper>

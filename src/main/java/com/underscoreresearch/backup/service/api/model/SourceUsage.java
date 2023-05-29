@@ -36,7 +36,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SourceUsage.JSON_PROPERTY_TIME,
   SourceUsage.JSON_PROPERTY_USAGE
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class SourceUsage {
   public static final String JSON_PROPERTY_TIME = "time";
   private BigDecimal time;
@@ -56,7 +56,7 @@ public class SourceUsage {
    * Epoch timestamp for start of period.
    * @return time
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_TIME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -81,7 +81,7 @@ public class SourceUsage {
    * Max usage in GB for the period.
    * @return usage
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_USAGE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 

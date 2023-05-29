@@ -89,7 +89,7 @@ public class StateLogger implements StatusLogger {
     public void reset() {
         initialize();
 
-        loggers.stream().filter(t -> !t.temporal()).forEach(logger -> logger.resetStatus());
+        loggers.stream().filter(t -> !t.isTemporal()).forEach(logger -> logger.resetStatus());
     }
 
     public List<StatusLine> logData(boolean temporal) {
@@ -97,7 +97,7 @@ public class StateLogger implements StatusLogger {
 
         List<StatusLine> ret = loggers
                 .stream()
-                .filter(t -> t.temporal() == temporal)
+                .filter(t -> t.isTemporal() == temporal)
                 .map(log -> log.status())
                 .flatMap(t -> t.stream())
                 .collect(Collectors.toList());
@@ -133,18 +133,21 @@ public class StateLogger implements StatusLogger {
 
     @Override
     public List<StatusLine> status() {
+        List<StatusLine> ret = new ArrayList<>();
         if (debugMemory && lastHeapUsage.get() > 0) {
-            return Lists.newArrayList(
-                    new StatusLine(getClass(), "HEAP_MEMORY", "Heap memory usage",
-                            lastHeapUsage.get(),
-                            lastHeapUsageMax.get(),
-                            readableSize(lastHeapUsage.get()) + " / " + readableSize(lastHeapUsageMax.get()) + " (" +
-                                    lastHeapUsage.get() * 100 / lastHeapUsageMax.get() + "%)"),
-                    new StatusLine(getClass(), "HEAP_AFTER_GC", "Heap memory usage after GC", lastMemoryAfterGCUse.get(),
-                            lastMemoryAfterGCUse.get() + "%"),
-                    new StatusLine(getClass(), "HEAP_FULL_GC", "Old generation GC count", lastGCCollectionCount.get())
-            );
+            ret.add(new StatusLine(getClass(), "HEAP_MEMORY", "Heap memory usage",
+                    lastHeapUsage.get(),
+                    lastHeapUsageMax.get(),
+                    readableSize(lastHeapUsage.get()) + " / " + readableSize(lastHeapUsageMax.get()) + " (" +
+                            lastHeapUsage.get() * 100 / lastHeapUsageMax.get() + "%)"));
+            ret.add(new StatusLine(getClass(), "HEAP_AFTER_GC", "Heap memory usage after GC", lastMemoryAfterGCUse.get(),
+                    lastMemoryAfterGCUse.get() + "%"));
+            ret.add(new StatusLine(getClass(), "HEAP_FULL_GC", "Old generation GC count", lastGCCollectionCount.get()));
         }
-        return new ArrayList<>();
+        if (lastMemoryAfterGCUse.get() > 90) {
+            ret.add(new StatusLine(getClass(), "MEMORY_HIGH", "Memory usage high", lastMemoryAfterGCUse.get(),
+                    lastMemoryAfterGCUse.get() + "%"));
+        }
+        return ret;
     }
 }

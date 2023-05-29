@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.helpers;
 
+import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
@@ -27,6 +28,7 @@ import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.utils.StatusLine;
@@ -45,6 +47,7 @@ public class BlockValidator implements StatusLogger {
     private AtomicLong processedSteps = new AtomicLong();
     private AtomicLong totalSteps = new AtomicLong();
     private Duration lastHeartbeat;
+    private BackupFile lastProcessed;
 
     public void validateBlocks() throws IOException {
         stopwatch.start();
@@ -63,6 +66,7 @@ public class BlockValidator implements StatusLogger {
                     lastHeartbeat = stopwatch.elapsed();
                     log.info("Processing path {}", PathNormalizer.physicalPath(file.getPath()));
                 }
+                lastProcessed = file;
 
                 if (file.getLocations() != null) {
                     AtomicLong maximumSize = new AtomicLong();
@@ -229,6 +233,7 @@ public class BlockValidator implements StatusLogger {
     public void resetStatus() {
         stopwatch.reset();
         processedSteps.set(0L);
+        lastProcessed = null;
     }
 
     @Override
@@ -240,7 +245,7 @@ public class BlockValidator implements StatusLogger {
                 List<StatusLine> ret = Lists.newArrayList(
                         new StatusLine(getClass(), "VALIDATE_THROUGHPUT", "Validating blocks throughput",
                                 throughput, readableNumber(throughput) + " steps/s"),
-                        new StatusLine(getClass(), "VALIDATE_STEPS", "Validating blocks steps completed",
+                        new StatusLine(getClass(), "VALIDATE_STEPS", "Validating blocks",
                                 processedSteps.get(), totalSteps.get(),
                                 readableNumber(processedSteps.get()) + " / "
                                         + readableNumber(totalSteps.get()) + " steps"
@@ -252,6 +257,7 @@ public class BlockValidator implements StatusLogger {
                     ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH_SIZE", "Refreshed storage uploaded",
                             blockRefresher.getRefreshedUploadSize(), readableSize(blockRefresher.getRefreshedUploadSize())));
                 }
+                lastProcessedPath(getClass(), ret, lastProcessed, "VALIDATE_PROCESSED_PATH");
                 return ret;
             }
         }

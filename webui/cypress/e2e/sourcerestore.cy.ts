@@ -55,6 +55,7 @@ it('sourcerestore', function () {
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#currentProgress').contains("Browsing same Contents");
+    cy.wait(1000);
     cy.get('#cancelButton').should("be.visible").and('not.be.disabled').click();
 
     cy.wait(7500);

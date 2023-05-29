@@ -44,7 +44,7 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Status
                 if (duration.toSeconds() > 5) {
                     return new StatusLine(getClass(),
                             "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
-                            "Currently uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
+                            "Uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
                             completed,
                             partial.getFile().getLength(),
                             readableSize(completed) + " / "
@@ -54,7 +54,7 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Status
                 } else {
                     return new StatusLine(getClass(),
                             "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
-                            "Currently uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
+                            "Uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
                             completed,
                             partial.getFile().getLength(),
                             readableSize(completed) + " / "

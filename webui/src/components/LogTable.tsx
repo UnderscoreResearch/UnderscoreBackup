@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React from 'react';
 import {useTheme} from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Table from '@mui/material/Table';
@@ -14,7 +14,22 @@ import FirstPageIcon from '@mui/icons-material/FirstPage';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 import LastPageIcon from '@mui/icons-material/LastPage';
-import {StatusLine} from "../api";
+import {getActivity, StatusLine} from "../api";
+import {deepEqual} from "fast-equals";
+import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
+
+let lastStatus: StatusLine[] = [];
+let statusUpdated: ((newValue: StatusLine[]) => void) | undefined;
+
+async function updateLogs() {
+    const logs = await getActivity(true);
+
+    if (logs && !deepEqual(lastStatus, logs)) {
+        lastStatus = logs;
+        if (statusUpdated)
+            statusUpdated(lastStatus);
+    }
+}
 
 interface TablePaginationActionsProps {
     count: number;
@@ -83,31 +98,34 @@ function TablePaginationActions(props: TablePaginationActionsProps) {
 }
 
 export interface LogTableProps {
-    logs: StatusLine[]
+    onlyErrors: boolean
 }
 
 export default function LogTable(props: LogTableProps) {
     const [page, setPage] = React.useState(0);
     const [rowsPerPage, setRowsPerPage] = React.useState(10);
+    const [logs, setLogs] = React.useState(lastStatus);
 
-    var rowCount = 0;
-    const rows = props.logs.map((line) => {
-        const ret = /^(\S+\s+\S*)\s+(.*)/.exec(line.message);
-        if (ret && ret.length > 2) {
-            return {
-                level: line.code,
-                key: ++rowCount,
-                timestamp: ret[1],
-                message: ret[2]
-            };
-        } else {
-            return {
-                key: ++rowCount,
-                level: line.code,
-                message: line.message
+    let rowCount = 0;
+    const rows = logs
+        .filter((line) => !props.onlyErrors || line.code == "ERROR")
+        .map((line) => {
+            const ret = /^(\S+\s+\S*)\s+(.*)/.exec(line.message);
+            if (ret && ret.length > 2) {
+                return {
+                    level: line.code,
+                    key: ++rowCount,
+                    timestamp: ret[1],
+                    message: ret[2]
+                };
+            } else {
+                return {
+                    key: ++rowCount,
+                    level: line.code,
+                    message: line.message
+                }
             }
-        }
-    })
+        })
 
     // Avoid a layout jump when reaching the last page with empty rows.
     const emptyRows =
@@ -127,11 +145,25 @@ export default function LogTable(props: LogTableProps) {
         setPage(0);
     };
 
-    if (rows.length == 0) {
-        return <div/>;
-    }
+    React.useEffect(() => {
+        statusUpdated = (logs) => setLogs(logs);
+        const timer = setInterval(updateLogs, 5000);
 
-    return (
+        if (logs.length == 0) {
+            updateLogs();
+        }
+
+        return () => {
+            statusUpdated = undefined;
+            clearInterval(timer);
+        };
+    }, []);
+
+    if (rows.length === 0)
+        return <></>;
+
+    return <>
+        <DividerWithText>{props.onlyErrors ? <>Errors</> : <>Logs</>}</DividerWithText>
         <TableContainer component={Paper}>
             <Table sx={{minWidth: 500}} aria-label="custom pagination table">
                 <TableBody>
@@ -179,5 +211,5 @@ export default function LogTable(props: LogTableProps) {
                 </TableFooter>
             </Table>
         </TableContainer>
-    );
+    </>
 }

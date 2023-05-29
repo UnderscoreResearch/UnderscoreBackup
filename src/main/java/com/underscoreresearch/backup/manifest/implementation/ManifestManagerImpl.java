@@ -46,11 +46,6 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                 publicKey);
     }
 
-
-    public boolean temporal() {
-        return false;
-    }
-
     public List<StatusLine> status() {
         List<StatusLine> ret = new ArrayList<>();
         if (!Strings.isNullOrEmpty(getSource())) {
@@ -67,18 +62,18 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                 if (getProcessedOperations() != null) {
                     if (getTotalOperations() != null) {
                         if (getOperationDuration() != null) {
-                            ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", getOperation() + " processed operations",
+                            ret.add(new StatusLine(getClass(), code + "_PROCESSED_STEPS", getOperation(),
                                     getProcessedOperations().get(), getTotalOperations().get(),
-                                    readableNumber(getProcessedOperations().get()) + " / " + readableNumber(getTotalOperations().get())
+                                    readableNumber(getProcessedOperations().get()) + " / " + readableNumber(getTotalOperations().get()) + " steps"
                                             + readableEta(getProcessedOperations().get(), getTotalOperations().get(),
                                             getOperationDuration().elapsed())));
                         } else {
-                            ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", getOperation() + " processed operations",
+                            ret.add(new StatusLine(getClass(), code + "_PROCESSED_STEPS", getOperation() + " processed steps",
                                     getProcessedOperations().get(), getTotalOperations().get(),
                                     readableNumber(getProcessedOperations().get()) + " / " + readableNumber(getTotalOperations().get())));
                         }
                     } else {
-                        ret.add(new StatusLine(getClass(), code + "_PROCESSED_OPERATIONS", getOperation() + " processed operations",
+                        ret.add(new StatusLine(getClass(), code + "_PROCESSED_STEPS", getOperation() + " processed steps",
                                 getProcessedOperations().get()));
                     }
                 }
@@ -88,7 +83,7 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                     if (elapsedMilliseconds > 0) {
                         long throughput = 1000 * getProcessedOperations().get() / elapsedMilliseconds;
                         ret.add(new StatusLine(getClass(), code + "_THROUGHPUT", getOperation() + " throughput",
-                                throughput, readableNumber(throughput) + " operations/s"));
+                                throughput, readableNumber(throughput) + " steps/s"));
                     }
                 }
             }

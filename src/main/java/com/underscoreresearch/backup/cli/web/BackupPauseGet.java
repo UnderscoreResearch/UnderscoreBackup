@@ -23,7 +23,7 @@ public class BackupPauseGet extends JsonWrap {
             String config = BACKUP_CONFIGURATION_WRITER
                     .writeValueAsString(InstanceFactory.getInstance(BackupConfiguration.class));
             try {
-                updateConfiguration(config, true, false);
+                updateConfiguration(config, true, false, false);
                 InstanceFactory.reloadConfiguration(null);
                 return messageJson(200, "Updated configuration");
             } catch (Exception exc) {

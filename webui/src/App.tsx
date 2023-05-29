@@ -1,63 +1,60 @@
 import React from "react";
-import MainApp from "./MainApp";
-import {Alert, AlertColor, Snackbar, ThemeProvider} from "@mui/material";
-import {SnackbarCloseReason} from "@mui/material/Snackbar/Snackbar";
 import {BrowserRouter} from "react-router-dom";
-import {createTheme} from "@mui/material/styles";
+import {useSnackbar, VariantType} from "notistack";
+import {Backdrop, CircularProgress} from "@mui/material";
+import {useApplication} from "./utils/ApplicationContext";
+import {useActivity} from "./utils/ActivityContext";
+import {MainAppSkeleton} from "./components/MainAppSkeleton";
 
-var internalDisplayError: (newMessage: string, severity?: AlertColor) => void;
+let internalDisplayMessage: (message: string, variant: VariantType) => void;
 
-export function DisplayMessage(newMessage: string, severity?: AlertColor) {
-    internalDisplayError(newMessage, severity);
+export function DisplayMessage(message: string, variant: VariantType = "error") {
+    internalDisplayMessage(message, variant);
 }
 
-interface AppState {
-    open: boolean,
-    message: string,
-    severity: AlertColor
+const MainApp = React.lazy(() => import('./MainApp'));
+const InitialSetup = React.lazy(() => import('./InitialSetup'));
+
+function Loading(props: { open: boolean }) {
+    return <Backdrop
+        sx={{color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1}}
+        id={"loading"}
+        open={props.open}>
+        <CircularProgress color="inherit" size={"10em"}/>
+    </Backdrop>
 }
 
 const firstPath = `/${window.location.pathname.split('/')[1]}/`;
-const mdTheme = createTheme();
-
-
 export default function App() {
-    const [state, setState] = React.useState<AppState>({
-        open: false,
-        message: "",
-        severity: "error"
-    });
+    const snackbar = useSnackbar();
+    const appConfig = useApplication();
+    const activity = useActivity();
 
-    internalDisplayError = (newMessage: string, severity?: AlertColor) => {
-        setState({
-            open: true,
-            message: newMessage,
-            severity: severity ? severity : "error"
-        })
-    };
-
-    const handleClose = (event: React.SyntheticEvent | Event, reason?: SnackbarCloseReason) => {
-        if (reason === 'clickaway') {
-            return;
-        }
-
-        setState({
-            open: false,
-            message: "",
-            severity: state.severity
-        });
-    };
+    internalDisplayMessage = (message: string, variant: VariantType) => {
+        snackbar.enqueueSnackbar(message, {variant: variant});
+    }
 
     return <React.Fragment>
-        <Snackbar open={state.open} autoHideDuration={6000} onClose={handleClose}>
-            <Alert onClose={handleClose} severity={state.severity} sx={{width: '100%'}}>
-                {state.message}
-            </Alert>
-        </Snackbar>
-        <ThemeProvider theme={mdTheme}>
-            <BrowserRouter basename={firstPath}>
-                <MainApp/>
-            </BrowserRouter>
-        </ThemeProvider>
+        <BrowserRouter basename={firstPath}>
+            {
+                !appConfig.initialLoad &&
+                <>
+                    {
+                        activity.unresponsive ?
+                            <MainAppSkeleton title={"Unresponsive"} processing={false}
+                                             navigation={<></>} disallowClose={false}/>
+                            :
+                            <React.Suspense fallback={<Loading open={true}/>}>
+                                {appConfig.setupComplete ?
+                                    <MainApp/>
+                                    :
+                                    <InitialSetup/>
+                                }
+                            </React.Suspense>
+                    }
+                </>
+            }
+            <Loading open={appConfig.isBusy() || !!activity.unresponsive}/>
+        </BrowserRouter>
     </React.Fragment>
 }

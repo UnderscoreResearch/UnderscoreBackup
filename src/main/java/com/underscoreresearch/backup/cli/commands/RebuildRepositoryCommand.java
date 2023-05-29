@@ -103,22 +103,29 @@ public class RebuildRepositoryCommand extends Command {
                 } catch (IOException e) {
                     log.error("Failed to shut down log replay", e);
                 }
-                while (thread.isAlive()) {
-                    log.info("Waiting for rebuild to get to a checkpoint");
+                try {
+                    thread.join(1000);
+                    if (!thread.isAlive())
+                        return;
+                } catch (InterruptedException e) {
+                }
+                log.info("Waiting for rebuild to get to a checkpoint");
+                do {
                     try {
                         thread.join();
                     } catch (InterruptedException e) {
                     }
-                }
+                } while (thread.isAlive());
             });
+
             thread.start();
-            do {
+            while (!manifestManager.isBusy() && thread.isAlive()) {
                 try {
                     Thread.sleep(1);
                 } catch (InterruptedException e) {
                     log.error("Failed to wait", e);
                 }
-            } while (!manifestManager.isBusy() && thread.isAlive());
+            }
         } else {
             executeRebuildLog(manifestManager, logConsumer, repository, password);
         }

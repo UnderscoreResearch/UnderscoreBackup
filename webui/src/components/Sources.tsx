@@ -1,9 +1,10 @@
 import * as React from "react";
-import {BackupDestination, BackupState} from '../api';
+import {BackupDestination, BackupState, DestinationMap} from '../api';
 import Destination from './Destination';
 import {EditableList} from './EditableList';
 import {Alert, Stack, TextField} from "@mui/material";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
+import {ApplicationContext, useApplication} from "../utils/ApplicationContext";
 
 interface SourceState {
     valid: boolean,
@@ -20,9 +21,7 @@ export interface SourceProps {
 }
 
 export interface SourcesProps {
-    sources: SourceProps[],
-    backendState: BackupState,
-    configurationUpdated: (valid: boolean, destinations: SourceProps[]) => void
+    sourcesUpdated: (valid: boolean) => void
 }
 
 function Source(props: {
@@ -54,9 +53,32 @@ function Source(props: {
     </Destination>
 }
 
+function sourceExist(appContext: ApplicationContext, key: string): boolean {
+    if (appContext.originalConfiguration && appContext.originalConfiguration.additionalSources) {
+        return !!appContext.originalConfiguration.additionalSources[key]
+    }
+    return false;
+}
+
+function getSourcesList(appContext: ApplicationContext): SourceProps[] {
+    const keys = appContext.currentConfiguration.additionalSources
+        ? Object.keys(appContext.currentConfiguration.additionalSources)
+        : [];
+    keys.sort();
+
+    return keys.map(key => {
+        return {
+            destination: (appContext.currentConfiguration.additionalSources as DestinationMap)[key] as BackupDestination,
+            exist: sourceExist(appContext, key),
+            id: key
+        }
+    });
+}
+
 export default function Sources(props: SourcesProps) {
+    const appContext = useApplication();
     const [state, setState] = React.useState(() => {
-        return props.sources.map(dest => {
+        return getSourcesList(appContext).map(dest => {
             return {
                 valid: true,
                 destination: dest.destination,
@@ -69,18 +91,24 @@ export default function Sources(props: SourcesProps) {
     function sendUpdate(newState: SourceState[]) {
         const ids: string[] = newState.map(t => t.name ? t.name.toLowerCase() : t.id.toLowerCase());
         // @ts-ignore
-        const deduped = [...new Set(ids)];
-        props.configurationUpdated(
-            deduped.length == ids.length &&
+        const deDuped = [...new Set(ids)];
+        props.sourcesUpdated(
+            deDuped.length == ids.length &&
             !newState.some(item => !item.valid || (!item.exist && !item.name)),
-            newState.map(item => {
-                return {
-                    destination: item.destination,
-                    exist: item.exist,
-                    id: item.name ? item.name : item.id
-                }
-            })
         );
+
+        let newVal: DestinationMap = {};
+        newState.forEach((item) => {
+            newVal[item.id] = item.destination;
+        })
+
+        appContext.setState((oldState) => ({
+            ...oldState,
+            currentConfiguration: {
+                ...oldState.currentConfiguration,
+                additionalSources: newVal
+            }
+        }))
     }
 
     function destinationChanged(items: SourceState[]) {
@@ -89,7 +117,7 @@ export default function Sources(props: SourcesProps) {
     }
 
     function findNewId() {
-        var i = 1;
+        let i = 1;
         while (state.some(item => item.id === "d" + i)) {
             i++;
         }
@@ -113,7 +141,7 @@ export default function Sources(props: SourcesProps) {
                     }
                 } as SourceState
             },
-            allowDrop: (item) => true,
+            allowDrop: () => true,
             onItemChanged: destinationChanged,
             items: state,
             createItem: (item, itemUpdated: (item: SourceState) => void) => {
@@ -122,7 +150,7 @@ export default function Sources(props: SourcesProps) {
                                    ...item,
                                    name: name
                                })}
-                               backendState={props.backendState}
+                               backendState={appContext.backendState}
                                id={item.id}
                                destination={item.destination}
                                exists={item.exist}

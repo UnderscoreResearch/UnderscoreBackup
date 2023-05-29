@@ -37,7 +37,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   FileListResponse.JSON_PROPERTY_FILES,
   FileListResponse.JSON_PROPERTY_COMPLETED
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2023-04-28T23:26:00.575807500-07:00[America/Los_Angeles]")
+@jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class FileListResponse {
   public static final String JSON_PROPERTY_FILES = "files";
   private List<String> files = new ArrayList<>();
@@ -65,7 +65,7 @@ public class FileListResponse {
    * List of files.
    * @return files
   **/
-  @javax.annotation.Nonnull
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_FILES)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
@@ -90,7 +90,7 @@ public class FileListResponse {
    * If false there are more files to be fetched. Use the last file of the previous response as the start parameter to fetch the next page.
    * @return completed
   **/
-  @javax.annotation.Nullable
+  @jakarta.annotation.Nullable
   @JsonProperty(JSON_PROPERTY_COMPLETED)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 

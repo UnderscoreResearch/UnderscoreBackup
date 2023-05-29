@@ -9,10 +9,6 @@ export default function ConfigEditor(props: {
     config: BackupConfiguration,
     onChange: (newConfig: BackupConfiguration) => void
 }) {
-    function handleChange() {
-
-    }
-
     return <Paper sx={{
         p: 2,
     }}>

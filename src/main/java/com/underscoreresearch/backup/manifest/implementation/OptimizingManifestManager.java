@@ -78,6 +78,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     @Getter(AccessLevel.PROTECTED)
     private final String source;
     private Map<String, ShareManifestManager> activeShares;
+    private boolean repositoryReady = true;
 
     @Getter(AccessLevel.PROTECTED)
     private Object operationLock = new Object();
@@ -216,6 +217,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
     @Override
     public void replayLog(LogConsumer consumer, String password) throws IOException {
+        repositoryReady = false;
+
         storeIdentity();
 
         startOperation("Replay log");
@@ -260,6 +263,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 log.info("Optimizing repository metadata");
             }
             flushLogging();
+            repositoryReady = true;
         } finally {
             log.info("Completed reprocessing logs");
             resetStatus();
@@ -557,6 +561,11 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     }
 
     @Override
+    public boolean isRepositoryReady() {
+        return repositoryReady;
+    }
+
+    @Override
     public Map<String, ShareManifestManager> getActivatedShares() {
         if (activeShares != null) {
             return activeShares;
@@ -704,9 +713,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     @Override
     public void updateShareEncryption(EncryptionKey.PrivateKey privateKey) throws IOException {
         for (Map.Entry<String, ShareManifestManager> entry : activeShares.entrySet()) {
-            if (!Strings.isNullOrEmpty(entry.getValue().getActivatedShare().getShare().getTargetEmail())) {
-                entry.getValue().updateEncryptionKeys(privateKey);
-            }
+            entry.getValue().updateEncryptionKeys(privateKey);
         }
     }
 

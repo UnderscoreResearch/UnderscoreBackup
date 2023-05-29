@@ -56,6 +56,10 @@ public interface ServiceManager {
             return true;
         }
 
+        default boolean waitForInternet() {
+            return true;
+        }
+
         T call(BackupApi api) throws ApiException;
     }
 }
