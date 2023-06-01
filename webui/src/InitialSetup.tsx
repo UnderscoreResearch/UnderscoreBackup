@@ -148,6 +148,14 @@ export default function InitialSetup() {
             </Stepper>
         </div>;
 
+    useEffect(() => {
+        if (currentStep > pageIndex("source")) {
+            if (appContext.backendState.serviceConnected && !appContext.backendState.serviceSourceId) {
+                changePage("source");
+            }
+        }
+    }, [appContext.backendState]);
+
     async function authenticatedService(): Promise<void> {
         await appContext.updateBackendState();
         changePage("source");

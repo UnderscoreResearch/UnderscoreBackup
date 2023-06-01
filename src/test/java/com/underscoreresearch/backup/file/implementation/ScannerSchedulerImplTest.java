@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 
@@ -55,7 +56,7 @@ class ScannerSchedulerImplTest {
     //@Test
     public void test() throws IOException {
         ScannerSchedulerImpl scannerScheduler = new ScannerSchedulerImpl(configuration, repository, trimmer, scanner,
-                Mockito.mock(StateLogger.class), Mockito.mock(FileChangeWatcher.class), Mockito.mock(ContinuousBackup.class));
+                Mockito.mock(StateLogger.class), Mockito.mock(FileChangeWatcher.class), Mockito.mock(ContinuousBackup.class), null);
         new Thread(() -> {
             try {
                 Thread.sleep(2500);

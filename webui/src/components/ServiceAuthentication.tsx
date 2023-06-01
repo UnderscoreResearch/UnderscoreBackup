@@ -5,6 +5,7 @@ import {BackupState} from "../api";
 import {authorizationRedirect} from "../api/utils";
 import {useLocation} from "react-router-dom";
 import {deleteToken, updateSource} from "../api/service";
+import KeyRecoveryDialog from "./KeyRecoveryDialog";
 
 export interface ServiceAuthenticationProps {
     backendState: BackupState,
@@ -27,6 +28,8 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
         busy: false,
         sourceName: props.backendState.sourceName ?? ""
     } as ServiceAuthenticationState);
+
+    const [showKeyRecovery, setShowKeyRecovery] = React.useState(false);
 
     function authorizeRedirect() {
         setState({
@@ -144,6 +147,11 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
                         <Link rel="noreferrer" target="_blank" underline={"hover"}
                               href={`${props.backendState.siteUrl}/settings/general`}>Account
                             Settings</Link>
+                        &nbsp;
+                        &nbsp;
+                        &nbsp;
+                        <Link rel="noreferrer" target="_blank" underline={"hover"}
+                              onClick={() => setShowKeyRecovery(true)}>Manage Key Recovery</Link>
                     </Grid>
                     <Grid item md={9} xs={12}>
                         <TextField
@@ -165,6 +173,7 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
                     </Grid>
                 </>
             }
+            <KeyRecoveryDialog open={showKeyRecovery} onClose={() => setShowKeyRecovery(false)}/>
         </>
 
     }

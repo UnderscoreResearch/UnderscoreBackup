@@ -57,19 +57,20 @@ export function ContentPage() {
     }
 
     async function saveAndExit(start: boolean) {
-        appContext.setState((oldState) => ({
-            ...oldState,
+        appContext.setBusy(true);
+        appContext.setState({
+            ...appContext.state,
             currentConfiguration: {
-                ...oldState.currentConfiguration,
+                ...appContext.state.currentConfiguration,
                 sets: [state.set],
                 manifest: {
-                    ...oldState.currentConfiguration.manifest,
+                    ...appContext.state.currentConfiguration.manifest,
                     interactiveBackup: start,
                     initialSetup: undefined
                 }
             },
             validatedPassword: false
-        }));
+        });
         await appContext.applyChanges();
         if (start) {
             navigate("/");
@@ -79,34 +80,36 @@ export function ContentPage() {
     }
 
     async function exitBackup() {
-        appContext.setState((oldState) => ({
-            ...oldState,
+        appContext.setBusy(true);
+        appContext.setState({
+            ...appContext.state,
             currentConfiguration: {
-                ...oldState.currentConfiguration,
+                ...appContext.state.currentConfiguration,
                 manifest: {
-                    ...oldState.currentConfiguration.manifest,
+                    ...appContext.state.currentConfiguration.manifest,
                     interactiveBackup: true,
                     initialSetup: undefined
                 }
             },
             validatedPassword: false
-        }));
+        });
         await appContext.applyChanges();
         navigate("/");
     }
 
     async function exitRestore() {
-        appContext.setState((oldState) => ({
-            ...oldState,
+        appContext.setBusy(true);
+        appContext.setState({
+            ...appContext.state,
             currentConfiguration: {
-                ...oldState.currentConfiguration,
+                ...appContext.state.currentConfiguration,
                 manifest: {
-                    ...oldState.currentConfiguration.manifest,
+                    ...appContext.state.currentConfiguration.manifest,
                     initialSetup: undefined
                 }
             },
             validatedPassword: false
-        }));
+        });
         await appContext.applyChanges();
         navigate("/restore");
     }

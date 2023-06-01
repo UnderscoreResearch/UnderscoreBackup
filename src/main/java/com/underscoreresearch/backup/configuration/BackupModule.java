@@ -77,9 +77,10 @@ public class BackupModule extends AbstractModule {
                                                  FileScanner scanner,
                                                  StateLogger stateLogger,
                                                  FileChangeWatcher fileChangeWatcher,
-                                                 ContinuousBackup continuousBackup) {
+                                                 ContinuousBackup continuousBackup,
+                                                 @Named(MANIFEST_LOCATION) String manifestLocation) {
         return new ScannerSchedulerImpl(configuration, repository, repositoryTrimmer, scanner, stateLogger,
-                fileChangeWatcher, continuousBackup);
+                fileChangeWatcher, continuousBackup, manifestLocation);
     }
 
     @Singleton

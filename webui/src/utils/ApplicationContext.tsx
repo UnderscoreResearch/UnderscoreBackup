@@ -43,6 +43,7 @@ export interface ApplicationContext extends ApplicationState {
     applyChanges: () => Promise<boolean>,
     updateBackendState: (validatedPassword?: boolean) => Promise<void>,
     setState: Dispatch<SetStateAction<ApplicationState>>,
+    state: ApplicationState
 }
 
 function defaultEmptyConfig(): BackupConfiguration {
@@ -153,6 +154,7 @@ function generateApplicationContext(): ApplicationContext {
     }
 
     function applyChanges(): Promise<boolean> {
+        setBusy(true);
         return new Promise<boolean>((resolve) => {
             setState((oldState) => {
                 postConfiguration(oldState.currentConfiguration).then((result) => {
@@ -202,6 +204,7 @@ function generateApplicationContext(): ApplicationContext {
         updateBackendState: updateBackendState,
         setState: setState,
         applyChanges: applyChanges,
+        state: state
     }
 }
 

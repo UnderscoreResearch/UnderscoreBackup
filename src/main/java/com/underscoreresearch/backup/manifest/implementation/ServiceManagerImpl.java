@@ -402,21 +402,25 @@ public class ServiceManagerImpl implements ServiceManager {
                 if (privateKey != null) {
                     EncryptionKey publicKey = EncryptionKey.createWithPublicKey(shareId);
                     EncryptionKey shareKey = privateKey.getAdditionalKeyManager().findMatchingPrivateKey(publicKey);
-                    byte[] sharePrivateKey = Hash.decodeBytes(shareKey.getPrivateKey(null).getPrivateKey());
+                    if (shareKey != null) {
+                        byte[] sharePrivateKey = Hash.decodeBytes(shareKey.getPrivateKey(null).getPrivateKey());
 
-                    String destination = getShareDestinationString(getSourceId(), share, shareKey);
-                    ShareRequest request = new ShareRequest()
-                            .destination(destination);
-                    request.setTargetAccountEmailHash(targetAccountHash);
-                    request.setName(share.getName());
+                        String destination = getShareDestinationString(getSourceId(), share, shareKey);
+                        ShareRequest request = new ShareRequest()
+                                .destination(destination);
+                        request.setTargetAccountEmailHash(targetAccountHash);
+                        request.setName(share.getName());
 
-                    for (String key : keys.getPublicKeys()) {
-                        request.addPrivateKeysItem(new SharePrivateKeys().publicKey(key).encryptedKey(
-                                Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
-                                        sharePrivateKey, EncryptionKey.createWithPublicKey(key)))));
+                        for (String key : keys.getPublicKeys()) {
+                            request.addPrivateKeysItem(new SharePrivateKeys().publicKey(key).encryptedKey(
+                                    Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
+                                            sharePrivateKey, EncryptionKey.createWithPublicKey(key)))));
+                        }
+
+                        callApi(null, (api) -> api.updateShare(getSourceId(), shareId, request));
+                    } else {
+                        log.error("Could not find matching private key for sharing key");
                     }
-
-                    callApi(null, (api) -> api.updateShare(getSourceId(), shareId, request));
                 } else {
                     log.warn("Share primary keys need to be updated for share {}", share.getName());
                 }

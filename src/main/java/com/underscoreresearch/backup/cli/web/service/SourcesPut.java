@@ -37,6 +37,8 @@ import com.underscoreresearch.backup.cli.web.PrivateKeyRequest;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
@@ -51,15 +53,33 @@ public class SourcesPut extends JsonWrap {
         super(new Implementation());
     }
 
+    public static BackupDestination decodeDestination(SourceResponse sourceDefinition, EncryptionKey.PrivateKey privateKey) throws IOException {
+        return BACKUP_DESTINATION_READER.readValue(unpackConfigData(
+                sourceDefinition.getEncryptionMode(), privateKey,
+                destinationDecode(sourceDefinition.getDestination())));
+    }
+
+    public static EncryptionKey getEncryptionKey(ServiceManager serviceManager,
+                                                 SourceResponse sourceDefinition,
+                                                 EncryptionKey.PrivateKey privateKey) throws IOException {
+        String oldSourceId = serviceManager.getSourceId();
+        try {
+            serviceManager.setSourceId(sourceDefinition.getSourceId());
+            IOProvider provider = IOProviderFactory.getProvider(decodeDestination(sourceDefinition, privateKey));
+            byte[] keyData = provider.download("publickey.json");
+            return ENCRYPTION_KEY_READER.readValue(keyData);
+        } finally {
+            serviceManager.setSourceId(oldSourceId);
+        }
+    }
+
     public static boolean restoreFromSource(String sourceName,
                                             String password,
                                             ServiceManager serviceManager,
                                             SourceResponse sourceDefinition,
                                             String identity,
                                             EncryptionKey.PrivateKey privateKey) throws IOException {
-        BackupDestination destination = BACKUP_DESTINATION_READER.readValue(unpackConfigData(
-                sourceDefinition.getEncryptionMode(), privateKey,
-                destinationDecode(sourceDefinition.getDestination())));
+        BackupDestination destination = decodeDestination(sourceDefinition, privateKey);
 
         File privateKeyFile = getDefaultEncryptionFileName(InstanceFactory
                 .getInstance(CommandLine.class));
@@ -69,10 +89,22 @@ public class SourcesPut extends JsonWrap {
             String config;
             try {
                 serviceManager.setSourceId(sourceDefinition.getSourceId());
-                config = downloadRemoteConfiguration(destination, privateKey);
+
+                // Need to download the full public key from the source since the service key does not contain
+                // additional keys.
+
+                EncryptionKey.PrivateKey fullPrivateKey;
+                if (privateKey.getParent().getEncryptedAdditionalKeys() != null) {
+                    fullPrivateKey = privateKey;
+                } else {
+                    EncryptionKey fullEncryptionKey = getEncryptionKey(serviceManager, sourceDefinition, privateKey);
+                    fullPrivateKey = fullEncryptionKey.getPrivateKey(password);
+                }
+
+                config = downloadRemoteConfiguration(destination, fullPrivateKey);
 
                 try (FileOutputStream writer = new FileOutputStream(privateKeyFile)) {
-                    writer.write(ENCRYPTION_KEY_WRITER.writeValueAsBytes(privateKey.getParent().publicOnly()));
+                    writer.write(ENCRYPTION_KEY_WRITER.writeValueAsBytes(fullPrivateKey.getParent().publicOnly()));
                 }
 
                 updateConfiguration(config, true, true, true);

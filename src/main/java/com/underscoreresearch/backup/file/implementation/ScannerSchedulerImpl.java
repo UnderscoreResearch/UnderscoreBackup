@@ -2,8 +2,10 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -32,6 +34,8 @@ import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.cli.UIManager;
@@ -59,6 +63,8 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
 public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
+    private static final ObjectReader STATISTICS_READER = MAPPER.readerFor(RepositoryTrimmer.Statistics.class);
+    private static final ObjectWriter STATISTICS_WRITER = MAPPER.writerFor(RepositoryTrimmer.Statistics.class);
     private static final long SLEEP_DELAY_MS = 60 * 1000;
     private static final long SLEEP_RESUME_DELAY_MS = 5 * 60 * 1000;
     private static RepositoryTrimmer.Statistics statistics;
@@ -76,6 +82,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private final Random random = new Random();
     private final FileChangeWatcher fileChangeWatcher;
     private final ContinuousBackup continuousBackup;
+    private final String manifestPath;
     private boolean shutdown;
     private boolean scheduledRestart;
     @Getter
@@ -87,7 +94,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                                 FileScanner scanner,
                                 StateLogger stateLogger,
                                 FileChangeWatcher fileChangeWatcher,
-                                ContinuousBackup continuousBackup) {
+                                ContinuousBackup continuousBackup,
+                                String manifestPath) {
         this.configuration = configuration;
         this.scanner = scanner;
         this.repository = repository;
@@ -95,10 +103,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         this.stateLogger = stateLogger;
         this.fileChangeWatcher = fileChangeWatcher;
         this.continuousBackup = continuousBackup;
+        this.manifestPath = manifestPath;
 
         pendingSets = new boolean[configuration.getSets().size()];
 
         executor.scheduleAtFixedRate(this::detectSleep, SLEEP_DELAY_MS, SLEEP_DELAY_MS, TimeUnit.MILLISECONDS);
+
+        statistics = readStatistics();
     }
 
     public static void updateOptimizeSchedule(MetadataRepository copyRepository,
@@ -211,6 +222,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                                 i++;
                                 if (set.getRetention() != null) {
                                     statistics = trimmer.trimRepository(shouldOnlyDoFileTrim());
+                                    saveStatistics(statistics);
                                     trimmer.resetStatus();
                                 }
                             } else {
@@ -294,6 +306,34 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         stateLogger.reset();
 
         checkNewVersion();
+    }
+
+    private File getStatisticsFile() {
+        return new File(manifestPath, "statistics.json");
+    }
+
+    private void saveStatistics(RepositoryTrimmer.Statistics statistics) {
+        if (manifestPath != null) {
+            try {
+                STATISTICS_WRITER.writeValue(getStatisticsFile(), statistics);
+            } catch (IOException e) {
+                log.warn("Failed to save backup statistics", e);
+            }
+        }
+    }
+
+    private RepositoryTrimmer.Statistics readStatistics() {
+        if (manifestPath != null) {
+            try {
+                File file = getStatisticsFile();
+                if (file.exists()) {
+                    return STATISTICS_READER.readValue(getStatisticsFile());
+                }
+            } catch (IOException e) {
+                log.warn("Failed to read backup statistics", e);
+            }
+        }
+        return statistics;
     }
 
     private void rescheduleCompletedSet(int i, BackupSet set) {

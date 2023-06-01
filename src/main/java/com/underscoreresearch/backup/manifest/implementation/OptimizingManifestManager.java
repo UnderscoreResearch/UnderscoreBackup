@@ -179,7 +179,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                     destinationData = BaseEncoding.base64Url().encode(encryptConfigData(inputStream)).replace("=", "");
                 }
             }
-            String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.publicOnlyHash());
+            String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.serviceOnlyKey());
             getServiceManager().call(null, (api) -> api.updateSource(getServiceManager().getSourceId(),
                     new SourceRequest()
                             .identity(getInstallationIdentity())

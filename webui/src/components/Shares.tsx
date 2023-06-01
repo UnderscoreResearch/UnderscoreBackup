@@ -302,7 +302,7 @@ function ShareItem(props: {
                         postElement={postElement}
     >
         <DividerWithText>Name</DividerWithText>
-        <div style={{marginLeft: "8px", marginRight: "0px", marginTop: "8px"}}>
+        <div style={{marginLeft: "0px", marginRight: "0px", marginTop: "8px"}}>
             <TextField label="Share Name" variant="outlined"
                        id="share-name"
                        required={true}
@@ -315,14 +315,14 @@ function ShareItem(props: {
         {(!!props.backendState.serviceSourceId) &&
             <>
                 <DividerWithText>Service Sharing</DividerWithText>
-                <div style={{marginLeft: "8px", marginRight: "0px", marginBottom: "8px"}}>
+                <div style={{marginLeft: "0px", marginRight: "0px", marginBottom: "8px"}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.serviceSharing}
                         onChange={(e) => setState((oldState) => ({...oldState, serviceSharing: e.target.checked}))}
                     />} label="Share through Underscore Backup service"/>
                 </div>
                 {state.serviceSharing &&
-                    <div style={{marginLeft: "8px", marginRight: "0px", marginTop: "8px"}}>
+                    <div style={{marginLeft: "0px", marginRight: "0px", marginTop: "8px"}}>
                         <TextField label="Recipient service account email address" variant="outlined"
                                    id="recipient-email"
                                    required={true}
@@ -338,7 +338,7 @@ function ShareItem(props: {
         {(!props.backendState.serviceSourceId || !state.serviceSharing) &&
             <>
                 <DividerWithText>Encryption Key</DividerWithText>
-                <div style={{marginLeft: "8px", marginRight: "0px", marginTop: "8px", display: "flex"}}>
+                <div style={{marginLeft: "0px", marginRight: "0px", marginTop: "8px", display: "flex"}}>
                     <div style={{width: "100%", marginRight: "8px"}}>
                         <TextField label={privateKey || props.exists ? "Public Key" : "Encryption Key"}
                                    variant="outlined"

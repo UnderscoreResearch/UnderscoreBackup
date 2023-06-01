@@ -176,6 +176,8 @@ export function calculateDisplayState(appContext: ApplicationContext,
             if (!ret.navigation.sources)
                 ret.invalidPage = ret.navigation.unresponsive = true;
             break;
+        case "authorizeaccept":
+            break;
         default:
             ret.invalidPage = ret.navigation.unresponsive = true;
             break;

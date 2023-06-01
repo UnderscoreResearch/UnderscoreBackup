@@ -203,7 +203,7 @@ export function SecurityPage(props: SecurityPageProps) {
                                    required={true}
                                    helperText={state.passwordConfirm !== state.passwordReclaim ? "Does not match" : null}
                                    value={state.passwordConfirm}
-                                   error={state.passwordConfirm !== state.passwordReclaim || !state.passwordReclaim}
+                                   error={state.passwordConfirm !== state.passwordReclaim || !state.passwordConfirm}
                                    id={"passwordReclaimSecond"}
                                    type="password"
                                    onChange={(e) => setState({

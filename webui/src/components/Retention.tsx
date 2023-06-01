@@ -5,6 +5,7 @@ import {EditableList} from "./EditableList";
 import {Checkbox, FormControlLabel, TextField} from "@mui/material";
 import Timespan from "./Timespan";
 import Typography from "@mui/material/Typography";
+import DeletionTimespan from "./DeletionTimespan";
 
 interface RetentionState {
     retention?: BackupRetention
@@ -44,7 +45,7 @@ function AdditionalTimeSpans(props: {
                               });
                           }
                       }}
-                      title={"keep at most one version per "}/>
+                      title={"keep"}/>
         </div>
     }
 
@@ -85,6 +86,7 @@ function AdditionalTimeSpans(props: {
     return EditableList<BackupRetentionAdditional>({
         createItem: createItem,
         items: props.items,
+        verticalSpacing: "0",
         onItemChanged: updateAdditionalState,
         createNewItem: createNewItem
     });
@@ -109,23 +111,24 @@ export default function Retention(props: RetentionProps) {
                           defaultFrequency: newTimeSpan
                       }
                   })}
-                  title={"Initially keep at most one version per "}/>
+                  title={"Initially keep "}/>
+
         <AdditionalTimeSpans
             items={state.retention && state.retention.older ? state.retention.older : []}
             state={state}
             updateState={updateState}/>
 
-        <Timespan timespan={state.retention ? state.retention.retainDeleted : undefined}
-                  onChange={(newTimeSpan) => updateState({
-                      ...state,
-                      retention: {
-                          ...state.retention,
-                          retainDeleted: newTimeSpan
-                      }
-                  })}
-                  title={"Remove deleted files after "}/>
-        <div style={{display: "flex", alignItems: "center", marginTop: "8px"}}>
-            <FormControlLabel style={{marginLeft: "0px"}} control={<Checkbox
+        <DeletionTimespan timespan={state.retention ? state.retention.retainDeleted : undefined}
+                          title={"remove deleted files."}
+                          onChange={(newTimeSpan) => updateState({
+                              ...state,
+                              retention: {
+                                  ...state.retention,
+                                  retainDeleted: newTimeSpan
+                              }
+                          })}/>
+        <div style={{display: "flex", alignItems: "center", marginTop: "8px", marginLeft: "-8px"}}>
+            <FormControlLabel style={{margin: "0px"}} control={<Checkbox
                 checked={state.retention ? !!state.retention.maximumVersions : false}
                 onChange={(e) => updateState({
                     ...state,
@@ -134,12 +137,12 @@ export default function Retention(props: RetentionProps) {
                         maximumVersions: e.target.checked ? 10 : undefined
                     }
                 })}
-            />} label={"Keep at most "}/>
+            />} label={"Keep at most"}/>
             <TextField variant="standard"
                        disabled={!state.retention || !state.retention.maximumVersions}
                        defaultValue={state.retention && state.retention.maximumVersions ? state.retention.maximumVersions : 10}
                        inputProps={{min: 1, style: {textAlign: "right"}}}
-                       style={{width: "80px"}}
+                       style={{width: "80px", margin: "4px"}}
                        type={"number"}
                        onBlur={(e) => updateState({
                            ...state,

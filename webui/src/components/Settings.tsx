@@ -19,6 +19,7 @@ import {
     DialogTitle,
     FormControlLabel,
     Grid,
+    Link,
     Paper,
     Stack,
     TextField
@@ -37,6 +38,7 @@ import Timespan from "./Timespan";
 import PasswordStrengthBar from "../3rdparty/react-password-strength-bar";
 import SupportBundleDialog from "./SupportBundleDialog";
 import {useApplication} from "../utils/ApplicationContext";
+import {Warning} from "@mui/icons-material";
 
 interface SettingsState {
     manifest: BackupManifest,
@@ -223,59 +225,77 @@ export default function Settings() {
                 <Grid item xs={12}>
                     <DividerWithText>Global limits</DividerWithText>
                 </Grid>
-                <Grid item xs={6}>
-                    <SpeedLimit
-                        speed={state.limits.maximumUploadBytesPerSecond}
-                        onChange={(newSpeed) => {
-                            const newState = {
-                                ...state,
-                                limits: {
-                                    ...state.limits,
-                                    maximumUploadBytesPerSecond: newSpeed
-                                }
-                            }
-                            updateState(newState);
-                        }} title={"Maximum total upload speed"}/>
+                <Grid item xs={9}>
+                    <Grid container spacing={2}>
+                        <Grid item xs={8}>
+                            <SpeedLimit
+                                speed={state.limits.maximumUploadBytesPerSecond}
+                                onChange={(newSpeed) => {
+                                    const newState = {
+                                        ...state,
+                                        limits: {
+                                            ...state.limits,
+                                            maximumUploadBytesPerSecond: newSpeed
+                                        }
+                                    }
+                                    updateState(newState);
+                                }} title={"Maximum total upload speed"}/>
+                        </Grid>
+                        <Grid item xs={4}>
+                            <TextField label="Maximum concurrent uploads" variant="outlined"
+                                       value={state.limits.maximumUploadThreads ? state.limits.maximumUploadThreads : 4}
+                                       type={"number"}
+                                       inputProps={{min: 1, style: {textAlign: "right"}}}
+                                       onChange={(e) => updateState({
+                                           ...state,
+                                           limits: {
+                                               ...state.limits,
+                                               maximumUploadThreads: parseInt(e.target.value)
+                                           }
+                                       })}/>
+                        </Grid>
+                        <Grid item xs={8}>
+                            <SpeedLimit
+                                speed={state.limits.maximumDownloadBytesPerSecond}
+                                onChange={(newSpeed) => {
+                                    const newState = {
+                                        ...state,
+                                        limits: {
+                                            ...state.limits,
+                                            maximumDownloadBytesPerSecond: newSpeed
+                                        }
+                                    }
+                                    updateState(newState);
+                                }} title={"Maximum total download speed"}/>
+                        </Grid>
+                        <Grid item xs={4}>
+                            <TextField label="Maximum concurrent downloads" variant="outlined"
+                                       value={state.limits.maximumDownloadThreads ? state.limits.maximumDownloadThreads : 4}
+                                       type={"number"}
+                                       inputProps={{min: 1, style: {textAlign: "right"}}}
+                                       onChange={(e) => updateState({
+                                           ...state,
+                                           limits: {
+                                               ...state.limits,
+                                               maximumDownloadThreads: parseInt(e.target.value)
+                                           }
+                                       })}/>
+                        </Grid>
+                    </Grid>
                 </Grid>
-                <Grid item xs={6}>
-                    <TextField label="Maximum concurrent uploads" variant="outlined"
-                               value={state.limits.maximumUploadThreads ? state.limits.maximumUploadThreads : 4}
-                               type={"number"}
-                               inputProps={{min: 1, style: {textAlign: "right"}}}
-                               onChange={(e) => updateState({
-                                   ...state,
-                                   limits: {
-                                       ...state.limits,
-                                       maximumUploadThreads: parseInt(e.target.value)
-                                   }
-                               })}/>
-                </Grid>
-                <Grid item xs={6}>
-                    <SpeedLimit
-                        speed={state.limits.maximumDownloadBytesPerSecond}
-                        onChange={(newSpeed) => {
-                            const newState = {
-                                ...state,
-                                limits: {
-                                    ...state.limits,
-                                    maximumDownloadBytesPerSecond: newSpeed
-                                }
-                            }
-                            updateState(newState);
-                        }} title={"Maximum total download speed"}/>
-                </Grid>
-                <Grid item xs={6}>
-                    <TextField label="Maximum concurrent downloads" variant="outlined"
-                               value={state.limits.maximumDownloadThreads ? state.limits.maximumDownloadThreads : 4}
-                               type={"number"}
-                               inputProps={{min: 1, style: {textAlign: "right"}}}
-                               onChange={(e) => updateState({
-                                   ...state,
-                                   limits: {
-                                       ...state.limits,
-                                       maximumDownloadThreads: parseInt(e.target.value)
-                                   }
-                               })}/>
+                <Grid item xs={3}>
+                    {((state.limits.maximumUploadThreads ?? 0) > 4 || (state.limits.maximumDownloadThreads ?? 0) > 4) &&
+                        <>
+                            <Typography>
+                                <Warning sx={{color: "warning.main"}}/>
+                                A value higher than 4 may cause the service to run out of memory with
+                                default settings.
+                            </Typography>
+                            <Link rel="noreferrer" target="_blank"
+                                  href={`https://underscorebackup.com/blog/2023/02/how-to-change-memory-configuration.html`}
+                                  underline={"hover"}>See how to increase memory in this article.</Link>
+                        </>
+                    }
                 </Grid>
             </Grid>
         </Paper>
@@ -416,7 +436,7 @@ export default function Settings() {
                     }} timespan={state.manifest.scheduleRandomize ? state.manifest.scheduleRandomize : {
                         unit: "HOURS",
                         duration: 1
-                    }} title={"Randomize start of schedules"} requireTime={true}/>
+                    }} title={"Randomize start of schedules by"} requireTime={true}/>
                 </div>
             </div>
         </Paper>

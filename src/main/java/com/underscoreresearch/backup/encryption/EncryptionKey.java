@@ -397,15 +397,20 @@ public class EncryptionKey {
     }
 
     public EncryptionKey publicOnlyHash() {
+        EncryptionKey ret = serviceOnlyKey();
+        ret.encryptedAdditionalKeys = encryptedAdditionalKeys;
+        ret.sharingPublicKey = sharingPublicKey;
+        ret.blockHashSaltEncrypted = blockHashSaltEncrypted;
+        return ret;
+    }
+
+    public EncryptionKey serviceOnlyKey() {
         EncryptionKey ret = new EncryptionKey();
         ret.publicKeyHash = getPublicKeyHash();
         ret.salt = salt;
         ret.passwordKey = passwordKey;
         ret.keyData = keyData;
         ret.algorithm = algorithm;
-        ret.blockHashSaltEncrypted = blockHashSaltEncrypted;
-        ret.encryptedAdditionalKeys = encryptedAdditionalKeys;
-        ret.sharingPublicKey = sharingPublicKey;
         return ret;
     }
 

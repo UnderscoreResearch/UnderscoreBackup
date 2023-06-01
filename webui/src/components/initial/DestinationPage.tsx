@@ -39,7 +39,11 @@ export function DestinationPage(props: DestinationPageProps) {
 
                 let manifest: BackupManifest = {
                     destination: "d0",
-                    optimizeSchedule: "0 0 1 * *"
+                    optimizeSchedule: "0 0 1 * *",
+                    scheduleRandomize: {
+                        duration: 1,
+                        unit: "HOURS"
+                    }
                 };
                 if (!newState.currentConfiguration) {
                     newState.currentConfiguration = {

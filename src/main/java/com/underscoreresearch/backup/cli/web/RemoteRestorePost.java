@@ -35,7 +35,7 @@ public class RemoteRestorePost extends JsonWrap {
 
     public static byte[] downloadKeyData(String password, String source) throws ParseException, IOException {
         IOProvider provider = getIoProvider(source);
-        byte[] keyData = provider.download("/publickey.json");
+        byte[] keyData = provider.download("publickey.json");
         EncryptionKey encryptionKey = ENCRYPTION_KEY_READER.readValue(keyData);
 
         if (!Strings.isNullOrEmpty(source) && encryptionKey.getSalt() == null) {

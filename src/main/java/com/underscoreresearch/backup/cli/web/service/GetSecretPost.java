@@ -1,11 +1,16 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
+import static com.underscoreresearch.backup.cli.web.service.SourcesPut.getEncryptionKey;
 import static com.underscoreresearch.backup.cli.web.service.SourcesPut.restoreFromSource;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.CLIENT_ID;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
@@ -14,6 +19,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.cli.CommandLine;
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.rq.RqPrint;
@@ -23,12 +29,15 @@ import org.takes.rs.RsWithStatus;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.GetSecretRequest;
 import com.underscoreresearch.backup.service.api.model.GetSecretResponse;
@@ -103,7 +112,7 @@ public class GetSecretPost extends JsonWrap {
 
                 EncryptionKey sourceKey;
                 try {
-                    sourceKey = ENCRYPTION_KEY_READER.readValue(sourceResponse.getKey());
+                    sourceKey = getEncryptionKey(serviceManager, sourceResponse, newKey.getPrivateKey(request.getPassword()));
                     if (!sourceKey.getPublicKeyHash().equals(newKey.getPublicKeyHash())) {
                         log.error("Restored key does not match existing public key");
                         return messageJson(500, "Key mismatch with restore");
@@ -113,8 +122,23 @@ public class GetSecretPost extends JsonWrap {
                 }
 
                 newKey.setEncryptedAdditionalKeys(sourceKey.getEncryptedAdditionalKeys());
+                newKey.setSharingPublicKey(sourceKey.getSharingPublicKey());
+                newKey.setBlockHashSalt(sourceKey.getBlockHashSalt());
+                newKey.setBlockHashSaltEncrypted(sourceKey.getBlockHashSaltEncrypted());
 
-                if (restoreFromSource(sourceResponse.getName(),
+                if (InstanceFactory.hasConfiguration(true)) {
+                    File privateKeyFile = getDefaultEncryptionFileName(InstanceFactory
+                            .getInstance(CommandLine.class));
+
+                    try (FileOutputStream writer = new FileOutputStream(privateKeyFile)) {
+                        writer.write(ENCRYPTION_KEY_WRITER.writeValueAsBytes(newKey.publicOnly()));
+                    }
+
+                    InstanceFactory.reloadConfiguration(
+                            () -> InteractiveCommand.startBackupIfAvailable());
+
+                    return new RsWithStatus(new RsText(WRITER.writeValueAsString(new GetSecretPostResponse(true, true))), 200);
+                } else if (restoreFromSource(sourceResponse.getName(),
                         request.getPassword(),
                         serviceManager,
                         sourceResponse,

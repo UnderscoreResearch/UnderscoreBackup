@@ -132,7 +132,7 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
                     <div style={{flexGrow: 1}}>
                         {props.createItem(item.item, itemUpdated)}
                     </div>
-                    <div style={{flexGrow: 0}}>
+                    <div style={{flexGrow: 0, display: "flex", marginTop: "auto", marginBottom: "auto"}}>
                         {allowDown &&
                             <IconButton aria-label="down" onClick={() => swapItem(index)}>
                                 <DownIcon/>

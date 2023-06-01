@@ -2,61 +2,30 @@ import * as React from "react";
 import Typography from "@mui/material/Typography";
 import {MenuItem, Select, TextField} from "@mui/material";
 import {BackupTimespan} from "../api";
+import {calculateType, calculateUnit} from "./Timespan";
 
-export interface DurationProps {
+export interface DeletionDurationProps {
     timespan?: BackupTimespan,
     onChange: (timespan?: BackupTimespan) => void,
-    requireTime?: boolean,
-    title: string,
-    disabled?: boolean
+    disabled?: boolean,
+    title: string
 }
 
-interface DurationState {
+interface DeletionDurationState {
     duration: number,
     unit: string,
     type: string
 }
 
-export function calculateUnit(props: DurationProps) {
-    if (props.timespan) {
-        if (props.timespan.unit) {
-            switch (props.timespan.unit) {
-                case "IMMEDIATE":
-                case "FOREVER":
-                    return "MONTHS";
-                default:
-                    return props.timespan.unit;
-            }
-        }
-    }
-    return "MONTHS";
-}
-
-export function calculateType(props: DurationProps) {
-    if (props.requireTime) {
-        return "AFTER";
-    }
-    if (props.timespan && props.timespan.unit) {
-        switch (props.timespan.unit) {
-            case "IMMEDIATE":
-            case "FOREVER":
-                return props.timespan.unit;
-            default:
-                return "AFTER";
-        }
-    }
-    return "IMMEDIATE";
-}
-
-export default function Timespan(props: DurationProps) {
+export default function DeletionTimespan(props: DeletionDurationProps) {
 
     const [state, setState] = React.useState({
         duration: props.timespan && props.timespan.duration ? props.timespan.duration : 1,
         unit: calculateUnit(props),
         type: calculateType(props)
-    } as DurationState);
+    } as DeletionDurationState);
 
-    function updateState(newState: DurationState) {
+    function updateState(newState: DeletionDurationState) {
         if (props.onChange) {
             if (newState.type === "IMMEDIATE") {
                 props.onChange({
@@ -83,18 +52,16 @@ export default function Timespan(props: DurationProps) {
 
     // noinspection TypeScriptValidateTypes
     return <div style={{display: "flex", alignItems: "center"}}>
-        <Typography style={{margin: "4px"}}>{props.title}</Typography>
         {
-            !props.requireTime &&
             <Select style={{minWidth: "10em", margin: "4px"}} disabled={props.disabled} value={state.type}
                     onChange={(e) => updateState({
                         duration: state.duration,
                         unit: state.unit,
                         type: e.target.value
                     })}>
-                <MenuItem value={"IMMEDIATE"}>all changes to a file</MenuItem>
-                <MenuItem value={"FOREVER"}>only one version of a file</MenuItem>
-                <MenuItem value={"AFTER"}>one version of a file every</MenuItem>
+                <MenuItem value={"IMMEDIATE"}>Immediately</MenuItem>
+                <MenuItem value={"FOREVER"}>Never</MenuItem>
+                <MenuItem value={"AFTER"}>After</MenuItem>
             </Select>
         }
         {state.type === "AFTER" &&
@@ -103,7 +70,7 @@ export default function Timespan(props: DurationProps) {
                            variant="standard"
                            defaultValue={state.duration}
                            inputProps={{min: 1, style: {textAlign: "right"}}}
-                           style={{width: "80px", margin: "4px"}}
+                           style={{width: "80px"}}
                            type={"number"}
                            onBlur={(e) => updateState({
                                duration: parseInt(e.target.value),
@@ -126,5 +93,8 @@ export default function Timespan(props: DurationProps) {
                 </Select>
             </>
         }
+        <Typography style={{margin: "4px"}}>
+            {props.title}
+        </Typography>
     </div>;
 }

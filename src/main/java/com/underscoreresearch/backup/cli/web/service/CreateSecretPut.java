@@ -67,8 +67,13 @@ public class CreateSecretPut extends JsonWrap {
                 }
 
                 EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
-                EncryptionKey secretKey = EncryptionKey.changeEncryptionPassword(request.getPassword(),
-                        request.getEmail(), encryptionKey);
+                EncryptionKey secretKey;
+                try {
+                    secretKey = EncryptionKey.changeEncryptionPassword(request.getPassword(),
+                            request.getEmail(), encryptionKey);
+                } catch (IllegalArgumentException exc) {
+                    return messageJson(403, "Invalid password");
+                }
                 secretKey.setPublicKey(null);
                 secretKey.setEncryptedAdditionalKeys(null);
                 String secret = ENCRYPTION_KEY_WRITER.writeValueAsString(secretKey);

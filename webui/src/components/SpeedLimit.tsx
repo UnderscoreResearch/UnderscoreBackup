@@ -64,7 +64,7 @@ export default function SpeedLimit(props: SpeedLimitProps) {
         setState(newState);
     }
 
-    return <div style={{display: "flex", alignItems: "center", marginRight: "8px"}}>
+    return <div style={{display: "flex", alignItems: "center", marginLeft: "-8px"}}>
         <Checkbox checked={state.enabled} onChange={(e) => {
             updateState({
                 ...state,

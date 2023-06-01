@@ -40,7 +40,7 @@ function Source(props: {
                         destinationUpdated={props.destinationUpdated}
     >
         <DividerWithText>Name</DividerWithText>
-        <div style={{marginLeft: "8px", marginRight: "0px", marginTop: "8px"}}>
+        <div style={{marginLeft: "0px", marginRight: "0px", marginTop: "8px"}}>
             <TextField label="Source Name" variant="outlined"
                        required={true}
                        fullWidth={true}
