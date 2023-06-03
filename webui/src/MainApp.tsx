@@ -344,7 +344,7 @@ export default function MainApp() {
                 destinationValid: valid
             }))}/>}/>
             <Route path="sets" element={<Sets
-                allowReset={displayState.backupCanStart && !!appContext.currentConfiguration.manifest.interactiveBackup}
+                allowReset={(displayState.backupCanStart || displayState.backupInProgress) && !!appContext.currentConfiguration.manifest.interactiveBackup}
                 setsUpdated={(valid) => setState((oldState) => ({
                     ...oldState,
                     setsValid: valid
