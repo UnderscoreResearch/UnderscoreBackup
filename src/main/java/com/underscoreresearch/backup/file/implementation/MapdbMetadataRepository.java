@@ -281,7 +281,7 @@ public class MapdbMetadataRepository implements MetadataRepository {
         if (blockTmpMap == null) {
             blockTmpDb = createDb(readOnly, BLOCK_TMP_STORE);
             // Need to be BLOCK_STORE here, as we are copying from BLOCK_TMP_STORE to BLOCK_STORE eventually.
-            blockTmpMap = openHashMap(blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
+            blockTmpMap = openHashMap(blockTmpDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         }
         return blockTmpMap;
     }

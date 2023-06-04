@@ -3,7 +3,8 @@ import {StatusLine} from "../api";
 import {
     Accordion,
     AccordionDetails,
-    AccordionSummary, Link,
+    AccordionSummary,
+    Link,
     Paper,
     Stack,
     Table,
@@ -24,6 +25,12 @@ export interface StatusState {
     details: boolean
 }
 
+const LAST_STATS : string[] = [
+    "REPOSITORY_INFO_FILES",
+    "REPOSITORY_INFO_FILE_VERSIONS",
+    "REPOSITORY_INFO_TOTAL_SIZE"
+];
+
 const IMPORTANT_CODES = [
     "MEMORY_HIGH",
     "BACKUP_DURATION",
@@ -36,9 +43,6 @@ const IMPORTANT_CODES = [
     "OPTIMIZING_LOG_PROCESSED_STEPS",
     "CONTINUOUS_BACKUP_FILES",
     "CONTINUOUS_BACKUP_SIZE",
-    "REPOSITORY_INFO_FILES",
-    "REPOSITORY_INFO_FILE_VERSIONS",
-    "REPOSITORY_INFO_TOTAL_SIZE",
     "COMPLETED_OBJECTS",
     "COMPLETED_SIZE",
     "UPLOADED_THROUGHPUT",
@@ -79,10 +83,15 @@ export default function Status(props: StatusProps) {
 
     const activeItems = items.filter(item => item.code.startsWith("DOWNLOADED_ACTIVE") || item.code.startsWith("UPLOADED_ACTIVE"));
     const importantItems: StatusLine[] = [];
+    const statsItems: StatusLine[] = [];
     const scheduledItems: StatusLine[] = [];
     const statusItems = items.filter(item => {
         if (IMPORTANT_CODES.indexOf(item.code) >= 0) {
             importantItems.push(item);
+            return false;
+        }
+        if (LAST_STATS.indexOf(item.code) >= 0) {
+            statsItems.push(item);
             return false;
         }
         if (item.code.startsWith("SCHEDULED_BACKUP_")) {
@@ -92,6 +101,7 @@ export default function Status(props: StatusProps) {
         return !(item.code.startsWith("DOWNLOADED_ACTIVE") || item.code.startsWith("UPLOADED_ACTIVE"))
     });
     importantItems.sort((a, b) => IMPORTANT_CODES.indexOf(a.code) - IMPORTANT_CODES.indexOf(b.code));
+    statsItems.sort((a, b) => IMPORTANT_CODES.indexOf(a.code) - IMPORTANT_CODES.indexOf(b.code));
     statusItems.sort((a, b) => a.message.localeCompare(b.message));
     activeItems.sort((a, b) => a.message.localeCompare(b.message));
 
@@ -103,6 +113,19 @@ export default function Status(props: StatusProps) {
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
                             {importantItems.map((row) => StatusRow(importantProperties(row, state.details)))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </div>
+        }
+
+        {statsItems.length > 0 &&
+            <div>
+                <DividerWithText>Last backup stats</DividerWithText>
+                <TableContainer component={Paper}>
+                    <Table sx={{minWidth: 650}} aria-label="simple table">
+                        <TableBody>
+                            {statsItems.map((row) => StatusRow(importantProperties(row, state.details)))}
                         </TableBody>
                     </Table>
                 </TableContainer>
