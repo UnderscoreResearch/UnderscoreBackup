@@ -278,7 +278,7 @@ export default function Restore(props: RestoreProps) {
                                     (e) => {
                                         updateState({
                                             ...state,
-                                            source: e.target.value,
+                                            source: e.target.value as string,
                                         })
                                     }
                                 }

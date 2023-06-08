@@ -146,7 +146,7 @@ public class SourceSelectPost extends JsonWrap {
                     sourceDefinition.getEncryptionMode(), privateKey,
                     destinationDecode(sourceDefinition.getDestination())));
 
-            String config = downloadRemoteConfiguration(destination, privateKey);
+            String config = downloadRemoteConfiguration(destination.sourceShareDestination(source, null), privateKey);
 
             writeSourceKey(source, privateKey.getParent().publicOnly());
 
@@ -283,8 +283,9 @@ public class SourceSelectPost extends JsonWrap {
                     InstanceFactory.reloadConfigurationWithSource();
                     sourceConfig = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
                 } catch (Exception exc2) {
+                    log.error("Failed to validate source configuration file", exc);
                     InstanceFactory.reloadConfiguration(null);
-                    return messageJson(403, "Could not download source configuration");
+                    return messageJson(403, "Source configuration not supported");
                 }
             }
 

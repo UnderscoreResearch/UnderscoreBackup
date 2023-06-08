@@ -303,7 +303,7 @@ export default function MainApp() {
         }
     }, [appContext.selectedSource, displayState.rebuildInProgress]);
 
-    if (displayState.invalidPage || appContext.isBusy()) {
+    if (displayState.invalidPage) {
         if (displayState.invalidPage && state.desiredPage !== "status") {
             setState((oldState) => ({
                 ...oldState,
@@ -311,6 +311,13 @@ export default function MainApp() {
             }));
         }
 
+        return <MainAppSkeleton title={displayState.statusTitle} processing={displayState.processing}
+                                navigation={navigation} disallowClose={false}
+                                acceptButton={acceptButton} cancelButton={cancelButton}>
+        </MainAppSkeleton>
+    }
+
+    if (appContext.isBusy()) {
         if (acceptButton)
             acceptButton = {
                 ...acceptButton,
@@ -322,11 +329,6 @@ export default function MainApp() {
                 ...cancelButton,
                 disabled: true
             }
-
-        return <MainAppSkeleton title={displayState.statusTitle} processing={displayState.processing}
-                                navigation={navigation} disallowClose={false}
-                                acceptButton={acceptButton} cancelButton={cancelButton}>
-        </MainAppSkeleton>
     }
 
     // Hack, but can't figure out how do refer to it from above without it.
