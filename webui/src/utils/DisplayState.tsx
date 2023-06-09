@@ -183,5 +183,10 @@ export function calculateDisplayState(appContext: ApplicationContext,
             break;
     }
 
+    if (appContext.isBusy() && !ret.processing) {
+        ret.processing = true;
+        ret.statusTitle = "Processing";
+    }
+
     return ret;
 }

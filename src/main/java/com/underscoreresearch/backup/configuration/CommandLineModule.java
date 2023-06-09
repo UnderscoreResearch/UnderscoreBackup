@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -154,6 +155,7 @@ public class CommandLineModule extends AbstractModule {
         if (sourceConfig.getManifest() == null) {
             sourceConfig.setManifest(new BackupManifest());
         }
+
         if (sourceConfig.getManifest().getDestination() != null) {
             manifestDestination.set(sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination()));
         } else {
@@ -184,6 +186,7 @@ public class CommandLineModule extends AbstractModule {
         } else {
             sourceConfig.getDestinations().put(sourceConfig.getManifest().getDestination(), destination);
         }
+
         return sourceConfig;
     }
 

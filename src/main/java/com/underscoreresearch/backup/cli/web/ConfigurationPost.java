@@ -5,8 +5,6 @@ import static com.underscoreresearch.backup.cli.web.ResetDelete.executeShielded;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_FILE_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG_LOCATION;
-import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
-import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.createEndpointUri;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
@@ -21,6 +19,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -158,13 +157,17 @@ public class ConfigurationPost extends JsonWrap {
             if (ind > 0) {
                 shareId = sourceId.substring(ind + 1);
                 sourceId = sourceId.substring(0, ind);
-                for (Map.Entry<String, BackupDestination> entry : configuration.getDestinations().entrySet()) {
-                    if (UB_TYPE.equals(entry.getValue().getType())) {
-                        String region = UnderscoreBackupProvider.getRegion(entry.getValue().getEndpointUri());
-                        entry.getValue().setEndpointUri(createEndpointUri(region, sourceId, shareId));
-                    }
-                }
+            } else {
+                shareId = null;
             }
+
+            final String finalSourceId = sourceId;
+            final String finalShareId = shareId;
+
+            configuration.setDestinations(configuration.getDestinations().entrySet().stream()
+                    .map(entry -> Map.entry(entry.getKey(),
+                            entry.getValue().sourceShareDestination(finalSourceId, finalShareId)))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
         }
 
         ConfigurationValidator.validateConfiguration(configuration, false, true);

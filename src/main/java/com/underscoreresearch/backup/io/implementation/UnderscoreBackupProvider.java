@@ -80,10 +80,6 @@ public class UnderscoreBackupProvider implements IOIndex {
         return region;
     }
 
-    public static String createEndpointUri(String region, String sourceId, String shareId) {
-        return region + "/" + sourceId + "/" + shareId;
-    }
-
     public static <T> T s3Retry(Callable<T> callable) throws IOException {
         try {
             return retry(callable, null);

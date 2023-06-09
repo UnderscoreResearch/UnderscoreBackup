@@ -266,6 +266,20 @@ export default function MainApp() {
             }
         }
 
+        if (appContext.isBusy()) {
+            if (acceptButton)
+                acceptButton = {
+                    ...acceptButton,
+                    disabled: true
+                }
+
+            if (cancelButton)
+                cancelButton = {
+                    ...cancelButton,
+                    disabled: true
+                }
+        }
+
         return [acceptButton, cancelButton];
     }
 
