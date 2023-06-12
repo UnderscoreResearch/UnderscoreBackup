@@ -110,7 +110,7 @@ export async function createSupportBundle(contents: SupportBundleRequest): Promi
     return undefined;
 }
 
-export async function updateSource(name: string, sourceId?: string, password?: string): Promise<boolean> {
+export async function updateSource(name: string, sourceId?: string, password?: string, force?: boolean): Promise<boolean> {
     return !!await makeApiCall("service/sources", {
         method: 'PUT',
         headers: {
@@ -119,7 +119,8 @@ export async function updateSource(name: string, sourceId?: string, password?: s
         body: JSON.stringify({
             sourceId: sourceId,
             name: name,
-            password: password
+            password: password,
+            force: force
         })
     });
 }

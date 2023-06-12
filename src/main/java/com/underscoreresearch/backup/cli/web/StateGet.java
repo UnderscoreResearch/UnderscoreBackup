@@ -109,8 +109,8 @@ public class StateGet extends JsonWrap {
                         physicalHome,
                         "Restore").toString();
                 String home = PathNormalizer.normalizePath(physicalHome);
-                if (home.endsWith(PATH_SEPARATOR)) {
-                    home = home.substring(0, home.length() - 1);
+                if (!home.endsWith(PATH_SEPARATOR)) {
+                    home += PATH_SEPARATOR;
                 }
                 BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
                 String manifestDestination = PathNormalizer.normalizePath(

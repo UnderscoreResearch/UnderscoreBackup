@@ -93,7 +93,7 @@ function generateApplicationContext(): ApplicationContext {
                 if (hasKey && password) {
                     newState.validatedPassword = true;
                 }
-                if (!hasKey && newConfig.manifest.destination) {
+                if (!hasKey && !password && newConfig.manifest.destination) {
                     newRebuildAvailable = await rebuildAvailable(newConfig.manifest.destination);
                 } else {
                     newState.hasKey = true;

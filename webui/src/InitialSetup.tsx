@@ -115,12 +115,10 @@ export default function InitialSetup() {
 
     function changePage(page: string) {
         const ind = pageIndex(page);
-        if (ind > state.maximumStep) {
-            setState((oldState) => ({
-                ...oldState,
-                maximumStep: ind
-            }));
-        }
+        setState(oldState => ({
+            ...oldState,
+            maximumStep: Math.max(oldState.maximumStep, ind)
+        }));
         nav("/" + page);
     }
 
@@ -191,25 +189,39 @@ export default function InitialSetup() {
 
     useEffect(() => {
         if (location.pathname !== "/authorizeaccept") {
-            if (rebuildActive || (appContext.originalConfiguration &&
-                appContext.originalConfiguration.sets && appContext.originalConfiguration.sets.length > 0)) {
+            if (rebuildActive) {
                 const contentsIndex = pageIndex("contents");
                 if (state.maximumStep < contentsIndex) {
                     changePage("contents");
                 }
             } else {
+                if (location.pathname === "/") {
+                    if (appContext.backendState.serviceConnected || appContext.destinationsValid) {
+                        currentStep = pageIndex("contents");
+                    }
+                }
                 if (currentStep > state.maximumStep) {
-                    let newMax = pageIndex("destination");
-                    if (appContext.backendState.serviceConnected) {
+                    let newMax : number;
+                    if (appContext.hasKey && appContext.destinationsValid) {
+                        newMax = pageIndex("contents");
+                    } else if (appContext.backendState.serviceConnected) {
                         newMax = pageIndex("source");
+                    } else if (appContext.destinationsValid) {
+                        newMax = pageIndex("security");
+                    } else {
+                        newMax = pageIndex("destination");
                     }
                     if (newMax > state.maximumStep) {
-                        changePage(pages[newMax]);
+                        changePage(pages[Math.min(currentStep, newMax)]);
+                        setState((oldState) => ({
+                            ...oldState,
+                            maximumStep: newMax
+                        }));
                     }
                 }
             }
         }
-    }, [location.pathname, appContext.hasKey, appContext.backendState.validDestinations, appContext.backendState.repositoryReady, state.maximumStep, currentStep])
+    }, [location.pathname, appContext.hasKey, appContext.backendState, currentStep])
 
     return <MainAppSkeleton title={"Initial setup"} processing={false} navigation={navigation} disallowClose={true}>
         <Routes>
