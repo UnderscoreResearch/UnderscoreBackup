@@ -1,6 +1,6 @@
 import {Divider, MenuItem, Select, SelectChangeEvent} from "@mui/material";
 import * as React from "react";
-import {useEffect, useState} from "react";
+import {useEffect} from "react";
 import {getBestRegion} from "../api/service";
 
 interface ServiceRegionProps {

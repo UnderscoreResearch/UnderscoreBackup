@@ -355,6 +355,20 @@ export default function Settings() {
             <Grid container spacing={2}>
                 <Grid item xs={12}>
                     <FormControlLabel control={<Checkbox
+                        checked={!!state.manifest.ignorePermissions}
+                        onChange={(e) => updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                ignorePermissions: e.target.checked
+                            }
+                        })}
+                    />} label="Dont record file permissions"/>
+                </Grid>
+            </Grid>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <FormControlLabel control={<Checkbox
                         checked={state.manifest.optimizeSchedule !== undefined}
                         onChange={(e) => updateState({
                             ...state,

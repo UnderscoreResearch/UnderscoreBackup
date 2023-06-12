@@ -50,8 +50,9 @@ public class ActiveSharesGet extends JsonWrap {
                 } else {
                     return new RsText(WRITER.writeValueAsString(new Shares(new ArrayList<>(), false)));
                 }
-            } catch (Exception exc) {
-                return messageJson(400, exc.getMessage());
+            } catch (Throwable exc) {
+                log.error("Failed to get active shares", exc);
+                return messageJson(500, exc.getMessage());
             }
         }
     }

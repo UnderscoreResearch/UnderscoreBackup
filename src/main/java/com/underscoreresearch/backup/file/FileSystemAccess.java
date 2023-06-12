@@ -12,7 +12,7 @@ public interface FileSystemAccess {
 
     void writeData(String path, byte[] buffer, long offset, int length) throws IOException;
 
-    void truncate(String path, long length) throws IOException;
+    void completeFile(BackupFile file, String path, long length) throws IOException;
 
     void delete(String path) throws IOException;
 }

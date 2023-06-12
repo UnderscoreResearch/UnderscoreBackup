@@ -537,7 +537,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
             </span>
             <div style={{height: Math.min((state.items.length * 40 + 1), 500) + "px"}}>
                 <AutoSizer>
-                    {({height, width} : Size) => <List
+                    {({height, width}: Size) => <List
                         className="List fileTreeList"
                         height={height}
                         itemCount={state.items.length - (props.hideRoot && state.items.length > 1 ? 1 : 0)}

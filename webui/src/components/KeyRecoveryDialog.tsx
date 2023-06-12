@@ -5,7 +5,8 @@ import {
     DialogActions,
     DialogContent,
     DialogContentText,
-    DialogTitle, Grid,
+    DialogTitle,
+    Grid,
     TextField
 } from "@mui/material";
 import * as React from "react";
@@ -26,7 +27,7 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
     const [source, setSource] = React.useState(undefined as SourceResponse | undefined);
     const [busy, setBusy] = React.useState(true);
     const [deleteConfirmation, setDeleteConfirmation] = React.useState("");
-    const [email, setEmail] = React.useState(() => base64url.decode(window.localStorage.getItem("email") as string??""));
+    const [email, setEmail] = React.useState(() => base64url.decode(window.localStorage.getItem("email") as string ?? ""));
     const [password, setPassword] = React.useState("");
     const [passwordScore, setPasswordScore] = React.useState(0);
     const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -115,14 +116,15 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                 <div style={{textAlign: "center"}}>
                     <CircularProgress color="inherit" size={"2em"}/>
                 </div>
-                :(source?.secretRegion ?
+                : (source?.secretRegion ?
                         <>
                             <DialogContentText style={{marginTop: "8px", marginBottom: "8px"}}>
                                 Private key recovery is currently enabled from region <b>{source.secretRegion}</b>.
                             </DialogContentText>
 
                             <DialogContentText style={{marginTop: "8px", marginBottom: "8px"}}>
-                                To recover the private key enter the service email and the new password below and press the <b>Recover</b> button.
+                                To recover the private key enter the service email and the new password below and press
+                                the <b>Recover</b> button.
                             </DialogContentText>
 
                             <Grid container spacing={2}>
@@ -164,7 +166,8 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                             </Grid>
 
                             <div style={{textAlign: "center", margin: "8px"}}>
-                                <Button variant={"contained"} id="deleteKeyConfirm" disabled={!email || passwordScore < 2 || password !== confirmPassword}
+                                <Button variant={"contained"} id="deleteKeyConfirm"
+                                        disabled={!email || passwordScore < 2 || password !== confirmPassword}
                                         onClick={executeRecover} autoFocus>
                                     Recover Private Key
                                 </Button>
@@ -173,7 +176,8 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                             <hr/>
 
                             <DialogContentText style={{marginTop: "8px", marginBottom: "8px"}}>
-                                To delete the private key recovery data please type <b>REMOVE</b> in the box below and press the <b>Remove</b> button.
+                                To delete the private key recovery data please type <b>REMOVE</b> in the box below and
+                                press the <b>Remove</b> button.
                             </DialogContentText>
 
                             <TextField value={deleteConfirmation} fullWidth={true} id="deleteKeyConfirmation"
@@ -182,7 +186,8 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                                        }}/>
 
                             <div style={{textAlign: "center", margin: "8px"}}>
-                                <Button variant={"contained"} id="deleteKeyConfirm" disabled={deleteConfirmation !== "REMOVE"}
+                                <Button variant={"contained"} id="deleteKeyConfirm"
+                                        disabled={deleteConfirmation !== "REMOVE"}
                                         onClick={executeDelete} color={"error"}>
                                     Remove
                                 </Button>
@@ -194,7 +199,8 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                                 Private key recovery is currently not enabled.
                             </DialogContentText>
                             <DialogContentText style={{marginTop: "8px", marginBottom: "8px"}}>
-                                To enable enter the current email for your account and the backup password (Not the service
+                                To enable enter the current email for your account and the backup password (Not the
+                                service
                                 password) below, select the region to store the secret and the click the <b>Enable</b>.
                             </DialogContentText>
 
@@ -221,7 +227,8 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                             </Grid>
 
                             <div style={{textAlign: "center", margin: "8px"}}>
-                                <Button variant={"contained"} id="enableConfirm" disabled={!password || !region || !email}
+                                <Button variant={"contained"} id="enableConfirm"
+                                        disabled={!password || !region || !email}
                                         onClick={executeEnable} autoFocus>
                                     Enable
                                 </Button>

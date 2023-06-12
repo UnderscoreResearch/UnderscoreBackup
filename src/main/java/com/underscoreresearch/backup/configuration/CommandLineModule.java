@@ -71,6 +71,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String INCLUDE_DELETED = "include-deleted";
     public static final String RECURSIVE = "recursive";
     public static final String OVER_WRITE = "over-write";
+    public static final String SKIP_PERMISSIONS = "skip-permissions";
     public static final String TIMESTAMP = "timestamp";
     public static final String BIND_ADDRESS = "bind-address";
     public static final String ADDITIONAL_KEY = "additional-key";
@@ -154,6 +155,7 @@ public class CommandLineModule extends AbstractModule {
         if (sourceConfig.getManifest() == null) {
             sourceConfig.setManifest(new BackupManifest());
         }
+
         if (sourceConfig.getManifest().getDestination() != null) {
             manifestDestination.set(sourceConfig.getDestinations().get(sourceConfig.getManifest().getDestination()));
         } else {
@@ -184,6 +186,7 @@ public class CommandLineModule extends AbstractModule {
         } else {
             sourceConfig.getDestinations().put(sourceConfig.getManifest().getDestination(), destination);
         }
+
         return sourceConfig;
     }
 
@@ -207,6 +210,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption("R", RECURSIVE, false, "Process restore or list operation recursively");
         options.addOption(null, FULL_PATH, false, "Display full path");
         options.addOption("o", OVER_WRITE, false, "Overwrite existing files when restoring");
+        options.addOption(null, SKIP_PERMISSIONS, false, "Don't restore file permissions");
         options.addOption("t", TIMESTAMP, true, "Timestamp to use for restore operations");
         options.addOption(null, INCLUDE_DELETED, false, "Include deleted files from repository");
         options.addOption(null, LOG_FILE, true, "Log file location");

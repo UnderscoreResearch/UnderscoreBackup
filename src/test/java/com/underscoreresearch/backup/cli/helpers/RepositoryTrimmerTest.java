@@ -13,7 +13,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
@@ -28,8 +32,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository;
+import com.underscoreresearch.backup.file.implementation.LockingMetadataRepository;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
@@ -66,7 +71,7 @@ class RepositoryTrimmerTest {
         InstanceFactory.initialize(new String[]{"--no-log", "--config-data", "{}"}, null, null);
         manifestManager = Mockito.mock(ManifestManager.class);
         tempDir = Files.createTempDirectory("test").toFile();
-        repository = Mockito.spy(new LoggingMetadataRepository(new MapdbMetadataRepository(tempDir.getPath(), false), manifestManager, false));
+        repository = Mockito.spy(new LoggingMetadataRepository(new LockingMetadataRepository(tempDir.getPath(), false), manifestManager, false));
         repository.open(false);
 
         backupConfiguration = new BackupConfiguration();
@@ -237,8 +242,8 @@ class RepositoryTrimmerTest {
     public void testFiles() throws IOException {
         trimmer.trimRepository(false);
 
-        try (CloseableLock ignore = repository.acquireLock()) {
-            repository.allFiles(true).forEach(file -> {
+        try (CloseableStream<BackupFile> files = repository.allFiles(true)) {
+            files.stream().forEach(file -> {
                 if (file.getDeleted() != null) {
                     file.setDeleted(file.getAdded());
                 }
@@ -253,22 +258,26 @@ class RepositoryTrimmerTest {
         trimmer.trimRepository(false);
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            assertThat(repository.allFiles(true)
-                            .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
+            Map<String, Integer> result = closeStream(repository.allFiles(true), (stream) ->
+                    stream.collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))));
+            assertThat(result,
                     Is.is(ImmutableMap.of("/test1/def/test1", 13,
                             "/test1/def/test2", 13,
                             "/test1/def/test3", 12,
                             "/test2/test4", 26)));
 
-            assertThat(repository.allDirectories(true)
-                            .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
+            result = closeStream(repository.allDirectories(true), stream -> stream
+                    .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
+            assertThat(result,
                     Is.is(ImmutableMap.of("", 1,
                             "/", 1,
                             "/test1/", 1,
                             "/test1/def/", 2,
                             "/test2/", 1)));
 
-            assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
+            Set<String> resultSet = closeStream(repository.allBlocks(),
+                    stream -> stream.map(t -> t.getHash()).collect(Collectors.toSet()));
+            assertThat(resultSet,
                     Is.is(ImmutableSet.of("e")));
         }
 
@@ -277,44 +286,53 @@ class RepositoryTrimmerTest {
         assertThat(repository.getActivePaths(null).size(), Is.is(0));
     }
 
+    private <T, S> S closeStream(CloseableStream<T> stream, Function<Stream<T>, S> method) throws IOException {
+        try (stream) {
+            return method.apply(stream.stream());
+        }
+    }
+
     @Test
     public void testMaxFiles() throws IOException {
         set1.getRetention().setMaximumVersions(1);
         set2.getRetention().setMaximumVersions(1);
         trimmer.trimRepository(false);
 
-        try (CloseableLock ignore = repository.acquireLock()) {
-            repository.allFiles(true).forEach(file -> {
-                if (file.getDeleted() != null) {
-                    file.setDeleted(file.getAdded());
-                }
-                try {
-                    repository.addFile(file);
-                } catch (IOException e) {
-                    Assertions.fail(e);
-                }
-            });
-        }
+        closeStream(repository.allFiles(true), stream -> stream.map(file -> {
+            if (file.getDeleted() != null) {
+                file.setDeleted(file.getAdded());
+            }
+            try {
+                repository.addFile(file);
+            } catch (IOException e) {
+                Assertions.fail(e);
+            }
+            return null;
+        }).count());
 
         trimmer.trimRepository(false);
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            assertThat(repository.allFiles(false)
-                            .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
+            Map<String, Integer> result = closeStream(repository.allFiles(false), (stream) -> stream
+                    .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))));
+            assertThat(result,
                     Is.is(ImmutableMap.of("/test1/def/test1", 1,
                             "/test1/def/test2", 1,
                             "/test1/def/test3", 1,
                             "/test2/test4", 1)));
 
-            assertThat(repository.allDirectories(false)
-                            .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
+            result = closeStream(repository.allDirectories(false), stream -> stream
+                    .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
+            assertThat(result,
                     Is.is(ImmutableMap.of("", 1,
                             "/", 1,
                             "/test1/", 1,
                             "/test1/def/", 2,
                             "/test2/", 1)));
 
-            assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
+            Set<String> setResult = closeStream(repository.allBlocks(),
+                    stream -> stream.map(t -> t.getHash()).collect(Collectors.toSet()));
+            assertThat(setResult,
                     Is.is(ImmutableSet.of("e")));
         }
 
@@ -329,8 +347,9 @@ class RepositoryTrimmerTest {
         trimmer.trimRepository(false);
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            assertThat(repository.allFiles(false)
-                            .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
+            Map<String, Integer> result = closeStream(repository.allFiles(false), (stream) -> stream
+                    .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))));
+            assertThat(result,
                     Is.is(ImmutableMap.of("/test1/def/test1", 13,
                             "/test1/abc/test1", 1,
                             "/test1/abc/test2", 1,
@@ -338,8 +357,9 @@ class RepositoryTrimmerTest {
                             "/test1/def/test3", 13,
                             "/test2/test4", 26)));
 
-            assertThat(repository.allDirectories(false)
-                            .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
+            result = closeStream(repository.allDirectories(false), stream -> stream
+                    .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
+            assertThat(result,
                     Is.is(ImmutableMap.of("", 1,
                             "/", 1,
                             "/test1/", 1,
@@ -347,7 +367,9 @@ class RepositoryTrimmerTest {
                             "/test1/def/", 2,
                             "/test2/", 1)));
 
-            assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
+            Set<String> setResult = closeStream(repository.allBlocks(),
+                    stream -> stream.map(t -> t.getHash()).collect(Collectors.toSet()));
+            assertThat(setResult,
                     Is.is(ImmutableSet.of("a", "b", "c", "d", "e")));
         }
 
@@ -361,8 +383,9 @@ class RepositoryTrimmerTest {
         trimmer.trimRepository(true);
 
         try (CloseableLock ignored = repository.acquireLock()) {
-            assertThat(repository.allFiles(false)
-                            .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))),
+            Map<String, Integer> result = closeStream(repository.allFiles(false), (stream) -> stream
+                    .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))));
+            assertThat(result,
                     Is.is(ImmutableMap.of("/test1/def/test1", 13,
                             "/test1/abc/test1", 1,
                             "/test1/abc/test2", 1,
@@ -370,8 +393,9 @@ class RepositoryTrimmerTest {
                             "/test1/def/test3", 13,
                             "/test2/test4", 26)));
 
-            assertThat(repository.allDirectories(false)
-                            .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))),
+            result = closeStream(repository.allDirectories(false), stream -> stream
+                    .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
+            assertThat(result,
                     Is.is(ImmutableMap.of("", 1,
                             "/", 1,
                             "/test1/", 1,
@@ -379,7 +403,9 @@ class RepositoryTrimmerTest {
                             "/test1/def/", 2,
                             "/test2/", 1)));
 
-            assertThat(repository.allBlocks().map(t -> t.getHash()).collect(Collectors.toSet()),
+            Set<String> setResult = closeStream(repository.allBlocks(),
+                    stream -> stream.map(t -> t.getHash()).collect(Collectors.toSet()));
+            assertThat(setResult,
                     Is.is(ImmutableSet.of("a", "b", "c", "d", "e")));
         }
 

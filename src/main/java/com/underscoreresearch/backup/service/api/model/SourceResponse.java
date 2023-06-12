@@ -78,7 +78,7 @@ public class SourceResponse {
   private String version;
 
   public static final String JSON_PROPERTY_LAST_USAGE = "lastUsage";
-  private String lastUsage;
+  private BigDecimal lastUsage;
 
   public static final String JSON_PROPERTY_DAILY_USAGE = "dailyUsage";
   private List<SourceUsage> dailyUsage;
@@ -298,7 +298,7 @@ public class SourceResponse {
   }
 
 
-  public SourceResponse lastUsage(String lastUsage) {
+  public SourceResponse lastUsage(BigDecimal lastUsage) {
     this.lastUsage = lastUsage;
     return this;
   }
@@ -311,14 +311,14 @@ public class SourceResponse {
   @JsonProperty(JSON_PROPERTY_LAST_USAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
 
-  public String getLastUsage() {
+  public BigDecimal getLastUsage() {
     return lastUsage;
   }
 
 
   @JsonProperty(JSON_PROPERTY_LAST_USAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLastUsage(String lastUsage) {
+  public void setLastUsage(BigDecimal lastUsage) {
     this.lastUsage = lastUsage;
   }
 

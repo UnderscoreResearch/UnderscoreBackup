@@ -2,7 +2,6 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 

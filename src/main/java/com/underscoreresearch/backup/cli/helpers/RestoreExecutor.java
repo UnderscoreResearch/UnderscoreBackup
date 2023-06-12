@@ -17,6 +17,7 @@ import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.model.BackupFile;
@@ -28,18 +29,22 @@ public class RestoreExecutor {
     private final BackupContentsAccess contents;
     private final DownloadScheduler scheduler;
     private final String password;
+    private final BackupStatsLogger backupStatsLogger;
 
-    public RestoreExecutor(BackupContentsAccess contents, String password) {
+    public RestoreExecutor(BackupContentsAccess contents, String password, BackupStatsLogger backupStatsLogger) {
         this.contents = contents;
         this.password = password;
+        this.backupStatsLogger = backupStatsLogger;
         scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
     }
 
     public void restorePaths(List<BackupSetRoot> rootPaths,
                              String destination,
                              boolean recursive,
-                             boolean overwrite) throws IOException {
+                             boolean overwrite,
+                             boolean skipPermisssions) throws IOException {
         String commonRoot = findCommonRoot(rootPaths);
+        backupStatsLogger.setDownloadRunning(true);
         try (Closeable ignored = UIManager.registerTask("Restoring from " + rootPaths.stream()
                 .map(BackupSetRoot::getPath)
                 .map(PathNormalizer::physicalPath)
@@ -60,9 +65,11 @@ public class RestoreExecutor {
                     }
                 }
                 restorePaths(root, BackupFile.builder().path(rootPath).build(), currentDestination, recursive,
-                        overwrite, rootPaths.size() == 1, commonRoot);
+                        overwrite, skipPermisssions, rootPaths.size() == 1, commonRoot);
             }
             scheduler.waitForCompletion();
+        } finally {
+            backupStatsLogger.setDownloadRunning(false);
         }
         StateLogger logger = InstanceFactory.getInstance(StateLogger.class);
         logger.logInfo();
@@ -111,6 +118,7 @@ public class RestoreExecutor {
                               String inputDestination,
                               boolean recursive,
                               boolean overwrite,
+                              boolean skipPermissions,
                               boolean root,
                               String commonRoot) throws IOException {
         if (InstanceFactory.isShutdown()) {
@@ -148,7 +156,7 @@ public class RestoreExecutor {
 
             File destinationFile = new File(PathNormalizer.physicalPath(destination));
             if (root && files.size() == 1 && !files.get(0).isDirectory() && !destinationFile.isDirectory()) {
-                downloadFile(scheduler, files.get(0), destination, overwrite);
+                downloadFile(scheduler, files.get(0), destination, overwrite, skipPermissions);
             } else {
                 if (!isNullFile(inputDestination) && destination.length() > 0 && !destinationFile.isDirectory()) {
                     if (!destinationFile.mkdirs()) {
@@ -166,17 +174,18 @@ public class RestoreExecutor {
                     if (file.isDirectory()) {
                         if (recursive) {
                             restorePaths(rootPath, file,
-                                    currentDestination, recursive, overwrite, false, commonRoot);
+                                    currentDestination, recursive, overwrite, skipPermissions, false, commonRoot);
                         }
                     } else {
-                        downloadFile(scheduler, file, currentDestination, overwrite);
+                        downloadFile(scheduler, file, currentDestination, overwrite, skipPermissions);
                     }
                 }
             }
         }
     }
 
-    private void downloadFile(DownloadScheduler scheduler, BackupFile file, String currentDestination, boolean overwrite) {
+    private void downloadFile(DownloadScheduler scheduler, BackupFile file, String currentDestination,
+                              boolean overwrite, boolean skipPermissions) {
         if (isNullFile(currentDestination)) {
             scheduler.scheduleDownload(file, currentDestination, password);
         } else {
@@ -188,6 +197,9 @@ public class RestoreExecutor {
                 if (destinationFile.exists() && !destinationFile.canWrite()) {
                     log.error("Does not have permissions to write to existing file {}", destinationFile.toString());
                 } else {
+                    if (skipPermissions) {
+                        file.setPermissions(null);
+                    }
                     scheduler.scheduleDownload(file, currentDestination, password);
                 }
             } else if (destinationFile.length() != file.getLength()) {

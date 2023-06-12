@@ -29,11 +29,12 @@ import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
+public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLogger {
     private final BackupConfiguration configuration;
     private final MetadataRepository repository;
     private final UploadScheduler uploadScheduler;
@@ -46,6 +47,8 @@ public class FileBlockUploaderImpl implements FileBlockUploader, StatusLogger {
     public FileBlockUploaderImpl(BackupConfiguration configuration, MetadataRepository repository,
                                  UploadScheduler uploadScheduler, ManifestManager manifestManager,
                                  EncryptionKey key) {
+        StateLogger.addLogger(this);
+
         this.configuration = configuration;
         this.repository = repository;
         this.uploadScheduler = uploadScheduler;

@@ -47,12 +47,13 @@ public class ActivityGet extends JsonWrap {
                 boolean temporal = "true".equals(href.param("temporal").iterator().hasNext() ? href.param("temporal").iterator().next() : "false");
                 List<StatusLine> statusLines;
                 if (InstanceFactory.hasConfiguration(false) && hasKey()) {
-                    statusLines = InstanceFactory.getInstance(StateLogger.class).logData(temporal);
+                    statusLines = InstanceFactory.getInstance(StateLogger.class).logData(
+                            temporal ? (type -> type == StateLogger.Type.LOG) : type -> type != StateLogger.Type.LOG);
                 } else {
                     statusLines = new ArrayList<>();
                 }
                 return new RsText(WRITER.writeValueAsString(new StatusResponse(statusLines)));
-            } catch (Exception exc) {
+            } catch (Throwable exc) {
                 log.error("Failed to fetch current activity", exc);
             }
             return messageJson(404, "Failed to fetch current activity");

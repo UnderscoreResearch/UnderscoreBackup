@@ -228,6 +228,15 @@ public abstract class InstanceFactory {
         }
     }
 
+    public static boolean isInitialized() {
+        configUseLock.lock();
+        try {
+            return defaultFactory != null;
+        } finally {
+            configUseLock.unlock();
+        }
+    }
+
     public static String getInstance(String name) {
         configUseLock.lock();
         try {

@@ -26,6 +26,7 @@ public class BackupFile implements Comparable<BackupFile> {
     private Long lastChanged;
     private Long length;
     private String path;
+    private String permissions;
     private List<BackupLocation> locations;
 
     @Override

@@ -26,11 +26,12 @@ import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class FileDownloaderImpl implements FileDownloader, StatusLogger {
+public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
     private static final long GB = 1024 * 1024 * 1024;
     private final MetadataRepository repository;
     private final FileSystemAccess fileSystemAccess;
@@ -39,6 +40,8 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
 
     public FileDownloaderImpl(MetadataRepository repository,
                               FileSystemAccess fileSystemAccess) {
+        StateLogger.addLogger(this);
+
         this.repository = repository;
         this.fileSystemAccess = fileSystemAccess;
     }
@@ -59,7 +62,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                 try {
                     if (source.getLength() == 0) {
                         if (!isNullFile(destinationFile))
-                            fileSystemAccess.truncate(destinationFile, 0);
+                            fileSystemAccess.completeFile(source, destinationFile, 0);
                     } else {
                         BackupLocation location = source.getLocations().get(i);
                         long offset = 0;
@@ -147,7 +150,7 @@ public class FileDownloaderImpl implements FileDownloader, StatusLogger {
                         }
 
                         if (!isNullFile(destinationFile))
-                            fileSystemAccess.truncate(destinationFile, offset);
+                            fileSystemAccess.completeFile(source, destinationFile, offset);
 
                         if (offset != source.getLength()) {
                             throw new IOException(String.format("Expected file %s to be of size %s but was actually %s",

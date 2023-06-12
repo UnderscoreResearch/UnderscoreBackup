@@ -34,27 +34,22 @@ export default function App() {
         snackbar.enqueueSnackbar(message, {variant: variant});
     }
 
-    return <React.Fragment>
+    return <>
         <BrowserRouter basename={firstPath}>
-            {
-                !appConfig.initialLoad &&
-                <>
-                    {
-                        activity.unresponsive ?
-                            <MainAppSkeleton title={"Unresponsive"} processing={false}
-                                             navigation={<></>} disallowClose={false}/>
-                            :
-                            <React.Suspense fallback={<Loading open={true}/>}>
-                                {appConfig.setupComplete ?
-                                    <MainApp/>
-                                    :
-                                    <InitialSetup/>
-                                }
-                            </React.Suspense>
+            {activity.unresponsive || activity.loading || appConfig.initialLoad ?
+                <MainAppSkeleton title={activity.unresponsive ? "Unresponsive" : "Loading"}
+                                 processing={false}
+                                 navigation={<></>} disallowClose={false}/>
+                :
+                <React.Suspense fallback={<Loading open={true}/>}>
+                    {appConfig.setupComplete ?
+                        <MainApp/>
+                        :
+                        <InitialSetup/>
                     }
-                </>
+                </React.Suspense>
             }
-            <Loading open={appConfig.isBusy() || !!activity.unresponsive}/>
+            <Loading open={appConfig.isBusy() || activity.unresponsive || activity.loading}/>
         </BrowserRouter>
-    </React.Fragment>
+    </>
 }

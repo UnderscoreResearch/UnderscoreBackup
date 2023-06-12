@@ -63,11 +63,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                                     }
                                 } else if (file.isFile()) {
                                     if (Files.isReadable(filePath)) {
-                                        files.add(BackupFile.builder()
-                                                .path(path + PATH_SEPARATOR + fileName)
-                                                .length(file.length())
-                                                .lastChanged(file.lastModified())
-                                                .build());
+                                        files.add(createBackupFile(path + PATH_SEPARATOR + fileName, file));
                                     } else {
                                         debug(() -> log.debug("Skipping unreadable file " + filePath.toAbsolutePath()));
                                     }
@@ -85,11 +81,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                     Path parentPath = parent.toPath();
                     if (!Files.isSymbolicLink(parentPath) && parent.isFile()) {
                         if (Files.isReadable(parentPath)) {
-                            files.add(BackupFile.builder()
-                                    .path(path)
-                                    .length(parent.length())
-                                    .lastChanged(parent.lastModified())
-                                    .build());
+                            files.add(createBackupFile(path, parent));
                         } else {
                             debug(() -> log.debug("Skipping unreadable file " + parentPath.toAbsolutePath()));
                         }
@@ -100,6 +92,14 @@ public class FileSystemAccessImpl implements FileSystemAccess {
             }
         }
         return files;
+    }
+
+    protected BackupFile createBackupFile(String path, File file) {
+        return BackupFile.builder()
+                .path(path)
+                .length(file.length())
+                .lastChanged(file.lastModified())
+                .build();
     }
 
     @Override
@@ -124,7 +124,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
     }
 
     @Override
-    public void truncate(String path, long length) throws IOException {
+    public void completeFile(BackupFile backupFile, String path, long length) throws IOException {
         File file = new File(PathNormalizer.physicalPath(path));
         if (file.length() != length) {
             try (RandomAccessFile stream = new RandomAccessFile(file, "rw")) {
@@ -133,6 +133,10 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                 }
             }
         }
+        finalFileCompletion(backupFile, file);
+    }
+
+    protected void finalFileCompletion(BackupFile backupFile, File file) {
     }
 
     @Override

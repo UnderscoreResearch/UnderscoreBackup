@@ -29,7 +29,8 @@ interface FullMainAppState {
     restoreDestination?: string,
     restoreTimestamp?: Date,
     restoreSource?: string,
-    restoreIncludeDeleted: boolean
+    restoreIncludeDeleted: boolean,
+    restoreSkipPermissions?: boolean
 }
 
 function needActivation(appContext: ApplicationContext) {
@@ -121,7 +122,8 @@ export default function MainApp() {
             files: state.restoreRoots,
             overwrite: state.restoreOverwrite,
             timestamp: state.restoreTimestamp ? state.restoreTimestamp.getTime() : undefined,
-            includeDeleted: state.restoreIncludeDeleted ? state.restoreIncludeDeleted : false
+            includeDeleted: state.restoreIncludeDeleted ? state.restoreIncludeDeleted : false,
+            skipPermissions: state.restoreSkipPermissions ? state.restoreSkipPermissions : false
         });
         await activityContext.update();
     }
@@ -266,6 +268,20 @@ export default function MainApp() {
             }
         }
 
+        if (appContext.isBusy()) {
+            if (acceptButton)
+                acceptButton = {
+                    ...acceptButton,
+                    disabled: true
+                }
+
+            if (cancelButton)
+                cancelButton = {
+                    ...cancelButton,
+                    disabled: true
+                }
+        }
+
         return [acceptButton, cancelButton];
     }
 
@@ -303,25 +319,13 @@ export default function MainApp() {
         }
     }, [appContext.selectedSource, displayState.rebuildInProgress]);
 
-    if (displayState.invalidPage || appContext.isBusy()) {
+    if (displayState.invalidPage) {
         if (displayState.invalidPage && state.desiredPage !== "status") {
             setState((oldState) => ({
                 ...oldState,
                 desiredPage: "status"
             }));
         }
-
-        if (acceptButton)
-            acceptButton = {
-                ...acceptButton,
-                disabled: true
-            }
-
-        if (cancelButton)
-            cancelButton = {
-                ...cancelButton,
-                disabled: true
-            }
 
         return <MainAppSkeleton title={displayState.statusTitle} processing={displayState.processing}
                                 navigation={navigation} disallowClose={false}
@@ -370,7 +374,8 @@ export default function MainApp() {
                                                             restoreRoots: newState.roots,
                                                             restoreSource: newState.source,
                                                             restoreOverwrite: newState.overwrite,
-                                                            restoreTimestamp: newState.timestamp
+                                                            restoreTimestamp: newState.timestamp,
+                                                            restoreSkipPermissions: newState.skipPermissions
                                                         }))}
                                                     timestamp={state.restoreTimestamp}/>}/>
         </Routes>

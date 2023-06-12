@@ -9,12 +9,14 @@ plugins {
 
 application {
     mainClass = 'com.underscoreresearch.backup.cli.Main'
-    applicationDefaultJvmArgs = ['-Xmx256m']
+    applicationDefaultJvmArgs = ['-Xmx256m',
+                                 '--add-opens=java.base/java.nio=ALL-UNNAMED',
+                                 '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED']
 }
 
 group 'com.underscoreresearch'
-version '2.1.0.3'
-def releaseType = ''
+version '2.2.0.0'
+def releaseType = 'pre'
 
 def archiveName = 'underscorebackup'
 def edition = ''
@@ -76,7 +78,6 @@ runtime {
         if (project.properties['installer_type']) {
             if (project.property("installer_type") == "win-console") {
                 installerType = "exe"
-                // jvmArgs = ["-Xmx256m", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"]
                 imageOptions = ["--icon", "${rootProject.projectDir}/windows/application.ico", "--win-console"]
             } else if (project.property("installer_type") == "win-gui") {
                 installerType = "exe"
@@ -158,6 +159,7 @@ dependencies {
             'com.google.guava:guava:31.1-jre',
             'com.google.inject:guice:7.0.0',
             'com.hierynomus:smbj:0.11.5',
+            'org.lmdbjava:lmdbjava:0.8.3',
             'com.joestelmach:natty:0.13',
             'commons-cli:commons-cli:1.5.0',
             'commons-codec:commons-codec:1.15',
@@ -196,6 +198,13 @@ dependencies {
 
 test {
     useJUnitPlatform()
+
+    doFirst {
+        jvmArgs += [
+                '--add-opens=java.base/java.nio=ALL-UNNAMED',
+                '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED'
+        ]
+    }
 }
 
 task installerDef(type: Copy) {

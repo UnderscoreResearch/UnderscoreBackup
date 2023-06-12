@@ -10,29 +10,50 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
 public class StateLogger implements StatusLogger {
     private static final String OLD_KEYWORD = " Old ";
-    private List<StatusLogger> loggers;
-    private AtomicLong lastHeapUsage = new AtomicLong();
-    private AtomicLong lastHeapUsageMax = new AtomicLong();
-    private AtomicLong lastMemoryAfterGCUse = new AtomicLong();
-    private AtomicLong lastGCCollectionCount = new AtomicLong();
-    private boolean debugMemory;
+    private final AtomicLong lastHeapUsage = new AtomicLong();
+    private final AtomicLong lastHeapUsageMax = new AtomicLong();
+    private final AtomicLong lastMemoryAfterGCUse = new AtomicLong();
+    private final AtomicLong lastGCCollectionCount = new AtomicLong();
+    private final boolean debugMemory;
+    private List<ManualStatusLogger> loggers;
 
     public StateLogger(boolean debugMemory) {
         this.debugMemory = debugMemory;
+    }
+
+    public static void addLogger(ManualStatusLogger logger) {
+        if (InstanceFactory.isInitialized()) {
+            StateLogger state = InstanceFactory.getInstance(StateLogger.class);
+            state.initialize();
+            synchronized (state.loggers) {
+                state.loggers.add(logger);
+            }
+        }
+    }
+
+    public static void removeLogger(ManualStatusLogger logger) {
+        if (InstanceFactory.isInitialized()) {
+            StateLogger state = InstanceFactory.getInstance(StateLogger.class);
+            state.initialize();
+            synchronized (state.loggers) {
+                state.loggers.remove(logger);
+            }
+        }
     }
 
     public void logDebug() {
@@ -59,7 +80,7 @@ public class StateLogger implements StatusLogger {
                 .filter(t -> t.getName().contains(" Survivor "))
                 .findAny();
 
-        if (!oldMemoryBean.isPresent() || !oldGcBean.isPresent() || !survivorMemoryBean.isPresent()) {
+        if (oldMemoryBean.isEmpty() || oldGcBean.isEmpty() || survivorMemoryBean.isEmpty()) {
             log.error("Could not find old generation info");
             return;
         }
@@ -79,36 +100,37 @@ public class StateLogger implements StatusLogger {
                     oldGcBean.get().getCollectionCount());
         }
 
-        printLogStatus(false, (a) -> debug(() -> log.debug(a)));
+        printLogStatus((type) -> type != Type.LOG, (a) -> debug(() -> log.debug(a)));
     }
 
     public void logInfo() {
-        printLogStatus(false, (a) -> log.info(a));
+        printLogStatus((type) -> type != Type.LOG, log::info);
     }
 
     public void reset() {
         initialize();
 
-        loggers.stream().filter(t -> !t.isTemporal()).forEach(logger -> logger.resetStatus());
+        loggers.stream().filter(t -> t.type() != Type.LOG).forEach(ManualStatusLogger::resetStatus);
     }
 
-    public List<StatusLine> logData(boolean temporal) {
+    public List<StatusLine> logData(Function<Type, Boolean> filter) {
         initialize();
 
-        List<StatusLine> ret = loggers
+        List<ManualStatusLogger> currentLoggers = loggers
                 .stream()
-                .filter(t -> t.isTemporal() == temporal)
-                .map(log -> log.status())
-                .flatMap(t -> t.stream())
+                .filter(t -> filter.apply(t.type())).toList();
+
+        List<StatusLine> ret = currentLoggers.stream().map(ManualStatusLogger::status)
+                .flatMap(Collection::stream)
                 .collect(Collectors.toList());
 
-        loggers.forEach(logger -> logger.filterItems(ret, temporal));
+        currentLoggers.forEach(logger -> logger.filterItems(ret));
 
         return ret;
     }
 
-    private void printLogStatus(boolean temporal, Consumer<String> printer) {
-        logData(temporal).forEach(item -> printer.accept(item.toString()));
+    private void printLogStatus(Function<Type, Boolean> filter, Consumer<String> printer) {
+        logData(filter).forEach(item -> printer.accept(item.toString()));
     }
 
     private synchronized void initialize() {
@@ -119,7 +141,7 @@ public class StateLogger implements StatusLogger {
                         .getSubTypesOf(StatusLogger.class)
                         .stream()
                         .filter(clz -> !Modifier.isAbstract(clz.getModifiers()))
-                        .map(clz -> InstanceFactory.getInstance(clz))
+                        .map(InstanceFactory::getInstance)
                         .collect(Collectors.toList());
             } else if (loggers == null) {
                 loggers = new ArrayList<>();

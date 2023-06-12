@@ -28,11 +28,12 @@ import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloader, StatusLogger {
+public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloader, ManualStatusLogger {
     private final BackupConfiguration configuration;
     private final RateLimitController rateLimitController;
     private final MetadataRepository metadataRepository;
@@ -48,6 +49,8 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
                                EncryptionKey key,
                                int maximumConcurrency) {
         super(maximumConcurrency);
+
+        StateLogger.addLogger(this);
 
         this.configuration = configuration;
         this.rateLimitController = rateLimitController;

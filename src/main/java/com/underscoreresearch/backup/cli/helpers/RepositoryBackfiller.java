@@ -4,22 +4,17 @@ import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
-import org.mapdb.DB;
-import org.mapdb.DBMaker;
-import org.mapdb.HTreeMap;
-import org.mapdb.Serializer;
 
 import com.google.common.base.Stopwatch;
 import com.google.inject.Inject;
@@ -31,6 +26,9 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableStream;
+import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
@@ -68,55 +66,65 @@ public class RepositoryBackfiller {
         long blockCount = repository.getBlockCount();
         long fileCount = repository.getFileCount();
 
-        File tempFile = File.createTempFile("block", ".db");
-
         manifestManager.setDisabledFlushing(true);
         try {
-            tempFile.delete();
+            try (CloseableMap<String, Long> knownSizes = repository.temporaryMap(new MapSerializer<>() {
+                @Override
+                public byte[] encodeKey(String s) {
+                    return s.getBytes(StandardCharsets.UTF_8);
+                }
 
-            try (DB usedBlockDb = DBMaker
-                    .fileDB(tempFile)
-                    .fileMmapEnableIfSupported()
-                    .fileDeleteAfterClose()
-                    .make()) {
-                HTreeMap<String, Long> knownSizes = usedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
-                        Serializer.LONG).createOrOpen();
+                @Override
+                public byte[] encodeValue(Long val) {
+                    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+                    buffer.putLong(val);
+                    return buffer.array();
+                }
 
+                @Override
+                public Long decodeValue(byte[] data) {
+                    return ByteBuffer.wrap(data).getLong();
+                }
+            })) {
                 BackfillDownloader backfillDownloader = new BackfillDownloader(knownSizes);
 
                 try (CloseableLock ignore = repository.acquireLock()) {
                     log.info("Collecting all known block sizes");
-                    repository.allFiles(true).forEach(file -> {
-                        backfillDownloader.addInferredBlockSizes(file);
-                    });
+                    try (CloseableStream<BackupFile> files = repository.allFiles(true)) {
+                        files.stream().forEach(backfillDownloader::addInferredBlockSizes);
+                    }
                     log.info("Backfilling file block offsets");
-                    repository.allFiles(true).forEach(file -> {
-                        backfillDownloader.backfillFilePartOffsets(file, password);
-                        long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
-                        if (currentMinute != lastDuration.get()) {
-                            log.info("Processed {} / {} files, updated {} files so far (Last file {})",
-                                    readableNumber(backfillDownloader.getProcessed().get()),
-                                    readableNumber(fileCount),
-                                    readableNumber(backfillDownloader.getCompletedFiles().get()),
-                                    PathNormalizer.physicalPath(file.getPath()));
-                            lastDuration.set(currentMinute);
-                        }
-                    });
+                    try (CloseableStream<BackupFile> files = repository.allFiles(true)) {
+                        files.stream().forEach(file -> {
+                            backfillDownloader.backfillFilePartOffsets(file, password);
+                            long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
+                            if (currentMinute != lastDuration.get()) {
+                                log.info("Processed {} / {} files, updated {} files so far (Last file {})",
+                                        readableNumber(backfillDownloader.getProcessed().get()),
+                                        readableNumber(fileCount),
+                                        readableNumber(backfillDownloader.getCompletedFiles().get()),
+                                        PathNormalizer.physicalPath(file.getPath()));
+                                lastDuration.set(currentMinute);
+                            }
+                        });
+                    }
 
                     log.info("Backfilling encryption to block storage");
                     backfillDownloader.getProcessed().set(0L);
 
-                    repository.allBlocks().forEach(block -> {
-                        backfillDownloader.backfillStorage(block);
-                        long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
-                        if (currentMinute != lastDuration.get()) {
-                            log.info("Processed {} / {} blocks, fixed {} blocks so far",
-                                    readableNumber(backfillDownloader.getProcessed().get()),
-                                    readableNumber(blockCount),
-                                    readableNumber(backfillDownloader.getCompletedBlocks().get()));
-                            lastDuration.set(currentMinute);
-                        }
-                    });
+                    try (CloseableStream<BackupBlock> blocks = repository.allBlocks()) {
+                        blocks.stream().forEach(block -> {
+                            backfillDownloader.backfillStorage(block);
+                            long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
+                            if (currentMinute != lastDuration.get()) {
+                                log.info("Processed {} / {} blocks, fixed {} blocks so far",
+                                        readableNumber(backfillDownloader.getProcessed().get()),
+                                        readableNumber(blockCount),
+                                        readableNumber(backfillDownloader.getCompletedBlocks().get()));
+                                lastDuration.set(currentMinute);
+                            }
+                        });
+                    }
 
                     backfillDownloader.waitForCompletion();
                 }
@@ -124,25 +132,24 @@ public class RepositoryBackfiller {
                 log.info("Updated {} files", backfillDownloader.getCompletedFiles().get());
             }
         } finally {
-            tempFile.delete();
             manifestManager.setDisabledFlushing(false);
         }
     }
 
     public class BackfillDownloader extends SchedulerImpl {
-        private final Map<String, Long> blockSizes;
+        private final CloseableMap<String, Long> blockSizes;
         @Getter
-        private AtomicLong completedBlocks = new AtomicLong();
+        private final AtomicLong completedBlocks = new AtomicLong();
         @Getter
-        private AtomicLong processed = new AtomicLong();
+        private final AtomicLong processed = new AtomicLong();
         @Getter
-        private AtomicLong completedFiles = new AtomicLong();
+        private final AtomicLong completedFiles = new AtomicLong();
 
-        private ConcurrentLinkedQueue<BackupBlock> pendingBlockUpdates = new ConcurrentLinkedQueue<>();
-        private ArrayList<BackupFile> pendingFileUpdates = new ArrayList<>();
+        private final ConcurrentLinkedQueue<BackupBlock> pendingBlockUpdates = new ConcurrentLinkedQueue<>();
+        private final ArrayList<BackupFile> pendingFileUpdates = new ArrayList<>();
 
         @Inject
-        public BackfillDownloader(Map<String, Long> blockSizes) {
+        public BackfillDownloader(CloseableMap<String, Long> blockSizes) {
             super(maximumConcurrency);
 
             this.blockSizes = blockSizes;

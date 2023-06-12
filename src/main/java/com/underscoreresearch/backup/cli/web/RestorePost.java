@@ -29,6 +29,7 @@ import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.cli.helpers.RestoreExecutor;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -52,6 +53,7 @@ public class RestorePost extends JsonWrap {
         private boolean overwrite;
         private Long timestamp;
         private boolean includeDeleted;
+        private boolean skipPermissions;
 
         @JsonCreator
         @Builder
@@ -59,6 +61,7 @@ public class RestorePost extends JsonWrap {
                                     @JsonProperty("files") List<BackupSetRoot> files,
                                     @JsonProperty("password") String password,
                                     @JsonProperty("overwrite") Boolean overwrite,
+                                    @JsonProperty("skipPermissions") Boolean skipPermissions,
                                     @JsonProperty("timestamp") Long timestamp) {
             super(password);
 
@@ -66,6 +69,7 @@ public class RestorePost extends JsonWrap {
             this.files = files;
             this.overwrite = overwrite != null ? overwrite : false;
             this.timestamp = timestamp;
+            this.skipPermissions = skipPermissions != null ? skipPermissions : false;
         }
     }
 
@@ -118,11 +122,15 @@ public class RestorePost extends JsonWrap {
                     String destination = request.getDestination();
 
                     try {
-                        RestoreExecutor restoreExecutor = new RestoreExecutor(contents, request.getPassword());
+                        RestoreExecutor restoreExecutor = new RestoreExecutor(contents,
+                                request.getPassword(),
+                                InstanceFactory.getInstance(BackupStatsLogger.class));
                         if (destination != null && !isNullFile(destination)) {
                             new File(destination).mkdirs();
                         }
-                        restoreExecutor.restorePaths(request.files, destination, true, request.overwrite);
+                        restoreExecutor.restorePaths(request.files, destination, true,
+                                request.overwrite,
+                                request.skipPermissions);
                     } catch (Exception exc) {
                         log.error("Failed to complete restore", exc);
                     }
@@ -135,7 +143,7 @@ public class RestorePost extends JsonWrap {
                 if (restart.get()) {
                     InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
                             InstanceFactory.getAdditionalSourceName(),
-                            () -> InteractiveCommand.startBackupIfAvailable());
+                            InteractiveCommand::startBackupIfAvailable);
                 }
             }, "RestorePost").start();
 

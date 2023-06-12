@@ -38,6 +38,7 @@ public class RebuildRepositoryCommand extends Command {
     public static String downloadRemoteConfiguration(String source, String password) throws IOException {
         BackupDestination destination = getManifestDestination(source);
         if (destination == null) {
+            log.warn("Could not determine destination for manifest");
             throw new IOException("Could not find destination for configuration");
         }
         return downloadRemoteConfiguration(destination, InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(password));

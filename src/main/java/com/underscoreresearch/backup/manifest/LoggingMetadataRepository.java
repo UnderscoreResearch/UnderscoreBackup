@@ -25,7 +25,6 @@ import java.util.TreeSet;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import lombok.AccessLevel;
 import lombok.Data;
@@ -37,6 +36,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableStream;
+import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -311,8 +313,18 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public Stream<BackupUpdatedFile> getUpdatedFiles() throws IOException {
+    public CloseableStream<BackupUpdatedFile> getUpdatedFiles() throws IOException {
         return repository.getUpdatedFiles();
+    }
+
+    @Override
+    public void upgradeStorage() throws IOException {
+        repository.upgradeStorage();
+    }
+
+    @Override
+    public <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException {
+        return repository.temporaryMap(serializer);
     }
 
     @Override
@@ -347,22 +359,22 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public Stream<BackupFile> allFiles(boolean ascending) throws IOException {
+    public CloseableStream<BackupFile> allFiles(boolean ascending) throws IOException {
         return repository.allFiles(ascending);
     }
 
     @Override
-    public Stream<BackupBlock> allBlocks() throws IOException {
+    public CloseableStream<BackupBlock> allBlocks() throws IOException {
         return repository.allBlocks();
     }
 
     @Override
-    public Stream<BackupFilePart> allFileParts() throws IOException {
+    public CloseableStream<BackupFilePart> allFileParts() throws IOException {
         return repository.allFileParts();
     }
 
     @Override
-    public Stream<BackupDirectory> allDirectories(boolean ascending) throws IOException {
+    public CloseableStream<BackupDirectory> allDirectories(boolean ascending) throws IOException {
         return repository.allDirectories(ascending);
     }
 

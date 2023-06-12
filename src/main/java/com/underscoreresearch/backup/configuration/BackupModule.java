@@ -8,10 +8,17 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.MANI
 import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE_REBUILD;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Paths;
+import java.nio.file.attribute.AclFileAttributeView;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.util.concurrent.atomic.AtomicReference;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
 
@@ -37,16 +44,21 @@ import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
 import com.underscoreresearch.backup.file.FileConsumer;
+import com.underscoreresearch.backup.file.FilePermissionManager;
 import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.ScannerScheduler;
+import com.underscoreresearch.backup.file.implementation.AclPermissionManager;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.file.implementation.ContinuousBackupImpl;
 import com.underscoreresearch.backup.file.implementation.FileChangeWatcherImpl;
 import com.underscoreresearch.backup.file.implementation.FileConsumerImpl;
 import com.underscoreresearch.backup.file.implementation.FileScannerImpl;
 import com.underscoreresearch.backup.file.implementation.FileSystemAccessImpl;
-import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository;
+import com.underscoreresearch.backup.file.implementation.LockingMetadataRepository;
+import com.underscoreresearch.backup.file.implementation.PermissionFileSystemAccess;
+import com.underscoreresearch.backup.file.implementation.PosixPermissionManager;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
@@ -62,6 +74,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.MachineState;
 
+@Slf4j
 public class BackupModule extends AbstractModule {
     public static final int DEFAULT_LARGE_MAXIMUM_SIZE = 8 * 1024 * 1024 - 10 * 1024;
     public static final String REPOSITORY_DB_PATH = "REPOSITORY_DB_PATH";
@@ -78,9 +91,9 @@ public class BackupModule extends AbstractModule {
                                                  StateLogger stateLogger,
                                                  FileChangeWatcher fileChangeWatcher,
                                                  ContinuousBackup continuousBackup,
-                                                 @Named(MANIFEST_LOCATION) String manifestLocation) {
+                                                 BackupStatsLogger backupStatsLogger) {
         return new ScannerSchedulerImpl(configuration, repository, repositoryTrimmer, scanner, stateLogger,
-                fileChangeWatcher, continuousBackup, manifestLocation);
+                fileChangeWatcher, continuousBackup, backupStatsLogger);
     }
 
     @Singleton
@@ -241,7 +254,8 @@ public class BackupModule extends AbstractModule {
                                                              @Named(INSTALLATION_IDENTITY) String installationIdentity,
                                                              @Named(ADDITIONAL_SOURCE) String source,
                                                              EncryptionKey encryptionKey,
-                                                             CommandLine commandLine)
+                                                             CommandLine commandLine,
+                                                             BackupStatsLogger statsLogger)
             throws IOException {
         BackupDestination destination = configuration.getDestinations().get(configuration.getManifest()
                 .getDestination());
@@ -255,7 +269,8 @@ public class BackupModule extends AbstractModule {
                 installationIdentity,
                 source,
                 commandLine.hasOption(FORCE),
-                encryptionKey);
+                encryptionKey,
+                statsLogger);
     }
 
     @Provides
@@ -266,9 +281,9 @@ public class BackupModule extends AbstractModule {
 
     @Singleton
     @Provides
-    public MapdbMetadataRepository mapdbMetadata(@Named(REPOSITORY_DB_PATH) String dbPath,
-                                                 @Named(ADDITIONAL_SOURCE) String source) throws IOException {
-        return new MapdbMetadataRepository(dbPath, !Strings.isNullOrEmpty(source));
+    public LockingMetadataRepository lockingMetadataRepository(@Named(REPOSITORY_DB_PATH) String dbPath,
+                                                               @Named(ADDITIONAL_SOURCE) String source) {
+        return new LockingMetadataRepository(dbPath, !Strings.isNullOrEmpty(source));
     }
 
     @Named(REPOSITORY_DB_PATH)
@@ -290,21 +305,27 @@ public class BackupModule extends AbstractModule {
 
     @Singleton
     @Provides
-    public LoggingMetadataRepository loggingMetadataRepository(MapdbMetadataRepository mapdbMetadata,
+    public LoggingMetadataRepository loggingMetadataRepository(LockingMetadataRepository repository,
                                                                ManifestManager manifest,
                                                                BackupConfiguration configuration,
                                                                CommandLine commandLine,
                                                                @Named(ADDITIONAL_SOURCE) String source) {
         if (Strings.isNullOrEmpty(source)) {
-            return new LoggingMetadataRepository(mapdbMetadata,
+            return new LoggingMetadataRepository(repository,
                     manifest,
                     configuration.getShares(),
                     null,
                     commandLine.hasOption(NO_DELETE_REBUILD));
         }
-        return new LoggingMetadataRepository.Readonly(mapdbMetadata,
+        return new LoggingMetadataRepository.Readonly(repository,
                 manifest,
                 false);
+    }
+
+    @Singleton
+    @Provides
+    public BackupStatsLogger backupStatsLogger(BackupConfiguration configuration, @Named(MANIFEST_LOCATION) String manifestLocation) {
+        return new BackupStatsLogger(configuration, manifestLocation);
     }
 
     @Singleton
@@ -367,7 +388,28 @@ public class BackupModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public FileSystemAccess fileSystemAccess() {
-        return new FileSystemAccessImpl();
+    public FileSystemAccess fileSystemAccess(BackupConfiguration configuration) {
+        if (configuration.getManifest() != null
+                && configuration.getManifest().getIgnorePermissions() != null
+                && configuration.getManifest().getIgnorePermissions()) {
+            return new FileSystemAccessImpl();
+        }
+        AtomicReference<FilePermissionManager> permissionManager = new AtomicReference<>();
+        FileSystems.getDefault().getFileStores().forEach(fileStore -> {
+            if (fileStore.supportsFileAttributeView(AclFileAttributeView.class)) {
+                permissionManager.set(new AclPermissionManager());
+            }
+            if (permissionManager.get() == null) {
+                if (fileStore.supportsFileAttributeView(PosixFileAttributeView.class)) {
+                    permissionManager.set(new PosixPermissionManager());
+                }
+            }
+        });
+        if (permissionManager.get() == null) {
+            log.warn("Permissions are not supported on this file system.");
+            return new FileSystemAccessImpl();
+        }
+        debug(() -> log.debug("Using permission manager: " + permissionManager.get().getClass().getSimpleName()));
+        return new PermissionFileSystemAccess(permissionManager.get());
     }
 }

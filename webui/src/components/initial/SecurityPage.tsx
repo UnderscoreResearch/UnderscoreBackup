@@ -46,7 +46,8 @@ interface SecurityPageState {
     showChangePassword: boolean,
     saveSecret?: boolean,
     secretRegion?: string,
-    awaitingValidation: boolean
+    awaitingValidation: boolean,
+    force: boolean
 }
 
 export function SecurityPage(props: SecurityPageProps) {
@@ -59,7 +60,8 @@ export function SecurityPage(props: SecurityPageProps) {
         secretRegion: props.secretRegion,
         passwordValid: false,
         showChangePassword: false,
-        awaitingValidation: false
+        awaitingValidation: false,
+        force: false
     } as SecurityPageState);
 
     function updatedPasswordScore(newScore: number) {
@@ -87,16 +89,21 @@ export function SecurityPage(props: SecurityPageProps) {
                 encodeURIComponent(props.selectedSource?.secretRegion as string)}`);
     }
 
-    function submitPassword() {
+    function submitPassword(force: boolean) {
         setState((oldState) => ({
             ...oldState,
             awaitingValidation: true
         }));
         appContext.busyOperation(async () => {
             if (props.selectedSource) {
-                if (await updateSource(props.selectedSource.name, props.selectedSource.sourceId, state.password)) {
+                if (await updateSource(props.selectedSource.name, props.selectedSource.sourceId, state.password, force)) {
                     await appContext.update(state.password);
                     await activityContext.update();
+                } else {
+                    setState((oldState) => ({
+                        ...oldState,
+                        force: true
+                    }));
                 }
             } else if (await startRemoteRestore(state.password)) {
                 await appContext.update(state.password);
@@ -152,7 +159,7 @@ export function SecurityPage(props: SecurityPageProps) {
                                type="password"
                                onKeyDown={(e) => {
                                    if (e.key === "Enter" && state.password.length)
-                                       submitPassword();
+                                       submitPassword(false);
                                }}
                                onChange={(e) => setState({
                                    ...state,
@@ -169,7 +176,7 @@ export function SecurityPage(props: SecurityPageProps) {
                 }
             </Paper>
 
-            <NextButton disabled={state.password.length == 0} onClick={submitPassword}/>
+            <NextButton disabled={state.password.length == 0} force={state.force} onClick={() => submitPassword(state.force)}/>
 
             <Dialog open={state.showChangePassword} onClose={handleChangePasswordClose}>
                 <DialogTitle>New Password</DialogTitle>
@@ -239,7 +246,11 @@ export function SecurityPage(props: SecurityPageProps) {
         }));
         appContext.busyOperation(async () => {
             if (appContext.hasKey) {
-                await appContext.update(state.password);
+                if (state.password) {
+                    await appContext.update(state.password);
+                } else {
+                    props.onPageChange("contents");
+                }
             } else {
                 if (await createEncryptionKey(state.password)) {
                     if (state.saveSecret && state.secretRegion && !privateKeyDisabled) {
@@ -258,51 +269,80 @@ export function SecurityPage(props: SecurityPageProps) {
             <Typography variant="h3" component="div">
                 Enter backup password
             </Typography>
-            <Typography variant="body1" component="div">
-                <p>
-                    Enter the password with which your backup will be protected.
-                </p>
-            </Typography>
-            <Alert severity="warning">Please keep your password safe.
-                There is no way to recover a lost password unless you enable private key recovery!</Alert>
 
-            <PasswordStrengthBar password={state.password}
-                                 onChangeScore={(newScore) => updatedPasswordScore(newScore)}/>
+            {appContext.hasKey ?
+                <>
+                    <Typography variant="body1" component="div">
+                        <p>
+                            You have already created a backup password. To complete your setup please enter it below.
+                        </p>
+                    </Typography>
 
-            <Box
-                component="div"
-                sx={{
-                    '& .MuiTextField-root': {m: 1},
-                }}
-                style={{marginTop: "4px", marginLeft: "-8px", marginRight: "8px"}}
-            >
-                <TextField label="Password" variant="outlined"
-                           fullWidth={true}
-                           required={true}
-                           value={state.password}
-                           disabled={appContext.hasKey}
-                           error={!state.password && !appContext.hasKey}
-                           id={"passwordFirst"}
-                           type="password"
-                           onChange={(e) => setState({
-                               ...state,
-                               password: e.target.value
-                           })}/>
+                    <Box
+                        component="div"
+                        sx={{
+                            '& .MuiTextField-root': {m: 1},
+                        }}
+                        style={{marginTop: "4px", marginLeft: "-8px", marginRight: "8px"}}
+                    >
+                        <TextField label="Password" variant="outlined"
+                                   fullWidth={true}
+                                   required={true}
+                                   value={state.password}
+                                   type="password"
+                                   onChange={(e) => setState({
+                                       ...state,
+                                       password: e.target.value
+                                   })}/>
+                    </Box>
+                </>
+                :
+                <>
+                    <Typography variant="body1" component="div">
+                        <p>
+                            Enter the password with which your backup will be protected.
+                        </p>
+                    </Typography>
+                    <Alert severity="warning">Please keep your password safe.
+                        There is no way to recover a lost password unless you enable private key recovery!</Alert>
 
-                <TextField label="Confirm Password" variant="outlined"
-                           fullWidth={true}
-                           required={true}
-                           helperText={state.passwordConfirm !== state.password ? "Does not match" : null}
-                           disabled={appContext.hasKey}
-                           value={state.passwordConfirm}
-                           error={(state.passwordConfirm !== state.password || !state.password) && !appContext.hasKey}
-                           id={"passwordSecond"}
-                           type="password"
-                           onChange={(e) => setState({
-                               ...state,
-                               passwordConfirm: e.target.value
-                           })}/>
-            </Box>
+                    <PasswordStrengthBar password={state.password}
+                                         onChangeScore={(newScore) => updatedPasswordScore(newScore)}/>
+
+                    <Box
+                        component="div"
+                        sx={{
+                            '& .MuiTextField-root': {m: 1},
+                        }}
+                        style={{marginTop: "4px", marginLeft: "-8px", marginRight: "8px"}}
+                    >
+                        <TextField label="Password" variant="outlined"
+                                   fullWidth={true}
+                                   required={true}
+                                   value={state.password}
+                                   error={!state.password && !appContext.hasKey}
+                                   id={"passwordFirst"}
+                                   type="password"
+                                   onChange={(e) => setState({
+                                       ...state,
+                                       password: e.target.value
+                                   })}/>
+
+                        <TextField label="Confirm Password" variant="outlined"
+                                   fullWidth={true}
+                                   required={true}
+                                   helperText={state.passwordConfirm !== state.password ? "Does not match" : null}
+                                   value={state.passwordConfirm}
+                                   error={(state.passwordConfirm !== state.password || !state.password) && !appContext.hasKey}
+                                   id={"passwordSecond"}
+                                   type="password"
+                                   onChange={(e) => setState({
+                                       ...state,
+                                       passwordConfirm: e.target.value
+                                   })}/>
+                    </Box>
+                </>
+            }
         </Paper>
 
         <Paper sx={{p: 2}}>

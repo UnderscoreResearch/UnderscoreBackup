@@ -228,7 +228,7 @@ export function ContentPage() {
                 <Grid item md={4} sm={6} xs={12} textAlign={"center"}>
                     <Button variant="outlined"
                             fullWidth={true}
-                            disabled={state.set.roots.length === 0}
+                            disabled={state.set.roots.length === 0 || appContext.isBusy()}
                             onClick={() => saveAndExit(false)}
                             size="large" id="exit">
                         Save and Exit
@@ -237,7 +237,7 @@ export function ContentPage() {
                 <Grid item md={4} sm={6} xs={12} textAlign={"center"}>
                     <Button variant="contained"
                             fullWidth={true}
-                            disabled={state.set.roots.length === 0}
+                            disabled={state.set.roots.length === 0 || appContext.isBusy()}
                             onClick={() => saveAndExit(true)}
                             size="large" id="next">
                         Start Backup

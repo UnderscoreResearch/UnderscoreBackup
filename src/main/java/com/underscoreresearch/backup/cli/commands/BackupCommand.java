@@ -81,6 +81,7 @@ public class BackupCommand extends SimpleCommand {
     private static void executeScheduler(AtomicBoolean started, ScannerScheduler scheduler, ManifestManager manifestManager) {
         try {
             started.set(true);
+
             IOUtils.waitForInternet(() -> {
                 manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
                 return null;

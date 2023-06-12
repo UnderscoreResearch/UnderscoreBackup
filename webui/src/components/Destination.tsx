@@ -214,7 +214,12 @@ function SharedProperties(props: {
                         <DividerWithText>Storage options</DividerWithText>
                     </Grid>
                     <Grid item md={6} xs={12}>
-                        <FormControl fullWidth={true} style={{marginLeft: "0px", marginTop: "8px", marginBottom: "8px", marginRight: "8px"}}>
+                        <FormControl fullWidth={true} style={{
+                            marginLeft: "0px",
+                            marginTop: "8px",
+                            marginBottom: "8px",
+                            marginRight: "8px"
+                        }}>
                             <InputLabel id="encryption-id-label">Encryption</InputLabel>
                             <Select
                                 labelId="encryption-id-label"
@@ -299,15 +304,16 @@ function SharedProperties(props: {
                     }
                     {!props.sourceDestination && !props.shareDestination &&
                         <Grid item xs={12}>
-                            <DeletionTimespan timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
-                                              title={"re-upload data to destination."}
-                                              onChange={(newTimespan) => {
-                                                  const sendState = {
-                                                      ...state,
-                                                      maxRetention: newTimespan
-                                                  };
-                                                  props.onChange(sendState);
-                                              }}/>
+                            <DeletionTimespan
+                                timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
+                                title={"re-upload data to destination."}
+                                onChange={(newTimespan) => {
+                                    const sendState = {
+                                        ...state,
+                                        maxRetention: newTimespan
+                                    };
+                                    props.onChange(sendState);
+                                }}/>
                         </Grid>
                     }
                 </Grid>

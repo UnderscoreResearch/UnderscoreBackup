@@ -1,19 +1,14 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,8 +29,6 @@ import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.cli.UIManager;
@@ -48,7 +41,6 @@ import com.underscoreresearch.backup.file.FileScanner;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.ScannerScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.io.implementation.DownloadSchedulerImpl;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -58,16 +50,11 @@ import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
-    private static final ObjectReader STATISTICS_READER = MAPPER.readerFor(RepositoryTrimmer.Statistics.class);
-    private static final ObjectWriter STATISTICS_WRITER = MAPPER.writerFor(RepositoryTrimmer.Statistics.class);
+public class ScannerSchedulerImpl implements ScannerScheduler {
     private static final long SLEEP_DELAY_MS = 60 * 1000;
     private static final long SLEEP_RESUME_DELAY_MS = 5 * 60 * 1000;
-    private static RepositoryTrimmer.Statistics statistics;
     private final BackupConfiguration configuration;
     private final FileScanner scanner;
     private final MetadataRepository repository;
@@ -82,7 +69,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
     private final Random random = new Random();
     private final FileChangeWatcher fileChangeWatcher;
     private final ContinuousBackup continuousBackup;
-    private final String manifestPath;
+    private final BackupStatsLogger backupStatsLogger;
     private boolean shutdown;
     private boolean scheduledRestart;
     @Getter
@@ -95,7 +82,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                                 StateLogger stateLogger,
                                 FileChangeWatcher fileChangeWatcher,
                                 ContinuousBackup continuousBackup,
-                                String manifestPath) {
+                                BackupStatsLogger backupStatsLogger) {
         this.configuration = configuration;
         this.scanner = scanner;
         this.repository = repository;
@@ -103,13 +90,11 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         this.stateLogger = stateLogger;
         this.fileChangeWatcher = fileChangeWatcher;
         this.continuousBackup = continuousBackup;
-        this.manifestPath = manifestPath;
+        this.backupStatsLogger = backupStatsLogger;
 
         pendingSets = new boolean[configuration.getSets().size()];
 
         executor.scheduleAtFixedRate(this::detectSleep, SLEEP_DELAY_MS, SLEEP_DELAY_MS, TimeUnit.MILLISECONDS);
-
-        statistics = readStatistics();
     }
 
     public static void updateOptimizeSchedule(MetadataRepository copyRepository,
@@ -197,8 +182,15 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
 
         updateOptimizeSchedule();
 
+        try {
+            repository.upgradeStorage();
+        } catch (IOException e) {
+            log.info("Failed to upgrade repository storage", e);
+        }
+
         lock.lock();
         running = true;
+        backupStatsLogger.setUploadRunning(true);
         try {
             fileChangeWatcher.start();
         } catch (IOException e) {
@@ -221,8 +213,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                                 rescheduleCompletedSet(i, set);
                                 i++;
                                 if (set.getRetention() != null) {
-                                    statistics = trimmer.trimRepository(shouldOnlyDoFileTrim());
-                                    saveStatistics(statistics);
+                                    backupStatsLogger.updateStats(trimmer.trimRepository(shouldOnlyDoFileTrim()));
                                     trimmer.resetStatus();
                                 }
                             } else {
@@ -280,6 +271,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                         continuousBackup.start();
                         System.gc();
                         running = false;
+                        backupStatsLogger.setUploadRunning(false);
                         condition.await();
                         continuousBackup.shutdown();
                     } finally {
@@ -293,6 +285,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
                     log.error("Failed to wait", e);
                 }
                 running = true;
+                backupStatsLogger.setUploadRunning(true);
             }
         }
         try {
@@ -301,39 +294,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
             log.error("Failed to stop watching for filesystem changes", e);
         }
         running = false;
+        backupStatsLogger.setUploadRunning(false);
         condition.signal();
         lock.unlock();
         stateLogger.reset();
 
         checkNewVersion();
-    }
-
-    private File getStatisticsFile() {
-        return new File(manifestPath, "statistics.json");
-    }
-
-    private void saveStatistics(RepositoryTrimmer.Statistics statistics) {
-        if (manifestPath != null) {
-            try {
-                STATISTICS_WRITER.writeValue(getStatisticsFile(), statistics);
-            } catch (IOException e) {
-                log.warn("Failed to save backup statistics", e);
-            }
-        }
-    }
-
-    private RepositoryTrimmer.Statistics readStatistics() {
-        if (manifestPath != null) {
-            try {
-                File file = getStatisticsFile();
-                if (file.exists()) {
-                    return STATISTICS_READER.readValue(getStatisticsFile());
-                }
-            } catch (IOException e) {
-                log.warn("Failed to read backup statistics", e);
-            }
-        }
-        return statistics;
     }
 
     private void rescheduleCompletedSet(int i, BackupSet set) {
@@ -517,6 +483,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         } else {
             synchronized (scheduledTimes) {
                 scheduledTimes.remove(set.getId());
+                backupStatsLogger.updateScheduledTimes(scheduledTimes);
             }
             deletePendingSet(set.getId());
         }
@@ -526,6 +493,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         log.info("Schedule set {} to run again at {}", set.getId(), formatTimestamp(date.getTime()));
         synchronized (scheduledTimes) {
             scheduledTimes.put(set.getId(), new Date(date.getTime()));
+            backupStatsLogger.updateScheduledTimes(scheduledTimes);
         }
         long delta = date.getTime() - new Date().getTime();
         if (delta < 1) {
@@ -585,66 +553,5 @@ public class ScannerSchedulerImpl implements ScannerScheduler, StatusLogger {
         } finally {
             lock.unlock();
         }
-    }
-
-    @Override
-    public void resetStatus() {
-
-    }
-
-    @Override
-    public List<StatusLine> status() {
-        if (running || InstanceFactory.getInstance(DownloadSchedulerImpl.class).status().size() > 0) {
-            return new ArrayList<>();
-        }
-        synchronized (scheduledTimes) {
-            List<StatusLine> ret = scheduledTimes
-                    .entrySet()
-                    .stream()
-                    .map(item ->
-                            new StatusLine(getClass(), "SCHEDULED_BACKUP_" + item.getKey(),
-                                    String.format("Next run of set %d (%s)",
-                                            indexOfSet(item.getKey()), item.getKey()),
-                                    item.getValue().getTime(),
-                                    formatTimestamp(item.getValue().getTime())))
-                    .collect(Collectors.toList());
-
-            if (statistics != null) {
-                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILES",
-                        "Total files in repository",
-                        statistics.getFiles()));
-                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILE_VERSIONS",
-                        "Total file versions in repository",
-                        statistics.getFileVersions()));
-                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE",
-                        "Total file size in repository",
-                        statistics.getTotalSize(),
-                        readableSize(statistics.getTotalSize())));
-                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE_LAST_VERSION",
-                        "Total file last version size in repository",
-                        statistics.getTotalSizeLastVersion(),
-                        readableSize(statistics.getTotalSizeLastVersion())));
-
-                if (statistics.getBlocks() > 0) {
-                    ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCKS",
-                            "Total blocks",
-                            statistics.getBlocks()));
-                    ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCK_PARTS",
-                            "Total block parts",
-                            statistics.getBlockParts()));
-                }
-            }
-
-            return ret;
-        }
-    }
-
-    private int indexOfSet(String key) {
-        for (int i = 0; i < configuration.getSets().size(); i++) {
-            if (configuration.getSets().get(i).getId().equals(key)) {
-                return i + 1;
-            }
-        }
-        return -1;
     }
 }

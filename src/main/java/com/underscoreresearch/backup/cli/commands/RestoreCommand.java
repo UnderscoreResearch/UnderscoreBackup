@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.FORC
 import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.OVER_WRITE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SKIP_PERMISSIONS;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -27,6 +28,7 @@ import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -92,7 +94,7 @@ public class RestoreCommand extends Command {
 
         List<BackupSetRoot> roots = paths.stream().map(file -> BackupSetRoot.builder().path(PathNormalizer.normalizePath(file)).build())
                 .collect(Collectors.toList());
-        new RestoreExecutor(contents, getPassword()).restorePaths(roots, destination,
-                commandLine.hasOption(RECURSIVE), commandLine.hasOption(OVER_WRITE));
+        new RestoreExecutor(contents, getPassword(), InstanceFactory.getInstance(BackupStatsLogger.class))
+                .restorePaths(roots, destination, commandLine.hasOption(RECURSIVE), commandLine.hasOption(OVER_WRITE), !commandLine.hasOption(SKIP_PERMISSIONS));
     }
 }

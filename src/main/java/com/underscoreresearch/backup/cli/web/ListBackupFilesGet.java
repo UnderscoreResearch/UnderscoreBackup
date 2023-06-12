@@ -28,7 +28,7 @@ public class ListBackupFilesGet extends JsonWrap {
             return new RsText(EXTERNAL_BACKUP_FILES_WRITER.writeValueAsString(
                     getRequestFiles(req, base)
                             .stream()
-                            .map(t -> new ExternalBackupFile(t))
+                            .map(ExternalBackupFile::new)
                             .collect(Collectors.toList())));
         }
     }

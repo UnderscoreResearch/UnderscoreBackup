@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
@@ -20,7 +19,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
-import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -31,23 +30,33 @@ import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-@RequiredArgsConstructor
-public class BlockValidator implements StatusLogger {
+public class BlockValidator implements ManualStatusLogger {
     private final MetadataRepository repository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
     private final BlockRefresher blockRefresher;
     private final int maxBlockSize;
-
     private Stopwatch stopwatch = Stopwatch.createUnstarted();
     private AtomicLong processedSteps = new AtomicLong();
     private AtomicLong totalSteps = new AtomicLong();
     private Duration lastHeartbeat;
     private BackupFile lastProcessed;
+
+    public BlockValidator(MetadataRepository repository, BackupConfiguration configuration,
+                          ManifestManager manifestManager, BlockRefresher blockRefresher, int maxBlockSize) {
+        StateLogger.addLogger(this);
+
+        this.repository = repository;
+        this.configuration = configuration;
+        this.manifestManager = manifestManager;
+        this.blockRefresher = blockRefresher;
+        this.maxBlockSize = maxBlockSize;
+    }
 
     public void validateBlocks() throws IOException {
         stopwatch.start();
@@ -55,9 +64,9 @@ public class BlockValidator implements StatusLogger {
 
         log.info("Validating all blocks of files");
         manifestManager.setDisabledFlushing(true);
-        try (CloseableLock ignored = repository.acquireLock()) {
+        try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
             totalSteps.set(repository.getFileCount());
-            repository.allFiles(false).forEach((file) -> {
+            files.stream().forEach((file) -> {
                 if (InstanceFactory.isShutdown())
                     throw new RuntimeException(new InterruptedException());
 

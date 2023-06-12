@@ -15,9 +15,11 @@ import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.BackupSearchAccessImpl;
+import com.underscoreresearch.backup.model.BackupFile;
 
 @CommandPlugin(value = "search", args = "Regular expression of search", description = "Search backup contents",
         needPrivateKey = false, supportSource = true)
@@ -35,9 +37,11 @@ public class SearchCommand extends Command {
                 commandLine.hasOption(INCLUDE_DELETED));
 
         try (CloseableLock interrupt = searchAccess.acquireLock()) {
-            searchAccess.searchFiles(Pattern.compile(commandLine.getArgList().get(1), Pattern.CASE_INSENSITIVE),
-                            interrupt)
-                    .forEach(file -> System.out.println(printFile(commandLine, true, file)));
+            try (CloseableStream<BackupFile> files = searchAccess.searchFiles(
+                    Pattern.compile(commandLine.getArgList().get(1), Pattern.CASE_INSENSITIVE),
+                    interrupt)) {
+                files.stream().forEach(file -> System.out.println(printFile(commandLine, true, file)));
+            }
         } catch (BackupSearchAccessImpl.InterruptedSearch exc) {
             log.warn("Search interrupted");
         }

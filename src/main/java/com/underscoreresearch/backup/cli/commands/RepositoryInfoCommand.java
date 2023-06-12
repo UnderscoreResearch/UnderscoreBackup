@@ -8,9 +8,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupFile;
 
 @CommandPlugin(value = "repository-info", description = "Show info about contents of repository",
         needPrivateKey = false, needConfiguration = true)
@@ -26,8 +28,8 @@ public class RepositoryInfoCommand extends SimpleCommand {
 
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
 
-        try (CloseableLock ignored = repository.acquireLock()) {
-            repository.allFiles(false).forEachOrdered((file) -> {
+        try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
+            files.stream().forEachOrdered((file) -> {
                 if (!file.getPath().equals(lastPath.get())) {
                     lastPath.set(file.getPath());
                     totalFiles.incrementAndGet();
@@ -36,13 +38,15 @@ public class RepositoryInfoCommand extends SimpleCommand {
                 totalVersions.incrementAndGet();
                 totalOriginalSize.addAndGet(file.getLength());
             });
+        }
 
-            System.out.println("Files: " + readableNumber(totalFiles.get()));
-            System.out.println("Last version file size: " + readableSize(totalOriginalCurrentSize.get()));
-            System.out.println("File versions: " + readableNumber(totalVersions.get()));
-            System.out.println("Total original size: " + readableSize(totalOriginalSize.get()));
+        System.out.println("Files: " + readableNumber(totalFiles.get()));
+        System.out.println("Last version file size: " + readableSize(totalOriginalCurrentSize.get()));
+        System.out.println("File versions: " + readableNumber(totalVersions.get()));
+        System.out.println("Total original size: " + readableSize(totalOriginalSize.get()));
 
-            repository.allBlocks().forEach(block -> {
+        try (CloseableStream<BackupBlock> blocks = repository.allBlocks()) {
+            blocks.stream().forEach(block -> {
                 totalBlocks.incrementAndGet();
                 for (BackupBlockStorage storage : block.getStorage())
                     totalParts.addAndGet(storage.getParts().size());

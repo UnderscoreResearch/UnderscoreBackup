@@ -21,8 +21,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -44,8 +46,10 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOIndex;
@@ -60,6 +64,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.ShareActivateMetadataRepository;
 import com.underscoreresearch.backup.manifest.ShareManifestManager;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivatedShare;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -67,6 +72,7 @@ import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
@@ -77,9 +83,9 @@ import com.underscoreresearch.backup.utils.NonClosingInputStream;
 public class OptimizingManifestManager extends BaseManifestManagerImpl implements ManifestManager {
     @Getter(AccessLevel.PROTECTED)
     private final String source;
+    private final BackupStatsLogger statsLogger;
     private Map<String, ShareManifestManager> activeShares;
     private boolean repositoryReady = true;
-
     @Getter(AccessLevel.PROTECTED)
     private Object operationLock = new Object();
     @Getter(AccessLevel.PROTECTED)
@@ -104,7 +110,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                                      String installationIdentity,
                                      String source,
                                      boolean forceIdentity,
-                                     EncryptionKey publicKey)
+                                     EncryptionKey publicKey,
+                                     BackupStatsLogger statsLogger)
             throws IOException {
         super(configuration,
                 configuration.getDestinations().get(configuration.getManifest().getDestination()),
@@ -117,6 +124,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 forceIdentity,
                 publicKey);
         this.source = source;
+        this.statsLogger = statsLogger;
     }
 
     protected void uploadPending(LogConsumer logConsumer) throws IOException {
@@ -219,9 +227,12 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     public void replayLog(LogConsumer consumer, String password) throws IOException {
         repositoryReady = false;
 
-        storeIdentity();
+        MetadataRepository repository = (MetadataRepository) consumer;
+        repository.upgradeStorage();
 
         startOperation("Replay log");
+
+        storeIdentity();
 
         if (consumer.lastSyncedLogFile(getShare()) != null) {
             log.info("Continuing rebuild from after file {}", getLogConsumer().lastSyncedLogFile(getShare()));
@@ -235,26 +246,34 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             processedFiles = new AtomicLong(0L);
             processedOperations = new AtomicLong(0L);
 
-            for (String file : files) {
-                byte[] data = downloadData(file);
+            LogPrefetcher logPrefetcher = new LogPrefetcher(files,
+                    InstanceFactory.getInstance(BackupConfiguration.class),
+                    this::downloadData, getEncryptor(),
+                    InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(password));
+            logPrefetcher.start();
+            try {
+                for (String file : files) {
+                    byte[] data = logPrefetcher.getLog(file);
 
-                try {
-                    log.info("Processing log file {}", file);
-                    byte[] unencryptedData = getEncryptor().decodeBlock(null, data,
-                            InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(password));
-                    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(unencryptedData)) {
-                        try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
-                            processLogInputStream(consumer, gzipInputStream);
+                    try {
+                        log.info("Processing log file {}", file);
+                        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
+                            try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
+                                processLogInputStream(consumer, gzipInputStream);
+                            }
                         }
+                        consumer.setLastSyncedLogFile(getShare(), file);
+                    } catch (Exception exc) {
+                        log.error("Failed to read log file " + file, exc);
                     }
-                    consumer.setLastSyncedLogFile(getShare(), file);
-                } catch (Exception exc) {
-                    log.error("Failed to read log file " + file, exc);
+                    if (!Strings.isNullOrEmpty(source) && (isShutdown() || InstanceFactory.isShutdown())) {
+                        logPrefetcher.stop();
+                        return;
+                    }
+                    processedFiles.incrementAndGet();
                 }
-                if (!Strings.isNullOrEmpty(source) && (isShutdown() || InstanceFactory.isShutdown())) {
-                    return;
-                }
-                processedFiles.incrementAndGet();
+            } finally {
+                logPrefetcher.shutdown();
             }
 
             if (processedOperations.get() > 1000000L) {
@@ -442,32 +461,41 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                     + getConfiguration().getSets().size() + 1);
 
             log.info("Processing blocks");
-            existingRepository.allBlocks().forEach((block) -> {
-                processedOperations.incrementAndGet();
-                try {
-                    copyRepository.addBlock(optimizeBlock(block));
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            try (CloseableStream<BackupBlock> blocks = existingRepository.allBlocks()) {
+                blocks.stream().forEach((block) -> {
+                    processedOperations.incrementAndGet();
+                    try {
+                        copyRepository.addBlock(optimizeBlock(block));
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+
             log.info("Processing files");
-            existingRepository.allFiles(true).forEach((file) -> {
-                processedOperations.incrementAndGet();
-                try {
-                    copyRepository.addFile(file);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            try (CloseableStream<BackupFile> files = existingRepository.allFiles(true)) {
+                files.stream().forEach((file) -> {
+                    processedOperations.incrementAndGet();
+                    try {
+                        copyRepository.addFile(file);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+
             log.info("Processing directory contents");
-            existingRepository.allDirectories(true).forEach((dir) -> {
-                processedOperations.incrementAndGet();
-                try {
-                    copyRepository.addDirectory(dir);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            try (CloseableStream<BackupDirectory> dirs = existingRepository.allDirectories(true)) {
+                dirs.stream().forEach((dir) -> {
+                    processedOperations.incrementAndGet();
+                    try {
+                        copyRepository.addDirectory(dir);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+
             log.info("Processing active paths");
             activePaths.forEach((path, dir) -> {
                 processedOperations.incrementAndGet();
@@ -621,70 +649,76 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
                     log.info("Calculating new block storage keys if needed");
 
-                    repository.allBlocks().forEach((block) -> {
-                        if (isShutdown()) {
-                            throw new CancellationException();
-                        }
-                        for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
-                            processedOperations.incrementAndGet();
-                            if (!BackupBlock.isSuperBlock(block.getHash())) {
-                                List<BackupBlockStorage> newStorage =
-                                        block.getStorage().stream()
-                                                .map((storage) -> EncryptorFactory.getEncryptor(storage.getEncryption())
-                                                        .reKeyStorage(storage, privateKey, entry.getKey()))
-                                                .toList();
-                                BackupBlockAdditional blockAdditional = BackupBlockAdditional.builder()
-                                        .publicKey(entry.getKey().getPublicKey())
-                                        .used(false)
-                                        .hash(block.getHash())
-                                        .properties(new ArrayList<>())
-                                        .build();
-                                for (int i = 0; i < newStorage.size(); i++) {
-                                    Map<String, String> oldProperties = block.getStorage().get(i).getProperties();
-                                    blockAdditional.getProperties().add(newStorage
-                                            .get(i)
-                                            .getProperties()
-                                            .entrySet()
-                                            .stream()
-                                            .filter((check) -> !check.getValue().equals(oldProperties.get(check.getKey())))
-                                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
-                                }
-                                try {
-                                    repository.addAdditionalBlock(blockAdditional);
-                                } catch (IOException e) {
-                                    throw new RuntimeException("Failed to create share", e);
+                    try (CloseableStream<BackupBlock> blocks = repository.allBlocks()) {
+                        blocks.stream().forEach((block) -> {
+                            if (isShutdown()) {
+                                throw new CancellationException();
+                            }
+                            for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
+                                processedOperations.incrementAndGet();
+                                if (!BackupBlock.isSuperBlock(block.getHash())) {
+                                    List<BackupBlockStorage> newStorage =
+                                            block.getStorage().stream()
+                                                    .map((storage) -> EncryptorFactory.getEncryptor(storage.getEncryption())
+                                                            .reKeyStorage(storage, privateKey, entry.getKey()))
+                                                    .toList();
+                                    BackupBlockAdditional blockAdditional = BackupBlockAdditional.builder()
+                                            .publicKey(entry.getKey().getPublicKey())
+                                            .used(false)
+                                            .hash(block.getHash())
+                                            .properties(new ArrayList<>())
+                                            .build();
+                                    for (int i = 0; i < newStorage.size(); i++) {
+                                        Map<String, String> oldProperties = block.getStorage().get(i).getProperties();
+                                        blockAdditional.getProperties().add(newStorage
+                                                .get(i)
+                                                .getProperties()
+                                                .entrySet()
+                                                .stream()
+                                                .filter((check) -> !check.getValue().equals(oldProperties.get(check.getKey())))
+                                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                                    }
+                                    try {
+                                        repository.addAdditionalBlock(blockAdditional);
+                                    } catch (IOException e) {
+                                        throw new RuntimeException("Failed to create share", e);
+                                    }
                                 }
                             }
-                        }
-                    });
+                        });
+                    }
 
                     log.info("Writing files to shares");
 
-                    repository.allFiles(true).forEach(file -> {
-                        if (isShutdown()) {
-                            throw new CancellationException();
-                        }
-                        try {
-                            processedOperations.incrementAndGet();
-                            copyRepository.addFile(file);
-                        } catch (IOException e) {
-                            log.error("Failed to write file {}", file.getPath(), e);
-                        }
-                    });
+                    try (CloseableStream<BackupFile> files = repository.allFiles(true)) {
+                        files.stream().forEach(file -> {
+                            if (isShutdown()) {
+                                throw new CancellationException();
+                            }
+                            try {
+                                processedOperations.incrementAndGet();
+                                copyRepository.addFile(file);
+                            } catch (IOException e) {
+                                log.error("Failed to write file {}", file.getPath(), e);
+                            }
+                        });
+                    }
 
                     log.info("Writing directories to shares");
 
-                    repository.allDirectories(true).forEach(dir -> {
-                        if (isShutdown()) {
-                            throw new CancellationException();
-                        }
-                        try {
-                            processedOperations.incrementAndGet();
-                            copyRepository.addDirectory(dir);
-                        } catch (IOException e) {
-                            log.error("Failed to write file {}", PathNormalizer.physicalPath(dir.getPath()), e);
-                        }
-                    });
+                    try (CloseableStream<BackupDirectory> dirs = repository.allDirectories(true)) {
+                        dirs.stream().forEach(dir -> {
+                            if (isShutdown()) {
+                                throw new CancellationException();
+                            }
+                            try {
+                                processedOperations.incrementAndGet();
+                                copyRepository.addDirectory(dir);
+                            } catch (IOException e) {
+                                log.error("Failed to write file {}", PathNormalizer.physicalPath(dir.getPath()), e);
+                            }
+                        });
+                    }
 
                     log.info("Deleting any existing log files");
 
@@ -708,12 +742,26 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
         }
 
         updateShareEncryption(privateKey);
+        if (statsLogger != null) {
+            statsLogger.setNeedsActivation(false);
+        }
     }
 
     @Override
     public void updateShareEncryption(EncryptionKey.PrivateKey privateKey) throws IOException {
+        boolean needActivation = false;
+        Set<String> definedShares = new HashSet<>(getConfiguration().getShares().keySet());
         for (Map.Entry<String, ShareManifestManager> entry : activeShares.entrySet()) {
+            definedShares.remove(entry.getKey());
             entry.getValue().updateEncryptionKeys(privateKey);
+            if (!entry.getValue().getActivatedShare().isUpdatedEncryption())
+                needActivation = true;
+        }
+        if (definedShares.size() > 0) {
+            needActivation = true;
+        }
+        if (needActivation && statsLogger != null) {
+            statsLogger.setNeedsActivation(true);
         }
     }
 

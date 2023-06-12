@@ -140,7 +140,8 @@ class ManifestManagerImplTest {
     public void testUploadConfig() throws IOException {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any(), any());
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, serviceManager, "id", null, false, publicKey);
+                rateLimitController, serviceManager, "id", null, false, publicKey,
+                null);
         manifestManager.initialize(Mockito.mock(LogConsumer.class), true);
         manifestManager.addLogEntry("doh", "doh");
         assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
@@ -154,7 +155,8 @@ class ManifestManagerImplTest {
             stream.write(new byte[]{1, 2, 3});
         }
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, serviceManager, "id", null, false, publicKey);
+                rateLimitController, serviceManager, "id", null, false, publicKey,
+                null);
         manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
         manifestManager.addLogEntry("doh", "doh");
         Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any(), any());
@@ -166,7 +168,8 @@ class ManifestManagerImplTest {
     @Test
     public void testDelayedUpload() throws IOException, InterruptedException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, serviceManager, "id", null, false, publicKey);
+                rateLimitController, serviceManager, "id", null, false, publicKey,
+                null);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -181,9 +184,11 @@ class ManifestManagerImplTest {
     @Test
     public void testLoggingUpdateAndReplay() throws IOException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, serviceManager, "id", null, false, publicKey);
+                rateLimitController, serviceManager, "id", null, false, publicKey,
+                null);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
+        repository.upgradeStorage();
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
         repository.popActivePath("s1", "/c");
         repository.addDirectory(new BackupDirectory("d", Instant.now().toEpochMilli(),
@@ -200,11 +205,13 @@ class ManifestManagerImplTest {
         Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any(), any());
 
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
-                rateLimitController, serviceManager, "id", null, false, publicKey);
+                rateLimitController, serviceManager, "id", null, false, publicKey,
+                null);
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
         manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false), "test");
 
         compareInvocations(firstRepository, secondRepository);
+        repository.close();
     }
 
     private void compareInvocations(MetadataRepository repository1, MetadataRepository repository2) throws JsonProcessingException {
@@ -254,12 +261,15 @@ class ManifestManagerImplTest {
         configuration.getManifest().setMaximumUnsyncedSize(1000 * 1000);
         initializeFactory();
 
-        InstanceFactory.getInstance(MetadataRepository.class).open(false);
+        MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+        repository.open(false);
         manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
                 InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey("test"));
 
         BackupCommand.executeBackup(false);
+
+        repository.close();
     }
 
     @Test
@@ -267,7 +277,7 @@ class ManifestManagerImplTest {
         configuration.getManifest().setMaximumUnsyncedSize(1000 * 1000);
         initializeFactory();
 
-        InstanceFactory.getInstance(MetadataRepository.class).open(false);
+        MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), false);
         BackupCommand.executeBackup(false);
@@ -276,22 +286,24 @@ class ManifestManagerImplTest {
 
         InstanceFactory.shutdown();
         InstanceFactory.waitForShutdown();
+        repository.close();
         configuration.setShares(new HashMap<>());
         initializeFactory();
 
         // Just want to make sure we have a few more blocks to delete.
-        MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
-        metadataRepository.addAdditionalBlock(
+        repository = InstanceFactory.getInstance(MetadataRepository.class);
+        repository.addAdditionalBlock(
                 BackupBlockAdditional.builder().publicKey(sharePrivateKey.getPublicKey()).hash("a").build());
-        metadataRepository.addAdditionalBlock(
+        repository.addAdditionalBlock(
                 BackupBlockAdditional.builder().publicKey(sharePrivateKey.getPublicKey()).hash("b").build());
 
         manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
+        repository.close();
     }
 
     @AfterEach
-    public void teardown() {
+    public void teardown() throws IOException {
         InstanceFactory.shutdown();
         InstanceFactory.waitForShutdown();
         deleteDir(tempDir);

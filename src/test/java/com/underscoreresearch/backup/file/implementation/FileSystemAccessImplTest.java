@@ -54,12 +54,12 @@ class FileSystemAccessImplTest {
         for (int i = read.length / 2; i < read.length; i++)
             assertThat("Position " + i, read[i], Is.is((byte) 0));
 
-        access.truncate(normalizedRoot + "f1", data.length / 2);
+        access.completeFile(new BackupFile(), normalizedRoot + "f1", data.length / 2);
         BackupFile expectedFile = BackupFile.builder().path(normalizedRoot + "f1")
                 .lastChanged(new File(tempDir, "f1").lastModified()).length((long) data.length / 2).build();
         assertThat(expectedFile.isDirectory(), Is.is(false));
 
-        access.truncate(normalizedRoot + "f1", data.length / 2);
+        access.completeFile(new BackupFile(), normalizedRoot + "f1", data.length / 2);
         assertThat(new File(tempDir, "f1").length(), Is.is((long) data.length / 2));
 
         TreeSet<BackupFile> set = new TreeSet<>();

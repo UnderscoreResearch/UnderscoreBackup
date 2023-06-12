@@ -31,6 +31,7 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
@@ -45,7 +46,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
 @CommandPlugin(value = "change-password", description = "Change the password of an existing key",
-        needConfiguration = false)
+        needConfiguration = false, readonlyRepository = false)
 public class ChangePasswordCommand extends Command {
     public static String changePrivateKeyPassword(CommandLine commandLine, String oldPassword, String newPassword) throws IOException {
         EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
@@ -96,7 +97,8 @@ public class ChangePasswordCommand extends Command {
                     repository,
                     fileName,
                     newKey,
-                    oldPrivateKey);
+                    oldPrivateKey,
+                    null);
 
             changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
             repository.flushLogging();
@@ -160,9 +162,10 @@ public class ChangePasswordCommand extends Command {
                                                MetadataRepository repository,
                                                File keyFile,
                                                EncryptionKey publicKey,
-                                               EncryptionKey.PrivateKey oldPrivateKey) throws IOException {
+                                               EncryptionKey.PrivateKey oldPrivateKey,
+                                               BackupStatsLogger statsLogger) throws IOException {
             super(configuration, manifestLocation, provider, encryptor, rateLimitController, serviceManager,
-                    installationIdentity, null, false, publicKey);
+                    installationIdentity, null, false, publicKey, statsLogger);
 
             this.keyFile = keyFile;
             this.repository = repository;

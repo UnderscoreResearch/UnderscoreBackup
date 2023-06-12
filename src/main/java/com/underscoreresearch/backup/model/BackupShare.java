@@ -24,7 +24,7 @@ public class BackupShare {
     @JsonIgnore
     public BackupActivatedShare activatedShare(String sourceId, String shareId) {
         return BackupActivatedShare.builder()
-                .share(toBuilder().destination(getDestination().shareDestination(sourceId, shareId)).build())
+                .share(toBuilder().destination(getDestination().sourceShareDestination(sourceId, shareId)).build())
                 .usedDestinations(new HashSet<>())
                 .build();
     }

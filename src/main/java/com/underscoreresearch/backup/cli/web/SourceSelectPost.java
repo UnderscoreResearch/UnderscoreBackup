@@ -125,7 +125,7 @@ public class SourceSelectPost extends JsonWrap {
                     expandSourceManifestDestination(BACKUP_CONFIGURATION_READER.readValue(config),
                             destination));
         } catch (Exception exc) {
-            log.error("Could not download share configuration", exc);
+            log.warn("Could not download share configuration", exc);
             return null;
         }
     }
@@ -146,7 +146,7 @@ public class SourceSelectPost extends JsonWrap {
                     sourceDefinition.getEncryptionMode(), privateKey,
                     destinationDecode(sourceDefinition.getDestination())));
 
-            String config = downloadRemoteConfiguration(destination, privateKey);
+            String config = downloadRemoteConfiguration(destination.sourceShareDestination(source, null), privateKey);
 
             writeSourceKey(source, privateKey.getParent().publicOnly());
 
@@ -154,6 +154,7 @@ public class SourceSelectPost extends JsonWrap {
                     expandSourceManifestDestination(BACKUP_CONFIGURATION_READER.readValue(config),
                             destination));
         } catch (Exception exc) {
+            log.warn("Could not download source configuration", exc);
             return null;
         }
     }
@@ -197,6 +198,7 @@ public class SourceSelectPost extends JsonWrap {
             try {
                 config = downloadRemoteConfiguration(source, password);
             } catch (Exception exc) {
+                log.warn("Could not download source configuration", exc);
                 InstanceFactory.reloadConfiguration(null);
                 return messageJson(403, "Could not download source configuration");
             }
@@ -283,8 +285,9 @@ public class SourceSelectPost extends JsonWrap {
                     InstanceFactory.reloadConfigurationWithSource();
                     sourceConfig = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
                 } catch (Exception exc2) {
+                    log.error("Failed to validate source configuration file", exc);
                     InstanceFactory.reloadConfiguration(null);
-                    return messageJson(403, "Could not download source configuration");
+                    return messageJson(403, "Source configuration not supported");
                 }
             }
 

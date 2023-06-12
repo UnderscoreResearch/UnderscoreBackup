@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.stream.Stream;
 
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -69,13 +68,13 @@ public interface MetadataRepository {
 
     void close() throws IOException;
 
-    Stream<BackupFile> allFiles(boolean ascending) throws IOException;
+    CloseableStream<BackupFile> allFiles(boolean ascending) throws IOException;
 
-    Stream<BackupBlock> allBlocks() throws IOException;
+    CloseableStream<BackupBlock> allBlocks() throws IOException;
 
-    Stream<BackupFilePart> allFileParts() throws IOException;
+    CloseableStream<BackupFilePart> allFileParts() throws IOException;
 
-    Stream<BackupDirectory> allDirectories(boolean ascending) throws IOException;
+    CloseableStream<BackupDirectory> allDirectories(boolean ascending) throws IOException;
 
     void addPendingSets(BackupPendingSet scheduledTime) throws IOException;
 
@@ -111,5 +110,9 @@ public interface MetadataRepository {
 
     void removeUpdatedFile(BackupUpdatedFile file) throws IOException;
 
-    Stream<BackupUpdatedFile> getUpdatedFiles() throws IOException;
+    CloseableStream<BackupUpdatedFile> getUpdatedFiles() throws IOException;
+
+    void upgradeStorage() throws IOException;
+
+    <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException;
 }

@@ -83,6 +83,7 @@ export interface BackupManifest {
     configPassword?: string
     interactiveBackup?: boolean,
     initialSetup?: boolean,
+    ignorePermissions?: boolean
 }
 
 export interface BackupDestination {
@@ -196,7 +197,8 @@ export interface BackupRestoreRequest {
     files: BackupSetRoot[],
     overwrite: boolean,
     timestamp?: number,
-    includeDeleted?: boolean
+    includeDeleted?: boolean,
+    skipPermissions?: boolean
 }
 
 export interface ActiveShares {

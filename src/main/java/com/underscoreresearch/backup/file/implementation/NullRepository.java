@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.stream.Stream;
 
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableStream;
+import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -77,7 +79,16 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public Stream<BackupUpdatedFile> getUpdatedFiles() throws IOException {
+    public CloseableStream<BackupUpdatedFile> getUpdatedFiles() throws IOException {
+        return null;
+    }
+
+    @Override
+    public void upgradeStorage() throws IOException {
+    }
+
+    @Override
+    public <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException {
         return null;
     }
 
@@ -198,22 +209,22 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public Stream<BackupFile> allFiles(boolean ascending) throws IOException {
+    public CloseableStream<BackupFile> allFiles(boolean ascending) throws IOException {
         return null;
     }
 
     @Override
-    public Stream<BackupBlock> allBlocks() throws IOException {
+    public CloseableStream<BackupBlock> allBlocks() throws IOException {
         return null;
     }
 
     @Override
-    public Stream<BackupFilePart> allFileParts() throws IOException {
+    public CloseableStream<BackupFilePart> allFileParts() throws IOException {
         return null;
     }
 
     @Override
-    public Stream<BackupDirectory> allDirectories(boolean ascending) throws IOException {
+    public CloseableStream<BackupDirectory> allDirectories(boolean ascending) throws IOException {
         return null;
     }
 

@@ -14,6 +14,7 @@ import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -32,7 +33,8 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                                String installationIdentity,
                                String source,
                                boolean forceIdentity,
-                               EncryptionKey publicKey)
+                               EncryptionKey publicKey,
+                               BackupStatsLogger statsLogger)
             throws IOException {
         super(configuration,
                 manifestLocation,
@@ -43,7 +45,8 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                 installationIdentity,
                 source,
                 forceIdentity,
-                publicKey);
+                publicKey,
+                statsLogger);
     }
 
     public List<StatusLine> status() {

@@ -2,8 +2,8 @@ package com.underscoreresearch.backup.cli.helpers;
 
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -14,15 +14,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.mapdb.DB;
-import org.mapdb.DBMaker;
-import org.mapdb.HTreeMap;
-import org.mapdb.Serializer;
-
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
+import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
@@ -44,9 +41,8 @@ public class BlockRefresher extends SchedulerImpl {
     private final long maximumRefreshed;
     private final ManifestManager manifestManager;
 
-    private DB processedBlockDb;
-    private HTreeMap<String, Boolean> processedBlockMap;
     private Set<String> activatedShares;
+    private CloseableMap<String, Boolean> processedBlockMap;
 
     public BlockRefresher(int maximumConcurrency,
                           BlockDownloader blockDownloader,
@@ -74,17 +70,22 @@ public class BlockRefresher extends SchedulerImpl {
         }
 
         if (processedBlockMap == null) {
-            File tempFile = File.createTempFile("block", ".db");
+            processedBlockMap = repository.temporaryMap(new MapSerializer<String, Boolean>() {
+                @Override
+                public byte[] encodeKey(String s) {
+                    return s.getBytes(StandardCharsets.UTF_8);
+                }
 
-            tempFile.delete();
+                @Override
+                public byte[] encodeValue(Boolean aBoolean) {
+                    return new byte[]{aBoolean ? (byte) 1 : 0};
+                }
 
-            processedBlockDb = DBMaker
-                    .fileDB(tempFile)
-                    .fileMmapEnableIfSupported()
-                    .fileDeleteAfterClose()
-                    .make();
-            processedBlockMap = processedBlockDb.hashMap("USED_BLOCKS", Serializer.STRING,
-                    Serializer.BOOLEAN).createOrOpen();
+                @Override
+                public Boolean decodeValue(byte[] data) {
+                    return data[0] != 0;
+                }
+            });
             refreshedBlocks.set(0);
             uploadedSize.set(0);
         }
@@ -181,12 +182,12 @@ public class BlockRefresher extends SchedulerImpl {
 
         postPending();
 
-        if (processedBlockDb != null) {
-            processedBlockMap.close();
-            processedBlockDb = null;
-        }
-        if (processedBlockDb != null) {
-            processedBlockDb.close();
+        if (processedBlockMap != null) {
+            try {
+                processedBlockMap.close();
+            } catch (IOException e) {
+                log.error("Failed to close temporary refresh block map", e);
+            }
             processedBlockMap = null;
         }
     }

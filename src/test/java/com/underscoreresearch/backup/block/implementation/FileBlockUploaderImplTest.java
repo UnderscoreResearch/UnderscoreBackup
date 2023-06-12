@@ -1,10 +1,12 @@
 package com.underscoreresearch.backup.block.implementation;
 
+import static com.underscoreresearch.backup.io.implementation.FileIOProvider.FILE_TYPE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +32,7 @@ import com.underscoreresearch.backup.model.BackupCompletion;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupManifest;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
@@ -65,8 +68,11 @@ class FileBlockUploaderImplTest {
         return BackupConfiguration.builder()
                 .sets(Lists.newArrayList(set))
                 .destinations(ImmutableMap.of(
-                        "dest1", BackupDestination.builder().encryption("AES256").errorCorrection("RS").build(),
-                        "dest2", BackupDestination.builder().encryption("NONE").errorCorrection("NONE").build()))
+                        "dest1", BackupDestination.builder().encryption("AES256")
+                                .endpointUri(new File(".").getAbsolutePath()).type(FILE_TYPE).errorCorrection("RS").build(),
+                        "dest2", BackupDestination.builder().encryption("NONE")
+                                .endpointUri(new File(".").getAbsolutePath()).type(FILE_TYPE).errorCorrection("NONE").build()))
+                .manifest(BackupManifest.builder().destination("dest2").build())
                 .build();
     }
 

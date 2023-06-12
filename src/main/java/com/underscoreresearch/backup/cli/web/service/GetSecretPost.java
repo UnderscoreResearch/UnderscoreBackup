@@ -36,8 +36,6 @@ import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.GetSecretRequest;
 import com.underscoreresearch.backup.service.api.model.GetSecretResponse;

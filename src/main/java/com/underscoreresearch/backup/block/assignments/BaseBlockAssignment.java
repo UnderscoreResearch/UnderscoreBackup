@@ -17,11 +17,16 @@ import com.underscoreresearch.backup.model.BackupBlockCompletion;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
-public abstract class BaseBlockAssignment implements FileBlockAssignment, StatusLogger {
+public abstract class BaseBlockAssignment implements FileBlockAssignment, ManualStatusLogger {
     private List<Progress> backupPartialFiles = new ArrayList<>();
+
+    public BaseBlockAssignment() {
+        StateLogger.addLogger(this);
+    }
 
     @Override
     public void resetStatus() {

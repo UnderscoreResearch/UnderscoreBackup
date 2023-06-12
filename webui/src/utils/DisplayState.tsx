@@ -115,11 +115,14 @@ export function calculateDisplayState(appContext: ApplicationContext,
                     ret.navigation.sources =
                         ret.navigation.share =
                             ret.navigation.settings = false;
-                if (activityContext.activity.some(item => item.code.startsWith("REPLAY_"))) {
+                if (!validConfig) {
+                    ret.navigation.restore = false;
+                }
+                if (activityContext.activity
+                    .some(item => item.code.startsWith("REPLAY_" || item.code.startsWith("UPGRADE_")))) {
                     busyStatus(ret, `Syncing Contents From ${appContext.selectedSourceName}`);
                     ret.rebuildInProgress = true;
                 } else {
-
                     if (activityContext.activity.some(item => item.code.startsWith("RESTORE_"))) {
                         busyStatus(ret, `Restore From ${appContext.selectedSourceName} In Progress`);
                         ret.restoreInProgress = true;
@@ -135,10 +138,13 @@ export function calculateDisplayState(appContext: ApplicationContext,
                 } else if (activityContext.activity.some(item => item.code.startsWith("REPLAY_"))) {
                     busyStatus(ret, "Replaying From Backup");
                     ret.rebuildInProgress = true;
+                } else if (activityContext.activity.some(item => item.code.startsWith("UPGRADE_"))) {
+                    busyStatus(ret, "Upgrading Repository Storage");
+                    ret.rebuildInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("OPTIMIZING_"))) {
                     busyStatus(ret, "Optimizing Log");
                 } else {
-                    ret.statusTitle = "Currently Inactive";
+                    ret.statusTitle = "Idle";
 
                     ret.backupCanStart = true;
                     ret.processing = false;
@@ -181,6 +187,11 @@ export function calculateDisplayState(appContext: ApplicationContext,
         default:
             ret.invalidPage = ret.navigation.unresponsive = true;
             break;
+    }
+
+    if (appContext.isBusy() && !ret.processing) {
+        ret.processing = true;
+        ret.statusTitle = "Processing";
     }
 
     return ret;

@@ -10,7 +10,7 @@ export interface StatusRowProps {
     doubleLine?: boolean,
     etaOnly?: boolean,
     dangerous?: boolean,
-    link?: React.ReactNode
+    action?: React.ReactNode
 }
 
 function trimValueIfNeeded(props: StatusRowProps) {
@@ -57,13 +57,13 @@ export function StatusRow(props: StatusRowProps) {
     }
     if (props.doubleLine && !props.hideValueString) {
         hasSecondRow = true;
-    } else if (props.link) {
+    } else if (props.action && props.row.valueString) {
         hasSecondRow = true;
     }
     const className = hasSecondRow ? "cell-with-second-line" : "cell-without-progress";
     const theme = useTheme();
 
-    const background = props.dangerous ? theme.theme.palette.error.main :  theme.theme.palette.background.default;
+    const background = props.dangerous ? theme.theme.palette.error.main : theme.theme.palette.background.default;
 
     return <React.Fragment key={props.row.code}>
         {props.doubleLine ?
@@ -71,13 +71,15 @@ export function StatusRow(props: StatusRowProps) {
                 <TableRow
                     sx={{'&:last-child td, &:last-child th': {border: 0}}}
                 >
-                    <TableCell className={className} colSpan={2} style={{paddingBottom: 0, backgroundColor: background}}>
+                    <TableCell className={className} colSpan={2}
+                               style={{paddingBottom: 0, backgroundColor: background}}>
                         {trimDescriptionIfNeeded(props)}
                     </TableCell>
                 </TableRow>
                 {!props.hideValueString &&
                     <TableRow>
-                        <TableCell style={{paddingTop: 0, backgroundColor: background}} className={className} align="right"
+                        <TableCell style={{paddingTop: 0, backgroundColor: background}} className={className}
+                                   align="right"
                                    colSpan={2}><b>{props.row.valueString}</b></TableCell>
                     </TableRow>
                 }
@@ -89,8 +91,16 @@ export function StatusRow(props: StatusRowProps) {
                 <TableCell className={className} style={{backgroundColor: background}}>
                     {trimDescriptionIfNeeded(props)}
                 </TableCell>
-                {!props.hideValueString &&
-                    <TableCell className={className} align="right" style={{backgroundColor: background}}><b>{trimValueIfNeeded(props)}</b></TableCell>
+                {props.action && !props.row.valueString ?
+                    <TableCell className={className} align="right"
+                               style={{backgroundColor: background}}>{props.action}</TableCell>
+                    :
+                    <>
+                        {!props.hideValueString &&
+                            <TableCell className={className} align="right"
+                                       style={{backgroundColor: background}}><b>{trimValueIfNeeded(props)}</b></TableCell>
+                        }
+                    </>
                 }
             </TableRow>
         }
@@ -103,10 +113,11 @@ export function StatusRow(props: StatusRowProps) {
             </TableRow>
         }
         {
-            props.link &&
+            props.action && props.row.valueString &&
             <TableRow>
-                <TableCell style={{paddingTop: "4px", backgroundColor: background}} component="th" scope="row" colSpan={2} align={"right"}>
-                    {props.link}
+                <TableCell style={{paddingTop: "4px", backgroundColor: background}} component="th" scope="row"
+                           colSpan={2} align={"right"}>
+                    {props.action}
                 </TableCell>
             </TableRow>
         }

@@ -63,7 +63,7 @@ public class BackupDestination {
 
     @JsonIgnore
     public BackupDestination strippedDestination(String sourceId, String shareId) {
-        return shareDestination(sourceId, shareId).toBuilder()
+        return sourceShareDestination(sourceId, shareId).toBuilder()
                 .credential(null).limits(null).principal(null).maxRetention(null).build();
     }
 
@@ -73,20 +73,27 @@ public class BackupDestination {
     }
 
     @JsonIgnore
-    public BackupDestination shareDestination(String sourceId, String shareId) {
-        String shareUri = endpointUri;
+    public BackupDestination sourceShareDestination(String sourceId, String shareId) {
+        if (isServiceDestination()) {
+            String shareUri = endpointUri;
 
-        // Strip off any share ID that might already be there.
-        int firstRegion = shareUri.indexOf("/");
-        if (firstRegion > 0) {
-            shareUri = shareUri.substring(0, firstRegion);
-        }
+            // Strip off any share ID that might already be there.
+            int firstRegion = shareUri.indexOf("/");
+            if (firstRegion > 0) {
+                shareUri = shareUri.substring(0, firstRegion);
+            }
 
-        // Add the share ID if it's not null.
-        if (sourceId != null && shareId != null && isServiceDestination()) {
-            shareUri = shareUri + "/" + sourceId + "/" + shareId;
+            // Add the source and share ID if it's not null.
+            if (sourceId != null) {
+                if (shareId != null) {
+                    shareUri = shareUri + "/" + sourceId + "/" + shareId;
+                } else {
+                    shareUri = shareUri + "/" + sourceId;
+                }
+            }
+            return toBuilder().endpointUri(shareUri).build();
         }
-        return toBuilder().endpointUri(shareUri).build();
+        return this;
     }
 
 }

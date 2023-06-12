@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.BackupSearchAccessImpl;
@@ -78,8 +79,8 @@ public class SearchBackupFilesGet extends JsonWrap {
         List<BackupFile> ret = new ArrayList<>();
 
         try (CloseableLock interrupt = access.acquireLock()) {
-            try {
-                access.searchFiles(pattern, interrupt).forEach(item -> {
+            try (CloseableStream<BackupFile> files = access.searchFiles(pattern, interrupt)) {
+                files.stream().forEach(item -> {
                     ret.add(item);
                     if (ret.size() == MAX_HITS) {
                         throw new BackupSearchAccessImpl.InterruptedSearch();

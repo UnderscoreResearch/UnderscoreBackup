@@ -49,7 +49,7 @@ class FileScannerImplTest {
     public void setup() throws IOException {
         manifestLocation = Files.createTempDirectory("manifest").toFile();
         tempDir = Files.createTempDirectory("test").toFile();
-        repository = new LoggingMetadataRepository(new MapdbMetadataRepository(tempDir.getPath(), false),
+        repository = new LoggingMetadataRepository(new LockingMetadataRepository(tempDir.getPath(), false),
                 Mockito.mock(ManifestManager.class), false);
         repository.open(false);
 
@@ -122,6 +122,7 @@ class FileScannerImplTest {
 
     @AfterEach
     public void teardown() throws IOException {
+        repository.close();
         deleteDir(tempDir);
         deleteDir(manifestLocation);
     }

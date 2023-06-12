@@ -14,11 +14,12 @@ import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class UploadSchedulerImpl extends SchedulerImpl implements StatusLogger, UploadScheduler {
+public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLogger, UploadScheduler {
     public static final String PREFIX = "blocks" + PATH_SEPARATOR;
     private final RateLimitController rateLimitController;
     private AtomicLong totalSize = new AtomicLong();
@@ -26,6 +27,7 @@ public class UploadSchedulerImpl extends SchedulerImpl implements StatusLogger, 
 
     public UploadSchedulerImpl(int maximumConcurrency, RateLimitController rateLimitController) {
         super(maximumConcurrency);
+        StateLogger.addLogger(this);
         this.rateLimitController = rateLimitController;
     }
 

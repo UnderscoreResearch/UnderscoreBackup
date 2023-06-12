@@ -50,5 +50,5 @@ it('backup', function () {
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageStatus > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('#currentProgress').contains("Backup In Progress");
-    cy.get('#currentProgress').contains("Currently Inactive", {timeout: 10 * 60 * 1000});
+    cy.get('#currentProgress').contains("Idle", {timeout: 10 * 60 * 1000});
 });

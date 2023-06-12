@@ -2,7 +2,8 @@ import React, {useEffect} from "react";
 import {getActivity, listActiveShares, StatusLine} from "../api";
 
 interface ActivityState {
-    unresponsive?: boolean,
+    loading: boolean,
+    unresponsive: boolean,
     activity: StatusLine[],
     activatedShares?: string[]
 }
@@ -13,23 +14,28 @@ export interface ActivityContext extends ActivityState {
 
 const activityContext = React.createContext({} as ActivityContext);
 
-const unresponsiveState: ActivityState = {
-    unresponsive: true,
+const initialState: ActivityState = {
+    loading: true,
+    unresponsive: false,
     activity: []
 };
 
-let lastState: ActivityState = unresponsiveState;
+let lastState: ActivityState = initialState;
 
 function generateActivityContext(): ActivityContext {
-    const [state, setState] = React.useState(unresponsiveState);
+    const [state, setState] = React.useState(initialState);
 
     async function update() {
         const activity = await getActivity(false);
         let newState: ActivityState
         if (activity === undefined) {
-            newState = unresponsiveState;
+            newState = {
+                ...state,
+                unresponsive: true,
+            };
         } else {
             newState = {
+                loading: false,
                 unresponsive: false,
                 activity: activity
             }

@@ -23,7 +23,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
@@ -47,14 +46,13 @@ import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetDestinations;
 import com.underscoreresearch.backup.model.BackupSetRoot;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 import com.underscoreresearch.backup.utils.state.MachineState;
 
-@RequiredArgsConstructor
 @Slf4j
-public class FileScannerImpl implements FileScanner, StatusLogger {
-
+public class FileScannerImpl implements FileScanner, ManualStatusLogger {
     private final MetadataRepository repository;
     private final FileConsumer consumer;
     private final FileSystemAccess filesystem;
@@ -70,8 +68,19 @@ public class FileScannerImpl implements FileScanner, StatusLogger {
     private boolean shutdown;
     private Stopwatch duration;
     private BackupFile lastProcessed;
-
     private Duration lastPath;
+
+    public FileScannerImpl(MetadataRepository repository, FileConsumer consumer, FileSystemAccess filesystem,
+                           MachineState machineState, boolean debug, String manifestLocation) {
+        this.repository = repository;
+        this.consumer = consumer;
+        this.filesystem = filesystem;
+        this.machineState = machineState;
+        this.debug = debug;
+        this.manifestLocation = manifestLocation;
+
+        StateLogger.addLogger(this);
+    }
 
     @Override
     public boolean startScanning(BackupSet backupSet) throws IOException {

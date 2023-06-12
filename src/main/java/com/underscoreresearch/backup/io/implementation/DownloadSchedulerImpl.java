@@ -30,11 +30,12 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger, DownloadScheduler {
+public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatusLogger, DownloadScheduler {
     private final FileDownloader fileDownloader;
     private AtomicLong totalSize = new AtomicLong();
     private AtomicLong totalCount = new AtomicLong();
@@ -50,6 +51,8 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements StatusLogger
                                  FileDownloader fileDownloader) {
         super(maximumConcurrency);
         this.fileDownloader = fileDownloader;
+
+        StateLogger.addLogger(this);
     }
 
     @Override

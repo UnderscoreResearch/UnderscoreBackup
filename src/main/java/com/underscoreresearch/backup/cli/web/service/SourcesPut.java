@@ -168,6 +168,7 @@ public class SourcesPut extends JsonWrap {
     public static class UpdateSourceRequest extends PrivateKeyRequest {
         private String sourceId;
         private String name;
+        private boolean force;
     }
 
     private static class Implementation extends ExclusiveImplementation {
@@ -190,7 +191,7 @@ public class SourcesPut extends JsonWrap {
 
                 String identity = InstanceFactory.getInstance(CommandLineModule.INSTALLATION_IDENTITY);
 
-                if (InstanceFactory.hasConfiguration(false) && existingKey != null) {
+                if (!request.force && InstanceFactory.hasConfiguration(false) && existingKey != null) {
                     if (!Objects.equals(sourceDefinition.getIdentity(), identity)) {
                         return messageJson(400, "Trying to adopt a source with existing config");
                     }

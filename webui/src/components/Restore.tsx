@@ -47,7 +47,8 @@ export interface RestorePropsChange {
     destination?: string,
     overwrite: boolean,
     source?: string,
-    includeDeleted?: boolean
+    includeDeleted?: boolean,
+    skipPermissions?: boolean
 }
 
 export interface RestoreProps {
@@ -71,6 +72,7 @@ export interface RestoreState {
     overwrite: boolean,
     destination?: string,
     includeDeleted?: boolean,
+    skipPermissions?: boolean,
     serviceSources?: SourceResponse[]
     serviceShares?: ShareResponse[]
 }
@@ -123,6 +125,7 @@ export default function Restore(props: RestoreProps) {
                 source: newState.source,
                 destination: newState.destination,
                 includeDeleted: newState.includeDeleted,
+                skipPermissions: newState.skipPermissions,
                 roots: newState.roots
             });
         }
@@ -278,7 +281,7 @@ export default function Restore(props: RestoreProps) {
                                     (e) => {
                                         updateState({
                                             ...state,
-                                            source: e.target.value,
+                                            source: e.target.value as string,
                                         })
                                     }
                                 }
@@ -291,13 +294,16 @@ export default function Restore(props: RestoreProps) {
                                 {localSources.length > 0 &&
                                     <Divider>Local Sources</Divider>
                                 }
-                                {localSources.sort().map(str =>
-                                    <MenuItem key={str.id} value={str.id}>{str.id}</MenuItem>
-                                )}
+                                {localSources
+                                    .sort((a, b) => a.id.toUpperCase().localeCompare(b.id.toLocaleUpperCase()))
+                                    .map(str =>
+                                        <MenuItem key={str.id} value={str.id}>{str.id}</MenuItem>
+                                    )}
                                 {state.serviceSources && state.serviceSources.length > 0 &&
                                     <Divider>Service Sources</Divider>
                                 }
                                 {(state.serviceSources ? state.serviceSources : [])
+                                    .sort((a, b) => a.name.toUpperCase().localeCompare(b.name.toLocaleUpperCase()))
                                     .map((source) =>
                                         <MenuItem key={source.sourceId} value={source.sourceId}>{source.name}</MenuItem>
                                     )}
@@ -305,6 +311,7 @@ export default function Restore(props: RestoreProps) {
                                     <Divider>Service Shares</Divider>
                                 }
                                 {(state.serviceShares ? state.serviceShares : [])
+                                    .sort((a, b) => a.name.toUpperCase().localeCompare(b.name.toLocaleUpperCase()))
                                     .map((share) =>
                                         <MenuItem key={share.shareId} value={share.shareId}>{share.name}</MenuItem>
                                     )}
@@ -409,7 +416,7 @@ export default function Restore(props: RestoreProps) {
             <Paper sx={{
                 p: 2
             }}>
-                <DividerWithText>Restore location</DividerWithText>
+                <DividerWithText>Restore options</DividerWithText>
                 <div style={{display: "flex", alignContent: "center", marginTop: "0.5em"}}>
                     <FormControlLabel control={<Checkbox
                         disabled={state.destination === "-" || state.destination === "="}
@@ -482,7 +489,16 @@ export default function Restore(props: RestoreProps) {
                                                }
                                            }}/>} label="Compare against local files"
                         style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
-
+                    <FormControlLabel
+                        control={<Checkbox checked={!state.skipPermissions}
+                                           onChange={(e) => {
+                                               updateState({
+                                                   ...state,
+                                                   skipPermissions: !e.target.checked
+                                               });
+                                           }
+                                           }/>} label="Restore permissions"
+                        style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
                 </div>
             </Paper>
         </Stack>

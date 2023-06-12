@@ -18,12 +18,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Stream;
 
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -35,11 +35,12 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
 @Slf4j
-public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
+public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogger {
     private static final int MAX_PENDING_FILES = 100;
     private final Lock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
@@ -278,6 +279,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
         public void run() {
             lock.lock();
             try {
+                StateLogger.addLogger(ContinuousBackupImpl.this);
                 long nextFlush = 0;
                 while (!shutdown) {
                     retry = false;
@@ -289,9 +291,8 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
                     // we are submitting files to the file consumer since it might block
                     // until the file is processed.
 
-                    try (CloseableLock ignore = repository.acquireUpdateLock()) {
-                        Stream<BackupUpdatedFile> files = repository.getUpdatedFiles();
-                        files.forEach(file -> {
+                    try (CloseableStream<BackupUpdatedFile> files = repository.getUpdatedFiles()) {
+                        files.stream().forEach(file -> {
                             if (file.getLastUpdated() > System.currentTimeMillis()) {
                                 knownWaitEpoch.set(file.getLastUpdated());
                                 throw new InterruptedScan();
@@ -353,6 +354,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, StatusLogger {
                     }
                 }
             } finally {
+                StateLogger.removeLogger(ContinuousBackupImpl.this);
                 thread = null;
                 condition.signalAll();
                 lock.unlock();

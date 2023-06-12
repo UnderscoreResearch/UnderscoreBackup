@@ -20,6 +20,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
@@ -54,11 +55,11 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
     }
 
     @Override
-    public Stream<BackupFile> searchFiles(Pattern pathPattern, CloseableLock interruptableLock) throws IOException {
+    public CloseableStream<BackupFile> searchFiles(Pattern pathPattern, CloseableLock interruptableLock) throws IOException {
         AtomicReference<List<BackupFile>> filesPerPath = new AtomicReference<>(new ArrayList<>());
         AtomicReference<String> currentPath = new AtomicReference<>();
-        return repository.allFiles(true)
-                .map(file -> {
+        CloseableStream<BackupFile> closeableStream = repository.allFiles(true);
+        Stream<BackupFile> stream = closeableStream.stream().map(file -> {
                     if (interruptableLock.requested()) {
                         throw new InterruptedSearch();
                     }
@@ -83,6 +84,18 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
                 .filter(files -> files != null)
                 .map(files -> findSearchFile(files))
                 .filter(file -> file != null);
+
+        return new CloseableStream<>() {
+            @Override
+            public Stream<BackupFile> stream() {
+                return stream;
+            }
+
+            @Override
+            public void close() throws IOException {
+                closeableStream.close();
+            }
+        };
     }
 
     private BackupFile findSearchFile(List<BackupFile> files) {

@@ -22,9 +22,7 @@ public class RestoreModule extends AbstractModule {
     public static final String DOWNLOAD_THREADS = "DOWNLOAD_THREADS";
     private static final int DEFAULT_DOWNLOAD_THREADS = 4;
 
-    @Named(DOWNLOAD_THREADS)
-    @Provides
-    public int getDownloadThreads(BackupConfiguration configuration) {
+    public static int getGlobalDownloadThreads(BackupConfiguration configuration) {
         int threads;
         if (configuration.getLimits() == null || configuration.getLimits().getMaximumDownloadThreads() == null)
             threads = DEFAULT_DOWNLOAD_THREADS;
@@ -33,9 +31,16 @@ public class RestoreModule extends AbstractModule {
         return threads;
     }
 
+    @Named(DOWNLOAD_THREADS)
+    @Provides
+    public int getDownloadThreads(BackupConfiguration configuration) {
+        return getGlobalDownloadThreads(configuration);
+    }
+
     @Singleton
     @Provides
-    public DownloadSchedulerImpl downloadSchedulerImpl(@Named(DOWNLOAD_THREADS) int threads, FileDownloader fileDownloader) {
+    public DownloadSchedulerImpl downloadSchedulerImpl(@Named(DOWNLOAD_THREADS) int threads,
+                                                       FileDownloader fileDownloader) {
         return new DownloadSchedulerImpl(threads, fileDownloader);
     }
 

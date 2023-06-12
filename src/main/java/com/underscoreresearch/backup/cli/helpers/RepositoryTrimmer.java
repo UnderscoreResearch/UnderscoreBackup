@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.mapdb.DB;
@@ -41,6 +40,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
+import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
@@ -60,12 +60,12 @@ import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupRetention;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.utils.LogUtil;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
 
-@RequiredArgsConstructor
 @Slf4j
-public class RepositoryTrimmer implements StatusLogger {
+public class RepositoryTrimmer implements ManualStatusLogger {
     private final MetadataRepository metadataRepository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
@@ -88,6 +88,15 @@ public class RepositoryTrimmer implements StatusLogger {
                     return ret.getFiles();
                 }
             });
+
+    public RepositoryTrimmer(MetadataRepository metadataRepository, BackupConfiguration configuration, ManifestManager manifestManager, boolean force) {
+        this.metadataRepository = metadataRepository;
+        this.configuration = configuration;
+        this.manifestManager = manifestManager;
+        this.force = force;
+
+        StateLogger.addLogger(this);
+    }
 
     @Override
     public void resetStatus() {
@@ -200,66 +209,69 @@ public class RepositoryTrimmer implements StatusLogger {
         if (!filesOnly) {
             log.info("Trimming blocks");
 
-            metadataRepository.allBlocks()
-                    .filter(t -> {
-                        processedSteps.incrementAndGet();
-                        boolean ret = !usedBlockMap.containsKey(t.getHash());
-                        if (!ret) {
-                            statistics.addBlocks(1);
-                            if (t.getStorage() != null)
-                                t.getStorage().stream().forEach(s -> statistics.addBlockParts(s.getParts().size()));
-                        }
-                        return ret;
-                    }).forEach(block -> {
-                        if (InstanceFactory.isShutdown())
-                            throw new InterruptedException();
-                        try {
-                            statistics.addDeletedBlocks(1);
-                            for (BackupBlockStorage storage : block.getStorage()) {
-                                IOProvider provider = IOProviderFactory.getProvider(
-                                        configuration.getDestinations().get(storage.getDestination()));
-                                for (String key : storage.getParts()) {
-                                    if (key != null) {
-                                        try {
-                                            provider.delete(key);
-                                            debug(() -> log.debug("Removing block part " + key));
-                                            statistics.addDeletedBlockParts(1);
-                                        } catch (IOException exc) {
-                                            log.error("Failed to delete part " + key + " from " + storage.getDestination(), exc);
-                                        }
+            try (CloseableStream<BackupBlock> blocks = metadataRepository.allBlocks()) {
+                blocks.stream().filter(t -> {
+                    processedSteps.incrementAndGet();
+                    boolean ret = !usedBlockMap.containsKey(t.getHash());
+                    if (!ret) {
+                        statistics.addBlocks(1);
+                        if (t.getStorage() != null)
+                            t.getStorage().stream().forEach(s -> statistics.addBlockParts(s.getParts().size()));
+                    }
+                    return ret;
+                }).forEach(block -> {
+                    if (InstanceFactory.isShutdown())
+                        throw new InterruptedException();
+                    try {
+                        statistics.addDeletedBlocks(1);
+                        for (BackupBlockStorage storage : block.getStorage()) {
+                            IOProvider provider = IOProviderFactory.getProvider(
+                                    configuration.getDestinations().get(storage.getDestination()));
+                            for (String key : storage.getParts()) {
+                                if (key != null) {
+                                    try {
+                                        provider.delete(key);
+                                        debug(() -> log.debug("Removing block part " + key));
+                                        statistics.addDeletedBlockParts(1);
+                                    } catch (IOException exc) {
+                                        log.error("Failed to delete part " + key + " from " + storage.getDestination(), exc);
                                     }
                                 }
                             }
-                            debug(() -> log.debug("Removing block " + block.getHash()));
-                            metadataRepository.deleteBlock(block);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
                         }
-                    });
+                        debug(() -> log.debug("Removing block " + block.getHash()));
+                        metadataRepository.deleteBlock(block);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
 
             log.info("Trimming partial references");
-            metadataRepository.allFileParts().forEach((part) -> {
-                if (InstanceFactory.isShutdown())
-                    throw new InterruptedException();
-                processedSteps.incrementAndGet();
+            try (CloseableStream<BackupFilePart> fileParts = metadataRepository.allFileParts()) {
+                fileParts.stream().forEach((part) -> {
+                    if (InstanceFactory.isShutdown())
+                        throw new InterruptedException();
+                    processedSteps.incrementAndGet();
 
-                try {
-                    if (metadataRepository.block(part.getBlockHash()) == null) {
-                        debug(() -> log.debug("Removing file part {} references non existing block {}",
-                                part.getPartHash(), part.getBlockHash()));
-                        statistics.addDeletedBlockPartReferences(1);
-                        metadataRepository.deleteFilePart(part);
+                    try {
+                        if (metadataRepository.block(part.getBlockHash()) == null) {
+                            debug(() -> log.debug("Removing file part {} references non existing block {}",
+                                    part.getPartHash(), part.getBlockHash()));
+                            statistics.addDeletedBlockPartReferences(1);
+                            metadataRepository.deleteFilePart(part);
+                        }
+                    } catch (IOException exc) {
+                        log.error("Encountered issue validating part {} for block {}", part.getPartHash(),
+                                part.getBlockHash());
                     }
-                } catch (IOException exc) {
-                    log.error("Encountered issue validating part {} for block {}", part.getPartHash(),
-                            part.getBlockHash());
-                }
-            });
+                });
 
-            log.info("Removed {} blocks with a total of {} parts and {} part references",
-                    readableNumber(statistics.getDeletedBlocks()),
-                    readableNumber(statistics.getDeletedBlockParts()),
-                    readableNumber(statistics.getDeletedBlockPartReferences()));
+                log.info("Removed {} blocks with a total of {} parts and {} part references",
+                        readableNumber(statistics.getDeletedBlocks()),
+                        readableNumber(statistics.getDeletedBlockParts()),
+                        readableNumber(statistics.getDeletedBlockPartReferences()));
+            }
         }
     }
 
@@ -274,36 +286,38 @@ public class RepositoryTrimmer implements StatusLogger {
 
         AtomicReference<String> lastParent = new AtomicReference<>(null);
 
-        metadataRepository.allFiles(false).forEachOrdered((file) -> {
-            if (InstanceFactory.isShutdown())
-                throw new InterruptedException();
+        try (CloseableStream<BackupFile> files = metadataRepository.allFiles(false)) {
+            files.stream().forEachOrdered((file) -> {
+                if (InstanceFactory.isShutdown())
+                    throw new InterruptedException();
 
-            if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
-                lastHeartbeat = stopwatch.elapsed();
-                log.info("Processing path {}", PathNormalizer.physicalPath(file.getPath()));
-            }
-            lastProcessed = file;
-
-            processedSteps.incrementAndGet();
-
-            if (fileVersions.size() > 0 && !file.getPath().equals(fileVersions.get(0).getPath())) {
-                try {
-                    processFiles(fileVersions, usedBlockMap, deletedPaths, filesOnly, statistics);
-
-                    if (deletedPaths != null) {
-                        String parent = findParent(file.getPath());
-                        if (!parent.equals(lastParent.get())) {
-                            lastParent.set(parent);
-                            processDeletedPaths(deletedPaths, parent, statistics);
-                        }
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
+                    lastHeartbeat = stopwatch.elapsed();
+                    log.info("Processing path {}", PathNormalizer.physicalPath(file.getPath()));
                 }
-                fileVersions.clear();
-            }
-            fileVersions.add(file);
-        });
+                lastProcessed = file;
+
+                processedSteps.incrementAndGet();
+
+                if (fileVersions.size() > 0 && !file.getPath().equals(fileVersions.get(0).getPath())) {
+                    try {
+                        processFiles(fileVersions, usedBlockMap, deletedPaths, filesOnly, statistics);
+
+                        if (deletedPaths != null) {
+                            String parent = findParent(file.getPath());
+                            if (!parent.equals(lastParent.get())) {
+                                lastParent.set(parent);
+                                processDeletedPaths(deletedPaths, parent, statistics);
+                            }
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    fileVersions.clear();
+                }
+                fileVersions.add(file);
+            });
+        }
 
         if (fileVersions.size() > 0) {
             processFiles(fileVersions, usedBlockMap, deletedPaths, filesOnly, statistics);
@@ -538,8 +552,8 @@ public class RepositoryTrimmer implements StatusLogger {
     }
 
     @Override
-    public void filterItems(List<StatusLine> lines, boolean temporal) {
-        if (stopwatch.isRunning() && temporal == isTemporal()) {
+    public void filterItems(List<StatusLine> lines) {
+        if (stopwatch.isRunning()) {
             for (int i = 0; i < lines.size(); ) {
                 String code = lines.get(i).getCode();
                 if (code.startsWith("TRIMMING_") || code.startsWith("HEAP_")) {
@@ -571,6 +585,8 @@ public class RepositoryTrimmer implements StatusLogger {
         private long deletedDirectories;
         private long deletedBlockParts;
         private long deletedBlockPartReferences;
+
+        private boolean needActivation;
 
         private synchronized void addFiles(long files) {
             this.files += files;

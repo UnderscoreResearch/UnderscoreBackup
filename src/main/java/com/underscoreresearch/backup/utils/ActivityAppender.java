@@ -55,8 +55,8 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
     }
 
     @Override
-    public boolean isTemporal() {
-        return true;
+    public Type type() {
+        return Type.LOG;
     }
 
     @Override

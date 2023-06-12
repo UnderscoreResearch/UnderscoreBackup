@@ -268,6 +268,7 @@ public class ServiceManagerImpl implements ServiceManager {
                     return true;
                 }
             }
+            return false;
         }
         return true;
     }
