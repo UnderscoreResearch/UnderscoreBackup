@@ -58,6 +58,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     public static final String IDENTITY_MANIFEST_LOCATION = "identity";
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.nnnnnnnnn").withZone(ZoneId.of("UTC"));
+    public static final String PUBLICKEY_FILENAME = "publickey.json";
     @Getter(AccessLevel.PROTECTED)
     private final BackupConfiguration configuration;
     @Getter(AccessLevel.PROTECTED)
@@ -130,7 +131,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected void uploadKeyData(EncryptionKey key) throws IOException {
-        uploadConfigData("publickey.json",
+        uploadConfigData(PUBLICKEY_FILENAME,
                 new ByteArrayInputStream(encryptionKeyForUpload(key)),
                 false);
     }
@@ -257,7 +258,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     protected void syncDestinationKey() throws IOException {
         byte[] keyData = null;
         try {
-            keyData = downloadData("publickey.json");
+            keyData = downloadData(PUBLICKEY_FILENAME);
         } catch (Exception exc) {
             try {
                 getProvider().checkCredentials(false);
@@ -294,7 +295,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected void uploadPublicKey(EncryptionKey encryptionKey) throws IOException {
-        uploadConfigData("publickey.json",
+        uploadConfigData(PUBLICKEY_FILENAME,
                 new ByteArrayInputStream(encryptionKeyForUpload(encryptionKey)),
                 false);
     }
@@ -312,12 +313,16 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         uploadData(filename, data);
     }
 
-    public byte[] encryptConfigData(InputStream inputStream) throws IOException {
+    public static byte[] compressConfigData(InputStream inputStream) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
             IOUtils.copyStream(inputStream, gzipStream);
         }
-        return encryptor.encryptBlock(null, outputStream.toByteArray(), publicKey);
+        return outputStream.toByteArray();
+    }
+
+    public byte[] encryptConfigData(InputStream inputStream) throws IOException {
+        return encryptor.encryptBlock(null, compressConfigData(inputStream), publicKey);
     }
 
     private String transformLogFilename(String path) {

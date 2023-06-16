@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
@@ -55,6 +56,7 @@ import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.BackupSearchAccess;
@@ -74,6 +76,9 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupShare;
+import com.underscoreresearch.backup.service.api.BackupApi;
+import com.underscoreresearch.backup.service.api.invoker.ApiException;
+import com.underscoreresearch.backup.service.api.model.MessageResponse;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.utils.AccessLock;
@@ -81,13 +86,18 @@ import com.underscoreresearch.backup.utils.NonClosingInputStream;
 
 @Slf4j
 public class OptimizingManifestManager extends BaseManifestManagerImpl implements ManifestManager {
+    public final static String CONFIGURATION_FILENAME = "configuration.json";
+    private static final String UPLOAD_PENDING = "Upload pending";
+
     @Getter(AccessLevel.PROTECTED)
     private final String source;
     private final BackupStatsLogger statsLogger;
+    @Getter(AccessLevel.PROTECTED)
+    private final AdditionalManifestManager additionalManifestManager;
+    @Getter(AccessLevel.PROTECTED)
+    private final Object operationLock = new Object();
     private Map<String, ShareManifestManager> activeShares;
     private boolean repositoryReady = true;
-    @Getter(AccessLevel.PROTECTED)
-    private Object operationLock = new Object();
     @Getter(AccessLevel.PROTECTED)
     private String operation;
     @Getter(AccessLevel.PROTECTED)
@@ -111,7 +121,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                                      String source,
                                      boolean forceIdentity,
                                      EncryptionKey publicKey,
-                                     BackupStatsLogger statsLogger)
+                                     BackupStatsLogger statsLogger,
+                                     AdditionalManifestManager additionalManifestManager)
             throws IOException {
         super(configuration,
                 configuration.getDestinations().get(configuration.getManifest().getDestination()),
@@ -125,10 +136,11 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 publicKey);
         this.source = source;
         this.statsLogger = statsLogger;
+        this.additionalManifestManager = additionalManifestManager;
     }
 
     protected void uploadPending(LogConsumer logConsumer) throws IOException {
-        startOperation("Upload pending");
+        startOperation(UPLOAD_PENDING);
         try {
             processedFiles = new AtomicLong(0);
             totalFiles = new AtomicLong(2);
@@ -137,7 +149,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
             processedFiles.incrementAndGet();
 
-            uploadConfigData("configuration.json",
+            uploadConfigData(CONFIGURATION_FILENAME,
                     new ByteArrayInputStream(InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8)),
                     true);
             processedFiles.incrementAndGet();
@@ -174,6 +186,31 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     }
 
     @Override
+    protected void uploadConfigData(String filename, InputStream inputStream, boolean encrypt) throws IOException {
+        byte[] unencryptedData;
+        byte[] data;
+        if (encrypt) {
+            validateIdentity();
+
+            unencryptedData = compressConfigData(inputStream);
+            data = getEncryptor().encryptBlock(null, unencryptedData, getPublicKey());
+        } else {
+            data = unencryptedData = IOUtils.readAllBytes(inputStream);
+        }
+        log.info("Uploading {} ({})", filename, readableSize(data.length));
+        uploadData(filename, data);
+
+        if (filename.equals(CONFIGURATION_FILENAME)) {
+            additionalManifestManager.uploadConfiguration(getConfiguration(), getPublicKey());
+        } else {
+            if (encrypt)
+                additionalManifestManager.uploadConfigurationData(filename, data, unencryptedData, getEncryptor(), getPublicKey());
+            else
+                additionalManifestManager.uploadConfigurationData(filename, data, null, null, null);
+        }
+    }
+
+    @Override
     public void updateServiceSourceData(EncryptionKey encryptionKey) throws IOException {
         if (getServiceManager().getToken() != null
                 && getServiceManager().getSourceName() != null
@@ -188,16 +225,25 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 }
             }
             String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.serviceOnlyKey());
-            getServiceManager().call(null, (api) -> api.updateSource(getServiceManager().getSourceId(),
-                    new SourceRequest()
-                            .identity(getInstallationIdentity())
-                            .name(getServiceManager().getSourceName())
-                            .destination(destinationData)
-                            .applicationUrl(getApplicationUrl())
-                            .encryptionMode(destination.getEncryption())
-                            .key(keyData)
-                            .version(VersionCommand.getVersionEdition())
-                            .sharingKey(encryptionKey.getSharingPublicKey())));
+            getServiceManager().call(null, new ServiceManager.ApiFunction<>() {
+                @Override
+                public boolean shouldRetryMissing(String region) {
+                    return region != null && !region.equals("us-west");
+                }
+
+                @Override
+                public MessageResponse call(BackupApi api) throws ApiException {
+                    return api.updateSource(getServiceManager().getSourceId(),
+                            new SourceRequest()
+                                    .identity(getInstallationIdentity())
+                                    .name(getServiceManager().getSourceName())
+                                    .destination(destinationData)
+                                    .applicationUrl(getApplicationUrl())
+                                    .encryptionMode(destination.getEncryption())
+                                    .key(keyData)
+                                    .version(VersionCommand.getVersionEdition())
+                                    .sharingKey(encryptionKey.getSharingPublicKey()));                }
+            });
         }
     }
 
@@ -213,6 +259,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     public void validateIdentity() {
         if (Strings.isNullOrEmpty(source)) {
             super.validateIdentity();
+
+            additionalManifestManager.validateIdentity(getInstallationIdentity(), isForceIdentity());
         }
     }
 
@@ -220,6 +268,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     public void storeIdentity() {
         if (Strings.isNullOrEmpty(source)) {
             super.storeIdentity();
+
+            additionalManifestManager.storeIdentity(getInstallationIdentity());
         }
     }
 
@@ -251,7 +301,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                     this::downloadData, getEncryptor(),
                     InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(password));
             logPrefetcher.start();
-            try {
+            try (CloseableLock ignored = repository.exclusiveLock()) {
                 for (String file : files) {
                     byte[] data = logPrefetcher.getLog(file);
 
@@ -441,6 +491,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
         }
 
         List<String> existingLogs = getExistingLogs();
+        additionalManifestManager.startOptimizeLog();
 
         setDisabledFlushing(true);
 
@@ -528,6 +579,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
             log.info("Deleting old log files ({})", existingLogs.size());
             deleteLogFiles(existingLogs);
+            additionalManifestManager.finishOptimizeLog();
         } finally {
             resetStatus();
 
@@ -585,7 +637,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
     @Override
     public boolean isBusy() {
-        return operation != null;
+        return operation != null && !operation.equals(UPLOAD_PENDING);
     }
 
     @Override
@@ -670,13 +722,16 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                                             .build();
                                     for (int i = 0; i < newStorage.size(); i++) {
                                         Map<String, String> oldProperties = block.getStorage().get(i).getProperties();
-                                        blockAdditional.getProperties().add(newStorage
-                                                .get(i)
-                                                .getProperties()
-                                                .entrySet()
-                                                .stream()
-                                                .filter((check) -> !check.getValue().equals(oldProperties.get(check.getKey())))
-                                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                                        if (newStorage.get(i).getProperties() != null) {
+                                            blockAdditional.getProperties().add(newStorage
+                                                    .get(i)
+                                                    .getProperties()
+                                                    .entrySet()
+                                                    .stream()
+                                                    .filter((check) -> !check.getValue().equals(oldProperties.get(check.getKey())))
+                                                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                                        } else
+                                            blockAdditional.getProperties().add(null);
                                     }
                                     try {
                                         repository.addAdditionalBlock(blockAdditional);

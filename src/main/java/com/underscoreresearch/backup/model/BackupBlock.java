@@ -67,9 +67,14 @@ public class BackupBlock {
         for (int i = 0; i < storage.size(); i++) {
             BackupBlockStorage cs = storage.get(i);
             BackupBlockStorage newStorage = cs.toBuilder()
-                    .properties(new HashMap<>(cs.getProperties()))
+                    .properties(cs.getProperties() != null ? new HashMap<>(cs.getProperties()) : null)
                     .build();
-            newStorage.getProperties().putAll(blockAdditional.getProperties().get(i));
+            if (blockAdditional.getProperties().get(i) != null) {
+                if (newStorage.getProperties() == null) {
+                    newStorage.setProperties(new HashMap<>());
+                }
+                newStorage.getProperties().putAll(blockAdditional.getProperties().get(i));
+            }
             newStorages.add(newStorage);
         }
         return toBuilder().storage(newStorages).build();

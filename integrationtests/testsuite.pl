@@ -190,18 +190,6 @@ sub prepareTestPath {
     }
 }
 
-sub validateLog() {
-    if (-f $logFile) {
-        open(LOG, "<$logFile");
-        while (<LOG>) {
-            if (/ ERROR /) {
-                die $_;
-            }
-        }
-        close LOG;
-    }
-}
-
 sub findConfigLocation() {
     my $config;
     if (-f $logFile) {
@@ -258,10 +246,10 @@ sub executeUnderscoreBackupStdin {
         close $chld_in;
     }
     elsif (system(@args) != 0) {
-        die "Failed executing: $?";
+        die "Failed executing ".join(" ", @args).": $?";
     }
 
-    &validateLog();
+    &validateLog(1);
 }
 
 sub executeUnderscoreBackup {
@@ -271,7 +259,7 @@ sub executeUnderscoreBackup {
 }
 
 sub createConfigFile {
-    my ($retention, $extraDestination) = @_;
+    my ($retention, $extraDestination, $manifestDestination) = @_;
 
     if (!$retention) {
         $retention = <<"__EOF__";
@@ -326,8 +314,11 @@ __EOF__
 __EOF__
     }
 
-    open(CONFIG, ">$configFile") || die;
-    print CONFIG <<"__EOF__";
+    if (!$manifestDestination) {
+        $manifestDestination = "\"destination\": \"d0\",\n\"additionalDestinations\": [ \"d1\" ],\n";
+    }
+
+    my $config = <<"__EOF__";
 {
   "sets": [
     {
@@ -352,7 +343,7 @@ $retention
     },
     "d1": {
       "type": "FILE",
-      "encryption": "AES256",
+      "encryption": "NONE",
       "endpointUri": "$escapedBackupRoot2"
 $extraDestination
     }
@@ -371,13 +362,15 @@ $extraDestination
   },
 $shareDefinition
   "manifest": {
-    "destination": "d0",
+    $manifestDestination
     "pauseOnBattery": false,
     "hideNotifications": true
   }
 }
 __EOF__
 
+    open(CONFIG, ">$configFile") || die;
+    print CONFIG $config;
     close CONFIG;
 }
 
@@ -390,6 +383,25 @@ sub prepareRunPath {
     &cleanRunPath();
     &createConfigFile(@_);
     &executeUnderscoreBackup("generate-key", "--password", $FIRST_PASSWORD);
+}
+
+sub killInteractive {
+    &executeUnderscoreBackup("shutdown");
+}
+
+sub validateLog() {
+    if (-f $logFile) {
+        open(LOG, "<$logFile");
+        while (<LOG>) {
+            if (/ ERROR /) {
+                if (!$_[0]) {
+                    &killInteractive();
+                }
+                die $_;
+            }
+        }
+        close LOG;
+    }
 }
 
 sub validateAnswer {
@@ -414,6 +426,7 @@ sub validateAnswer {
     @dir2 = sort @dir2;
 
     if (scalar(@dir1) != scalar(@dir2)) {
+        &killInteractive();
         die "Different contents in $dir1 and $dir2";
     }
     for (my $i = 0; $i < scalar(@dir1); $i++) {
@@ -423,15 +436,18 @@ sub validateAnswer {
             my $file2 = File::Spec->catdir($dir2, $file);
 
             if ($file ne $dir2[$i]) {
+                &killInteractive();
                 die "File $file1 not the same in both directories";
             }
 
             if (-d $file1 != -d $file2) {
+                &killInteractive();
                 die "Different kind of file $file1 and $file2";
             }
 
             if (-f $file1) {
                 if (compare($file1, $file2) != 0) {
+                    &killInteractive();
                     die "$file1 and $file2 has different contents";
                 }
             }
@@ -439,12 +455,6 @@ sub validateAnswer {
                 &validateAnswer($file1, $file2)
             }
         }
-    }
-}
-
-sub killInteractive {
-    if ($ENV{"CYPRESS_CONFIG_INTERFACE"}) {
-        system("curl " . $ENV{"CYPRESS_CONFIG_INTERFACE"} . "api/shutdown");
     }
 }
 
@@ -458,10 +468,10 @@ sub executeCypressTest {
         "--headless",
         "--spec", File::Spec->catdir("cypress", File::Spec->catdir("e2e", $script . ".cy.ts"))
     );
-    if ($ENV{"GITHUB_TARGET"}) {
-        push(@args, "--tag", $ENV{"GITHUB_TARGET"} . ",$script");
-    }
     if ($ENV{"CYPRESS_RECORD_KEY"}) {
+        if ($ENV{"GITHUB_TARGET"}) {
+            push(@args, "--tag", $ENV{"GITHUB_TARGET"} . ",$script");
+        }
         push(@args, "--record");
     }
     push(@args, @_);
@@ -514,7 +524,7 @@ for (my $retry = 1; 1; $retry++) {
         exit(0);
     }
 
-    sleep(5);
+    sleep(7);
 
     if (!&executeCypressTest("backup")) {
         &killInteractive();
@@ -544,7 +554,7 @@ for (my $retry = 1; 1; $retry++) {
         exit(0);
     }
 
-    sleep(5);
+    sleep(7);
 
     if (!&executeCypressTest("restore")) {
         &killInteractive();
@@ -806,11 +816,13 @@ print "Generation 6 incremental\n";
 
 print "Test changing password\n";
 
+&createConfigFile(undef, undef, "\"destination\": \"d1\",\n");
 &executeUnderscoreBackupStdin("$SECOND_PASSWORD\n$SECOND_PASSWORD", "change-password", "--password", $FIRST_PASSWORD);
+&cleanPath($backupRoot);
+&cleanPath($appRoot);
+&createConfigFile(undef, undef, "\"destination\": \"d1\",\n");
 &executeUnderscoreBackup("download-config", "--password", $SECOND_PASSWORD);
 &executeUnderscoreBackup("rebuild-repository", "--password", $SECOND_PASSWORD);
-
-finddepth { wanted => \&zapFile, no_chdir => 1 }, $backupRoot;
 
 &prepareTestPath();
 &generateData(6, 1);

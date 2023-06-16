@@ -137,6 +137,20 @@ public class ConfigurationValidator {
             throw new IllegalArgumentException("This destination does not support listing files and can not be used as metadata destination");
         }
 
+        if (configuration.getManifest().getAdditionalDestinations() != null) {
+            for (String additionalDestination : configuration.getManifest().getAdditionalDestinations()) {
+                if (!configuration.getDestinations().containsKey(additionalDestination)) {
+                    throw new IllegalArgumentException("Additional manifest destination " + additionalDestination
+                            + " is not defined");
+                }
+                if (!(IOProviderFactory.getProvider(configuration.getDestinations().get(additionalDestination)) instanceof IOIndex)) {
+                    throw new IllegalArgumentException(
+                            String.format("The destination %s does not support listing files and can not be used as metadata destination",
+                                    additionalDestination));
+                }
+            }
+        }
+
         if (EncryptorFactory.requireStorage(destination.getEncryption())) {
             throw new IllegalArgumentException("Encryption for destination used by metadata ust not require storage");
         }

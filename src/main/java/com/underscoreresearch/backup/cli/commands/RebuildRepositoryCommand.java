@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reload
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
 import java.io.ByteArrayInputStream;
@@ -47,7 +48,7 @@ public class RebuildRepositoryCommand extends Command {
     public static String downloadRemoteConfiguration(BackupDestination destination,
                                                      EncryptionKey.PrivateKey privateKey) throws IOException {
         IOProvider provider = IOProviderFactory.getProvider(destination);
-        byte[] data = provider.download("configuration.json");
+        byte[] data = provider.download(CONFIGURATION_FILENAME);
         return unpackConfigData(destination.getEncryption(), privateKey, data);
     }
 

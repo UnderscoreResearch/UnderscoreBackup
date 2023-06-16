@@ -71,6 +71,7 @@ export interface BackupLimits {
 
 export interface BackupManifest {
     destination: string,
+    additionalDestinations?: string[],
     maximumUnsyncedSize?: number,
     maximumUnsyncedSeconds?: number
     hideNotifications?: boolean,

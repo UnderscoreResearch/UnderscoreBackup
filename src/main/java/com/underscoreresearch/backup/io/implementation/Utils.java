@@ -2,6 +2,8 @@ package com.underscoreresearch.backup.io.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.LOG_ROOT;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
+import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,6 +46,6 @@ public class Utils {
 
     public static boolean rebuildAvailable(IOIndex index) throws IOException {
         List<String> files = index.availableKeys("");
-        return files.contains("configuration.json") && files.contains("publickey.json");
+        return files.contains(CONFIGURATION_FILENAME) && files.contains(PUBLICKEY_FILENAME);
     }
 }

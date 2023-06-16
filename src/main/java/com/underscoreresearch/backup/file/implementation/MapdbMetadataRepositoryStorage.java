@@ -52,6 +52,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
@@ -159,6 +160,20 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     @Override
     public boolean needExclusiveCommitLock() {
         return false;
+    }
+
+    @Override
+    public CloseableLock exclusiveLock() throws IOException {
+        return new CloseableLock() {
+            @Override
+            public void close() {
+            }
+
+            @Override
+            public boolean requested() {
+                return false;
+            }
+        };
     }
 
     @Override

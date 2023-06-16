@@ -296,6 +296,8 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                             outstandingFiles.incrementAndGet();
                             pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCOMPLETE);
 
+                            filesystem.populatePermissions(file);
+
                             lastProcessed = file;
                             consumer.backupFile(set, file, (success) -> {
                                 outstandingFiles.decrementAndGet();

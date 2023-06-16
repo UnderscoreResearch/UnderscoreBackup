@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.model;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,12 +10,13 @@ import lombok.NoArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 @AllArgsConstructor
 public class BackupManifest {
     private String destination;
+    private List<String> additionalDestinations;
     private Integer maximumUnsyncedSize;
     private Integer maximumUnsyncedSeconds;
 

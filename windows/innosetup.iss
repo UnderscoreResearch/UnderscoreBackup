@@ -58,6 +58,27 @@ var
   PreviousMemory: string;
   PreviousMemoryUI: string;
 
+procedure TaskKill(FileName: String);
+var
+  ResultCode: Integer;
+begin
+   Exec('taskkill.exe', '/f /im ' + '"' + FileName + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+procedure ShutdownApp();
+var
+  ResultCode: integer;
+begin
+  Exec(ExpandConstant('{app}\\underscorebackup'), 'shutdown', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  TaskKill('underscorebackup.exe');
+  TaskKill('underscorebackup-gui.exe');
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  ShutdownApp();
+end;
+
 function NeedsAddPath(Param: string): boolean;
 var
   OrigPath: string;
@@ -119,17 +140,10 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
   begin
+    ShutdownApp();
     RemovePath(ExpandConstant('{app}\\bin'));
     RemovePath(ExpandConstant('{app}'));
   end;
-end;
-
-procedure TaskKill(FileName: String);
-var
-  ResultCode: Integer;
-begin
-    Exec('taskkill.exe', '/f /im ' + '"' + FileName + '"', '', SW_HIDE,
-     ewWaitUntilTerminated, ResultCode);
 end;
 
 function ExtractMemory(file: string) : string;

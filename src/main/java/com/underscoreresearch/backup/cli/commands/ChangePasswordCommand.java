@@ -38,6 +38,7 @@ import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.manifest.implementation.AdditionalManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
@@ -59,6 +60,10 @@ public class ChangePasswordCommand extends Command {
                 encryptionKey.publicOnly());
 
         ConfigurationPost.setOwnerOnlyPermissions(keyFile);
+
+        if (InstanceFactory.hasConfiguration(false)) {
+            InstanceFactory.getInstance(ManifestManager.class).updateKeyData(encryptionKey);
+        }
 
         return keyFile.getAbsolutePath();
     }
@@ -98,7 +103,8 @@ public class ChangePasswordCommand extends Command {
                     fileName,
                     newKey,
                     oldPrivateKey,
-                    null);
+                    null,
+                    InstanceFactory.getInstance(AdditionalManifestManager.class));
 
             changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
             repository.flushLogging();
@@ -163,9 +169,11 @@ public class ChangePasswordCommand extends Command {
                                                File keyFile,
                                                EncryptionKey publicKey,
                                                EncryptionKey.PrivateKey oldPrivateKey,
-                                               BackupStatsLogger statsLogger) throws IOException {
+                                               BackupStatsLogger statsLogger,
+                                               AdditionalManifestManager additionalManifestManager) throws IOException {
             super(configuration, manifestLocation, provider, encryptor, rateLimitController, serviceManager,
-                    installationIdentity, null, false, publicKey, statsLogger);
+                    installationIdentity, null, false, publicKey, statsLogger,
+                    additionalManifestManager);
 
             this.keyFile = keyFile;
             this.repository = repository;
@@ -210,7 +218,7 @@ public class ChangePasswordCommand extends Command {
             ConfigurationPost.setOwnerOnlyPermissions(keyFile);
             repository.installTemporaryBlocks();
 
-            uploadConfigData("configuration.json",
+            uploadConfigData(CONFIGURATION_FILENAME,
                     new ByteArrayInputStream(InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8)),
                     true);
             uploadPublicKey(getPublicKey());

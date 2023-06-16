@@ -18,7 +18,7 @@ import com.underscoreresearch.backup.model.BackupUpdatedFile;
 public interface MetadataRepositoryStorage {
     void open(boolean readOnly) throws IOException;
 
-    void close();
+    void close() throws IOException;
 
     List<BackupFile> file(String path) throws IOException;
 
@@ -117,4 +117,6 @@ public interface MetadataRepositoryStorage {
     <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException;
 
     boolean needExclusiveCommitLock();
+
+    CloseableLock exclusiveLock() throws IOException;
 }

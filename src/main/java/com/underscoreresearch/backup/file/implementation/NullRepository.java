@@ -93,6 +93,11 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
+    public CloseableLock exclusiveLock() throws IOException {
+        return null;
+    }
+
+    @Override
     public List<BackupFile> file(String path) throws IOException {
         return null;
     }

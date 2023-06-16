@@ -1,6 +1,8 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
+import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -123,7 +125,7 @@ class ManifestManagerImplTest {
 
         initializeFactory();
 
-        memoryIOProvider.upload("publickey.json",
+        memoryIOProvider.upload(PUBLICKEY_FILENAME,
                 new ObjectMapper().writeValueAsBytes(publicKey.publicOnlyHash()));
     }
 
@@ -141,10 +143,10 @@ class ManifestManagerImplTest {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any(), any());
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
                 rateLimitController, serviceManager, "id", null, false, publicKey,
-                null);
+                null, Mockito.mock(AdditionalManifestManager.class));
         manifestManager.initialize(Mockito.mock(LogConsumer.class), true);
         manifestManager.addLogEntry("doh", "doh");
-        assertThat(memoryIOProvider.download("configuration.json"), Matchers.not("{}".getBytes()));
+        assertThat(memoryIOProvider.download(CONFIGURATION_FILENAME), Matchers.not("{}".getBytes()));
     }
 
     @Test
@@ -156,7 +158,7 @@ class ManifestManagerImplTest {
         }
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
                 rateLimitController, serviceManager, "id", null, false, publicKey,
-                null);
+                null, Mockito.mock(AdditionalManifestManager.class));
         manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
         manifestManager.addLogEntry("doh", "doh");
         Mockito.verify(encryptor, Mockito.times(2)).encryptBlock(any(), any(), any());
@@ -169,7 +171,7 @@ class ManifestManagerImplTest {
     public void testDelayedUpload() throws IOException, InterruptedException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
                 rateLimitController, serviceManager, "id", null, false, publicKey,
-                null);
+                null, Mockito.mock(AdditionalManifestManager.class));
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -185,10 +187,11 @@ class ManifestManagerImplTest {
     public void testLoggingUpdateAndReplay() throws IOException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
                 rateLimitController, serviceManager, "id", null, false, publicKey,
-                null);
+                null, Mockito.mock(AdditionalManifestManager.class));
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.upgradeStorage();
+        repository.exclusiveLock();
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
         repository.popActivePath("s1", "/c");
         repository.addDirectory(new BackupDirectory("d", Instant.now().toEpochMilli(),
@@ -206,7 +209,7 @@ class ManifestManagerImplTest {
 
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), memoryIOProvider, encryptor,
                 rateLimitController, serviceManager, "id", null, false, publicKey,
-                null);
+                null, Mockito.mock(AdditionalManifestManager.class));
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
         manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false), "test");
 

@@ -125,9 +125,9 @@ public class BestRegionGet extends JsonWrap {
             try {
                 return new RsText(WRITER.writeValueAsString(new BestRegion(determineBestRegion())));
             } catch (Throwable exc) {
-                log.warn("Failed to write best region", exc);
+                log.warn("Failed to determine best region", exc);
             }
-            return messageJson(404, "Failed to fetch current activity");
+            return messageJson(400, "Failed to determine best region");
         }
 
         private boolean hasKey() {

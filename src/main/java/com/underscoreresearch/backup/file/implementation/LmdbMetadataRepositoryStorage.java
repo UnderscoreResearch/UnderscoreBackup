@@ -18,7 +18,6 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PEND
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PENDING_SET_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 import static org.lmdbjava.DbiFlags.MDB_CREATE;
-import static org.lmdbjava.EnvFlags.MDB_NOTLS;
 import static org.lmdbjava.EnvFlags.MDB_RDONLY_ENV;
 import static org.lmdbjava.EnvFlags.MDB_WRITEMAP;
 
@@ -39,6 +38,10 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -68,7 +71,10 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.util.ByteBufferBackedInputStream;
 import com.fasterxml.jackson.databind.util.ByteBufferBackedOutputStream;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
@@ -116,7 +122,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static final boolean SPARSE_MAP = SystemUtils.IS_OS_LINUX;
     private final String dataPath;
     private final List<Runnable> preCommitActions = new ArrayList<>();
-    private final Object lock = new Object();
+    private ExecutorService executor;
     private Env<ByteBuffer> db;
     private long mapSize;
     private Dbi<ByteBuffer> blockMap;
@@ -134,6 +140,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private Txn<ByteBuffer> sharedTransaction;
     private boolean readOnly;
     private int updateCount;
+    private boolean synchronizationDisabled;
+    private Stopwatch sharedTransactionAge;
 
     public LmdbMetadataRepositoryStorage(String dataPath, boolean alternateBlockTable) {
         this.dataPath = dataPath;
@@ -406,9 +414,9 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static Env<ByteBuffer> createDb(File root, long mapSize, boolean readOnly) {
         EnvFlags[] flags;
         if (readOnly)
-            flags = new EnvFlags[]{MDB_RDONLY_ENV, MDB_WRITEMAP, MDB_NOTLS};
+            flags = new EnvFlags[]{MDB_RDONLY_ENV, MDB_WRITEMAP};
         else
-            flags = new EnvFlags[]{MDB_WRITEMAP, MDB_NOTLS};
+            flags = new EnvFlags[]{MDB_WRITEMAP};
 
         if (!root.exists() && !root.mkdirs()) {
             log.error("Failed to create directory {}", root);
@@ -450,6 +458,28 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
+    public CloseableLock exclusiveLock() throws IOException {
+        if (synchronizationDisabled)
+            throw new RuntimeException("Exclusive lock already granted");
+        commit();
+
+        synchronizationDisabled = true;
+
+        return new CloseableLock() {
+            @Override
+            public void close() {
+                synchronizationDisabled = false;
+                internalCommit();
+            }
+
+            @Override
+            public boolean requested() {
+                return false;
+            }
+        };
+    }
+
+    @Override
     public void open(boolean readOnly) {
         this.readOnly = readOnly;
         if (db == null) {
@@ -466,15 +496,104 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         pendingSetMap = openCreateMap(db, PENDING_SET_STORE);
         partialFileMap = openCreateMap(db, PARTIAL_FILE_STORE);
         updatedFilesMap = openCreateMap(db, UPDATED_FILES_STORE);
+
+        executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName())
+                .build());
+    }
+
+    private interface ExceptionSupplier<T> {
+        T get() throws Exception;
+    }
+
+    private interface ExceptionRunnable {
+        void run() throws Exception;
+    }
+
+    private static void throwException(Exception exc) throws IOException {
+        if (exc != null) {
+            if (exc instanceof IOException)
+                throw (IOException)exc;
+            if (exc instanceof RuntimeException)
+                throw (RuntimeException)exc;
+            throw new RuntimeException(exc);
+        }
+    }
+
+    private <T> T synchronizeDbAccess(ExceptionSupplier<T> function) throws IOException {
+        if (synchronizationDisabled) {
+            try {
+                return function.get();
+            } catch (Exception e) {
+                throwException(e);
+            }
+        }
+
+        AtomicReference<T> result = new AtomicReference<>();
+        AtomicReference<Exception> exception = new AtomicReference<>();
+
+        synchronized (exception) {
+            executor.execute(() -> {
+                synchronized (exception) {
+                    try {
+                        result.set(function.get());
+                    } catch (Exception e) {
+                        exception.set(e);
+                    }
+                    exception.notify();
+                }
+            });
+
+            try {
+                exception.wait();
+            } catch (InterruptedException e) {
+                log.error("Failed to wait", e);
+            }
+
+            throwException(exception.get());
+            return result.get();
+        }
+    }
+
+    private void synchronizeDbAccess(ExceptionRunnable function) throws IOException{
+        if (synchronizationDisabled) {
+            try {
+                function.run();
+            } catch (Exception e) {
+                throwException(e);
+            }
+        } else {
+            AtomicReference<Exception> exception = new AtomicReference<>();
+
+            synchronized (exception) {
+                executor.execute(() -> {
+                    synchronized (exception) {
+                        try {
+                            function.run();
+                        } catch (Exception e) {
+                            exception.set(e);
+                        }
+                        exception.notify();
+                    }
+                });
+
+                try {
+                    exception.wait();
+                } catch (InterruptedException e) {
+                    log.error("Failed to wait", e);
+                }
+
+                throwException(exception.get());
+            }
+        }
     }
 
     private Dbi<ByteBuffer> openCreateMap(Env<ByteBuffer> blockDb, String dbName) {
-        commit();
         return blockDb.openDbi(dbName, MDB_CREATE);
     }
 
     private Dbi<ByteBuffer> getBlockTmpMap() {
         if (blockTmpMap == null) {
+            internalCommit();
             blockTmpMap = openCreateMap(db, alternateBlockTable ? BLOCK_STORE : BLOCK_ALT_STORE);
             if (blockTmpMap.stat(getWriteTransaction()).entries > 0) {
                 blockTmpMap.drop(getWriteTransaction(), false);
@@ -490,10 +609,18 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
-    public void close() {
-        commit();
+    public void close() throws IOException {
+        if (executor != null) {
+            synchronizeDbAccess(() -> {
+                internalCommit();
 
-        closeFiles(true);
+                closeFiles(true);
+            });
+        } else {
+            closeFiles(true);
+        }
+        executor.shutdown();
+        executor = null;
     }
 
     private void closeFiles(boolean closeDb) {
@@ -533,6 +660,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private Txn<ByteBuffer> getReadTransaction() {
         if (sharedTransaction == null) {
             sharedTransaction = readOnly ? db.txnRead() : db.txnWrite();
+            sharedTransactionAge = Stopwatch.createStarted();
         }
         return sharedTransaction;
     }
@@ -546,8 +674,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public List<BackupFile> file(String path) throws IOException {
-        List<BackupFile> files = null;
-        synchronized (lock) {
+        return synchronizeDbAccess(() -> {
+            List<BackupFile> files = null;
             Txn<ByteBuffer> txn = getReadTransaction();
             try (CursorIterable<ByteBuffer> ci = fileMap.iterate(txn, prefixRange(encodePathTimestamp(path, null)))) {
                 for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
@@ -556,14 +684,14 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     files.add(decodeFile(kv));
                 }
             }
-        }
-        return files;
+            return files;
+        });
     }
 
     @Override
     public List<BackupFilePart> existingFilePart(String partHash) throws IOException {
-        List<BackupFilePart> parts = null;
-        synchronized (lock) {
+        return synchronizeDbAccess(() -> {
+            List<BackupFilePart> parts = null;
             Txn<ByteBuffer> txn = getReadTransaction();
             try (CursorIterable<ByteBuffer> ci = partsMap.iterate(txn, prefixRange(encodeDoubleString(partHash, null)))) {
                 for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
@@ -572,8 +700,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     parts.add(decodePath(kv));
                 }
             }
-        }
-        return parts;
+            return parts;
+        });
     }
 
     @Override
@@ -586,6 +714,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 log.error("Invalid file {}:{}", PathNormalizer.physicalPath(key.path), key.path, e);
                 try {
                     fileMap.delete(getWriteTransaction(), entry.key());
+                    checkExpand();
                 } catch (Exception exc) {
                     log.error("Failed to delete invalid entry", exc);
                 }
@@ -604,6 +733,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 log.error("Invalid block {}", key, e);
                 try {
                     blockMap.delete(getWriteTransaction(), entry.key());
+                    checkExpand();
                 } catch (Exception exc) {
                     log.error("Failed to delete invalid entry", exc);
                 }
@@ -626,6 +756,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 log.error("Invalid additional block {}:{}", keys[0], keys[1], e);
                 try {
                     blockMap.delete(getWriteTransaction(), entry.key());
+                    checkExpand();
                 } catch (Exception exc) {
                     log.error("Failed to delete invalid entry", exc);
                 }
@@ -644,6 +775,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 log.error("Invalid filePart {}:{}", keys[0], keys[1], e);
                 try {
                     partsMap.delete(getWriteTransaction(), entry.key());
+                    checkExpand();
                 } catch (Exception exc) {
                     log.error("Failed to delete invalid entry", exc);
                 }
@@ -662,6 +794,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 log.error("Invalid directory {}:{}", pathTimestamp.path, pathTimestamp.timestamp, e);
                 try {
                     directoryMap.delete(getWriteTransaction(), entry.key());
+                    checkExpand();
                 } catch (Exception exc) {
                     log.error("Failed to delete invalid entry", exc);
                 }
@@ -672,17 +805,18 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             pendingSetMap.put(getWriteTransaction(), encodeString(scheduledTime.getSetId()), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
             checkExpand();
-        }
+        });
     }
 
     @Override
     public void deletePendingSets(String setId) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             pendingSetMap.delete(getWriteTransaction(), encodeString(setId));
-        }
+            checkExpand();
+        });
     }
 
     @Override
@@ -697,6 +831,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 log.error("Invalid pending set " + setId, e);
                 try {
                     pendingSetMap.delete(getWriteTransaction(), entry.key());
+                    checkExpand();
                 } catch (Exception exc) {
                     log.error("Failed to delete invalid entry", exc);
                 }
@@ -709,9 +844,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public BackupFile lastFile(String path) throws IOException {
-        synchronized (lock) {
-            return lastFileInternal(getReadTransaction(), path);
-        }
+        return synchronizeDbAccess(() -> lastFileInternal(getReadTransaction(), path));
     }
 
     @Nullable
@@ -727,20 +860,20 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public BackupBlock block(String hash) throws IOException {
-        synchronized (lock) {
+        return synchronizeDbAccess(() -> {
             Txn<ByteBuffer> txn = getReadTransaction();
             ByteBuffer data = blockMap.get(txn, encodeString(hash));
             if (data != null) {
                 return decodeBlock(hash, data);
             }
-        }
-        return null;
+            return null;
+        });
     }
 
     @Override
     public List<BackupDirectory> directory(String path) throws IOException {
-        List<BackupDirectory> directories = null;
-        synchronized (lock) {
+        return synchronizeDbAccess(() -> {
+            List<BackupDirectory> directories = null;
             Txn<ByteBuffer> txn = getReadTransaction();
             try (CursorIterable<ByteBuffer> ci = directoryMap.iterate(txn, prefixRange(encodePathTimestamp(path, null)))) {
                 for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
@@ -749,20 +882,22 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     directories.add(decodeDirectory(kv));
                 }
             }
-        }
 
-        return directories;
+            return directories;
+        });
     }
 
     @Override
     public BackupDirectory lastDirectory(String path) throws IOException {
-        synchronized (lock) {
-            Txn<ByteBuffer> txn = getReadTransaction();
-            try (CursorIterable<ByteBuffer> ci = directoryMap.iterate(txn,
-                    prefixRangeReverse(encodePathTimestamp(path, null)))) {
-                for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
-                    return decodeDirectory(kv);
-                }
+        return synchronizeDbAccess(() -> lastDirectoryInternal(path));
+    }
+
+    private BackupDirectory lastDirectoryInternal(String path) throws IOException {
+        Txn<ByteBuffer> txn = getReadTransaction();
+        try (CursorIterable<ByteBuffer> ci = directoryMap.iterate(txn,
+                prefixRangeReverse(encodePathTimestamp(path, null)))) {
+            for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
+                return decodeDirectory(kv);
             }
         }
 
@@ -777,143 +912,160 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         else
             added = file.getAdded();
 
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             fileMap.put(getWriteTransaction(), encodePathTimestamp(file.getPath(), added), encodeData(BACKUP_FILE_WRITER, strippedCopy(file)));
             checkExpand();
-        }
+        });
     }
 
     @Override
     public void addFilePart(BackupFilePart part) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             partsMap.put(getWriteTransaction(), encodeDoubleString(part.getPartHash(), part.getBlockHash()),
                     encodeData(BACKUP_FILE_PART_WRITER, strippedCopy(part)));
             checkExpand();
-        }
+        });
     }
 
     @Override
     public void addBlock(BackupBlock block) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             blockMap.put(getWriteTransaction(), encodeString(block.getHash()), encodeData(BACKUP_BLOCK_WRITER, strippedCopy(block)));
             checkExpand();
-        }
+        });
     }
 
     @Override
     public void addTemporaryBlock(BackupBlock block) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             getBlockTmpMap().put(getWriteTransaction(), encodeString(block.getHash()), encodeData(BACKUP_BLOCK_WRITER, strippedCopy(block)));
             checkExpand();
-        }
+        });
     }
 
     @Override
     public void switchBlocksTable() throws IOException {
-        if (blockTmpMap == null) {
-            throw new IOException("Switching alternative block table when it is empty");
-        }
-        commit();
-        if (sharedTransaction != null) {
-            throw new IOException("Failed to commit changes before switching block table");
-        }
-        blockMap.close();
-        blockMap = blockTmpMap;
-        blockTmpMap = null;
-        alternateBlockTable = !alternateBlockTable;
+        synchronizeDbAccess(() -> {
+            if (blockTmpMap == null) {
+                throw new IOException("Switching alternative block table when it is empty");
+            }
+            internalCommit();
+            if (sharedTransaction != null) {
+                throw new IOException("Failed to commit changes before switching block table");
+            }
+            blockMap.close();
+            blockMap = blockTmpMap;
+            blockTmpMap = null;
+            alternateBlockTable = !alternateBlockTable;
 
-        // Opening this will erase all contents.
-        getBlockTmpMap();
+            // Opening this will erase all contents.
+            getBlockTmpMap();
+        });
     }
 
     @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             directoryMap.put(getWriteTransaction(), encodePathTimestamp(directory.getPath(), directory.getAdded()),
                     encodeData(BACKUP_DIRECTORY_FILES_WRITER, directory.getFiles()));
             checkExpand();
-        }
+        });
     }
 
     @Override
     public boolean deleteBlock(BackupBlock block) throws IOException {
-        synchronized (lock) {
-            return blockMap.delete(getWriteTransaction(), encodeString(block.getHash()));
-        }
+        return synchronizeDbAccess(() -> {
+            boolean ret = blockMap.delete(getWriteTransaction(), encodeString(block.getHash()));
+            if (ret)
+                checkExpand();
+            return ret;
+        });
     }
 
     @Override
     public boolean deleteFile(BackupFile file) throws IOException {
-        synchronized (lock) {
-            return fileMap.delete(getWriteTransaction(), encodePathTimestamp(file.getPath(), file.getAdded()));
-        }
+        return synchronizeDbAccess(() -> {
+            boolean ret = fileMap.delete(getWriteTransaction(), encodePathTimestamp(file.getPath(), file.getAdded()));
+            if (ret)
+                checkExpand();
+            return ret;
+        });
     }
 
     @Override
     public boolean deleteFilePart(BackupFilePart part) throws IOException {
-        synchronized (lock) {
-            return partsMap.delete(getWriteTransaction(), encodeDoubleString(part.getPartHash(), part.getBlockHash()));
-        }
+        return synchronizeDbAccess(() -> {
+            boolean ret = partsMap.delete(getWriteTransaction(), encodeDoubleString(part.getPartHash(), part.getBlockHash()));
+            if (ret)
+                checkExpand();
+            return ret;
+        });
     }
 
     @Override
     public boolean deleteDirectory(String path, long timestamp) throws IOException {
-        synchronized (lock) {
-            return directoryMap.delete(getWriteTransaction(), encodePathTimestamp(path, timestamp));
-        }
+        return synchronizeDbAccess(() -> {
+            boolean ret = directoryMap.delete(getWriteTransaction(), encodePathTimestamp(path, timestamp));
+            if (ret)
+                checkExpand();
+            return ret;
+        });
     }
 
     @Override
     public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             activePathMap.put(getWriteTransaction(), encodeDoubleString(setId, path), encodeData(BACKUP_ACTIVE_PATH_WRITER, pendingFiles));
             checkExpand();
-        }
+        });
     }
 
     @Override
-    public boolean hasActivePath(String setId, String path) {
-        synchronized (lock) {
-            return activePathMap.get(getReadTransaction(), encodeDoubleString(setId, path)) != null;
-        }
+    public boolean hasActivePath(String setId, String path) throws IOException {
+        return synchronizeDbAccess(() -> activePathMap.get(getReadTransaction(), encodeDoubleString(setId, path)) != null);
     }
 
     @Override
     public void popActivePath(String setId, String path) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             activePathMap.delete(getWriteTransaction(), encodeDoubleString(setId, path));
-        }
+            checkExpand();
+        });
     }
 
     @Override
-    public boolean deletePartialFile(BackupPartialFile file) {
-        synchronized (lock) {
-            return partialFileMap.delete(getWriteTransaction(), encodeString(file.getFile().getPath()));
-        }
+    public boolean deletePartialFile(BackupPartialFile file) throws IOException {
+        return synchronizeDbAccess(() -> {
+            boolean ret = partialFileMap.delete(getWriteTransaction(), encodeString(file.getFile().getPath()));
+            if (ret)
+                checkExpand();
+            return ret;
+        });
     }
 
     @Override
     public void savePartialFile(BackupPartialFile file) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             partialFileMap.put(getWriteTransaction(), encodeString(file.getFile().getPath()), encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
             checkExpand();
-        }
+        });
     }
 
     @Override
-    public void clearPartialFiles() {
-        synchronized (lock) {
+    public void clearPartialFiles() throws IOException {
+        synchronizeDbAccess(() -> {
             Txn<ByteBuffer> txn = getWriteTransaction();
             partialFileMap.drop(txn, false);
-        }
+            checkExpand();
+        });
     }
 
     @Override
-    public BackupPartialFile getPartialFile(BackupPartialFile file) {
-        synchronized (lock) {
+    public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
+        return synchronizeDbAccess(() -> {
             Txn<ByteBuffer> txn = getReadTransaction();
             return getPartialFileInternal(txn, file);
-        }
+        });
     }
 
     private BackupPartialFile getPartialFileInternal(Txn<ByteBuffer> txn, BackupPartialFile file) {
@@ -940,8 +1092,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
-        TreeMap<String, BackupActivePath> ret = new TreeMap<>();
-        synchronized (lock) {
+        return synchronizeDbAccess(() -> {
+            TreeMap<String, BackupActivePath> ret = new TreeMap<>();
             Txn<ByteBuffer> txn = getReadTransaction();
             try (CursorIterable<ByteBuffer> ci = activePathMap.iterate(txn,
                     setId != null ? prefixRange(encodeDoubleString(setId, null)) : KeyRange.all())) {
@@ -965,69 +1117,59 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     }
                 }
             }
-        }
 
-        return ret;
+            return ret;
+        });
     }
 
     @Override
     public long getBlockCount() throws IOException {
-        synchronized (lock) {
-            return blockMap.stat(getReadTransaction()).entries;
-        }
+        return synchronizeDbAccess(() -> blockMap.stat(getReadTransaction()).entries);
     }
 
     @Override
     public long getFileCount() throws IOException {
-        synchronized (lock) {
-            return fileMap.stat(getReadTransaction()).entries;
-        }
+        return synchronizeDbAccess(() -> fileMap.stat(getReadTransaction()).entries);
     }
 
     @Override
-    public long getDirectoryCount() {
-        synchronized (lock) {
-            return directoryMap.stat(getReadTransaction()).entries;
-        }
+    public long getDirectoryCount() throws IOException {
+        return synchronizeDbAccess(() -> directoryMap.stat(getReadTransaction()).entries);
     }
 
     @Override
-    public long getPartCount() {
-        synchronized (lock) {
-            return partsMap.stat(getReadTransaction()).entries;
-        }
+    public long getPartCount() throws IOException {
+        return synchronizeDbAccess(() -> partsMap.stat(getReadTransaction()).entries);
     }
 
     @Override
-    public long getAdditionalBlockCount() {
-        synchronized (lock) {
-            return additionalBlockMap.stat(getReadTransaction()).entries;
-        }
+    public long getAdditionalBlockCount() throws IOException {
+        return synchronizeDbAccess(() -> additionalBlockMap.stat(getReadTransaction()).entries);
     }
 
     @Override
-    public long getUpdatedFileCount() {
-        synchronized (lock) {
+    public long getUpdatedFileCount() throws IOException {
+        return synchronizeDbAccess(() -> {
             return updatedPendingFilesMap.stat(getReadTransaction()).entries;
-        }
+        });
     }
 
-    private BackupBlockAdditional strippedCopy(BackupBlockAdditional block) {
+    private static BackupBlockAdditional strippedCopy(BackupBlockAdditional block) {
         return BackupBlockAdditional.builder().used(block.isUsed()).properties(block.getProperties()).build();
     }
 
     @Override
     public void addAdditionalBlock(BackupBlockAdditional block) throws IOException {
-        synchronized (lock) {
+        synchronizeDbAccess(() -> {
             additionalBlockMap.put(getWriteTransaction(), encodeDoubleString(block.getPublicKey(), block.getHash()),
                     encodeData(BACKUP_BLOCK_ADDITIONAL_WRITER, strippedCopy(block)));
             checkExpand();
-        }
+        });
     }
 
     @Override
     public BackupBlockAdditional additionalBlock(String publicKey, String blockHash) throws IOException {
-        synchronized (lock) {
+        return synchronizeDbAccess(() -> {
             Txn<ByteBuffer> txn = getReadTransaction();
             ByteBuffer data = additionalBlockMap.get(txn, encodeDoubleString(publicKey, blockHash));
             if (data != null) {
@@ -1040,14 +1182,14 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     throw new IOException(String.format("Invalid additionalBlock %s:%s", publicKey, blockHash), exc);
                 }
             }
-        }
 
-        return null;
+            return null;
+        });
     }
 
     @Override
-    public void deleteAdditionalBlock(String publicKey, String blockHash) {
-        synchronized (lock) {
+    public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
+        synchronizeDbAccess(() -> {
             if (blockHash != null) {
                 additionalBlockMap.delete(getWriteTransaction(), encodeDoubleString(publicKey, blockHash));
             } else {
@@ -1058,12 +1200,13 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     }
                 }
             }
-        }
+            checkExpand();
+        });
     }
 
     @Override
     public boolean addUpdatedFile(BackupUpdatedFile file, long howOften) throws IOException {
-        synchronized (lock) {
+        return synchronizeDbAccess(() -> {
             Txn<ByteBuffer> txn = getWriteTransaction();
             if (howOften < 0) {
                 updatedFilesMap.put(txn, encodeString(file.getPath()), encodeLong(file.getLastUpdated()));
@@ -1076,17 +1219,17 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 if (buffer == null) {
                     long lastExisting = 0;
                     if (file.getPath().endsWith(PathNormalizer.PATH_SEPARATOR)) {
-                        BackupDirectory dir = lastDirectory(file.getPath());
+                        BackupDirectory dir = lastDirectoryInternal(file.getPath());
                         if (dir != null) {
                             lastExisting = dir.getAdded();
                         }
                     } else {
-                        BackupPartialFile partialFile = getPartialFile(new BackupPartialFile(
+                        BackupPartialFile partialFile = getPartialFileInternal(txn, new BackupPartialFile(
                                 BackupFile.builder().path(file.getPath()).build()));
                         if (partialFile != null) {
                             lastExisting = partialFile.getFile().getLastChanged();
                         } else {
-                            BackupFile existingFile = lastFile(file.getPath());
+                            BackupFile existingFile = lastFileInternal(txn, file.getPath());
                             if (existingFile != null) {
                                 lastExisting = existingFile.getLastChanged();
                             }
@@ -1119,16 +1262,17 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     return false;
                 }
             }
-        }
+        });
     }
 
     @Override
-    public void removeUpdatedFile(BackupUpdatedFile file) {
-        synchronized (lock) {
+    public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
+        synchronizeDbAccess(() -> {
             Txn<ByteBuffer> txn = getWriteTransaction();
             updatedFilesMap.delete(txn, encodeString(file.getPath()));
             updatedPendingFilesMap.delete(txn, encodeTimestampPath(file.getLastUpdated(), file.getPath()));
-        }
+            checkExpand();
+        });
     }
 
     @Override
@@ -1149,15 +1293,19 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
-    public void commit() {
-        synchronized (lock) {
-            if (sharedTransaction != null) {
-                preCommitActions.forEach(Runnable::run);
-                preCommitActions.clear();
-                sharedTransaction.commit();
-                sharedTransaction.close();
-                sharedTransaction = null;
-            }
+    public void commit() throws IOException {
+        if (!synchronizationDisabled) {
+            synchronizeDbAccess(this::internalCommit);
+        }
+    }
+
+    private void internalCommit() {
+        if (sharedTransaction != null) {
+            preCommitActions.forEach(Runnable::run);
+            preCommitActions.clear();
+            sharedTransaction.commit();
+            sharedTransaction.close();
+            sharedTransaction = null;
         }
     }
 
@@ -1187,18 +1335,22 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             }
 
             if (usedSize > mapSize - MINIMUM_FREE_SPACE) {
-                commit();
+                internalCommit();
                 closeFiles(false);
                 mapSize += MINIMUM_FREE_SPACE;
                 db.setMapSize(mapSize);
                 open(readOnly);
             }
         }
+
+        if (sharedTransactionAge.elapsed(TimeUnit.SECONDS) >= 60) {
+            internalCommit();
+        }
     }
 
     @Override
     public boolean needPeriodicCommits() {
-        return true;
+        return false;
     }
 
     @Override
@@ -1208,7 +1360,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public boolean needExclusiveCommitLock() {
-        return true;
+        return false;
     }
 
     @AllArgsConstructor
@@ -1339,46 +1491,58 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
         @Override
         public boolean hasNext() {
-            synchronized (lock) {
-                if (iterable == null) {
-                    Txn<ByteBuffer> txn = getReadTransaction();
-                    if (lastValue == null) {
-                        iterable = map.iterate(txn, ascending ? KeyRange.all() : KeyRange.allBackward());
-                    } else {
-                        ByteBuffer buffer = ByteBuffer.allocateDirect(lastValue.length);
-                        buffer.put(lastValue);
-                        buffer.flip();
-                        iterable = map.iterate(txn, ascending ? KeyRange.greaterThan(buffer)
-                                : KeyRange.lessThanBackward(buffer));
+            try {
+                return synchronizeDbAccess(() -> {
+                    if (iterable == null) {
+                        Txn<ByteBuffer> txn = getReadTransaction();
+                        if (lastValue == null) {
+                            iterable = map.iterate(txn, ascending ? KeyRange.all() : KeyRange.allBackward());
+                        } else {
+                            ByteBuffer buffer = ByteBuffer.allocateDirect(lastValue.length);
+                            buffer.put(lastValue);
+                            buffer.flip();
+                            iterable = map.iterate(txn, ascending ? KeyRange.greaterThan(buffer)
+                                    : KeyRange.lessThanBackward(buffer));
+                        }
+                        preCommitActions.add(() -> {
+                            iterable.close();
+                            iterable = null;
+                        });
+                        iterator = iterable.iterator();
                     }
-                    preCommitActions.add(() -> {
-                        iterable.close();
-                        iterable = null;
-                    });
-                    iterator = iterable.iterator();
-                }
 
-                return iterator.hasNext();
+                    return iterator.hasNext();
+                });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
 
         @Override
         public T next() {
-            synchronized (lock) {
-                CursorIterable.KeyVal<ByteBuffer> val = iterator.next();
-                lastValue = new byte[val.key().limit()];
-                val.key().get(lastValue);
-                val.key().rewind();
-                return decoder.apply(val);
+            try {
+                return synchronizeDbAccess(() -> {
+                    CursorIterable.KeyVal<ByteBuffer> val = iterator.next();
+                    lastValue = new byte[val.key().limit()];
+                    val.key().get(lastValue);
+                    val.key().rewind();
+                    return decoder.apply(val);
+                });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
 
         @Override
         public void close() {
-            synchronized (lock) {
-                if (iterable != null) {
-                    iterable.close();
-                }
+            try {
+                synchronizeDbAccess(() -> {
+                    if (iterable != null) {
+                        iterable.close();
+                    }
+                });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
     }

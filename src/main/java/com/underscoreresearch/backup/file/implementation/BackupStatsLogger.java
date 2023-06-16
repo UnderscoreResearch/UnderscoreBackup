@@ -102,7 +102,7 @@ public class BackupStatsLogger implements StatusLogger {
 
     @Override
     public List<StatusLine> status() {
-        if (downloadRunning || uploadRunning || Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource())) {
+        if (downloadRunning || uploadRunning || !Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource())) {
             return new ArrayList<>();
         }
         synchronized (scheduledTimes) {

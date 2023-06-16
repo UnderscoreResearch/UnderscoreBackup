@@ -24,7 +24,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 @CommandPlugin(value = "configure", description = "Open configuration interface",
         needConfiguration = false, needPrivateKey = false)
 @Slf4j
-public class ConfigureCommand extends Command {
+public class ConfigureCommand extends SimpleCommand {
     public static String getConfigurationUrl() throws IOException {
         File configFile = new File(InstanceFactory.getInstance(URL_LOCATION));
         if (!configFile.exists()) {
@@ -58,11 +58,8 @@ public class ConfigureCommand extends Command {
         }
     }
 
-    public void executeCommand(CommandLine commandLine) throws Exception {
-        if (commandLine.getArgList().size() > 1) {
-            throw new ParseException("Too many arguments for command");
-        }
-
+    @Override
+    protected void executeCommand() throws Exception {
         try {
             String url = getConfigurationUrl();
 

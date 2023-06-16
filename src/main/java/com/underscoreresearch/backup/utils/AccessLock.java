@@ -52,11 +52,7 @@ public class AccessLock implements Closeable {
     private void ensureOpenFile() throws IOException {
         if (channel == null || !channel.isOpen()) {
             close();
-            try {
-                file = new RandomAccessFile(filename, "rw");
-            } catch (IOException exc) {
-                throw exc;
-            }
+            file = new RandomAccessFile(filename, "rw");
             channel = file.getChannel();
         }
     }

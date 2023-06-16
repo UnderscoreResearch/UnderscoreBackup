@@ -195,7 +195,7 @@ export default function Status(props: StatusProps) {
 
         {statsItems.length > 0 &&
             <div>
-                <DividerWithText>Last backup stats</DividerWithText>
+                <DividerWithText>Last completed backup stats</DividerWithText>
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>

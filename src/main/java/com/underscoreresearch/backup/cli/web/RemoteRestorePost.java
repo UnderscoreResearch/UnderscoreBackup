@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
 import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
@@ -35,7 +36,7 @@ public class RemoteRestorePost extends JsonWrap {
 
     public static byte[] downloadKeyData(String password, String source) throws ParseException, IOException {
         IOProvider provider = getIoProvider(source);
-        byte[] keyData = provider.download("publickey.json");
+        byte[] keyData = provider.download(PUBLICKEY_FILENAME);
         EncryptionKey encryptionKey = ENCRYPTION_KEY_READER.readValue(keyData);
 
         if (!Strings.isNullOrEmpty(source) && encryptionKey.getSalt() == null) {

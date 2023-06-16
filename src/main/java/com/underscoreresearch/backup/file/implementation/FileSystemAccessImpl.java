@@ -94,6 +94,11 @@ public class FileSystemAccessImpl implements FileSystemAccess {
         return files;
     }
 
+    @Override
+    public void populatePermissions(BackupFile backupFile) throws IOException {
+
+    }
+
     protected BackupFile createBackupFile(String path, File file) {
         return BackupFile.builder()
                 .path(path)
@@ -104,8 +109,8 @@ public class FileSystemAccessImpl implements FileSystemAccess {
 
     @Override
     public int readData(String path, byte[] buffer, long offset, int length) throws IOException {
-        File parent = new File(PathNormalizer.physicalPath(path));
-        try (RandomAccessFile stream = new RandomAccessFile(parent, "r")) {
+        File file = new File(PathNormalizer.physicalPath(path));
+        try (RandomAccessFile stream = new RandomAccessFile(file, "r")) {
             try (FileChannel ch = stream.getChannel()) {
                 return ch.read(ByteBuffer.wrap(buffer, 0, length), offset);
             }

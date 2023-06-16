@@ -16,6 +16,7 @@ sub zapFile {
 
 sub cleanBuild {
     finddepth { wanted => \&zapFile, no_chdir => 1 }, "build";
+    unlink("windows\\innosetup-expanded.iss");
 }
 
 sub buildNpm {

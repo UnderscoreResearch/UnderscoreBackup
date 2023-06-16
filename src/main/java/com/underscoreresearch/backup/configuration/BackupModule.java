@@ -68,6 +68,7 @@ import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.manifest.implementation.AdditionalManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
@@ -255,7 +256,8 @@ public class BackupModule extends AbstractModule {
                                                              @Named(ADDITIONAL_SOURCE) String source,
                                                              EncryptionKey encryptionKey,
                                                              CommandLine commandLine,
-                                                             BackupStatsLogger statsLogger)
+                                                             BackupStatsLogger statsLogger,
+                                                             AdditionalManifestManager additionalManifestManager)
             throws IOException {
         BackupDestination destination = configuration.getDestinations().get(configuration.getManifest()
                 .getDestination());
@@ -270,7 +272,19 @@ public class BackupModule extends AbstractModule {
                 source,
                 commandLine.hasOption(FORCE),
                 encryptionKey,
-                statsLogger);
+                statsLogger,
+                additionalManifestManager);
+    }
+
+    @Provides
+    @Singleton
+    public AdditionalManifestManager additionalManifestManager(@Named(ADDITIONAL_SOURCE) String source,
+                                                               BackupConfiguration config,
+                                                               RateLimitController rateLimitController) {
+        if (!Strings.isNullOrEmpty(source)) {
+            return new AdditionalManifestManager(BackupConfiguration.builder().build(), rateLimitController);
+        }
+        return new AdditionalManifestManager(config, rateLimitController);
     }
 
     @Provides

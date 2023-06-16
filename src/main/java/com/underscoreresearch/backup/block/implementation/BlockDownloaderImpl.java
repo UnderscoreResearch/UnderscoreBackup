@@ -84,7 +84,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
         IOProvider provider = IOProviderFactory.getProvider(destination);
         AtomicInteger completedParts = new AtomicInteger(0);
-        ErrorCorrector corrector = ErrorCorrectorFactory.getCorrector(destination.getErrorCorrection());
+        ErrorCorrector corrector = ErrorCorrectorFactory.getCorrector(storage.getEc());
         int neededParts = corrector.getMinimumSufficientParts(storage);
         byte[] errorCorrected = null;
         Set<Integer> pendingParts = new HashSet<>();

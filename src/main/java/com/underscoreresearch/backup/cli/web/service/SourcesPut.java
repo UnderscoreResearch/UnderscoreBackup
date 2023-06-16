@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryComman
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
 import static com.underscoreresearch.backup.cli.web.service.SourcesPost.encryptionKey;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
@@ -66,7 +67,7 @@ public class SourcesPut extends JsonWrap {
         try {
             serviceManager.setSourceId(sourceDefinition.getSourceId());
             IOProvider provider = IOProviderFactory.getProvider(decodeDestination(sourceDefinition, privateKey));
-            byte[] keyData = provider.download("publickey.json");
+            byte[] keyData = provider.download(PUBLICKEY_FILENAME);
             return ENCRYPTION_KEY_READER.readValue(keyData);
         } finally {
             serviceManager.setSourceId(oldSourceId);

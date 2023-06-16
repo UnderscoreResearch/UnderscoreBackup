@@ -328,6 +328,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public CloseableLock exclusiveLock() throws IOException {
+        return repository.exclusiveLock();
+    }
+
+    @Override
     public List<BackupFile> file(String path) throws IOException {
         return repository.file(path);
     }

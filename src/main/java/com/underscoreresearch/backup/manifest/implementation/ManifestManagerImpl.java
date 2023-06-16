@@ -34,7 +34,8 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                                String source,
                                boolean forceIdentity,
                                EncryptionKey publicKey,
-                               BackupStatsLogger statsLogger)
+                               BackupStatsLogger statsLogger,
+                               AdditionalManifestManager additionalManifestManager)
             throws IOException {
         super(configuration,
                 manifestLocation,
@@ -46,7 +47,8 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                 source,
                 forceIdentity,
                 publicKey,
-                statsLogger);
+                statsLogger,
+                additionalManifestManager);
     }
 
     public List<StatusLine> status() {

@@ -115,4 +115,7 @@ public interface MetadataRepository {
     void upgradeStorage() throws IOException;
 
     <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException;
+
+    // Grant exclusive lock to the repository. All changes must happen on the granting thread.
+    CloseableLock exclusiveLock() throws IOException;
 }

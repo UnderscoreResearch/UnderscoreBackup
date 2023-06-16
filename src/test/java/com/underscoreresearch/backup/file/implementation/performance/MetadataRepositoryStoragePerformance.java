@@ -244,7 +244,7 @@ public abstract class MetadataRepositoryStoragePerformance {
     }
 
     @AfterEach
-    public void tearDown() {
+    public void tearDown() throws IOException {
         if (storage != null) {
             storage.close();
             deleteDir(directory.toFile());

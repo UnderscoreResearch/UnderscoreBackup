@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'
 $toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-$url64      = 'https://github.com/UnderscoreResearch/UnderscoreBackup/releases/download/2.0.4.1/underscorebackup-2.0.4.1.exe'
+$url64      = 'https://github.com/UnderscoreResearch/UnderscoreBackup/releases/download/2.2.0.1pre/underscorebackup-2.2.0.1rc.exe'
 
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName

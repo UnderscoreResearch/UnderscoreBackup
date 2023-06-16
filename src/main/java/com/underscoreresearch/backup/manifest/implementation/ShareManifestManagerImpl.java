@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -110,7 +111,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     }
 
     private void uploadConfigurationFile() throws IOException {
-        uploadConfigData("configuration.json",
+        uploadConfigData(CONFIGURATION_FILENAME,
                 new ByteArrayInputStream(getConfigurationData().getBytes(StandardCharsets.UTF_8)),
                 true);
     }

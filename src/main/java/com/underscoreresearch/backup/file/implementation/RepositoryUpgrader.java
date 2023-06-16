@@ -10,8 +10,11 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -25,6 +28,7 @@ import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 
+@Slf4j
 public class RepositoryUpgrader implements ManualStatusLogger {
     private final MetadataRepositoryStorage storage;
     private final MetadataRepositoryStorage updatedStorage;
@@ -42,95 +46,102 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         updatedStorage.clear();
         updatedStorage.open(false);
 
-        stopwatch.start();
+        try (CloseableLock ignored = storage.exclusiveLock()) {
+            try (CloseableLock ignored2 = updatedStorage.exclusiveLock()) {
 
-        StateLogger.addLogger(this);
+                stopwatch.start();
 
-        totalSteps.set(storage.getBlockCount() + storage.getFileCount() + storage.getAdditionalBlockCount()
-                + storage.getDirectoryCount() + storage.getPartCount() + storage.getUpdatedFileCount());
+                StateLogger.addLogger(this);
 
-        {
-            Set<BackupPendingSet> pendingSets = storage.getPendingSets();
-            totalSteps.addAndGet(pendingSets.size());
+                totalSteps.set(storage.getBlockCount() + storage.getFileCount() + storage.getAdditionalBlockCount()
+                        + storage.getDirectoryCount() + storage.getPartCount() + storage.getUpdatedFileCount());
 
-            pendingSets.forEach(set -> {
-                try {
-                    currentStep.incrementAndGet();
-                    updatedStorage.addPendingSets(set);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                log.info("Started metadata upgrade");
+                {
+                    Set<BackupPendingSet> pendingSets = storage.getPendingSets();
+                    totalSteps.addAndGet(pendingSets.size());
+
+                    pendingSets.forEach(set -> {
+                        try {
+                            currentStep.incrementAndGet();
+                            updatedStorage.addPendingSets(set);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
-            });
-        }
 
 
-        try (CloseableStream<BackupBlock> blocks = storage.allBlocks()) {
-            blocks.stream().forEach(block -> {
-                try {
-                    currentStep.incrementAndGet();
-                    updatedStorage.addBlock(block);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                try (CloseableStream<BackupBlock> blocks = storage.allBlocks()) {
+                    blocks.stream().forEach(block -> {
+                        try {
+                            currentStep.incrementAndGet();
+                            updatedStorage.addBlock(block);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
-            });
-        }
 
-        try (CloseableStream<BackupBlockAdditional> blocks = storage.allAdditionalBlocks()) {
-            blocks.stream().forEach(block -> {
-                try {
-                    currentStep.incrementAndGet();
-                    updatedStorage.addAdditionalBlock(block);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                try (CloseableStream<BackupBlockAdditional> blocks = storage.allAdditionalBlocks()) {
+                    blocks.stream().forEach(block -> {
+                        try {
+                            currentStep.incrementAndGet();
+                            updatedStorage.addAdditionalBlock(block);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
-            });
-        }
 
-        try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
-            files.stream().forEach(file -> {
-                try {
-                    currentStep.incrementAndGet();
-                    updatedStorage.addFile(file);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
+                    files.stream().forEach(file -> {
+                        try {
+                            currentStep.incrementAndGet();
+                            updatedStorage.addFile(file);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
-            });
-        }
 
-        try (CloseableStream<BackupFilePart> parts = storage.allFileParts()) {
-            parts.stream().forEach(part -> {
-                try {
-                    currentStep.incrementAndGet();
-                    updatedStorage.addFilePart(part);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                try (CloseableStream<BackupFilePart> parts = storage.allFileParts()) {
+                    parts.stream().forEach(part -> {
+                        try {
+                            currentStep.incrementAndGet();
+                            updatedStorage.addFilePart(part);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
-            });
-        }
 
-        try (CloseableStream<BackupDirectory> dirs = storage.allDirectories(true)) {
-            dirs.stream().forEach(dir -> {
-                try {
-                    currentStep.incrementAndGet();
-                    updatedStorage.addDirectory(dir);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                try (CloseableStream<BackupDirectory> dirs = storage.allDirectories(true)) {
+                    dirs.stream().forEach(dir -> {
+                        try {
+                            currentStep.incrementAndGet();
+                            updatedStorage.addDirectory(dir);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
-            });
-        }
 
-        try (CloseableStream<BackupUpdatedFile> files = storage.getUpdatedFiles()) {
-            files.stream().forEach(file -> {
-                try {
-                    currentStep.incrementAndGet();
-                    updatedStorage.addUpdatedFile(file, -1);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                try (CloseableStream<BackupUpdatedFile> files = storage.getUpdatedFiles()) {
+                    files.stream().forEach(file -> {
+                        try {
+                            currentStep.incrementAndGet();
+                            updatedStorage.addUpdatedFile(file, -1);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 }
-            });
+            }
         }
 
         stopwatch.stop();
+        log.info("Successfully completed metadata upgrade");
 
         StateLogger.removeLogger(this);
     }

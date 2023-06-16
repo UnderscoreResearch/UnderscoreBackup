@@ -288,8 +288,8 @@ public class LockingMetadataRepository implements MetadataRepository {
         if (readOnly) {
             throw new IOException("Tried to clear read only repository");
         }
-        try (OpenLock ignored = new OpenLock()) {
-            try (UpdateLock ignored2 = new UpdateLock()) {
+        try (UpdateLock ignored = new UpdateLock()) {
+            try (OpenLock ignored2 = new OpenLock()) {
                 try (RepositoryLock ignored3 = new RepositoryLock()) {
                     if (scheduledThreadPoolExecutor != null) {
                         scheduledThreadPoolExecutor.shutdownNow();
@@ -334,7 +334,7 @@ public class LockingMetadataRepository implements MetadataRepository {
         storage.open(readOnly);
     }
 
-    private void closeAllDataFiles() {
+    private void closeAllDataFiles() throws IOException {
         storage.close();
     }
 
@@ -756,6 +756,11 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException {
         return storage.temporaryMap(serializer);
+    }
+
+    @Override
+    public CloseableLock exclusiveLock() throws IOException {
+        return storage.exclusiveLock();
     }
 
     @Data
