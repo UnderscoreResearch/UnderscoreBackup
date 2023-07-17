@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21507" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
+        <deployment identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21507"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -27,7 +28,7 @@
                         <action selector="configure:" target="Voe-Tx-rLC" id="LMG-Kb-CXA"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Pause" id="dgf-ha-xeQ">
+                <menuItem title="Stop" id="dgf-ha-xeQ">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="pauseItem:" target="Voe-Tx-rLC" id="TwS-LE-4No"/>

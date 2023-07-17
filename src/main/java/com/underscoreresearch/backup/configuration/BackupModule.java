@@ -28,6 +28,8 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import org.apache.commons.cli.CommandLineParser;
+
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.block.assignments.EncryptedSmallBlockAssignment;
@@ -92,9 +94,11 @@ public class BackupModule extends AbstractModule {
                                                  StateLogger stateLogger,
                                                  FileChangeWatcher fileChangeWatcher,
                                                  ContinuousBackup continuousBackup,
-                                                 BackupStatsLogger backupStatsLogger) {
+                                                 BackupStatsLogger backupStatsLogger,
+                                                 CommandLine parser) {
         return new ScannerSchedulerImpl(configuration, repository, repositoryTrimmer, scanner, stateLogger,
-                fileChangeWatcher, continuousBackup, backupStatsLogger);
+                fileChangeWatcher, continuousBackup, backupStatsLogger,
+                parser.getArgList().size() > 0 && "interactive".equals(parser.getArgList().get(0)));
     }
 
     @Singleton

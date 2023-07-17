@@ -130,7 +130,8 @@ public class WebServer {
                                     new FkRegex(base + "/api/backup-download/.*", new TkFork(
                                             new FkMethods("POST", new BackupDownloadPost(base)))),
                                     new FkRegex(base + "/api/backup-files(/.*)?", new TkFork(
-                                            new FkMethods("GET", new ListBackupFilesGet(base))
+                                            new FkMethods("GET", new ListBackupFilesGet(base)),
+                                            new FkMethods("DELETE", new BackupFilesDelete(base))
                                     )),
                                     new FkRegex(base + "/api/backup-versions(/.*)?", new TkFork(
                                             new FkMethods("GET", new ListBackupVersionsGet(base))

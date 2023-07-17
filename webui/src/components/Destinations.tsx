@@ -138,7 +138,7 @@ export default function Destinations(props: DestinationsProps) {
             onItemChanged: destinationChanged,
             items: state,
             createItem: (item, itemUpdated: (item: DestinationState) => void) => {
-                let postElement : ReactNode;
+                let postElement : ReactNode | undefined;
                 switch (item.destination.type) {
                     default:
                         if (((appContext.currentConfiguration.manifest.additionalDestinations &&

@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
-@EqualsAndHashCode()
+@EqualsAndHashCode(exclude = "savedRealPath")
 @ToString
 public class BackupActivePath {
     @JsonIgnore
@@ -36,6 +37,11 @@ public class BackupActivePath {
     @Getter
     @Setter
     private boolean unprocessed;
+
+    @JsonProperty
+    @Getter
+    @Setter
+    private String savedRealPath;
 
     public BackupActivePath(String parent, Set<BackupActiveFile> files) {
         String realParent;

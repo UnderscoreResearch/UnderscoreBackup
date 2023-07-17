@@ -70,6 +70,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     private final FileChangeWatcher fileChangeWatcher;
     private final ContinuousBackup continuousBackup;
     private final BackupStatsLogger backupStatsLogger;
+    private final boolean checkVersion;
     private boolean shutdown;
     private boolean scheduledRestart;
     @Getter
@@ -82,7 +83,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                                 StateLogger stateLogger,
                                 FileChangeWatcher fileChangeWatcher,
                                 ContinuousBackup continuousBackup,
-                                BackupStatsLogger backupStatsLogger) {
+                                BackupStatsLogger backupStatsLogger,
+                                boolean checkVersion) {
         this.configuration = configuration;
         this.scanner = scanner;
         this.repository = repository;
@@ -91,6 +93,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         this.fileChangeWatcher = fileChangeWatcher;
         this.continuousBackup = continuousBackup;
         this.backupStatsLogger = backupStatsLogger;
+        this.checkVersion = checkVersion;
 
         pendingSets = new boolean[configuration.getSets().size()];
 
@@ -317,11 +320,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     }
 
     private void checkNewVersion() {
-        if (configuration.getManifest().getVersionCheck() == null || configuration.getManifest().getVersionCheck()) {
-            ReleaseResponse version = InstanceFactory.getInstance(ServiceManager.class).checkVersion();
-            if (version != null) {
-                UIManager.displayInfoMessage(String.format("New version %s available:\n\n%s",
-                        version.getVersion(), version.getName()));
+        if (checkVersion) {
+            if (configuration.getManifest().getVersionCheck() == null || configuration.getManifest().getVersionCheck()) {
+                ReleaseResponse version = InstanceFactory.getInstance(ServiceManager.class).checkVersion();
+                if (version != null) {
+                    UIManager.displayInfoMessage(String.format("New version %s available:\n\n%s",
+                            version.getVersion(), version.getName()));
+                }
             }
         }
     }

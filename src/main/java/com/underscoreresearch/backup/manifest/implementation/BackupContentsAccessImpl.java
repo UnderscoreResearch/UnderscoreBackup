@@ -51,15 +51,15 @@ public class BackupContentsAccessImpl extends BackupContentsAccessPathOnly {
     }
 
     @Override
-    protected BackupDirectory addRootPaths(BackupDirectory foundPaths, String normalizedRoot) {
+    protected FoundPath addRootPaths(FoundPath foundPaths, String normalizedRoot) {
         if (rootPaths != null) {
             for (String rootPath : rootPaths) {
                 if (rootPath.startsWith(normalizedRoot)) {
                     int ind = rootPath.indexOf(PATH_SEPARATOR, normalizedRoot.length());
                     if (ind >= 0) {
-                        foundPaths.getFiles().add(rootPath.substring(normalizedRoot.length(), ind + 1));
+                        foundPaths.getFiles().put(rootPath.substring(normalizedRoot.length(), ind + 1), false);
                     } else if (rootPath.length() > normalizedRoot.length()) {
-                        foundPaths.getFiles().add(rootPath.substring(normalizedRoot.length()));
+                        foundPaths.getFiles().put(rootPath.substring(normalizedRoot.length()), false);
                     }
                 }
             }

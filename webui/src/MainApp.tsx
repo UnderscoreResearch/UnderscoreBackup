@@ -17,7 +17,7 @@ import Shares from "./components/Shares";
 import {deepEqual} from "fast-equals";
 import Sources from "./components/Sources";
 
-interface FullMainAppState {
+interface MainAppState {
     destinationValid: boolean,
     setsValid: boolean,
     sourcesValid: boolean,
@@ -69,7 +69,7 @@ export default function MainApp() {
     const reactLocation = useLocation();
     const nav = useNavigate();
     const activityContext = useActivity();
-    const [state, setState] = React.useState<FullMainAppState>({
+    const [state, setState] = React.useState<MainAppState>({
         destinationValid: true,
         setsValid: true,
         sharesValid: true,
@@ -255,13 +255,21 @@ export default function MainApp() {
         if (!acceptButton && validConfig) {
             if (displayState.backupInProgress) {
                 acceptButton = {
-                    title: "Pause Backup",
+                    title: "Stop Backup",
                     disabled: false,
                     action: () => changeBackup(false)
                 };
             } else {
+                let title;
+                if (appContext.currentConfiguration && appContext.currentConfiguration &&
+                    appContext.currentConfiguration.manifest &&
+                    appContext.currentConfiguration.manifest.interactiveBackup)
+                    title = "Backup Now";
+                else
+                    title = "Start Backup";
+
                 acceptButton = {
-                    title: "Start Backup",
+                    title: title,
                     disabled: !validConfig || !displayState.backupCanStart,
                     action: () => changeBackup(true)
                 };

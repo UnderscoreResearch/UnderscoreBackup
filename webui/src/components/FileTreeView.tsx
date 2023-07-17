@@ -1,7 +1,7 @@
 import React, {useEffect} from 'react';
 import {FixedSizeList as List} from "react-window";
 import AutoSizer, {Size} from "react-virtualized-auto-sizer";
-import {Checkbox, CircularProgress, FormControlLabel, Tooltip} from "@mui/material";
+import {Checkbox, CircularProgress, FormControlLabel, Tooltip, useTheme} from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import {ChevronRight, KeyboardArrowDown, Menu} from "@mui/icons-material";
 import {BackupFile, BackupFilter, BackupSetRoot, BackupState} from "../api";
@@ -49,7 +49,8 @@ interface TreeItem {
     expanded: boolean,
     loading: boolean,
     size: string,
-    added: string
+    added: string,
+    deleted?: boolean
 }
 
 interface SetTreeViewState {
@@ -67,7 +68,7 @@ export interface SetTreeViewProps {
     rootName?: string,
     rootNameProcessing?: string,
     onChange: (roots: BackupSetRoot[]) => void,
-    onFileDetailPopup?: (path: string) => Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
+    onFileDetailPopup?: (path: string, hasChildren: boolean, updated: (path: string) => void) => Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
         => JSX.Element) | undefined>
 }
 
@@ -212,6 +213,15 @@ function normalizeRoots(roots: BackupSetRoot[], defaults: BackupState): BackupSe
     })
 }
 
+function childCount(items: TreeItem[], index: number) {
+    const level = items[index].level;
+    let length = 0;
+    while(index + 1 + length < items.length && items[index + length + 1].level > level) {
+        length++;
+    }
+    return length;
+}
+
 export default function FileTreeView(props: SetTreeViewProps) {
     function defaultState() {
         return {
@@ -323,6 +333,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
 
     function FileDetails(itemProps: { item: TreeItem }) {
         const selected = isPathSelected(itemProps.item.path);
+        const theme = useTheme();
 
         const [open, setOpen] = React.useState(false);
         const [anchor, setAnchor] = React.useState(null as HTMLElement | null);
@@ -343,9 +354,13 @@ export default function FileTreeView(props: SetTreeViewProps) {
             setOpen(false);
         }
 
+        async function refreshData(path: string) {
+            await loadPath(path);
+        }
+
         async function fetchVersions() {
             if (props.onFileDetailPopup) {
-                const newContents = await props.onFileDetailPopup(itemProps.item.path);
+                const newContents = await props.onFileDetailPopup(itemProps.item.path, itemProps.item.hasChildren, refreshData);
                 if (newContents) {
                     setTooltipContents(() => newContents);
                     setOpen(true);
@@ -382,7 +397,8 @@ export default function FileTreeView(props: SetTreeViewProps) {
                                      />
                                  }
                                  label={
-                                     <span style={{width: "100%", display: "flex", alignItems: "center"}}>
+                                     <span style={{width: "100%", display: "flex", alignItems: "center",
+                                         color: itemProps.item.deleted ? theme.palette.text.disabled : theme.palette.text.primary}}>
                                          <Tooltip title={formatPath(itemProps.item.path)} placement={"bottom"}>
                                              <span style={{width: "100%"}}>{name()}</span>
                                          </Tooltip>
@@ -400,18 +416,14 @@ export default function FileTreeView(props: SetTreeViewProps) {
                                              }}>{itemProps.item.added}</span>
                                          }
                                          {props.onFileDetailPopup &&
-                                             (!itemProps.item.hasChildren ?
-                                                     <span style={{width: "40px"}}>
+                                             <span style={{width: "40px"}}>
                                                          <IconButton aria-label="View versions"
                                                                      onClick={(e) => handleClick(e)}>
                                                          <Menu/>
                                                          </IconButton>
-                                                         {tooltipContents && anchor
-                                                             && tooltipContents(anchor, open, handleClosePopup)}
+                                                 {tooltipContents && anchor
+                                                     && tooltipContents(anchor, open, handleClosePopup)}
                                                      </span>
-                                                     :
-                                                     <span style={{width: "40px"}}/>
-                                             )
                                          }
                                  </span>
                                  }
@@ -447,11 +459,12 @@ export default function FileTreeView(props: SetTreeViewProps) {
                             expanded: false,
                             loading: expand,
                             hasChildren: hasChildren,
+                            deleted: !!item.deleted,
                             size: formatSize(item.length),
                             added: formatLastChange(item.lastChanged)
                         };
                     });
-                    newItems.splice(index + 1, 0, ...treeItems)
+                    newItems.splice(index + 1, childCount(oldState.items, index), ...treeItems)
                 }
                 newItems[index] = newItem;
             }

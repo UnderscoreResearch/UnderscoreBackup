@@ -110,15 +110,21 @@ public class StateLogger implements StatusLogger {
     public void reset() {
         initialize();
 
-        loggers.stream().filter(t -> t.type() != Type.LOG).forEach(ManualStatusLogger::resetStatus);
+        synchronized (loggers) {
+            loggers.stream().filter(t -> t.type() != Type.LOG).forEach(ManualStatusLogger::resetStatus);
+        }
     }
 
     public List<StatusLine> logData(Function<Type, Boolean> filter) {
         initialize();
 
-        List<ManualStatusLogger> currentLoggers = loggers
-                .stream()
-                .filter(t -> filter.apply(t.type())).toList();
+        List<ManualStatusLogger> currentLoggers;
+
+        synchronized (loggers) {
+            currentLoggers = loggers
+                    .stream()
+                    .filter(t -> filter.apply(t.type())).toList();
+        }
 
         List<StatusLine> ret = currentLoggers.stream().map(ManualStatusLogger::status)
                 .flatMap(Collection::stream)

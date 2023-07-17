@@ -20,7 +20,7 @@ it('sharerestore', function () {
     cy.get('#acceptButton').contains("Activate Shares").should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.wait(100);
-    cy.get('#currentProgress').contains("Idle");
+    cy.get('#currentProgress').contains("Stopped");
 
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click()
     cy.get('#cancelButton').should("be.visible").and('not.be.disabled').click();
@@ -35,7 +35,7 @@ it('sharerestore', function () {
     cy.wait(7500);
 
     cy.get('#pageStatus > .MuiListItemText-root > .MuiTypography-root').and('not.be.disabled').click();
-    cy.get('#currentProgress').contains("Idle");
+    cy.get('#currentProgress').contains("Stopped");
 
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get("#restoreSource").click();
@@ -57,5 +57,5 @@ it('sharerestore', function () {
     cy.get("#loading").should('not.be.visible');
     cy.get('#cancelButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#currentProgress').contains("Idle");
+    cy.get('#currentProgress').contains("Stopped");
 });

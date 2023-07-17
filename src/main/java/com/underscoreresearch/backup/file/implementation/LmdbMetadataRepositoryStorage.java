@@ -50,10 +50,14 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.hash.Hashing;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.Nullable;
@@ -65,7 +69,6 @@ import org.lmdbjava.KeyRange;
 import org.lmdbjava.Stat;
 import org.lmdbjava.Txn;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -74,6 +77,8 @@ import com.fasterxml.jackson.databind.util.ByteBufferBackedOutputStream;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableStream;
@@ -93,12 +98,22 @@ import com.underscoreresearch.backup.model.BackupUpdatedFile;
 
 @Slf4j
 public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage {
+    @Data
+    @NoArgsConstructor
+    private static final class DirectoryEncoding {
+        @JsonProperty("p")
+        private String path;
+        @JsonProperty("files")
+        private NavigableSet<String> files;
+
+        public DirectoryEncoding(NavigableSet<String> files) {
+            this.files = files;
+        }
+    }
     private static final ObjectReader BACKUP_DIRECTORY_FILES_READER
-            = MAPPER.readerFor(new TypeReference<NavigableSet<String>>() {
-    });
+            = MAPPER.readerFor(DirectoryEncoding.class);
     private static final ObjectWriter BACKUP_DIRECTORY_FILES_WRITER
-            = MAPPER.writerFor(new TypeReference<Set<String>>() {
-    });
+            = MAPPER.writerFor(DirectoryEncoding.class);
 
     private static final String FILE_STORE = "files";
     private static final String BLOCK_STORE = "blocks";
@@ -120,6 +135,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static final int CHECK_EXPAND_FREQUENCY = 1000;
     private static final ByteBuffer EMPTY_STRING_BUFFER = ByteBuffer.allocateDirect(1);
     private static final boolean SPARSE_MAP = SystemUtils.IS_OS_LINUX;
+    private static final int MAX_PATH_LENGTH = 500;
     private final String dataPath;
     private final List<Runnable> preCommitActions = new ArrayList<>();
     private ExecutorService executor;
@@ -160,9 +176,18 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     private static PathTimestamp decodePathTimestamp(ByteBuffer buffer) {
-        String path = StandardCharsets.UTF_8.decode(buffer.slice(0, buffer.limit() - Long.BYTES - 1)).toString();
+        String path;
+        if (!missingPath(buffer)) {
+            path = StandardCharsets.UTF_8.decode(buffer.slice(0, buffer.limit() - Long.BYTES - 1)).toString();
+        } else {
+            path = null;
+        }
         Long timestamp = buffer.slice(buffer.limit() - Long.BYTES, Long.BYTES).getLong();
         return new PathTimestamp(path, timestamp);
+    }
+
+    private static boolean missingPath(ByteBuffer buffer) {
+        return buffer.get(0) == 0 && buffer.limit() > Long.BYTES + 1;
     }
 
     private static KeyRange<ByteBuffer> prefixRange(ByteBuffer prefix) {
@@ -342,7 +367,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         PathTimestamp pathTimestamp = decodePathTimestamp(entry.key());
         try {
             BackupFile readValue = decodeData(BACKUP_FILE_READER, entry.val());
-            readValue.setPath(pathTimestamp.path);
+            if (pathTimestamp.path != null)
+                readValue.setPath(pathTimestamp.path);
             readValue.setAdded(pathTimestamp.timestamp);
             if (readValue.getLastChanged() == null)
                 readValue.setLastChanged(readValue.getAdded());
@@ -371,9 +397,10 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static BackupDirectory decodeDirectory(CursorIterable.KeyVal<ByteBuffer> entry) throws IOException {
         PathTimestamp pathTimestamp = decodePathTimestamp(entry.key());
         try {
-            return new BackupDirectory(pathTimestamp.path,
+            DirectoryEncoding encoding = decodeData(BACKUP_DIRECTORY_FILES_READER, entry.val());
+            return new BackupDirectory(pathTimestamp.path == null ? encoding.getPath() : pathTimestamp.getPath(),
                     pathTimestamp.timestamp,
-                    decodeData(BACKUP_DIRECTORY_FILES_READER, entry.val()));
+                    encoding.files);
         } catch (IOException e) {
             throw new IOException(String.format("Invalid directory %s:%s", pathTimestamp.path, pathTimestamp.timestamp), e);
         }
@@ -383,14 +410,18 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         return BackupFilePart.builder().blockIndex(part.getBlockIndex()).build();
     }
 
-    private static BackupFile strippedCopy(BackupFile file) {
-        return BackupFile.builder()
+    private static BackupFile strippedCopy(ByteBuffer buffer, BackupFile file) {
+        BackupFile ret = BackupFile.builder()
                 .length(file.getLength())
                 .locations(file.getLocations())
                 .permissions(file.getPermissions())
                 .deleted(file.getDeleted())
                 .lastChanged(file.getLastChanged())
                 .build();
+        if (missingPath(buffer)) {
+            ret.setPath(file.getPath());
+        }
+        return ret;
     }
 
     private static BackupBlock strippedCopy(BackupBlock block) {
@@ -648,7 +679,12 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     private ByteBuffer encodePathTimestamp(String path, Long timestamp) {
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(MAX_KEY_SIZE);
-        byteBuffer.put(path.getBytes(StandardCharsets.UTF_8));
+        byte[] pathData = path.getBytes(StandardCharsets.UTF_8);
+        if (pathData.length > MAX_PATH_LENGTH) {
+            byteBuffer.put((byte) 0);
+            pathData = Hashing.sha256().hashBytes(pathData).asBytes();
+        }
+        byteBuffer.put(pathData);
         byteBuffer.put((byte) 0);
         if (timestamp != null) {
             byteBuffer.putLong(timestamp);
@@ -913,7 +949,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             added = file.getAdded();
 
         synchronizeDbAccess(() -> {
-            fileMap.put(getWriteTransaction(), encodePathTimestamp(file.getPath(), added), encodeData(BACKUP_FILE_WRITER, strippedCopy(file)));
+            ByteBuffer key = encodePathTimestamp(file.getPath(), added);
+            fileMap.put(getWriteTransaction(), key, encodeData(BACKUP_FILE_WRITER, strippedCopy(key, file)));
             checkExpand();
         });
     }
@@ -966,8 +1003,12 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
         synchronizeDbAccess(() -> {
-            directoryMap.put(getWriteTransaction(), encodePathTimestamp(directory.getPath(), directory.getAdded()),
-                    encodeData(BACKUP_DIRECTORY_FILES_WRITER, directory.getFiles()));
+            ByteBuffer key = encodePathTimestamp(directory.getPath(), directory.getAdded());
+            DirectoryEncoding encoding = new DirectoryEncoding(directory.getFiles());
+            if (missingPath(key))
+                encoding.setPath(directory.getPath());
+            directoryMap.put(getWriteTransaction(), key,
+                    encodeData(BACKUP_DIRECTORY_FILES_WRITER, encoding));
             checkExpand();
         });
     }
@@ -1015,20 +1056,22 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
         synchronizeDbAccess(() -> {
-            activePathMap.put(getWriteTransaction(), encodeDoubleString(setId, path), encodeData(BACKUP_ACTIVE_PATH_WRITER, pendingFiles));
+            pendingFiles.setSavedRealPath(path);
+            activePathMap.put(getWriteTransaction(), encodeDoubleString(setId, Hash.hash64(path.getBytes(StandardCharsets.UTF_8))),
+                    encodeData(BACKUP_ACTIVE_PATH_WRITER, pendingFiles));
             checkExpand();
         });
     }
 
     @Override
     public boolean hasActivePath(String setId, String path) throws IOException {
-        return synchronizeDbAccess(() -> activePathMap.get(getReadTransaction(), encodeDoubleString(setId, path)) != null);
+        return synchronizeDbAccess(() -> activePathMap.get(getReadTransaction(), encodeDoubleString(setId, Hash.hash64(path.getBytes(StandardCharsets.UTF_8)))) != null);
     }
 
     @Override
     public void popActivePath(String setId, String path) throws IOException {
         synchronizeDbAccess(() -> {
-            activePathMap.delete(getWriteTransaction(), encodeDoubleString(setId, path));
+            activePathMap.delete(getWriteTransaction(), encodeDoubleString(setId, Hash.hash64(path.getBytes(StandardCharsets.UTF_8))));
             checkExpand();
         });
     }
@@ -1036,7 +1079,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public boolean deletePartialFile(BackupPartialFile file) throws IOException {
         return synchronizeDbAccess(() -> {
-            boolean ret = partialFileMap.delete(getWriteTransaction(), encodeString(file.getFile().getPath()));
+            boolean ret = partialFileMap.delete(getWriteTransaction(), encodeString(Hash.hash64(file.getFile().getPath().getBytes(StandardCharsets.UTF_8))));
             if (ret)
                 checkExpand();
             return ret;
@@ -1046,7 +1089,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public void savePartialFile(BackupPartialFile file) throws IOException {
         synchronizeDbAccess(() -> {
-            partialFileMap.put(getWriteTransaction(), encodeString(file.getFile().getPath()), encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
+            partialFileMap.put(getWriteTransaction(), encodeString(Hash.hash64(file.getFile().getPath().getBytes(StandardCharsets.UTF_8))),
+                    encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
             checkExpand();
         });
     }
@@ -1069,7 +1113,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     private BackupPartialFile getPartialFileInternal(Txn<ByteBuffer> txn, BackupPartialFile file) {
-        ByteBuffer data = partialFileMap.get(txn, encodeString(file.getFile().getPath()));
+        ByteBuffer data = partialFileMap.get(txn, encodeString(Hash.hash64(file.getFile().getPath().getBytes(StandardCharsets.UTF_8))));
         if (data != null) {
             BackupPartialFile ret;
             try {
@@ -1099,20 +1143,19 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     setId != null ? prefixRange(encodeDoubleString(setId, null)) : KeyRange.all())) {
                 for (final CursorIterable.KeyVal<ByteBuffer> entry : ci) {
                     String[] keys = decodeDoubleString(entry.key());
-                    String path = keys[1];
                     try {
                         BackupActivePath activePath = decodeData(BACKUP_ACTIVE_PATH_READER, entry.val());
-                        activePath.setParentPath(path);
+                        activePath.setParentPath(activePath.getSavedRealPath());
                         activePath.setSetIds(Lists.newArrayList(keys[0]));
 
-                        BackupActivePath existingActive = ret.get(path);
+                        BackupActivePath existingActive = ret.get(activePath.getSavedRealPath());
                         if (existingActive != null) {
                             activePath.mergeChanges(existingActive);
                         }
 
-                        ret.put(path, activePath);
+                        ret.put(activePath.getSavedRealPath(), activePath);
                     } catch (IOException exc) {
-                        log.error("Invalid activePath {} for set {}. Skipping during this run.", path, keys[0],
+                        log.error("Invalid activePath {} for set {}. Skipping during this run.", keys[1], keys[0],
                                 exc);
                     }
                 }
@@ -1208,14 +1251,15 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     public boolean addUpdatedFile(BackupUpdatedFile file, long howOften) throws IOException {
         return synchronizeDbAccess(() -> {
             Txn<ByteBuffer> txn = getWriteTransaction();
+            String hashedPath = Hash.hash64(file.getPath().getBytes(StandardCharsets.UTF_8));
             if (howOften < 0) {
-                updatedFilesMap.put(txn, encodeString(file.getPath()), encodeLong(file.getLastUpdated()));
-                updatedPendingFilesMap.put(txn, encodeTimestampPath(file.getLastUpdated(), file.getPath()),
-                        ByteBuffer.allocateDirect(0));
+                updatedFilesMap.put(txn, encodeString(hashedPath), encodeLong(file.getLastUpdated()));
+                updatedPendingFilesMap.put(txn, encodeTimestampPath(file.getLastUpdated(), hashedPath),
+                        encodeString(file.getPath()));
                 checkExpand();
                 return false;
             } else {
-                ByteBuffer buffer = updatedFilesMap.get(txn, encodeString(file.getPath()));
+                ByteBuffer buffer = updatedFilesMap.get(txn, encodeString(hashedPath));
                 if (buffer == null) {
                     long lastExisting = 0;
                     if (file.getPath().endsWith(PathNormalizer.PATH_SEPARATOR)) {
@@ -1242,19 +1286,19 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     }
                     when += MINIMUM_WAIT_UPDATE_MS;
 
-                    updatedFilesMap.put(txn, encodeString(file.getPath()), encodeLong(when));
-                    updatedPendingFilesMap.put(txn, encodeTimestampPath(when, file.getPath()),
-                            ByteBuffer.allocateDirect(0));
+                    updatedFilesMap.put(txn, encodeString(hashedPath), encodeLong(when));
+                    updatedPendingFilesMap.put(txn, encodeTimestampPath(when, hashedPath),
+                            encodeString(file.getPath()));
                     checkExpand();
                     return true;
                 } else {
                     long updated = decodeLong(buffer);
                     if (file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS > updated) {
-                        updatedPendingFilesMap.delete(txn, encodeTimestampPath(updated, file.getPath()));
+                        updatedPendingFilesMap.delete(txn, encodeTimestampPath(updated, hashedPath));
                         updatedPendingFilesMap.put(txn, encodeTimestampPath(
-                                        file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS, file.getPath()),
-                                ByteBuffer.allocateDirect(0));
-                        updatedFilesMap.put(txn, encodeString(file.getPath()),
+                                        file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS, hashedPath),
+                                encodeString(file.getPath()));
+                        updatedFilesMap.put(txn, encodeString(hashedPath),
                                 encodeLong(file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS));
                         checkExpand();
                         return true;
@@ -1269,8 +1313,9 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
         synchronizeDbAccess(() -> {
             Txn<ByteBuffer> txn = getWriteTransaction();
-            updatedFilesMap.delete(txn, encodeString(file.getPath()));
-            updatedPendingFilesMap.delete(txn, encodeTimestampPath(file.getLastUpdated(), file.getPath()));
+            String hashedPath = Hash.hash64(file.getPath().getBytes(StandardCharsets.UTF_8));
+            updatedFilesMap.delete(txn, encodeString(hashedPath));
+            updatedPendingFilesMap.delete(txn, encodeTimestampPath(file.getLastUpdated(), hashedPath));
             checkExpand();
         });
     }
@@ -1279,7 +1324,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     public CloseableStream<BackupUpdatedFile> getUpdatedFiles() {
         return createStream(updatedPendingFilesMap, true, entry -> {
             PathTimestamp timestamp = decodeTimestampPath(entry.key());
-            return new BackupUpdatedFile(timestamp.path, timestamp.timestamp);
+            return new BackupUpdatedFile(decodeString(entry.val()), timestamp.timestamp);
         });
     }
 

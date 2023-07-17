@@ -144,10 +144,13 @@ export function calculateDisplayState(appContext: ApplicationContext,
                 } else if (activityContext.activity.some(item => item.code.startsWith("OPTIMIZING_"))) {
                     busyStatus(ret, "Optimizing Log");
                 } else {
-                    ret.statusTitle = "Idle";
-
                     ret.backupCanStart = true;
                     ret.processing = false;
+                    if (appContext.currentConfiguration && appContext.currentConfiguration.manifest &&
+                        appContext.currentConfiguration.manifest.interactiveBackup)
+                        ret.statusTitle = "Idle";
+                    else
+                        ret.statusTitle = "Stopped";
                 }
             }
         }

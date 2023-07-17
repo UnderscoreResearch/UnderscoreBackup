@@ -55,7 +55,8 @@ class ScannerSchedulerImplTest {
     //@Test
     public void test() throws IOException {
         ScannerSchedulerImpl scannerScheduler = new ScannerSchedulerImpl(configuration, repository, trimmer, scanner,
-                Mockito.mock(StateLogger.class), Mockito.mock(FileChangeWatcher.class), Mockito.mock(ContinuousBackup.class), null);
+                Mockito.mock(StateLogger.class), Mockito.mock(FileChangeWatcher.class), Mockito.mock(ContinuousBackup.class),
+                null, false);
         new Thread(() -> {
             try {
                 Thread.sleep(2500);

@@ -52,6 +52,11 @@ class BackupContentsAccessImplTest {
         Mockito.when(metadataRepository.directory("/dir1/")).thenReturn(
                 Lists.newArrayList(
                         new BackupDirectory("/dir1/", 2L, Sets.newTreeSet(Lists.newArrayList("fileDeleted")))));
+        Mockito.when(metadataRepository.directory("/dir2/")).thenReturn(
+                Lists.newArrayList(
+                        new BackupDirectory("/dir2/", 2L, Sets.newTreeSet())));
+        Mockito.when(metadataRepository.lastDirectory("/dir2/")).thenReturn(
+                        new BackupDirectory("/dir2/", 2L, Sets.newTreeSet()));
 
         Mockito.when(metadataRepository.directory("/test/set1/")).thenReturn(Lists.newArrayList(
                 new BackupDirectory("/test/set/", 2L, Sets.newTreeSet(Lists.newArrayList("file1", "dir/"))),
@@ -60,6 +65,12 @@ class BackupContentsAccessImplTest {
         Mockito.when(metadataRepository.lastDirectory("/test/set1/"))
                 .thenReturn(new BackupDirectory("/test/set/", 3L,
                         Sets.newTreeSet(Lists.newArrayList("file1", "file2", "dir/"))));
+        Mockito.when(metadataRepository.directory("/test/set1/dir/")).thenReturn(Lists.newArrayList(
+                new BackupDirectory("/test/set/dir/", 2L, Sets.newTreeSet(Lists.newArrayList()))
+        ));
+        Mockito.when(metadataRepository.lastDirectory("/test/set1/dir/")).thenReturn(
+                new BackupDirectory("/test/set/dir/", 2L, Sets.newTreeSet(Lists.newArrayList()))
+        );
 
         Mockito.when(metadataRepository.file("/test/set1/file1"))
                 .thenReturn(Lists.newArrayList(BackupFile.builder().path("/test/set1/file1").added(2L).lastChanged(2L).length(2L).build(),
@@ -89,14 +100,14 @@ class BackupContentsAccessImplTest {
 
     @Test
     public void testEarly() throws IOException {
-        assertThat(backupContentsAccessEarly.directoryFiles("/"), Is.is(newFileSet(file("/dir1/", 2L), file("/dir2/"), file("/test/"))));
+        assertThat(backupContentsAccessEarly.directoryFiles("/"), Is.is(newFileSet(file("/dir1/", 2L), file("/dir2/", 2L), file("/test/"))));
         assertThat(backupContentsAccessEarly.directoryFiles("/test/"), Is.is(newFileSet(file("/test/set1/", 2L))));
-        assertThat(backupContentsAccessEarly.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/"), file("/test/set1/file1", 2L))));
+        assertThat(backupContentsAccessEarly.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 2L))));
         assertThat(backupContentsAccessEarly.directoryFiles("/whatever"), nullValue());
 
-        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/"), Is.is(newFileSet(file("/dir1/", 2L), file("/dir2/"), file("/test/"))));
+        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/"), Is.is(newFileSet(file("/dir1/", 2L), file("/dir2/", 2L), file("/test/"))));
         assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/test/"), Is.is(newFileSet(file("/test/set1/", 2L))));
-        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/"), file("/test/set1/file1", 2L))));
+        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 2L))));
         assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/whatever"), nullValue());
     }
 
@@ -115,20 +126,20 @@ class BackupContentsAccessImplTest {
 
     @Test
     public void testCurrent() throws IOException {
-        assertThat(backupContentsAccessCurrent.directoryFiles("/"), Is.is(newFileSet(file("/dir2/"), file("/test/"))));
+        assertThat(backupContentsAccessCurrent.directoryFiles("/"), Is.is(newFileSet(file("/dir2/", 2L), file("/test/"))));
         assertThat(backupContentsAccessCurrent.directoryFiles("/test/"), Is.is(newFileSet(file("/test/set1/", 3L), file("/test/set2/"))));
-        assertThat(backupContentsAccessCurrent.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/"), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
+        assertThat(backupContentsAccessCurrent.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
         assertThat(backupContentsAccessCurrent.directoryFiles("/whatever"), nullValue());
 
-        assertThat(backupContentsAccess.directoryFiles(""), Is.is(newFileSet(file("/dir2/"), file("/test/"))));
+        assertThat(backupContentsAccess.directoryFiles(""), Is.is(newFileSet(file("/dir2/", 2L), file("/test/"))));
         assertThat(backupContentsAccess.directoryFiles("/test"), Is.is(newFileSet(file("/test/set1/", 3L), file("/test/set2/"))));
-        assertThat(backupContentsAccess.directoryFiles("/test/set1"), Is.is(newFileSet(file("/test/set1/dir/"), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
+        assertThat(backupContentsAccess.directoryFiles("/test/set1"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
         assertThat(backupContentsAccess.directoryFiles("/whatever"), nullValue());
 
-        assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles(""), Is.is(newFileSet(file("/dir1/"), file("/dir2/"), file("/test/"))));
+        assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles(""), Is.is(newFileSet(file("/dir2/", 2L), file("/test/"))));
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/dir1"), Is.is(newFileSet(file("/dir1/fileDeleted", 2L))));
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/test"), Is.is(newFileSet(file("/test/set1/", 3L), file("/test/set2/"))));
-        assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/test/set1"), Is.is(newFileSet(file("/test/set1/dir/"), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
+        assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/test/set1"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/whatever"), nullValue());
     }
 

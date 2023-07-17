@@ -138,6 +138,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                     });
                 }
             }
+        } catch(RuntimeException e) {
+            throw new IOException("Failed to upgrade", e);
         }
 
         stopwatch.stop();

@@ -1,7 +1,7 @@
 import React, {useEffect} from 'react';
 import {
     Button,
-    Checkbox,
+    Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
     FormControl,
     FormControlLabel,
     InputAdornment,
@@ -21,7 +21,7 @@ import FileTreeView, {formatLastChange, formatSize, pathName} from "./FileTreeVi
 import {
     BackupDestination,
     BackupFile,
-    BackupSetRoot,
+    BackupSetRoot, deleteBackupFiles,
     downloadBackupFile,
     getBackupFiles,
     getBackupVersions,
@@ -74,7 +74,9 @@ export interface RestoreState {
     includeDeleted?: boolean,
     skipPermissions?: boolean,
     serviceSources?: SourceResponse[]
-    serviceShares?: ShareResponse[]
+    serviceShares?: ShareResponse[],
+    deletePath?: string,
+    deleteUpdated?: (path: string) => void
 }
 
 function defaultState(appContext: ApplicationContext, props: RestoreProps): RestoreState {
@@ -108,6 +110,19 @@ function sourceList(appContext: ApplicationContext): DestinationProp[] {
         });
     }
     return [];
+}
+
+function fileName(deletePath: string | undefined) {
+    if (deletePath) {
+        if (deletePath.endsWith("/")) {
+            deletePath = deletePath.substring(0, deletePath.length - 1);
+        }
+        let ind = deletePath.lastIndexOf("/");
+        if (ind >= 0) {
+            return deletePath.substring(ind + 1);
+        }
+    }
+    return deletePath;
 }
 
 export default function Restore(props: RestoreProps) {
@@ -183,50 +198,90 @@ export default function Restore(props: RestoreProps) {
         fetchShares();
     }
 
-    async function fetchTooltipContents(path: string): Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
-        => JSX.Element) | undefined> {
-        const files = await getBackupVersions(path);
-        if (files) {
-            return function (anchor: HTMLElement, open: boolean, handleClose: () => void) {
-                return <Popover
-                    open={open}
-                    anchorEl={open ? anchor : null}
-                    onClose={handleClose}
-                    anchorOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'right',
-                    }}
-                >
-                    <Paper sx={{
-                        p: 2
-                    }}>
-                        <Typography style={{fontWeight: "bold"}}>
-                            {pathName(files[0].path)} Versions
-                        </Typography>
-                        <List>
-                            {
-                                files.map((file: BackupFile) => {
-                                    return <ListItem key={file.added}>
-                                        <Typography sx={{fontSize: 14}}>
-                                            {formatSize(file.length)} ({formatLastChange(file.lastChanged)})
-                                        </Typography>
-                                        <Button style={{marginLeft: "8px"}}
-                                                variant="contained"
-                                                disabled={!file.length || file.length > 1024 * 1024 * 1024}
-                                                onClick={() => {
-                                                    downloadBackupFile(file.path,
-                                                        file.added ? file.added : 0,
-                                                        state.password);
-                                                    DisplayMessage("Download started", "success");
-                                                }
-                                                }>Download</Button>
-                                    </ListItem>
-                                })
-                            }
-                        </List>
-                    </Paper>
-                </Popover>
+    async function deleteFiles() {
+        if (state.deletePath && state.deleteUpdated) {
+            const deletePath = state.deletePath;
+            const deleteUpdated = state.deleteUpdated;
+
+            setState((oldState) => ({
+                ...oldState,
+                deletePath: undefined,
+                deleteUpdated: undefined
+            }))
+
+            await appContext.busyOperation(async () => {
+                await deleteBackupFiles(deletePath as string);
+            });
+            const ind = deletePath.lastIndexOf('/');
+            if (ind > 0) {
+                deleteUpdated(deletePath.substring(0, ind));
+            } else {
+                deleteUpdated("/");
             }
+            DisplayMessage("Deleted " + fileName(deletePath), "success");
+        }
+    }
+
+    async function fetchTooltipContents(path: string, hasChildren: boolean, updated: (path: string) => void): Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
+        => JSX.Element) | undefined> {
+        let files: BackupFile[] | undefined;
+        if (!hasChildren) {
+            files = await getBackupVersions(path);
+        } else {
+            files = undefined;
+        }
+        return function (anchor: HTMLElement, open: boolean, handleClose: () => void) {
+
+            return <Popover
+                open={open}
+                anchorEl={open ? anchor : null}
+                onClose={handleClose}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                }}
+            >
+                <Paper sx={{
+                    p: 2
+                }}>
+                    {files &&
+                        <>
+                            <Typography style={{fontWeight: "bold"}}>
+                                {pathName(files[0].path)} Versions
+                            </Typography>
+                            <List>
+                                {
+                                    files.map((file: BackupFile) => {
+                                        return <ListItem key={file.added}>
+                                            <Typography sx={{fontSize: 14}}>
+                                                {formatSize(file.length)} ({formatLastChange(file.lastChanged)})
+                                            </Typography>
+                                            <Button style={{marginLeft: "8px"}}
+                                                    variant="contained"
+                                                    disabled={!file.length || file.length > 1024 * 1024 * 1024}
+                                                    onClick={() => {
+                                                        downloadBackupFile(file.path,
+                                                            file.added ? file.added : 0,
+                                                            state.password);
+                                                        DisplayMessage("Download started", "success");
+                                                    }
+                                                    }>Download</Button>
+                                        </ListItem>
+                                    })
+                                }
+                            </List>
+                        </>
+                    }
+                    <Button style={{marginLeft: "8px"}}
+                            variant="contained"
+                            color={"error"}
+                            onClick={() => setState({
+                                ...state,
+                                deletePath: path,
+                                deleteUpdated: updated
+                            })}>Remove from backup</Button>
+                </Paper>
+            </Popover>
         }
         return undefined;
     }
@@ -501,6 +556,35 @@ export default function Restore(props: RestoreProps) {
                         style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
                 </div>
             </Paper>
+            <Dialog
+                open={!!state.deletePath}
+                onClose={() => setState({
+                    ...state,
+                    deletePath: undefined,
+                    deleteUpdated: undefined
+                })}
+                aria-labelledby="alert-dialog-title"
+                aria-describedby="alert-dialog-description"
+            >
+                <DialogTitle id="alert-dialog-title">
+                    Delete files from backup
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="alert-dialog-description">
+                        Delete all files and versions below the path {fileName(state.deletePath)}
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setState({
+                        ...state,
+                        deletePath: undefined,
+                        deleteUpdated: undefined
+                    })} autoFocus={true}>Cancel</Button>
+                    <Button onClick={deleteFiles} color="error" id={"deleteFiles"}>
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Stack>
     }
 }

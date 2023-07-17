@@ -7,9 +7,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Lists;
@@ -20,6 +25,26 @@ import com.underscoreresearch.backup.model.BackupFile;
 
 @Slf4j
 public class BackupContentsAccessPathOnly implements BackupContentsAccess {
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    protected static class FoundPath {
+        private String path;
+        private Long added;
+        private TreeMap<String, Boolean> files;
+
+        protected static FoundPath fromDirectory(BackupDirectory directory) {
+            if (directory != null) {
+                FoundPath ret = new FoundPath();
+                ret.path = directory.getPath();
+                ret.added = directory.getAdded();
+                ret.files = new TreeMap<>();
+                directory.getFiles().forEach((file) -> ret.files.put(file, ret.added != null));
+                return ret;
+            }
+            return null;
+        }
+    }
     private final MetadataRepository repository;
     private final Long timestamp;
     private final boolean includeDeleted;
@@ -68,11 +93,11 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         return ret;
     }
 
-    private BackupFile createFile(String root, String path) throws IOException {
+    private BackupFile createFile(String root, String path, boolean allowMissing) throws IOException {
         if (path.endsWith(PATH_SEPARATOR)) {
             BackupDirectory ret = pathEntry(root + path);
             if (ret == null)
-                return BackupFile.builder().path(root + path).build();
+                return allowMissing ? BackupFile.builder().path(root + path).build() : null;
             return BackupFile.builder().path(root + path).added(ret.getAdded()).build();
         }
         BackupFile ret = null;
@@ -92,7 +117,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         }
 
         if (ret == null) {
-            return BackupFile.builder().path(path).build();
+            return allowMissing ? BackupFile.builder().path(root + path).build() : null;
         }
         return ret;
     }
@@ -122,32 +147,32 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
             normalizedRoot = path + PATH_SEPARATOR;
         else
             normalizedRoot = path;
-        BackupDirectory foundPaths = getPaths(normalizedRoot);
+        FoundPath foundPaths = FoundPath.fromDirectory(getPaths(normalizedRoot));
 
         if (foundPaths == null && normalizedRoot.length() > 1) {
-            BackupFile file = createFile("", normalizedRoot.substring(0, normalizedRoot.length() - 1));
-            if (file.getAdded() != null) {
+            BackupFile file = createFile("", normalizedRoot.substring(0, normalizedRoot.length() - 1), false);
+            if (file != null) {
                 return Lists.newArrayList(file);
             }
         }
 
         if (foundPaths == null) {
-            foundPaths = new BackupDirectory(path, null, new TreeSet<>());
+            foundPaths = new FoundPath(path, null, new TreeMap<>());
         }
 
         if (normalizedRoot.equals(ROOT) && foundPaths.getFiles().size() == 0) {
-            foundPaths = getPaths("");
+            foundPaths = FoundPath.fromDirectory(getPaths(""));
             if (foundPaths != null) {
                 List<BackupFile> files = new ArrayList<>();
                 Set<String> foundRoots = new HashSet<>();
-                for (String dirPath : foundPaths.getFiles()) {
+                for (String dirPath : foundPaths.getFiles().keySet()) {
                     String fullPath = dirPath;
                     int ind = fullPath.indexOf('/', 1);
                     if (ind > 0) {
                         fullPath = fullPath.substring(0, ind + 1);
                     }
                     if (foundRoots.add(fullPath)) {
-                        files.add(createFile("", fullPath));
+                        files.add(createFile("", fullPath, true));
                     }
                 }
                 return files;
@@ -159,8 +184,10 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
 
         if (foundPaths.getFiles().size() > 0) {
             List<BackupFile> files = new ArrayList<>();
-            for (String dirPath : foundPaths.getFiles()) {
-                files.add(createFile(normalizedRoot, dirPath));
+            for (Map.Entry<String, Boolean> dirPath : foundPaths.getFiles().entrySet()) {
+                BackupFile file = createFile(normalizedRoot, dirPath.getKey(), !dirPath.getValue());
+                if (file != null)
+                    files.add(file);
             }
             return files;
         }
@@ -168,7 +195,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         return null;
     }
 
-    protected BackupDirectory addRootPaths(BackupDirectory foundPaths, String normalizedRoot) {
+    protected FoundPath addRootPaths(FoundPath foundPaths, String normalizedRoot) {
         return foundPaths;
     }
 }

@@ -1,9 +1,20 @@
 #!/bin/sh
 
-if [ -f /etc/underscorebackup/javaoptions.cfg ]
+JAVA_OPTIONS=/etc/underscorebackup/javaoptions.cfg
+APP_CONFIG=/opt/underscorebackup/lib/app/underscorebackup.cfg
+
+if [ -f $JAVA_OPTIONS ]
 then
-  DATA=`grep -v -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg ; cat /etc/underscorebackup/javaoptions.cfg`
-  echo "$DATA" > /opt/underscorebackup/lib/app/underscorebackup.cfg
+  DATA=`grep -v -E "^java-options=" $APP_CONFIG ; cat $JAVA_OPTIONS`
+  echo "$DATA" > $APP_CONFIG
+  if ! grep -E "^java-options=--add-opens=java.base/java.nio=ALL-UNNAMED" $JAVA_OPTIONS > /dev/null
+  then
+    echo "java-options=--add-opens=java.base/java.nio=ALL-UNNAMED" >> $APP_CONFIG
+  fi
+  if ! grep -E "^java-options=--add-opens=java.base/sun.nio.ch=ALL-UNNAMED" $JAVA_OPTIONS > /dev/null
+  then
+    echo "java-options=--add-opens=java.base/sun.nio.ch=ALL-UNNAMED" >> $APP_CONFIG
+  fi
 fi
 
 systemctl daemon-reload

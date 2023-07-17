@@ -67,7 +67,7 @@ public class UIManager {
         // Create a pop-up menu components
         MenuItem exitItem;
         if (SystemUtils.IS_OS_MAC_OSX) {
-            exitItem = new MenuItem("Pause");
+            exitItem = new MenuItem("Stop");
             exitItem.addActionListener((e) -> {
                 try {
                     ConfigurationPost.updateConfiguration(
@@ -75,7 +75,7 @@ public class UIManager {
                                     .writeValueAsString(InstanceFactory.getInstance(BackupConfiguration.class)), true, false, false);
                     InstanceFactory.reloadConfiguration(null);
                 } catch (IOException ex) {
-                    log.error("Failed to pause backup", ex);
+                    log.error("Failed to stop backup", ex);
                 }
             });
         } else {

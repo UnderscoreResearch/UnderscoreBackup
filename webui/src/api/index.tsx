@@ -135,6 +135,7 @@ export interface BackupConfiguration {
 export interface BackupFile {
     added?: number,
     lastChanged?: number,
+    deleted?: number,
     length?: number,
     path: string
 }
@@ -283,6 +284,13 @@ export async function getBackupFiles(path: string, includeDeleted: boolean, time
         url += "&timestamp=" + timestamp.getTime();
     }
     return await makeApiCall(url);
+}
+
+export async function deleteBackupFiles(path: string): Promise<BackupFile[] | undefined> {
+    let url = "backup-files/" + encodeURIComponent(path);
+    return await makeApiCall(url, {
+        method: 'DELETE'
+    });
 }
 
 export async function searchBackup(query: string, includeDeleted: boolean, timestamp?: Date): Promise<BackupFile[] | undefined> {

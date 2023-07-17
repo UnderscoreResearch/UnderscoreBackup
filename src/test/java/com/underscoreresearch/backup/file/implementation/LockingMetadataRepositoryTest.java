@@ -45,7 +45,13 @@ import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
 
 abstract class LockingMetadataRepositoryTest {
-    private static final String PATH = PATH_SEPARATOR + "test" + PATH_SEPARATOR + "path";
+    private static final String PATH = PATH_SEPARATOR + "test" + PATH_SEPARATOR + "path" +
+            PATH_SEPARATOR + "test" + PATH_SEPARATOR + "path";
+    private static final String LARGE_PATH = PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
+            PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
+            PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
+            PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
+            PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH;
     private static final String PART_HASH = "part";
     private static final String HASH = "hash";
     private static final int MAX_ITEMS = 100;
@@ -93,7 +99,7 @@ abstract class LockingMetadataRepositoryTest {
     }
 
     @Test
-    public void testFileSimple() throws IOException {
+    public void testFile() throws IOException {
         if (repository == null) {
             return;
         }
@@ -122,6 +128,43 @@ abstract class LockingMetadataRepositoryTest {
         repository.deleteFile(backupFile);
         repository.deleteFilePart(filePart);
         assertThat(repository.file(PATH).size(), Is.is(1));
+        assertThat(repository.existingFilePart(PART_HASH).size(), Is.is(1));
+
+        assertThat(repository.getFileCount(), Is.is(1L));
+        assertThat(repository.getPartCount(), Is.is(1L));
+    }
+
+    @Test
+    public void testFileLarge() throws IOException {
+        if (repository == null) {
+            return;
+        }
+        assertNull(repository.existingFilePart(HASH));
+        assertNull(repository.file(LARGE_PATH));
+        assertNull(repository.lastFile(LARGE_PATH));
+        backupFile.setPath(LARGE_PATH);
+
+        repository.addFile(backupFile);
+
+        backupFile.setAdded(backupFile.getLastChanged());
+        assertThat(repository.file(LARGE_PATH).get(0), Is.is(backupFile));
+        assertThat(repository.existingFilePart(PART_HASH).get(0), Is.is(filePart));
+
+        backupFile.setAdded(backupFile.getLastChanged() + 1);
+        filePart.setBlockHash("otherhash");
+
+        repository.addFile(backupFile);
+        repository.addFile(backupFile);
+        assertThat(repository.file(LARGE_PATH).size(), Is.is(2));
+        assertThat(repository.lastFile(LARGE_PATH), Is.is(backupFile));
+        assertThat(repository.existingFilePart(PART_HASH).size(), Is.is(2));
+
+        halfwayUpgrade();
+
+        assertThat(repository.getFileCount(), Is.is(2L));
+        repository.deleteFile(backupFile);
+        repository.deleteFilePart(filePart);
+        assertThat(repository.file(LARGE_PATH).size(), Is.is(1));
         assertThat(repository.existingFilePart(PART_HASH).size(), Is.is(1));
 
         assertThat(repository.getFileCount(), Is.is(1L));
@@ -178,6 +221,26 @@ abstract class LockingMetadataRepositoryTest {
 
         repository.deleteDirectory(PATH, timestamp);
         assertNull(repository.directory(PATH));
+        assertThat(repository.getDirectoryCount(), Is.is(0L));
+    }
+
+    @Test
+    public void testLargeDirectory() throws IOException {
+        if (repository == null) {
+            return;
+        }
+        assertNull(repository.directory(LARGE_PATH));
+
+        Long timestamp = Instant.now().toEpochMilli();
+        repository.addDirectory(new BackupDirectory(LARGE_PATH, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b"))));
+        assertThat(repository.lastDirectory(LARGE_PATH), Is.is(new BackupDirectory(LARGE_PATH, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b")))));
+        assertThat(repository.directory(LARGE_PATH), Is.is(Lists.newArrayList(new BackupDirectory(LARGE_PATH, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b"))))));
+        assertThat(repository.getDirectoryCount(), Is.is(1L));
+
+        halfwayUpgrade();
+
+        repository.deleteDirectory(LARGE_PATH, timestamp);
+        assertNull(repository.directory(LARGE_PATH));
         assertThat(repository.getDirectoryCount(), Is.is(0L));
     }
 
@@ -405,17 +468,20 @@ abstract class LockingMetadataRepositoryTest {
                         .build()))
                 .build();
         repository.addFile(backupFile);
+        repository.addFile(backupFile);
         BackupUpdatedFile f1 = BackupUpdatedFile.builder().path(PATH).lastUpdated(System.currentTimeMillis()).build();
         BackupUpdatedFile f2 = BackupUpdatedFile.builder().path("/p2").lastUpdated(System.currentTimeMillis()).build();
         BackupUpdatedFile f3 = BackupUpdatedFile.builder().path("/p2").lastUpdated(System.currentTimeMillis()).build();
         BackupUpdatedFile f4 = BackupUpdatedFile.builder().path("/p3").lastUpdated(System.currentTimeMillis()).build();
         BackupUpdatedFile f5 = BackupUpdatedFile.builder().path("/p3").lastUpdated(System.currentTimeMillis() + 20000L).build();
+        BackupUpdatedFile f6 = BackupUpdatedFile.builder().path(LARGE_PATH).lastUpdated(System.currentTimeMillis()).build();
 
         repository.addUpdatedFile(f1, 1000);
         repository.addUpdatedFile(f2, 1000);
         repository.addUpdatedFile(f3, 1000);
         repository.addUpdatedFile(f4, 1000);
         repository.addUpdatedFile(f5, 1000);
+        repository.addUpdatedFile(f6, 1000);
 
         halfwayUpgrade();
 
@@ -431,7 +497,7 @@ abstract class LockingMetadataRepositoryTest {
                         assertThat(item.getLastUpdated(), Matchers.greaterThanOrEqualTo(start + MINIMUM_WAIT_UPDATE_MS + 1000));
                         assertThat(item.getLastUpdated(), Matchers.lessThanOrEqualTo(System.currentTimeMillis() + MINIMUM_WAIT_UPDATE_MS + 1000));
                     }
-                    case "/p2" -> {
+                    case LARGE_PATH, "/p2" -> {
                         assertThat(item.getLastUpdated(), Matchers.greaterThanOrEqualTo(start + MINIMUM_WAIT_UPDATE_MS));
                         assertThat(item.getLastUpdated(), Matchers.lessThanOrEqualTo(System.currentTimeMillis() + MINIMUM_WAIT_UPDATE_MS));
                     }
@@ -448,7 +514,7 @@ abstract class LockingMetadataRepositoryTest {
                 }
                 return item;
             }).filter(Objects::nonNull).count();
-            assertThat(count, Is.is(3L));
+            assertThat(count, Is.is(4L));
         }
 
         try (CloseableStream<BackupUpdatedFile> map = repository.getUpdatedFiles()) {
