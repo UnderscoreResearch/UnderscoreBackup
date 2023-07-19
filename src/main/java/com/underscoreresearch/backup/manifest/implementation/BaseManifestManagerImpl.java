@@ -56,9 +56,9 @@ import com.underscoreresearch.backup.utils.AccessLock;
 public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     public static final String LOG_ROOT = "logs";
     public static final String IDENTITY_MANIFEST_LOCATION = "identity";
+    public static final String PUBLICKEY_FILENAME = "publickey.json";
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss.nnnnnnnnn").withZone(ZoneId.of("UTC"));
-    public static final String PUBLICKEY_FILENAME = "publickey.json";
     @Getter(AccessLevel.PROTECTED)
     private final BackupConfiguration configuration;
     @Getter(AccessLevel.PROTECTED)
@@ -128,6 +128,14 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
 
         this.encryptor = encryptor;
+    }
+
+    public static byte[] compressConfigData(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
+            IOUtils.copyStream(inputStream, gzipStream);
+        }
+        return outputStream.toByteArray();
     }
 
     protected void uploadKeyData(EncryptionKey key) throws IOException {
@@ -311,14 +319,6 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
         log.info("Uploading {} ({})", filename, readableSize(data.length));
         uploadData(filename, data);
-    }
-
-    public static byte[] compressConfigData(InputStream inputStream) throws IOException {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
-            IOUtils.copyStream(inputStream, gzipStream);
-        }
-        return outputStream.toByteArray();
     }
 
     public byte[] encryptConfigData(InputStream inputStream) throws IOException {

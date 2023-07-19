@@ -137,7 +137,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
 
         File file = new File(PathNormalizer.physicalPath(updatedFile.getPath()));
         if (!file.exists()) {
-            BackupFile existingFile = repository.lastFile(file.getPath());
+            BackupFile existingFile = repository.file(file.getPath(), null);
             if (existingFile != null && existingFile.getDeleted() == null) {
                 log.info("File deleted {}", PathNormalizer.physicalPath(updatedFile.getPath()));
 
@@ -149,7 +149,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                 }
             }
         } else if (file.isFile()) {
-            BackupFile existingFile = repository.lastFile(file.getPath());
+            BackupFile existingFile = repository.file(file.getPath(), null);
             if (existingFile == null
                     || (existingFile.getLastChanged() != file.lastModified() || existingFile.getLength() != file.length())) {
                 log.info("Backing up {}", PathNormalizer.physicalPath(updatedFile.getPath()));
@@ -236,7 +236,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         String dirPath = PathNormalizer.normalizePath(parentFile.toString());
         if (!dirPath.endsWith(PathNormalizer.PATH_SEPARATOR))
             dirPath += PathNormalizer.PATH_SEPARATOR;
-        BackupDirectory directory = repository.lastDirectory(dirPath);
+        BackupDirectory directory = repository.directory(dirPath, null, false);
         if (directory == null) {
             addFileToDirectory(parentFile, true);
             directory = BackupDirectory.builder()
@@ -255,7 +255,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         String dirPath = PathNormalizer.normalizePath(parentFile.toString());
         if (!dirPath.endsWith(PathNormalizer.PATH_SEPARATOR))
             dirPath += PathNormalizer.PATH_SEPARATOR;
-        BackupDirectory directory = repository.lastDirectory(dirPath);
+        BackupDirectory directory = repository.directory(dirPath, null, false);
         if (directory != null) {
             if (directory.getFiles().remove(file.getName()) || directory.getFiles().remove(file.getName() + PathNormalizer.PATH_SEPARATOR)) {
                 if (directory.getFiles().size() > 0) {

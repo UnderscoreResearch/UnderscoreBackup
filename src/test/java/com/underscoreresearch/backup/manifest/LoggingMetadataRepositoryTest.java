@@ -59,9 +59,16 @@ class LoggingMetadataRepositoryTest {
     }
 
     @Test
-    void lastFile() throws IOException {
-        loggingMetadataRepository.lastFile("path");
-        Mockito.verify(repository).lastFile("path");
+    void fileTimestamp() throws IOException {
+        loggingMetadataRepository.file("path", 1L);
+        Mockito.verify(repository).file("path", 1L);
+        Mockito.verify(manifestManager, Mockito.never()).addLogEntry(anyString(), anyString());
+    }
+
+    @Test
+    void directoryTimestamp() throws IOException {
+        loggingMetadataRepository.directory("path", 1L, true);
+        Mockito.verify(repository).directory("path", 1L, true);
         Mockito.verify(manifestManager, Mockito.never()).addLogEntry(anyString(), anyString());
     }
 
@@ -113,13 +120,6 @@ class LoggingMetadataRepositoryTest {
         loggingMetadataRepository.addDirectory(new BackupDirectory("path", timestamp, Sets.newTreeSet(Lists.newArrayList("a"))));
         Mockito.verify(repository).addDirectory(new BackupDirectory("path", timestamp, Sets.newTreeSet(Lists.newArrayList("a"))));
         Mockito.verify(manifestManager).addLogEntry(anyString(), anyString());
-    }
-
-    @Test
-    void directory() throws IOException {
-        loggingMetadataRepository.directory("path");
-        Mockito.verify(repository).directory("path");
-        Mockito.verify(manifestManager, Mockito.never()).addLogEntry(anyString(), anyString());
     }
 
     @Test

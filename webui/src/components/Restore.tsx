@@ -1,7 +1,12 @@
 import React, {useEffect} from 'react';
 import {
     Button,
-    Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
+    Checkbox,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
     FormControl,
     FormControlLabel,
     InputAdornment,
@@ -21,7 +26,8 @@ import FileTreeView, {formatLastChange, formatSize, pathName} from "./FileTreeVi
 import {
     BackupDestination,
     BackupFile,
-    BackupSetRoot, deleteBackupFiles,
+    BackupSetRoot,
+    deleteBackupFiles,
     downloadBackupFile,
     getBackupFiles,
     getBackupVersions,

@@ -81,7 +81,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             .build(new CacheLoader<>() {
                 @Override
                 public NavigableSet<String> load(String key) throws Exception {
-                    BackupDirectory ret = metadataRepository.lastDirectory(key);
+                    BackupDirectory ret = metadataRepository.directory(key, null, false);
                     if (ret == null) {
                         return new TreeSet<>();
                     }
@@ -352,53 +352,55 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     private void processDirectories(String path,
                                     NavigableSet<String> deletedPaths,
                                     Statistics statistics) throws IOException {
-        List<BackupDirectory> directoryVersions = metadataRepository.directory(path);
-
-        if (directoryVersions == null
-                || directoryVersions.size() == 0
-                || directoryVersions.get(0).getPath().equals("")) {
+        if ("".equals(path))
             return;
-        }
 
         Long lastTimestamp = null;
-        Set<String> lastContents = new HashSet<>();
-        BackupDirectory lastDirectory = null;
-        int deleted = 0;
-        for (int i = directoryVersions.size() - 1; i >= 0; i--) {
-            BackupDirectory directory = directoryVersions.get(i);
-            BackupContentsAccessPathOnly contents = new BackupContentsAccessPathOnly(metadataRepository,
-                    lastTimestamp, false);
-            List<BackupFile> directoryFiles = contents.directoryFiles(directory.getPath());
+        BackupDirectory directory = metadataRepository.directory(path, lastTimestamp, false);
+        if (directory != null) {
+            Set<String> lastContents = new HashSet<>();
+            BackupDirectory lastDirectory = null;
+            int deleted = 0;
+            int count = 0;
+            do {
+                BackupContentsAccessPathOnly contents = new BackupContentsAccessPathOnly(metadataRepository,
+                        lastTimestamp, false);
+                List<BackupFile> directoryFiles = contents.directoryFiles(directory.getPath());
 
-            if (directoryFiles != null) {
-                Set<String> directoryContents = directoryFiles
-                        .stream()
-                        .filter(t -> t.getAdded() != null)
-                        .map(t -> t.getPath())
-                        .collect(Collectors.toSet());
-                if (lastDirectory != null && directoryContents.equals(lastContents)) {
+                boolean deleteIfLast = false;
+                if (directoryFiles != null) {
+                    Set<String> directoryContents = directoryFiles
+                            .stream()
+                            .filter(t -> t.getAdded() != null)
+                            .map(BackupFile::getPath)
+                            .collect(Collectors.toSet());
+                    if (lastDirectory != null && directoryContents.equals(lastContents)) {
+                        deleteDirectory(lastDirectory, statistics);
+                        deleted++;
+                    }
+                    if (directoryContents.size() == 0) {
+                        deleteIfLast = true;
+                    }
+                    lastContents = directoryContents;
+                    lastDirectory = directory;
+                } else {
+                    deleteDirectory(directory, statistics);
+                    deleted++;
+                }
+
+                lastTimestamp = directory.getAdded() - 1;
+                directory = metadataRepository.directory(path, lastTimestamp, false);
+                if (directory == null && deleteIfLast) {
                     deleteDirectory(lastDirectory, statistics);
                     deleted++;
                 }
-                if (i == 0) {
-                    if (directoryContents.size() == 0) {
-                        deleteDirectory(directory, statistics);
-                        deleted++;
-                    }
-                } else {
-                    lastContents = directoryContents;
-                    lastDirectory = directory;
-                }
-            } else {
-                deleteDirectory(directory, statistics);
-                deleted++;
-            }
+                count++;
+            } while (directory != null);
 
-            lastTimestamp = directory.getAdded() - 1;
-        }
-        if (deleted == directoryVersions.size()) {
-            deletedPaths.add(findParent(path));
-            statistics.addDeletedDirectories(1);
+            if (deleted == count) {
+                deletedPaths.add(findParent(path));
+                statistics.addDeletedDirectories(1);
+            }
         }
     }
 

@@ -216,7 +216,7 @@ function normalizeRoots(roots: BackupSetRoot[], defaults: BackupState): BackupSe
 function childCount(items: TreeItem[], index: number) {
     const level = items[index].level;
     let length = 0;
-    while(index + 1 + length < items.length && items[index + length + 1].level > level) {
+    while (index + 1 + length < items.length && items[index + length + 1].level > level) {
         length++;
     }
     return length;
@@ -397,8 +397,10 @@ export default function FileTreeView(props: SetTreeViewProps) {
                                      />
                                  }
                                  label={
-                                     <span style={{width: "100%", display: "flex", alignItems: "center",
-                                         color: itemProps.item.deleted ? theme.palette.text.disabled : theme.palette.text.primary}}>
+                                     <span style={{
+                                         width: "100%", display: "flex", alignItems: "center",
+                                         color: itemProps.item.deleted ? theme.palette.text.disabled : theme.palette.text.primary
+                                     }}>
                                          <Tooltip title={formatPath(itemProps.item.path)} placement={"bottom"}>
                                              <span style={{width: "100%"}}>{name()}</span>
                                          </Tooltip>

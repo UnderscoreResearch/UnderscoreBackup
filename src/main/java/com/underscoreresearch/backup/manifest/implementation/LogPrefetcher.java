@@ -33,6 +33,7 @@ public class LogPrefetcher {
     private final Map<String, byte[]> data = new HashMap<>();
     private final AtomicBoolean stop = new AtomicBoolean(false);
     private final AtomicReference<Exception> error = new AtomicReference<>();
+
     public LogPrefetcher(List<String> logFiles, BackupConfiguration configuration, Downloader downloadData, Encryptor encryptor, EncryptionKey.PrivateKey privateKey) {
         this.logFiles = new LinkedBlockingDeque<String>(logFiles);
         this.downloadData = downloadData;

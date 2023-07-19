@@ -176,7 +176,8 @@ export function SecurityPage(props: SecurityPageProps) {
                 }
             </Paper>
 
-            <NextButton disabled={state.password.length == 0} force={state.force} onClick={() => submitPassword(state.force)}/>
+            <NextButton disabled={state.password.length == 0} force={state.force}
+                        onClick={() => submitPassword(state.force)}/>
 
             <Dialog open={state.showChangePassword} onClose={handleChangePasswordClose}>
                 <DialogTitle>New Password</DialogTitle>

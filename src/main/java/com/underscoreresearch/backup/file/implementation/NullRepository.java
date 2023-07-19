@@ -19,6 +19,7 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public class NullRepository implements MetadataRepository {
     private static CloseableLock getDummyLock() {
@@ -98,12 +99,12 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public List<BackupFile> file(String path) throws IOException {
+    public List<ExternalBackupFile> file(String path) throws IOException {
         return null;
     }
 
     @Override
-    public BackupFile lastFile(String path) throws IOException {
+    public BackupFile file(String path, Long timestamp) throws IOException {
         return null;
     }
 
@@ -149,12 +150,7 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public List<BackupDirectory> directory(String path) throws IOException {
-        return null;
-    }
-
-    @Override
-    public BackupDirectory lastDirectory(String path) throws IOException {
+    public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
         return null;
     }
 

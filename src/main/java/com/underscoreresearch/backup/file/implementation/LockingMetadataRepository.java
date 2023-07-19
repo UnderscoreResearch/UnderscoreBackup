@@ -47,6 +47,7 @@ import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 import com.underscoreresearch.backup.utils.AccessLock;
 
 @Slf4j
@@ -339,7 +340,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public List<BackupFile> file(String path) throws IOException {
+    public List<ExternalBackupFile> file(String path) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
             ensureOpen();
 
@@ -425,11 +426,11 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public BackupFile lastFile(String path) throws IOException {
+    public BackupFile file(String path, Long timestamp) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
             ensureOpen();
 
-            return storage.lastFile(path);
+            return storage.file(path, timestamp);
         }
     }
 
@@ -443,20 +444,11 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     @Override
-    public List<BackupDirectory> directory(String path) throws IOException {
+    public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
             ensureOpen();
 
-            return storage.directory(path);
-        }
-    }
-
-    @Override
-    public BackupDirectory lastDirectory(String path) throws IOException {
-        try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
-
-            return storage.lastDirectory(path);
+            return storage.directory(path, timestamp, accumulative);
         }
     }
 

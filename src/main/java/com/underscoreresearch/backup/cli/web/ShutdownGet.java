@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.takes.Request;
 import org.takes.Response;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-
 @Slf4j
 public class ShutdownGet extends JsonWrap {
     public ShutdownGet() {

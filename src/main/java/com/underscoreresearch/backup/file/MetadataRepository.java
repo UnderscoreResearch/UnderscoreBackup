@@ -14,13 +14,14 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public interface MetadataRepository {
     void addFile(BackupFile file) throws IOException;
 
-    List<BackupFile> file(String path) throws IOException;
+    List<ExternalBackupFile> file(String path) throws IOException;
 
-    BackupFile lastFile(String path) throws IOException;
+    BackupFile file(String path, Long timestamp) throws IOException;
 
     boolean deleteFile(BackupFile file) throws IOException;
 
@@ -40,9 +41,7 @@ public interface MetadataRepository {
 
     void addDirectory(BackupDirectory directory) throws IOException;
 
-    List<BackupDirectory> directory(String path) throws IOException;
-
-    BackupDirectory lastDirectory(String path) throws IOException;
+    BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException;
 
     boolean deleteDirectory(String path, long timestamp) throws IOException;
 

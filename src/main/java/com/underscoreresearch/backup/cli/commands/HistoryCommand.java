@@ -18,7 +18,7 @@ import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @CommandPlugin(value = "history", args = "[FILES]...", description = "List file history",
         needPrivateKey = false, supportSource = true)
@@ -43,7 +43,7 @@ public class HistoryCommand extends Command {
     private void listHistory(CommandLine commandLine,
                              MetadataRepository repository,
                              String path) throws IOException {
-        List<BackupFile> versions = repository.file(path);
+        List<ExternalBackupFile> versions = repository.file(path);
         if (versions != null) {
             System.out.println(path + ":");
             long totalSize = versions.stream().map(t -> t.getLength() != null ? t.getLength() : 0).reduce((a, b) -> a + b).get();
@@ -52,7 +52,7 @@ public class HistoryCommand extends Command {
             else
                 System.out.println("total " + totalSize);
 
-            for (BackupFile file : versions) {
+            for (ExternalBackupFile file : versions) {
                 System.out.println(printFile(commandLine, false, file));
             }
         }

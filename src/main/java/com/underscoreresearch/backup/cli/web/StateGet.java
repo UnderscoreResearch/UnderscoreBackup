@@ -165,6 +165,8 @@ public class StateGet extends JsonWrap {
                     exclusions.add("/.mozilla/firefox/");
                 } else {
                     exclusions.add("/Google/Chrome/");
+                    exclusions.add("/Microsoft/Edge/");
+                    exclusions.add("/Microsoft/OneDrive/");
                     exclusions.add("/Mozilla/Firefox/");
                 }
 

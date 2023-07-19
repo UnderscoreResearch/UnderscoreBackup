@@ -124,7 +124,7 @@ public abstract class MetadataRepositoryStoragePerformance {
             watch.start();
             for (int i = 0; i < SIZE; i++) {
                 int val = Math.abs(random.nextInt()) % SIZE;
-                assertNotNull(storage.lastFile(hash(val)));
+                assertNotNull(storage.file(hash(val), null));
             }
             System.out.printf("%s: Random read %s%s files: %.3f%n",
                     getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
@@ -146,7 +146,7 @@ public abstract class MetadataRepositoryStoragePerformance {
             watch.reset();
             watch.start();
             for (int i = 0; i < SIZE; i++) {
-                assertNotNull(storage.lastFile(String.format("%010d", i)));
+                assertNotNull(storage.file(String.format("%010d", i), null));
             }
             System.out.printf("%s: Sequential read %s%s files: %.3f%n",
                     getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);

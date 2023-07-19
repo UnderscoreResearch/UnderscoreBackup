@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_ADDITIONAL_READER;
@@ -56,8 +57,6 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.hash.Hashing;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.Nullable;
@@ -69,6 +68,7 @@ import org.lmdbjava.KeyRange;
 import org.lmdbjava.Stat;
 import org.lmdbjava.Txn;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -76,8 +76,8 @@ import com.fasterxml.jackson.databind.util.ByteBufferBackedInputStream;
 import com.fasterxml.jackson.databind.util.ByteBufferBackedOutputStream;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
@@ -95,26 +95,14 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @Slf4j
 public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage {
-    @Data
-    @NoArgsConstructor
-    private static final class DirectoryEncoding {
-        @JsonProperty("p")
-        private String path;
-        @JsonProperty("files")
-        private NavigableSet<String> files;
-
-        public DirectoryEncoding(NavigableSet<String> files) {
-            this.files = files;
-        }
-    }
     private static final ObjectReader BACKUP_DIRECTORY_FILES_READER
             = MAPPER.readerFor(DirectoryEncoding.class);
     private static final ObjectWriter BACKUP_DIRECTORY_FILES_WRITER
             = MAPPER.writerFor(DirectoryEncoding.class);
-
     private static final String FILE_STORE = "files";
     private static final String BLOCK_STORE = "blocks";
     private static final String BLOCK_ALT_STORE = "blocks2";
@@ -158,7 +146,6 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private int updateCount;
     private boolean synchronizationDisabled;
     private Stopwatch sharedTransactionAge;
-
     public LmdbMetadataRepositoryStorage(String dataPath, boolean alternateBlockTable) {
         this.dataPath = dataPath;
         this.alternateBlockTable = alternateBlockTable;
@@ -358,7 +345,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 }
             } catch (BufferOverflowException exc) {
                 bufferSize *= 2;
-                log.debug("Buffer too small, retrying with double the size: {}", bufferSize);
+                final int finalBuffer = bufferSize;
+                debug(() -> log.debug("Buffer too small, retrying with double the size: {}", finalBuffer));
             }
         }
     }
@@ -465,6 +453,20 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 dbStat.entries * (MAX_KEY_SIZE + 1)) * ASSUMED_OVERHEAD);
     }
 
+    private static void throwException(Throwable exc) throws IOException {
+        if (exc != null) {
+            if (exc instanceof IOException)
+                throw (IOException) exc;
+            if (exc instanceof RuntimeException)
+                throw (RuntimeException) exc;
+            throw new RuntimeException(exc);
+        }
+    }
+
+    private static BackupBlockAdditional strippedCopy(BackupBlockAdditional block) {
+        return BackupBlockAdditional.builder().used(block.isUsed()).properties(block.getProperties()).build();
+    }
+
     private <T> CloseableStream<T> createStream(Dbi<ByteBuffer> db,
                                                 boolean forward,
                                                 Function<CursorIterable.KeyVal<ByteBuffer>, T> decoder) {
@@ -532,24 +534,6 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 .build());
     }
 
-    private interface ExceptionSupplier<T> {
-        T get() throws Exception;
-    }
-
-    private interface ExceptionRunnable {
-        void run() throws Exception;
-    }
-
-    private static void throwException(Exception exc) throws IOException {
-        if (exc != null) {
-            if (exc instanceof IOException)
-                throw (IOException)exc;
-            if (exc instanceof RuntimeException)
-                throw (RuntimeException)exc;
-            throw new RuntimeException(exc);
-        }
-    }
-
     private <T> T synchronizeDbAccess(ExceptionSupplier<T> function) throws IOException {
         if (synchronizationDisabled) {
             try {
@@ -560,14 +544,14 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         }
 
         AtomicReference<T> result = new AtomicReference<>();
-        AtomicReference<Exception> exception = new AtomicReference<>();
+        AtomicReference<Throwable> exception = new AtomicReference<>();
 
         synchronized (exception) {
             executor.execute(() -> {
                 synchronized (exception) {
                     try {
                         result.set(function.get());
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         exception.set(e);
                     }
                     exception.notify();
@@ -585,7 +569,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         }
     }
 
-    private void synchronizeDbAccess(ExceptionRunnable function) throws IOException{
+    private void synchronizeDbAccess(ExceptionRunnable function) throws IOException {
         if (synchronizationDisabled) {
             try {
                 function.run();
@@ -709,15 +693,15 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
-    public List<BackupFile> file(String path) throws IOException {
+    public List<ExternalBackupFile> file(String path) throws IOException {
         return synchronizeDbAccess(() -> {
-            List<BackupFile> files = null;
+            List<ExternalBackupFile> files = null;
             Txn<ByteBuffer> txn = getReadTransaction();
             try (CursorIterable<ByteBuffer> ci = fileMap.iterate(txn, prefixRange(encodePathTimestamp(path, null)))) {
                 for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
                     if (files == null)
                         files = new ArrayList<>();
-                    files.add(decodeFile(kv));
+                    files.add(new ExternalBackupFile(decodeFile(kv)));
                 }
             }
             return files;
@@ -879,8 +863,20 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
-    public BackupFile lastFile(String path) throws IOException {
-        return synchronizeDbAccess(() -> lastFileInternal(getReadTransaction(), path));
+    public BackupFile file(String path, Long timestamp) throws IOException {
+        if (timestamp == null) {
+            return synchronizeDbAccess(() -> lastFileInternal(getReadTransaction(), path));
+        }
+        return synchronizeDbAccess(() -> {
+            Txn<ByteBuffer> txn = getReadTransaction();
+            try (CursorIterable<ByteBuffer> ci = fileMap.iterate(txn,
+                    KeyRange.closedBackward(encodePathTimestamp(path, timestamp), encodePathTimestamp(path, 0L)))) {
+                for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
+                    return decodeFile(kv);
+                }
+            }
+            return null;
+        });
     }
 
     @Nullable
@@ -907,25 +903,26 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
-    public List<BackupDirectory> directory(String path) throws IOException {
+    public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
         return synchronizeDbAccess(() -> {
-            List<BackupDirectory> directories = null;
-            Txn<ByteBuffer> txn = getReadTransaction();
-            try (CursorIterable<ByteBuffer> ci = directoryMap.iterate(txn, prefixRange(encodePathTimestamp(path, null)))) {
-                for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
-                    if (directories == null)
-                        directories = new ArrayList<>();
-                    directories.add(decodeDirectory(kv));
-                }
+            CursorIterable<ByteBuffer> ci;
+            if (timestamp == null)
+                ci = directoryMap.iterate(getReadTransaction(), prefixRangeReverse(encodePathTimestamp(path, null)));
+            else
+                ci = directoryMap.iterate(getReadTransaction(), KeyRange.closedBackward(encodePathTimestamp(path, timestamp), encodePathTimestamp(path, null)));
+
+            BackupDirectory directory = null;
+            for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
+                BackupDirectory curDir = decodeDirectory(kv);
+                if (!accumulative)
+                    return curDir;
+                if (directory == null)
+                    directory = curDir;
+                else
+                    directory.getFiles().addAll(curDir.getFiles());
             }
-
-            return directories;
+            return directory;
         });
-    }
-
-    @Override
-    public BackupDirectory lastDirectory(String path) throws IOException {
-        return synchronizeDbAccess(() -> lastDirectoryInternal(path));
     }
 
     private BackupDirectory lastDirectoryInternal(String path) throws IOException {
@@ -1197,10 +1194,6 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         });
     }
 
-    private static BackupBlockAdditional strippedCopy(BackupBlockAdditional block) {
-        return BackupBlockAdditional.builder().used(block.isUsed()).properties(block.getProperties()).build();
-    }
-
     @Override
     public void addAdditionalBlock(BackupBlockAdditional block) throws IOException {
         synchronizeDbAccess(() -> {
@@ -1406,6 +1399,27 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public boolean needExclusiveCommitLock() {
         return false;
+    }
+
+    private interface ExceptionSupplier<T> {
+        T get() throws Exception;
+    }
+
+    private interface ExceptionRunnable {
+        void run() throws Exception;
+    }
+
+    @Data
+    @NoArgsConstructor
+    private static final class DirectoryEncoding {
+        @JsonProperty("p")
+        private String path;
+        @JsonProperty("files")
+        private NavigableSet<String> files;
+
+        public DirectoryEncoding(NavigableSet<String> files) {
+            this.files = files;
+        }
     }
 
     @AllArgsConstructor

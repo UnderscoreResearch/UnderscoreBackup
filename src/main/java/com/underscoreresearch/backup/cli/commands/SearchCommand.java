@@ -20,6 +20,7 @@ import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.BackupSearchAccessImpl;
 import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @CommandPlugin(value = "search", args = "Regular expression of search", description = "Search backup contents",
         needPrivateKey = false, supportSource = true)
@@ -40,7 +41,8 @@ public class SearchCommand extends Command {
             try (CloseableStream<BackupFile> files = searchAccess.searchFiles(
                     Pattern.compile(commandLine.getArgList().get(1), Pattern.CASE_INSENSITIVE),
                     interrupt)) {
-                files.stream().forEach(file -> System.out.println(printFile(commandLine, true, file)));
+                files.stream().forEach(file -> System.out.println(printFile(commandLine, true,
+                        new ExternalBackupFile(file))));
             }
         } catch (BackupSearchAccessImpl.InterruptedSearch exc) {
             log.warn("Search interrupted");

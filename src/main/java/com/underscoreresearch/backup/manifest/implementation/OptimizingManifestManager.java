@@ -242,7 +242,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                                     .encryptionMode(destination.getEncryption())
                                     .key(keyData)
                                     .version(VersionCommand.getVersionEdition())
-                                    .sharingKey(encryptionKey.getSharingPublicKey()));                }
+                                    .sharingKey(encryptionKey.getSharingPublicKey()));
+                }
             });
         }
     }

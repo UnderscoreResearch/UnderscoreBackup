@@ -279,7 +279,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     if (set.includeFile(file.getPath())) {
                         BackupFile existingFile;
                         try {
-                            existingFile = repository.lastFile(file.getPath());
+                            existingFile = repository.file(file.getPath(), null);
                         } catch (IOException e) {
                             log.error("Failed to read metadata about file for {}. Backing up again to be sure. Consider doing rebuild-repository.", PathNormalizer.physicalPath(file.getPath()), e);
                             existingFile = null;
@@ -430,7 +430,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     repository.popActivePath(set.getId(), currentPath);
                     Set<String> includedPaths = pending.includedPaths();
                     if (currentPath.endsWith(PATH_SEPARATOR)) {
-                        if (includedPaths.size() > 0 || repository.lastDirectory(currentPath) != null) {
+                        if (includedPaths.size() > 0 || repository.directory(currentPath, null, false) != null) {
                             repository.addDirectory(new BackupDirectory(currentPath,
                                     Instant.now().toEpochMilli(),
                                     Sets.newTreeSet(includedPaths)));

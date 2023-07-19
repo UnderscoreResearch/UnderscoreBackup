@@ -14,13 +14,14 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public interface MetadataRepositoryStorage {
     void open(boolean readOnly) throws IOException;
 
     void close() throws IOException;
 
-    List<BackupFile> file(String path) throws IOException;
+    List<ExternalBackupFile> file(String path) throws IOException;
 
     CloseableStream<BackupFile> allFiles(boolean ascending) throws IOException;
 
@@ -40,13 +41,11 @@ public interface MetadataRepositoryStorage {
 
     Set<BackupPendingSet> getPendingSets() throws IOException;
 
-    BackupFile lastFile(String path) throws IOException;
+    BackupFile file(String path, Long timestamp) throws IOException;
 
     BackupBlock block(String hash) throws IOException;
 
-    List<BackupDirectory> directory(String path) throws IOException;
-
-    BackupDirectory lastDirectory(String path) throws IOException;
+    BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException;
 
     void addFile(BackupFile file) throws IOException;
 

@@ -58,20 +58,18 @@ public class BackupFilesDelete extends JsonWrap {
                 deleteFiles(repository, path);
             }
 
-            List<BackupDirectory> dirVersions = repository.directory(path);
-            if (dirVersions != null) {
-                for (BackupDirectory version : dirVersions) {
-                    repository.deleteDirectory(version.getPath(), version.getAdded());
-                }
+            BackupDirectory directory = repository.directory(path, null, false);
+            while (directory != null) {
+                repository.deleteDirectory(directory.getPath(), directory.getAdded());
+                directory = repository.directory(path, null, false);
             }
         }
 
         private void deleteFiles(MetadataRepository repository, String path) throws IOException {
-            List<BackupFile> files = repository.file(path);
-            if (files != null) {
-                for (BackupFile version : files) {
-                    repository.deleteFile(version);
-                }
+            BackupFile file = repository.file(path, null);
+            while (file != null) {
+                repository.deleteFile(file);
+                file = repository.file(path, null);
             }
         }
     }

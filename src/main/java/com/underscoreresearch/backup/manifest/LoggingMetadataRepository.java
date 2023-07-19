@@ -55,6 +55,7 @@ import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @Slf4j
 public class LoggingMetadataRepository implements MetadataRepository, LogConsumer {
@@ -333,13 +334,13 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public List<BackupFile> file(String path) throws IOException {
+    public List<ExternalBackupFile> file(String path) throws IOException {
         return repository.file(path);
     }
 
     @Override
-    public BackupFile lastFile(String path) throws IOException {
-        return repository.lastFile(path);
+    public BackupFile file(String path, Long timestamp) throws IOException {
+        return repository.file(path, timestamp);
     }
 
     @Override
@@ -510,20 +511,9 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     public void addDirectory(BackupDirectory directory) throws IOException {
         BackupDirectory currentData;
         if (Instant.now().toEpochMilli() - directory.getAdded() < CURRENT_SPAN)
-            currentData = repository.lastDirectory(directory.getPath());
+            currentData = repository.directory(directory.getPath(), null, false);
         else {
-            List<BackupDirectory> set = repository.directory(directory.getPath());
-
-            currentData = null;
-            if (set != null) {
-                for (BackupDirectory entry : set) {
-                    if (entry.getAdded() <= directory.getAdded()) {
-                        currentData = entry;
-                    } else {
-                        break;
-                    }
-                }
-            }
+            currentData = repository.directory(directory.getPath(), directory.getAdded(), false);
         }
 
         // Need share implementation
@@ -555,13 +545,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public List<BackupDirectory> directory(String path) throws IOException {
-        return repository.directory(path);
-    }
-
-    @Override
-    public BackupDirectory lastDirectory(String path) throws IOException {
-        return repository.lastDirectory(path);
+    public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
+        return repository.directory(path, timestamp, accumulative);
     }
 
     @Override

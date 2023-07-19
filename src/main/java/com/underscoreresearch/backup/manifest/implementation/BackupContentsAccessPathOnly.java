@@ -25,30 +25,9 @@ import com.underscoreresearch.backup.model.BackupFile;
 
 @Slf4j
 public class BackupContentsAccessPathOnly implements BackupContentsAccess {
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    protected static class FoundPath {
-        private String path;
-        private Long added;
-        private TreeMap<String, Boolean> files;
-
-        protected static FoundPath fromDirectory(BackupDirectory directory) {
-            if (directory != null) {
-                FoundPath ret = new FoundPath();
-                ret.path = directory.getPath();
-                ret.added = directory.getAdded();
-                ret.files = new TreeMap<>();
-                directory.getFiles().forEach((file) -> ret.files.put(file, ret.added != null));
-                return ret;
-            }
-            return null;
-        }
-    }
     private final MetadataRepository repository;
     private final Long timestamp;
     private final boolean includeDeleted;
-
     public BackupContentsAccessPathOnly(MetadataRepository repository, Long timestamp, boolean includeDeleted) {
         this.repository = repository;
         this.timestamp = timestamp;
@@ -59,7 +38,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         BackupDirectory ret;
 
         if (timestamp == null) {
-            ret = repository.lastDirectory(path);
+            ret = repository.directory(path, timestamp, false);
 
             if (ret == null) {
                 ret = new BackupDirectory(path, null, new TreeSet<>());
@@ -76,13 +55,9 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         }
 
         if (ret != null && includeDeleted) {
-            List<BackupDirectory> otherDir = repository.directory(path);
-            if (otherDir != null) {
-                for (BackupDirectory dir : otherDir) {
-                    if (timestamp != null && dir.getAdded() > timestamp)
-                        break;
-                    ret.getFiles().addAll(dir.getFiles());
-                }
+            BackupDirectory allDir = repository.directory(path, timestamp, true);
+            if (allDir != null) {
+                ret.getFiles().addAll(allDir.getFiles());
             }
         }
 
@@ -100,21 +75,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
                 return allowMissing ? BackupFile.builder().path(root + path).build() : null;
             return BackupFile.builder().path(root + path).added(ret.getAdded()).build();
         }
-        BackupFile ret = null;
-        if (timestamp == null)
-            ret = repository.lastFile(root + path);
-        else {
-            List<BackupFile> files = repository.file(root + path);
-            if (files != null) {
-                for (BackupFile file : files) {
-                    if (file.getAdded() <= timestamp) {
-                        ret = file;
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
+        BackupFile ret = repository.file(root + path, timestamp);
 
         if (ret == null) {
             return allowMissing ? BackupFile.builder().path(root + path).build() : null;
@@ -123,21 +84,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
     }
 
     private BackupDirectory pathEntry(String path) throws IOException {
-        if (timestamp == null) {
-            return repository.lastDirectory(path);
-        }
-        List<BackupDirectory> directories = repository.directory(path);
-        BackupDirectory ret = null;
-        if (directories != null) {
-            for (BackupDirectory entry : directories) {
-                if (entry.getAdded() <= timestamp) {
-                    ret = entry;
-                } else {
-                    break;
-                }
-            }
-        }
-        return ret;
+        return repository.directory(path, timestamp, false);
     }
 
     @Override
@@ -197,5 +144,26 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
 
     protected FoundPath addRootPaths(FoundPath foundPaths, String normalizedRoot) {
         return foundPaths;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    protected static class FoundPath {
+        private String path;
+        private Long added;
+        private TreeMap<String, Boolean> files;
+
+        protected static FoundPath fromDirectory(BackupDirectory directory) {
+            if (directory != null) {
+                FoundPath ret = new FoundPath();
+                ret.path = directory.getPath();
+                ret.added = directory.getAdded();
+                ret.files = new TreeMap<>();
+                directory.getFiles().forEach((file) -> ret.files.put(file, ret.added != null));
+                return ret;
+            }
+            return null;
+        }
     }
 }

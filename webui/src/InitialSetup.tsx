@@ -201,7 +201,7 @@ export default function InitialSetup() {
                     }
                 }
                 if (currentStep > state.maximumStep) {
-                    let newMax : number;
+                    let newMax: number;
                     if (appContext.hasKey && appContext.destinationsValid) {
                         newMax = pageIndex("contents");
                     } else if (appContext.backendState.serviceConnected) {

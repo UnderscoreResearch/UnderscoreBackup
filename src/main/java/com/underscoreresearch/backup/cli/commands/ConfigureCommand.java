@@ -13,11 +13,8 @@ import java.net.URL;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.SystemUtils;
 
-import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 

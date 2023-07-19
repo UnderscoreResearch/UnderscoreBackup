@@ -68,6 +68,7 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @Slf4j
 public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage {
@@ -283,7 +284,15 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     }
 
     @Override
-    public List<BackupFile> file(String path) throws IOException {
+    public List<ExternalBackupFile> file(String path) throws IOException {
+        List<BackupFile> ret = internalFile(path);
+        if (ret != null) {
+            return ret.stream().map(ExternalBackupFile::new).collect(Collectors.toList());
+        }
+        return null;
+    }
+
+    private List<BackupFile> internalFile(String path) throws IOException {
         Map<Object[], byte[]> query =
                 fileMap.prefixSubMap(new Object[]{path});
         List<BackupFile> files = null;
@@ -481,8 +490,18 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     }
 
     @Override
-    public BackupFile lastFile(String path) throws IOException {
-        return lastFileInternal(path);
+    public BackupFile file(String path, Long timestamp) throws IOException {
+        if (timestamp == null)
+            return lastFileInternal(path);
+
+        List<BackupFile> files = internalFile(path);
+        if (files != null) {
+            for (int i = files.size() - 1; i >= 0; i--) {
+                if (files.get(i).getAdded() <= timestamp)
+                    return files.get(i);
+            }
+        }
+        return null;
     }
 
     private BackupFile lastFileInternal(String path) throws IOException {
@@ -520,8 +539,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         }
     }
 
-    @Override
-    public List<BackupDirectory> directory(String path) throws IOException {
+    private List<BackupDirectory> directory(String path) throws IOException {
         Map<Object[], byte[]> query =
                 directoryMap.prefixSubMap(new Object[]{path});
         List<BackupDirectory> directories = null;
@@ -548,16 +566,35 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     }
 
     @Override
-    public BackupDirectory lastDirectory(String path) throws IOException {
-        NavigableMap<Object[], byte[]> query =
-                directoryMap.prefixSubMap(new Object[]{path});
-        if (query.size() > 0) {
-            Map.Entry<Object[], byte[]> entry = query.lastEntry();
-            if (entry != null) {
-                return decodeDirectory(entry);
-            } else {
-                log.warn("Got empty last entry from query for {}", path);
+    public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
+        if (timestamp == null && !accumulative) {
+            NavigableMap<Object[], byte[]> query =
+                    directoryMap.prefixSubMap(new Object[]{path});
+            if (query.size() > 0) {
+                Map.Entry<Object[], byte[]> entry = query.lastEntry();
+                if (entry != null) {
+                    return decodeDirectory(entry);
+                } else {
+                    log.warn("Got empty last entry from query for {}", path);
+                }
             }
+        } else {
+            List<BackupDirectory> dirs = directory(path);
+            BackupDirectory ret = null;
+            if (dirs != null)
+                for (int i = dirs.size() - 1; i >= 0; i--) {
+                    if (timestamp == null || dirs.get(i).getAdded() <= timestamp) {
+                        if (!accumulative) {
+                            return dirs.get(i);
+                        }
+                        if (ret == null) {
+                            ret = dirs.get(i);
+                        } else {
+                            ret.getFiles().addAll(dirs.get(i).getFiles());
+                        }
+                    }
+                }
+            return ret;
         }
         return null;
     }
@@ -891,7 +928,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         if (updated == null) {
             long lastExisting = 0;
             if (file.getPath().endsWith(PathNormalizer.PATH_SEPARATOR)) {
-                BackupDirectory dir = lastDirectory(file.getPath());
+                BackupDirectory dir = directory(file.getPath(), null, false);
                 if (dir != null) {
                     lastExisting = dir.getAdded();
                 }

@@ -6,7 +6,6 @@ import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePriv
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.HttpURLConnection;
-import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,41 +57,33 @@ public class BackupDownloadPost extends TkWrap {
 
                 String password = decodePrivateKeyRequest(req);
 
-                List<BackupFile> files = InstanceFactory.getInstance(MetadataRepository.class).file(path);
-                if (files == null) {
+                BackupFile file = InstanceFactory.getInstance(MetadataRepository.class).file(path, timestamp);
+                if (file == null || !file.getAdded().equals(timestamp)) {
                     throw new HttpException(
                             HttpURLConnection.HTTP_BAD_REQUEST,
                             "File not found"
                     );
                 }
 
-                for (BackupFile file : files) {
-                    if (file.getAdded().equals(timestamp)) {
-                        InstanceFactory.reloadConfigurationWithSource();
+                InstanceFactory.reloadConfigurationWithSource();
 
-                        DownloadScheduler scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
-                        File tempfile = File.createTempFile("temp", null);
-                        scheduler.scheduleDownload(file, tempfile.getAbsolutePath(), password);
-                        scheduler.waitForCompletion();
-                        tempfile.deleteOnExit();
-                        new Thread(() -> {
-                            try {
-                                InstanceFactory.reloadConfiguration(
-                                        InstanceFactory.getAdditionalSource(),
-                                        InstanceFactory.getAdditionalSourceName(),
-                                        () -> InteractiveCommand.startBackupIfAvailable());
-                            } catch (Exception e) {
-                                log.error("Failed to restart backup", e);
-                            }
-                        }, "PostBackupDownloadGet").start();
-                        return new RsWithType(new RsWithBody(new FileInputStream(tempfile)), "application/octet-stream");
+                DownloadScheduler scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
+                File tempfile = File.createTempFile("temp", null);
+                scheduler.scheduleDownload(file, tempfile.getAbsolutePath(), password);
+                scheduler.waitForCompletion();
+                tempfile.deleteOnExit();
+                new Thread(() -> {
+                    try {
+                        InstanceFactory.reloadConfiguration(
+                                InstanceFactory.getAdditionalSource(),
+                                InstanceFactory.getAdditionalSourceName(),
+                                () -> InteractiveCommand.startBackupIfAvailable());
+                    } catch (Exception e) {
+                        log.error("Failed to restart backup", e);
                     }
-                }
+                }, "PostBackupDownloadGet").start();
 
-                throw new HttpException(
-                        HttpURLConnection.HTTP_BAD_REQUEST,
-                        "File not found"
-                );
+                return new RsWithType(new RsWithBody(new FileInputStream(tempfile)), "application/octet-stream");
             } catch (Exception exc) {
                 throw new HttpException(
                         HttpURLConnection.HTTP_BAD_REQUEST,

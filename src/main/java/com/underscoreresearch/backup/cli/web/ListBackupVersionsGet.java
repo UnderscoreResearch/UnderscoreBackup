@@ -6,7 +6,6 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.EXTERNAL_BA
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.takes.Request;
 import org.takes.Response;
@@ -15,7 +14,6 @@ import org.takes.rs.RsText;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public class ListBackupVersionsGet extends JsonWrap {
@@ -31,10 +29,10 @@ public class ListBackupVersionsGet extends JsonWrap {
             this.base = base + "/api/backup-versions";
         }
 
-        public static List<BackupFile> getRequestVersions(Request req, String base) throws IOException {
+        public static List<ExternalBackupFile> getRequestVersions(Request req, String base) throws IOException {
             String path = decodeFile(req, base);
 
-            List<BackupFile> versions = InstanceFactory.getInstance(MetadataRepository.class).file(path);
+            List<ExternalBackupFile> versions = InstanceFactory.getInstance(MetadataRepository.class).file(path);
 
             return versions != null ? Lists.reverse(versions) : new ArrayList<>();
         }
@@ -42,10 +40,7 @@ public class ListBackupVersionsGet extends JsonWrap {
         @Override
         public Response actualAct(Request req) throws Exception {
             return new RsText(EXTERNAL_BACKUP_FILES_WRITER.writeValueAsString(
-                    getRequestVersions(req, base)
-                            .stream()
-                            .map(t -> new ExternalBackupFile(t))
-                            .collect(Collectors.toList())));
+                    getRequestVersions(req, base)));
         }
     }
 }

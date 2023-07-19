@@ -33,17 +33,8 @@ import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
 public class AdditionalManifestManager {
-    @Getter
-    @RequiredArgsConstructor
-    private static class Destination {
-        private final BackupDestination destination;
-        private final IOIndex provider;
-        @Setter
-        private List<String> existingFiles;
-    }
     private final Map<String, Destination> additionalProviders = new HashMap<>();
     private final RateLimitController rateLimitController;
-
     public AdditionalManifestManager(BackupConfiguration configuration, RateLimitController rateLimitController) {
         if (configuration.getManifest() != null && configuration.getManifest().getAdditionalDestinations() != null) {
             for (String additionalDestination : configuration.getManifest().getAdditionalDestinations()) {
@@ -154,5 +145,14 @@ public class AdditionalManifestManager {
                 }
             }
         }
+    }
+
+    @Getter
+    @RequiredArgsConstructor
+    private static class Destination {
+        private final BackupDestination destination;
+        private final IOIndex provider;
+        @Setter
+        private List<String> existingFiles;
     }
 }

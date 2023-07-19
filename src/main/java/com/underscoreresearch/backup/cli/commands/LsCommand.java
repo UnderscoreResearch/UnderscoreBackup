@@ -25,6 +25,7 @@ import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @CommandPlugin(value = "ls", args = "[DIRECTORIES]...", description = "List backup contents",
         needPrivateKey = false, supportSource = true)
@@ -63,7 +64,7 @@ public class LsCommand extends Command {
                             }
                         }
                         if (commandLine.hasOption(FULL_PATH)) {
-                            System.out.println(printFile(commandLine, false, file));
+                            System.out.println(printFile(commandLine, false, new ExternalBackupFile(file)));
                         }
                     }
                 }
@@ -89,7 +90,7 @@ public class LsCommand extends Command {
             long newestChanged = 0;
             for (BackupFile file : files) {
                 if (!commandLine.hasOption(FULL_PATH) || !file.getPath().endsWith(PATH_SEPARATOR)) {
-                    System.out.println(printFile(commandLine, false, file));
+                    System.out.println(printFile(commandLine, false, new ExternalBackupFile(file)));
                 }
                 if (file.getLastChanged() != null && file.getLastChanged() > newestChanged) {
                     newestChanged = file.getLastChanged();

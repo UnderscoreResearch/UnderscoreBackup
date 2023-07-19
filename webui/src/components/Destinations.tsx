@@ -1,10 +1,10 @@
 import * as React from "react";
+import {Fragment, ReactNode} from "react";
 import {BackupDestination, DestinationMap} from '../api';
 import Destination from './Destination';
 import {EditableList} from './EditableList';
 import {Alert, Checkbox, FormControlLabel, Stack} from "@mui/material";
 import {ApplicationContext, destinationList, useApplication} from "../utils/ApplicationContext";
-import {Fragment, ReactFragment, ReactNode} from "react";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 
 interface DestinationState {
@@ -138,12 +138,12 @@ export default function Destinations(props: DestinationsProps) {
             onItemChanged: destinationChanged,
             items: state,
             createItem: (item, itemUpdated: (item: DestinationState) => void) => {
-                let postElement : ReactNode | undefined;
+                let postElement: ReactNode | undefined;
                 switch (item.destination.type) {
                     default:
                         if (((appContext.currentConfiguration.manifest.additionalDestinations &&
-                            appContext.currentConfiguration.manifest.additionalDestinations.length > 0) ||
-                            appContext.currentConfiguration.manifest.destination !== item.id) &&
+                                    appContext.currentConfiguration.manifest.additionalDestinations.length > 0) ||
+                                appContext.currentConfiguration.manifest.destination !== item.id) &&
                             (item.destination.errorCorrection === undefined || item.destination.errorCorrection === "NONE")) {
                             postElement = <Fragment>
                                 <DividerWithText>Store manifest</DividerWithText>
@@ -157,7 +157,8 @@ export default function Destinations(props: DestinationsProps) {
                                 <DividerWithText>Store manifest</DividerWithText>
                                 <FormControlLabel control={<Checkbox
                                     checked={isManifestDestination(appContext, item)}
-                                    onChange={(e) => {}}
+                                    onChange={(e) => {
+                                    }}
                                     disabled={true}
                                 />} label="Store metadata to allow adoption from this destination"/>
                             </Fragment>

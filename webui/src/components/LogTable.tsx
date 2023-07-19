@@ -8,6 +8,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableFooter from '@mui/material/TableFooter';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
 import Paper from '@mui/material/Paper';
 import IconButton from '@mui/material/IconButton';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
@@ -112,12 +113,22 @@ export default function LogTable(props: LogTableProps) {
         .map((line) => {
             const ret = /^(\S+\s+\S*)\s+(.*)/.exec(line.message);
             if (ret && ret.length > 2) {
-                return {
-                    level: line.code,
-                    key: ++rowCount,
-                    timestamp: ret[1],
-                    message: ret[2]
-                };
+                if (line.message.indexOf('\n') >= 0) {
+                    return {
+                        level: line.code,
+                        key: ++rowCount,
+                        timestamp: ret[1],
+                        message: ret[2],
+                        fullMessage: line.message
+                    };
+                } else {
+                    return {
+                        level: line.code,
+                        key: ++rowCount,
+                        timestamp: ret[1],
+                        message: ret[2]
+                    };
+                }
             } else {
                 return {
                     key: ++rowCount,
@@ -179,7 +190,21 @@ export default function LogTable(props: LogTableProps) {
                                 {row.timestamp}
                             </TableCell>
                             <TableCell>
-                                {row.message}
+                                {row.fullMessage ?
+                                    <Tooltip title={row.fullMessage} componentsProps={{
+                                        tooltip: {
+                                            sx: {
+                                                fontFamily: "monospace",
+                                                maxWidth: "none",
+                                                whiteSpace: "pre",
+                                            }
+                                        },
+                                    }} arrow>
+                                        <span>{row.message}</span>
+                                    </Tooltip>
+                                    :
+                                    row.message
+                                }
                             </TableCell>
                         </TableRow>
                     ))}

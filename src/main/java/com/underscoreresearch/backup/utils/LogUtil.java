@@ -22,6 +22,7 @@ import org.apache.commons.cli.CommandLine;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @Slf4j
 public final class LogUtil {
@@ -131,7 +132,7 @@ public final class LogUtil {
         return ret;
     }
 
-    public static String printFile(CommandLine commandLine, boolean alwaysFull, BackupFile file) {
+    public static String printFile(CommandLine commandLine, boolean alwaysFull, ExternalBackupFile file) {
         String size;
         if (file.getLength() != null) {
             if (commandLine.hasOption(HUMAN_READABLE)) {

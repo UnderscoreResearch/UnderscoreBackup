@@ -13,7 +13,7 @@ export function NextButton(props: { onClick: () => void, disabled?: boolean, for
                     onClick={props.onClick}
                     color={props.force ? "error" : "primary"}
                     size="large" id="next">
-                {props.force? "Force" : "Next"}
+                {props.force ? "Force" : "Next"}
             </Button>
         </Grid>
     </Grid>

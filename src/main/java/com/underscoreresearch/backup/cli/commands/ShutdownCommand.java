@@ -2,7 +2,6 @@ package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
