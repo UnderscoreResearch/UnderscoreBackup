@@ -1547,7 +1547,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                             buffer.put(lastValue);
                             buffer.flip();
                             iterable = map.iterate(txn, ascending ? KeyRange.greaterThan(buffer)
-                                    : KeyRange.lessThanBackward(buffer));
+                                    : KeyRange.greaterThanBackward(buffer));
                         }
                         preCommitActions.add(() -> {
                             iterable.close();

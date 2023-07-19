@@ -176,7 +176,7 @@ public class LockingMetadataRepository implements MetadataRepository {
         };
     }
 
-    private void commit() {
+    public void commit() {
         if (storage != null) {
             if (storage.needExclusiveCommitLock()) {
                 try (UpdateLock ignored = new UpdateLock()) {

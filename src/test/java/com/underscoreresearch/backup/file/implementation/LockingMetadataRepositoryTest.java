@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.hamcrest.Matchers;
@@ -169,6 +170,53 @@ abstract class LockingMetadataRepositoryTest {
 
         assertThat(repository.getFileCount(), Is.is(1L));
         assertThat(repository.getPartCount(), Is.is(1L));
+    }
+
+    @Test
+    public void testIterationDeleteDescend() throws IOException {
+        testIterationDelete(false);
+    }
+
+    @Test
+    public void testIterationDeleteAscend() throws IOException {
+        testIterationDelete(true);
+    }
+
+    private void testIterationDelete(boolean ascending) throws IOException {
+        if (repository == null) {
+            return;
+        }
+        final int PATHS = 100;
+        final int VERSIONS = 100;
+
+        for (int i = 0; i < PATHS; i++) {
+            for (long j = 0; j < VERSIONS; j++) {
+                repository.addFile(BackupFile.builder().path(String.format("%010d", i)).added(j).build());
+            }
+        }
+
+        try (CloseableStream<BackupFile> files = repository.allFiles(ascending)) {
+            assertThat(repository.getFileCount(), Is.is((long) PATHS * VERSIONS));
+            AtomicInteger counter = new AtomicInteger(0);
+            files.stream().forEach((file) -> {
+                int count = counter.get();
+                if (counter.incrementAndGet() % PATHS == 0) {
+                    repository.commit();
+                }
+                if (!ascending) {
+                    count = PATHS * VERSIONS - count - 1;
+                }
+                assertThat(Integer.parseInt(file.getPath()), Is.is(count / VERSIONS));
+                assertThat(file.getAdded(), Is.is((long) count % VERSIONS));
+                try {
+                    repository.deleteFile(file);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            assertThat(counter.get(), Is.is(PATHS * VERSIONS));
+            assertThat(repository.getFileCount(), Is.is(0L));
+        }
     }
 
     @Test
