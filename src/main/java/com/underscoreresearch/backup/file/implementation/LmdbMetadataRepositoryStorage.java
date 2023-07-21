@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.file.implementation;
 import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_ADDITIONAL_READER;
@@ -117,12 +118,14 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static final double ASSUMED_OVERHEAD = 1.1;
     private static final int MAX_KEY_SIZE = 511;
     private static final long SMALL_MAP_SIZE = 64L * 1024 * 1024;
-    private static final long MINIMUM_FREE_SPACE = SMALL_MAP_SIZE / 2;
-    private static final long LARGE_MAP_SIZE = 256L * 1024 * 1024 * 1024;
+    private static final long LARGE_MAP_SIZE = 512L * 1024 * 1024;
+    private static final boolean SPARSE_MAP = SystemUtils.IS_OS_LINUX;
+    private static final long INCREASE_SPACE = SPARSE_MAP ? (LARGE_MAP_SIZE / 2) : SMALL_MAP_SIZE;
+    private static final long MINIMUM_FREE_SPACE = SPARSE_MAP ? (LARGE_MAP_SIZE / 4) : SMALL_MAP_SIZE;
     private static final String STORAGE_ROOT = "v2";
     private static final int CHECK_EXPAND_FREQUENCY = 1000;
+    private static final int MAXIMUM_UNCOMMITTED_UPDATES = 50000;
     private static final ByteBuffer EMPTY_STRING_BUFFER = ByteBuffer.allocateDirect(1);
-    private static final boolean SPARSE_MAP = SystemUtils.IS_OS_LINUX;
     private static final int MAX_PATH_LENGTH = 500;
     private final String dataPath;
     private final List<Runnable> preCommitActions = new ArrayList<>();
@@ -146,6 +149,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private int updateCount;
     private boolean synchronizationDisabled;
     private Stopwatch sharedTransactionAge;
+
     public LmdbMetadataRepositoryStorage(String dataPath, boolean alternateBlockTable) {
         this.dataPath = dataPath;
         this.alternateBlockTable = alternateBlockTable;
@@ -419,12 +423,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     private static long openMapSize(File root) {
-        if (SPARSE_MAP) {
-            return LARGE_MAP_SIZE;
-        }
         File dataFile = new File(root, "data.mdb");
         if (dataFile.exists()) {
             return dataFile.length();
+        } else if (SPARSE_MAP) {
+            return LARGE_MAP_SIZE;
         } else {
             return SMALL_MAP_SIZE;
         }
@@ -449,8 +452,9 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     private static long calculateStatSize(Stat dbStat) {
-        return (long) ((dbStat.pageSize * (dbStat.leafPages + dbStat.branchPages + dbStat.overflowPages) +
-                dbStat.entries * (MAX_KEY_SIZE + 1)) * ASSUMED_OVERHEAD);
+        long pageSizes = dbStat.pageSize * (dbStat.leafPages + dbStat.branchPages + dbStat.overflowPages);
+        long entrySizes = dbStat.entries * (MAX_KEY_SIZE + 1);
+        return pageSizes + entrySizes;
     }
 
     private static void throwException(Throwable exc) throws IOException {
@@ -539,6 +543,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             try {
                 return function.get();
             } catch (Exception e) {
+                logUsage(e);
                 throwException(e);
             }
         }
@@ -552,6 +557,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     try {
                         result.set(function.get());
                     } catch (Throwable e) {
+                        logUsage(e);
                         exception.set(e);
                     }
                     exception.notify();
@@ -570,35 +576,24 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     private void synchronizeDbAccess(ExceptionRunnable function) throws IOException {
-        if (synchronizationDisabled) {
-            try {
-                function.run();
-            } catch (Exception e) {
-                throwException(e);
-            }
-        } else {
-            AtomicReference<Exception> exception = new AtomicReference<>();
+        synchronizeDbAccess(() -> {
+            function.run();
+            return null;
+        });
+    }
 
-            synchronized (exception) {
-                executor.execute(() -> {
-                    synchronized (exception) {
-                        try {
-                            function.run();
-                        } catch (Exception e) {
-                            exception.set(e);
-                        }
-                        exception.notify();
-                    }
-                });
-
-                try {
-                    exception.wait();
-                } catch (InterruptedException e) {
-                    log.error("Failed to wait", e);
-                }
-
-                throwException(exception.get());
-            }
+    private void logUsage(Throwable exc) {
+        if (exc instanceof Env.MapFullException) {
+            preCommitActions.forEach(Runnable::run);
+            preCommitActions.clear();
+            sharedTransaction.close();
+            sharedTransaction = null;
+            long estimated = getTotalUsedEstimatedSize();
+            log.error("Estimated usage at full map exception: {} of {} ({} overhead and {} uncommitted transactions)",
+                    readableSize(estimated),
+                    readableSize(mapSize),
+                    readableSize((long) Math.ceil(estimated * ASSUMED_OVERHEAD)),
+                    updateCount);
         }
     }
 
@@ -1344,46 +1339,51 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             sharedTransaction.commit();
             sharedTransaction.close();
             sharedTransaction = null;
+            updateCount = 0;
         }
     }
 
     private void checkExpand() {
-        if (!SPARSE_MAP && (++updateCount) % CHECK_EXPAND_FREQUENCY == 0) {
-            Stat stat = db.stat();
-            long usedSize = calculateStatSize(stat);
+        if ((++updateCount) % CHECK_EXPAND_FREQUENCY == 0) {
+            long usedSize = getTotalUsedEstimatedSize();
 
-            usedSize += Stream.of(
-                            blockMap,
-                            additionalBlockMap,
-                            fileMap,
-                            directoryMap,
-                            partsMap,
-                            activePathMap,
-                            updatedPendingFilesMap,
-                            pendingSetMap,
-                            partialFileMap,
-                            updatedFilesMap
-                    ).map(map -> map.stat(sharedTransaction))
-                    .mapToLong(LmdbMetadataRepositoryStorage::calculateStatSize)
-                    .sum();
-
-            if (blockTmpMap != null) {
-                Stat dbStat = blockTmpMap.stat(sharedTransaction);
-                usedSize += calculateStatSize(dbStat);
-            }
-
-            if (usedSize > mapSize - MINIMUM_FREE_SPACE) {
+            if (usedSize * ASSUMED_OVERHEAD > mapSize - MINIMUM_FREE_SPACE) {
                 internalCommit();
                 closeFiles(false);
-                mapSize += MINIMUM_FREE_SPACE;
+                mapSize += INCREASE_SPACE;
+                debug(() -> log.debug("Increasing repository size to {}", readableSize(mapSize)));
                 db.setMapSize(mapSize);
                 open(readOnly);
             }
         }
 
-        if (sharedTransactionAge.elapsed(TimeUnit.SECONDS) >= 60) {
+        if (sharedTransactionAge.elapsed(TimeUnit.SECONDS) >= 60 || updateCount > MAXIMUM_UNCOMMITTED_UPDATES) {
             internalCommit();
         }
+    }
+
+    private long getTotalUsedEstimatedSize() {
+        Stat stat = db.stat();
+        long usedSize = calculateStatSize(stat);
+
+        usedSize += Stream.of(
+                        blockMap,
+                        additionalBlockMap,
+                        fileMap,
+                        directoryMap,
+                        partsMap,
+                        activePathMap,
+                        updatedPendingFilesMap,
+                        pendingSetMap,
+                        partialFileMap,
+                        updatedFilesMap,
+                        blockTmpMap
+                ).filter(Objects::nonNull)
+                .map(map -> map.stat(getReadTransaction()))
+                .mapToLong(LmdbMetadataRepositoryStorage::calculateStatSize)
+                .sum();
+
+        return usedSize;
     }
 
     @Override
@@ -1398,7 +1398,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public boolean needExclusiveCommitLock() {
-        return false;
+        return true;
     }
 
     private interface ExceptionSupplier<T> {
@@ -1483,9 +1483,10 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 txn.commit();
                 txn.close();
 
-                if (usedSize > mapSize - MINIMUM_FREE_SPACE) {
+                if (usedSize * ASSUMED_OVERHEAD > mapSize - MINIMUM_FREE_SPACE) {
                     map.close();
-                    mapSize += MINIMUM_FREE_SPACE;
+                    mapSize += INCREASE_SPACE;
+                    debug(() -> log.debug("Increasing temporary map size to {}", readableSize(mapSize)));
                     db.setMapSize(mapSize);
                     map = db.openDbi((String) null, MDB_CREATE);
                 }

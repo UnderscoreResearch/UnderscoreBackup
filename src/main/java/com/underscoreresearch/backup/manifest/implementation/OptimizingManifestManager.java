@@ -279,7 +279,11 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
         repositoryReady = false;
 
         MetadataRepository repository = (MetadataRepository) consumer;
-        repository.upgradeStorage();
+        try {
+            repository.upgradeStorage();
+        } catch (Exception exc) {
+            log.error("Failed upgrading storage", exc);
+        }
 
         startOperation("Replay log");
 

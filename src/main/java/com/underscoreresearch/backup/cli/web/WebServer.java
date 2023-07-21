@@ -36,8 +36,10 @@ import org.takes.http.BkSafe;
 import org.takes.http.FtBasic;
 import org.takes.misc.Opt;
 import org.takes.rq.RqHref;
+import org.takes.rq.RqMethod;
 import org.takes.tk.TkWithType;
 
+import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.cli.web.service.BestRegionGet;
 import com.underscoreresearch.backup.cli.web.service.CreateSecretPut;
 import com.underscoreresearch.backup.cli.web.service.DeleteSecretPost;
@@ -325,17 +327,20 @@ public class WebServer {
     private static class PsNoAuthConfigured implements Pass {
 
         private final String base;
-        private final String pingPath;
+        private final java.util.List<String> allowedPaths;
 
         public PsNoAuthConfigured(String base) {
             this.base = base + "/";
-            this.pingPath = base + "/api/ping";
+            this.allowedPaths = Lists.newArrayList(
+                    base + "/api/ping",
+                    base + "/api/activity"
+            );
         }
 
         @Override
         public Opt<Identity> enter(Request request) throws Exception {
             String path = new RqHref.Base(request).href().path();
-            if (path.startsWith(base) && !pingPath.equals(path)) {
+            if (path.startsWith(base) && (!allowedPaths.contains(path) || !new RqMethod.Base(request).method().equals("GET"))) {
                 try {
                     if (InstanceFactory.hasConfiguration(false)) {
                         BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);

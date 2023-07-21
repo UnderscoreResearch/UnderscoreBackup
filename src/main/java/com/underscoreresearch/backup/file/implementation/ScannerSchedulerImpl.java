@@ -188,7 +188,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         try {
             repository.upgradeStorage();
         } catch (IOException e) {
-            log.info("Failed to upgrade repository storage", e);
+            log.error("Failed to upgrade repository storage", e);
         }
 
         lock.lock();

@@ -71,7 +71,6 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                     });
                 }
 
-
                 try (CloseableStream<BackupBlock> blocks = storage.allBlocks()) {
                     blocks.stream().forEach(block -> {
                         try {
@@ -81,6 +80,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
+                    log.info("Upgraded {} blocks", readableNumber(updatedStorage.getBlockCount()));
                 }
 
                 try (CloseableStream<BackupBlockAdditional> blocks = storage.allAdditionalBlocks()) {
@@ -92,6 +92,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
+                    log.info("Upgraded {} additional blocks", readableNumber(updatedStorage.getAdditionalBlockCount()));
                 }
 
                 try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
@@ -103,6 +104,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
+                    log.info("Upgraded {} files", readableNumber(updatedStorage.getFileCount()));
                 }
 
                 try (CloseableStream<BackupFilePart> parts = storage.allFileParts()) {
@@ -114,6 +116,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
+                    log.info("Upgraded {} file parts", readableNumber(updatedStorage.getPartCount()));
                 }
 
                 try (CloseableStream<BackupDirectory> dirs = storage.allDirectories(true)) {
@@ -125,6 +128,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
+
+                    log.info("Upgraded {} directories", readableNumber(updatedStorage.getDirectoryCount()));
                 }
 
                 try (CloseableStream<BackupUpdatedFile> files = storage.getUpdatedFiles()) {
@@ -136,16 +141,19 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
+                    log.info("Upgraded {} updated files", readableNumber(currentStep.get()));
                 }
             }
         } catch (RuntimeException e) {
-            throw new IOException("Failed to upgrade", e);
+            throw new IOException(String.format("Failed to upgrade after %s/%s steps",
+                    readableNumber(currentStep.get()), readableNumber(totalSteps.get())), e);
+        } finally {
+            stopwatch.stop();
+
+            StateLogger.removeLogger(this);
         }
 
-        stopwatch.stop();
         log.info("Successfully completed metadata upgrade");
-
-        StateLogger.removeLogger(this);
     }
 
     @Override

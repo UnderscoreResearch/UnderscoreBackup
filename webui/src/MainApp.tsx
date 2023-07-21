@@ -256,23 +256,37 @@ export default function MainApp() {
             if (displayState.backupInProgress) {
                 acceptButton = {
                     title: "Stop Backup",
+                    color: "error",
                     disabled: false,
                     action: () => changeBackup(false)
                 };
             } else {
-                let title;
+                const disabled = !validConfig || !displayState.backupCanStart;
+
                 if (appContext.currentConfiguration && appContext.currentConfiguration &&
                     appContext.currentConfiguration.manifest &&
-                    appContext.currentConfiguration.manifest.interactiveBackup)
-                    title = "Backup Now";
-                else
-                    title = "Start Backup";
+                    appContext.currentConfiguration.manifest.interactiveBackup) {
 
-                acceptButton = {
-                    title: title,
-                    disabled: !validConfig || !displayState.backupCanStart,
-                    action: () => changeBackup(true)
-                };
+                    cancelButton = {
+                        title: "Backup Now",
+                        color: "primary",
+                        disabled: disabled,
+                        action: () => changeBackup(true)
+                    };
+
+                    acceptButton = {
+                        title: "Stop Schedule",
+                        color: "error",
+                        disabled: false,
+                        action: () => changeBackup(false)
+                    }
+                } else {
+                    acceptButton = {
+                        title: "Start Backup",
+                        disabled: disabled,
+                        action: () => changeBackup(true)
+                    }
+                }
             }
         }
 
