@@ -147,7 +147,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private Txn<ByteBuffer> sharedTransaction;
     private boolean readOnly;
     private int updateCount;
-    private boolean synchronizationDisabled;
+    private Thread exclusiveThread;
     private Stopwatch sharedTransactionAge;
 
     public LmdbMetadataRepositoryStorage(String dataPath, boolean alternateBlockTable) {
@@ -496,17 +496,17 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public CloseableLock exclusiveLock() throws IOException {
-        if (synchronizationDisabled)
+        if (exclusiveThread != null)
             throw new RuntimeException("Exclusive lock already granted");
         commit();
 
-        synchronizationDisabled = true;
+        exclusiveThread = Thread.currentThread();
 
         return new CloseableLock() {
             @Override
             public void close() {
-                synchronizationDisabled = false;
                 internalCommit();
+                exclusiveThread = null;
             }
 
             @Override
@@ -539,7 +539,10 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     private <T> T synchronizeDbAccess(ExceptionSupplier<T> function) throws IOException {
-        if (synchronizationDisabled) {
+        if (exclusiveThread != null) {
+            if (exclusiveThread != Thread.currentThread()) {
+                throw new IllegalStateException("Exclusive lock from other thread");
+            }
             try {
                 return function.get();
             } catch (Exception e) {
@@ -1327,7 +1330,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public void commit() throws IOException {
-        if (!synchronizationDisabled) {
+        if (exclusiveThread == null) {
             synchronizeDbAccess(this::internalCommit);
         }
     }

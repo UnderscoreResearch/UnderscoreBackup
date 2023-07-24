@@ -63,13 +63,8 @@ function invokeCancel() {
     }
 }
 
-export default function MainApp() {
-    const appContext = useApplication();
-    const buttonContext = useButton();
-    const reactLocation = useLocation();
-    const nav = useNavigate();
-    const activityContext = useActivity();
-    const [state, setState] = React.useState<MainAppState>({
+function getDefaultState() {
+    return {
         destinationValid: true,
         setsValid: true,
         sharesValid: true,
@@ -78,7 +73,16 @@ export default function MainApp() {
         restoreRoots: [],
         restoreOverwrite: false,
         restoreIncludeDeleted: false
-    });
+    };
+}
+
+export default function MainApp() {
+    const appContext = useApplication();
+    const buttonContext = useButton();
+    const reactLocation = useLocation();
+    const nav = useNavigate();
+    const activityContext = useActivity();
+    const [state, setState] = React.useState<MainAppState>(getDefaultState());
 
     async function updateBackendState(): Promise<void> {
         await appContext.updateBackendState();
@@ -136,7 +140,7 @@ export default function MainApp() {
         let validDestination = true;
         if (response) {
             if (response === "destinations") {
-                desiredPage = "/destinations";
+                desiredPage = "destinations";
                 validDestination = false;
             }
         }
@@ -162,6 +166,7 @@ export default function MainApp() {
             ...oldState,
             validatedPassword: false
         }));
+        setState(getDefaultState());
         await activityContext.update();
     }
 
@@ -180,7 +185,15 @@ export default function MainApp() {
             acceptButton = {
                 title: "Save",
                 disabled: !validConfig,
-                action: appContext.applyChanges
+                action: () => appContext.applyChanges(async (oldState, newState) => {
+                    if (newState.selectedSource &&
+                        state.password &&
+                        oldState.backendState && !oldState.backendState.validDestinations &&
+                        oldState.validatedPassword &&
+                        newState.backendState && newState.backendState.validDestinations) {
+                        await selectSource(newState.selectedSource, state.password);
+                    }
+                })
             };
             cancelButton = {
                 title: "Revert",
@@ -217,6 +230,7 @@ export default function MainApp() {
                             }
                         }
                     }
+
                     acceptButton = {
                         title: "Start Restore",
                         disabled: !validConfig || !state.restoreRoots || state.restoreRoots.length === 0,
@@ -250,9 +264,7 @@ export default function MainApp() {
                 disabled: false,
                 action: () => appContext.busyOperation(exitSourceBusy)
             }
-        }
-
-        if (!acceptButton && validConfig) {
+        } else if (!acceptButton && validConfig) {
             if (displayState.backupInProgress) {
                 acceptButton = {
                     title: "Stop Backup",
@@ -342,7 +354,7 @@ export default function MainApp() {
     }, [appContext.selectedSource, displayState.rebuildInProgress]);
 
     if (displayState.invalidPage) {
-        if (displayState.invalidPage && state.desiredPage !== "status") {
+        if (displayState.invalidPage && !state.desiredPage) {
             setState((oldState) => ({
                 ...oldState,
                 desiredPage: "status"

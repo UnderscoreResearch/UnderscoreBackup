@@ -40,7 +40,7 @@ export interface ApplicationContext extends ApplicationState {
     busyOperation: (operation: () => Promise<void>) => Promise<void>,
 
     update: (password: string) => Promise<void>,
-    applyChanges: () => Promise<boolean>,
+    applyChanges: (callback?: (oldState: ApplicationState, newState: ApplicationState) => Promise<void>) => Promise<boolean>,
     updateBackendState: (validatedPassword?: boolean) => Promise<void>,
     setState: Dispatch<SetStateAction<ApplicationState>>,
     state: ApplicationState
@@ -153,19 +153,27 @@ function generateApplicationContext(): ApplicationContext {
         setState((oldState) => ({...oldState, ...newState}));
     }
 
-    function applyChanges(): Promise<boolean> {
+    function applyChanges(callback?: (oldState: ApplicationState, newState: ApplicationState) => Promise<void>): Promise<boolean> {
+
         setBusy(true);
         return new Promise<boolean>((resolve) => {
             setState((oldState) => {
+                function complete(newState: ApplicationState) {
+                    setState({
+                        ...newState,
+                        validatedPassword: oldState.validatedPassword,
+                    });
+                    setBusy(false);
+                    resolve(true);
+                }
+
                 postConfiguration(oldState.currentConfiguration).then((result) => {
                     if (result) {
                         fetchConfig().then(newState => {
-                            setState({
-                                ...newState,
-                                validatedPassword: oldState.validatedPassword,
-                            });
-                            setBusy(false);
-                            resolve(true);
+                            if (callback) {
+                                callback(oldState, newState).then(() => complete(newState));
+                            } else
+                                complete(newState);
                         });
                     } else {
                         setBusy(false);

@@ -186,7 +186,7 @@ export default function Status(props: StatusProps) {
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
-                            {importantItems.map((row) => StatusRow(importantProperties(row, state.details)))}
+                            {importantItems.map((row) => <StatusRow key={row.code} {...importantProperties(row, state.details)}/>)}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -199,7 +199,7 @@ export default function Status(props: StatusProps) {
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
-                            {statsItems.map((row) => StatusRow(importantProperties(row, state.details)))}
+                            {statsItems.map((row) => <StatusRow key={row.code} {...importantProperties(row, state.details)}/>)}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -212,7 +212,7 @@ export default function Status(props: StatusProps) {
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
-                            {activeItems.map((row) => StatusRow({row: row}))}
+                            {activeItems.map((row) => <StatusRow key={row.code} row={row}/>)}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -225,7 +225,7 @@ export default function Status(props: StatusProps) {
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
-                            {scheduledItems.map((row) => StatusRow({row: row}))}
+                            {scheduledItems.map((row) => <StatusRow key={row.code} row={row}/>)}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -260,7 +260,7 @@ export default function Status(props: StatusProps) {
                         <TableContainer component={Paper}>
                             <Table sx={{minWidth: 650}} aria-label="simple table">
                                 <TableBody>
-                                    {statusItems.map((row) => StatusRow({row: row}))}
+                                    {statusItems.map((row) => <StatusRow key={row.code} row={row}/>)}
                                 </TableBody>
                             </Table>
                         </TableContainer>

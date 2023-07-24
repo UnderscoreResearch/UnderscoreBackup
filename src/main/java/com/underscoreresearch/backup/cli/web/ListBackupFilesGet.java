@@ -3,12 +3,15 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.cli.web.DestinationDecoder.getRequestFiles;
 import static com.underscoreresearch.backup.utils.SerializationUtils.EXTERNAL_BACKUP_FILES_WRITER;
 
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.rs.RsText;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public class ListBackupFilesGet extends JsonWrap {
@@ -25,6 +28,9 @@ public class ListBackupFilesGet extends JsonWrap {
 
         @Override
         public Response actualAct(Request req) throws Exception {
+            if (InstanceFactory.getInstance(ManifestManager.class).isBusy()) {
+                return new RsText(EXTERNAL_BACKUP_FILES_WRITER.writeValueAsString(new ArrayList<>()));
+            }
             return new RsText(EXTERNAL_BACKUP_FILES_WRITER.writeValueAsString(
                     getRequestFiles(req, base)
                             .stream()

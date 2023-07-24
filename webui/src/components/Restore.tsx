@@ -185,6 +185,15 @@ export default function Restore(props: RestoreProps) {
         });
     }, [appContext.selectedSource === "" ? "1" : ""])
 
+    useEffect(() => {
+        if (!props.password && state.password) {
+            updateState({
+                ...state,
+                password: ""
+            });
+        }
+    }, [props.password]);
+
     function updateSelection(newRoots: BackupSetRoot[]) {
         updateState({
             ...state,

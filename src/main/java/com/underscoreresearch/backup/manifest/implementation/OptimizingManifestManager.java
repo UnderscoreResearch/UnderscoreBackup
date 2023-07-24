@@ -397,30 +397,24 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 }
             }
 
-            existingShares = existingShares.entrySet().stream().filter((entry) -> {
-                if (!Strings.isNullOrEmpty(entry.getValue().getShare().getTargetEmail())) {
-                    if (!remainingServiceShares.containsKey(entry.getKey())) {
-                        log.warn("Removing share {} that no longer exist in service", entry.getValue().getShare().getName());
-                        return false;
-                    }
-                }
-                return true;
-            }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
             for (Map.Entry<String, BackupShare> entry : getConfiguration().getShares().entrySet()) {
                 BackupActivatedShare existingShare = existingShares.get(entry.getKey());
                 if (existingShare == null) {
                     log.warn("Encountered share {} that is not activated", entry.getValue().getName());
                 } else if (existingShare.getShare().equals(entry.getValue().activatedShare(getServiceManager().getSourceId(), entry.getKey()).getShare())) {
-                    try {
-                        ShareManifestManager manager = createShareManager(entry.getKey(), existingShare, true);
-                        activeShares.put(entry.getKey(), manager);
-                        manager.initialize(getLogConsumer(), true);
-                        remainingServiceShares.remove(entry.getKey());
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                    if (!Strings.isNullOrEmpty(entry.getValue().getTargetEmail()) && !remainingServiceShares.containsKey(entry.getKey())) {
+                        log.warn("Removing share {} that no longer exist in service", existingShare.getShare().getName());
+                    } else {
+                        try {
+                            ShareManifestManager manager = createShareManager(entry.getKey(), existingShare, true);
+                            activeShares.put(entry.getKey(), manager);
+                            manager.initialize(getLogConsumer(), true);
+                            remainingServiceShares.remove(entry.getKey());
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        existingShares.remove(entry.getKey());
                     }
-                    existingShares.remove(entry.getKey());
                 }
             }
 

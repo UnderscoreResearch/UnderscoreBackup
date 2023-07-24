@@ -225,7 +225,7 @@ sub executeUnderscoreBackupWithOutput {
     return `$cmd`;
 }
 
-sub executeUnderscoreBackupStdin {
+sub executeUnderscoreBackupStdinNoCheck {
     my $input = shift(@_);
     chdir($root);
     my @args = &executeUnderscoreBackupParameters();
@@ -248,6 +248,10 @@ sub executeUnderscoreBackupStdin {
     elsif (system(@args) != 0) {
         die "Failed executing ".join(" ", @args).": $?";
     }
+}
+
+sub executeUnderscoreBackupStdin {
+    &executeUnderscoreBackupStdinNoCheck(@_);
 
     &validateLog(1);
 }
@@ -386,7 +390,7 @@ sub prepareRunPath {
 }
 
 sub killInteractive {
-    &executeUnderscoreBackup("shutdown");
+    &executeUnderscoreBackupStdinNoCheck("", "shutdown");
 }
 
 sub validateLog() {

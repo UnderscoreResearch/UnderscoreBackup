@@ -141,7 +141,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
-                    log.info("Upgraded {} updated files", readableNumber(currentStep.get()));
+                    log.info("Upgraded {} updated files", readableNumber(updatedStorage.getUpdatedFileCount()));
                 }
             }
         } catch (RuntimeException e) {

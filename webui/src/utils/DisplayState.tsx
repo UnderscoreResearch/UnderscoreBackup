@@ -115,7 +115,7 @@ export function calculateDisplayState(appContext: ApplicationContext,
                     ret.navigation.sources =
                         ret.navigation.share =
                             ret.navigation.settings = false;
-                if (!validConfig) {
+                if (!validConfig || !appContext.backendState.validDestinations) {
                     ret.navigation.restore = false;
                 }
                 if (activityContext.activity
