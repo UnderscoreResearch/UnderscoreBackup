@@ -23,7 +23,7 @@ public abstract class BaseImplementation implements Take {
             log.debug("{} {}: {}", method.method(), href, httpException.code());
             throw httpException;
         } catch (Throwable exc) {
-            log.error("{} {} 500", method.method(), href, exc);
+            log.error("{} {}: 500", method.method(), href, exc);
             throw exc;
         }
     }

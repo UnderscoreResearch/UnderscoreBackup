@@ -78,6 +78,7 @@ public class ActivateSharesPost extends JsonWrap {
 
                 return messageJson(200, "Started share activation");
             } catch (Exception exc) {
+                log.warn("Failed to activate shares", exc);
                 return messageJson(400, exc.getMessage());
             }
         }

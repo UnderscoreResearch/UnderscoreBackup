@@ -47,7 +47,7 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class StateGet extends JsonWrap {
-    private static ObjectWriter WRITER = MAPPER.writerFor(StateResponse.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(StateResponse.class);
 
     public StateGet() {
         super(new Implementation());

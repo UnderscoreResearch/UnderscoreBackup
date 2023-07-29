@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
 import org.takes.Request;
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 
+@Slf4j
 public class KeyPost extends JsonWrap {
     private static final ObjectWriter WRITER = MAPPER
             .writerFor(KeyResponse.class);
@@ -48,6 +50,7 @@ public class KeyPost extends JsonWrap {
                 InstanceFactory.getInstance(EncryptionKey.class);
                 return new RsText(WRITER.writeValueAsString(new KeyResponse(true)));
             } catch (Exception exc) {
+                log.warn("Failed to get key", exc);
                 return new RsText(WRITER.writeValueAsString(new KeyResponse(false)));
             }
         }

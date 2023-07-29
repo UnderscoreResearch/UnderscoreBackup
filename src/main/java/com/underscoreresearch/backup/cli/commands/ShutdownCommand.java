@@ -44,7 +44,7 @@ public class ShutdownCommand extends SimpleCommand {
             log.error("Failed to shut down process");
             System.exit(1);
         } catch (ConfigureCommand.ConfigurationUrlException exc) {
-            log.error(exc.getMessage());
+            log.warn(exc.getMessage());
             System.exit(0);
         } catch (Exception exc) {
             log.error("Encountered issue reading configuration URL", exc);

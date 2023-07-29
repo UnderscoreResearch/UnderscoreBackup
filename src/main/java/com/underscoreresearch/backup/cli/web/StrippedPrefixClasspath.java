@@ -8,6 +8,7 @@ import java.net.HttpURLConnection;
 
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
 import org.takes.Request;
@@ -19,6 +20,7 @@ import org.takes.tk.TkWrap;
 
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
+@Slf4j
 public final class StrippedPrefixClasspath extends TkWrap {
 
     public StrippedPrefixClasspath(final String strip, final String add) {
@@ -27,22 +29,27 @@ public final class StrippedPrefixClasspath extends TkWrap {
                     @Override
                     public Response act(final Request request) throws IOException {
                         String path = new RqHref.Base(request).href().path();
-                        if (path.startsWith(strip)) {
-                            path = path.substring(strip.length());
-                            if (path.equals(PATH_SEPARATOR)) {
-                                path = "";
+                        try {
+                            if (path.startsWith(strip)) {
+                                path = path.substring(strip.length());
+                                if (path.equals(PATH_SEPARATOR)) {
+                                    path = "";
+                                }
                             }
+                            path = add + path;
+                            final InputStream input = this.getClass()
+                                    .getResourceAsStream(path);
+                            if (input == null) {
+                                throw new HttpException(
+                                        HttpURLConnection.HTTP_NOT_FOUND,
+                                        String.format("File %s not found", path)
+                                );
+                            }
+                            return new RsWithBody(input);
+                        } catch (IOException|RuntimeException exc) {
+                            log.warn("Failed to fetch {}", path, exc);
+                            throw exc;
                         }
-                        path = add + path;
-                        final InputStream input = this.getClass()
-                                .getResourceAsStream(path);
-                        if (input == null) {
-                            throw new HttpException(
-                                    HttpURLConnection.HTTP_NOT_FOUND,
-                                    String.format("File %s not found", path)
-                            );
-                        }
-                        return new RsWithBody(input);
                     }
                 }
         );

@@ -309,7 +309,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     }
                 }
             } catch (Exception decodeTest2) {
-                log.error("Failed to decode string for supposed JSON object", decodeTest2);
+                log.error("Failed to decode string for supposed JSON object (Size {})", data.limit(), decodeTest2);
             }
             throw exc;
         }
@@ -731,6 +731,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 PathTimestamp key = decodePathTimestamp(entry.key());
                 log.error("Invalid file {}:{}", PathNormalizer.physicalPath(key.path), key.path, e);
                 try {
+                    entry.key().reset();
                     fileMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -750,6 +751,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 String key = decodeString(entry.key());
                 log.error("Invalid block {}", key, e);
                 try {
+                    entry.key().reset();
                     blockMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -773,6 +775,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 log.error("Invalid additional block {}:{}", keys[0], keys[1], e);
                 try {
+                    entry.key().reset();
                     blockMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -792,6 +795,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 String[] keys = decodeDoubleString(entry.key());
                 log.error("Invalid filePart {}:{}", keys[0], keys[1], e);
                 try {
+                    entry.key().reset();
                     partsMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -811,6 +815,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 PathTimestamp pathTimestamp = decodePathTimestamp(entry.key());
                 log.error("Invalid directory {}:{}", pathTimestamp.path, pathTimestamp.timestamp, e);
                 try {
+                    entry.key().reset();
                     directoryMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
