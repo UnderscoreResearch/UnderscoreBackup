@@ -36,13 +36,6 @@ public class UIManager {
 
     public static void setup() {
         if (SystemUtils.IS_OS_MAC_OSX) {
-            try {
-                String path = new File(System.getProperty("user.home"), "Library/UnderscoreBackup/Underscore Backup.app")
-                        .getCanonicalPath();
-                Runtime.getRuntime().exec(new String[]{"open", path});
-            } catch (Exception e) {
-                log.error("Failed to launch tray component", e);
-            }
             updateTooltip();
         } else {
             if (trayIcon == null) {
@@ -123,7 +116,11 @@ public class UIManager {
     }
 
     private static synchronized void writeOsxNotification(String location, String message) {
-        File file = new File(new File(InstanceFactory.getInstance(CommandLineModule.URL_LOCATION)).getParentFile(), location);
+        File parentDirectory = new File(new File(InstanceFactory.getInstance(CommandLineModule.MANIFEST_LOCATION)), "notifications");
+        if (!parentDirectory.isDirectory()) {
+            parentDirectory.mkdirs();
+        }
+        File file = new File(parentDirectory, location);
         try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
             writer.write(message);
         } catch (IOException e) {

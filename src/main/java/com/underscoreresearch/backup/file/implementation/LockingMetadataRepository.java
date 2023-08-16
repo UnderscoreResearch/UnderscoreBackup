@@ -56,6 +56,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public static final int LEGACY_MAPDB_STORAGE = 0;
     public static final int MAPDB_STORAGE = 1;
     public static final int LMDB_STORAGE = 2;
+    public static final int LMDB_NON_MAPPING_STORAGE = 3;
     private static final ObjectReader REPOSITORY_INFO_READER
             = MAPPER.readerFor(RepositoryInfo.class);
     private static final ObjectWriter REPOSITORY_INFO_WRITER
@@ -92,10 +93,16 @@ public class LockingMetadataRepository implements MetadataRepository {
     public static int getDefaultVersion() {
         // OSX support on aarch64 is coming soon to lmdb (It is in the dev repository but not yet released
         // as a stable build) but for now we will have to stay on MapDB for this platform.
+        if (SystemUtils.IS_OS_LINUX) {
+            return LMDB_NON_MAPPING_STORAGE;
+        }
 
-        if (SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_WINDOWS) {
+        // On Windows it LMDB doesn't support sparse files so we have to handle the growing of the max map size
+        // ourselves.
+        if (SystemUtils.IS_OS_WINDOWS) {
             return LMDB_STORAGE;
         }
+
         return MAPDB_STORAGE;
     }
 
@@ -173,6 +180,8 @@ public class LockingMetadataRepository implements MetadataRepository {
                     new MapdbMetadataRepositoryStorage.Legacy(dataPath, repositoryInfo.alternateBlockTable);
             case MAPDB_STORAGE -> new MapdbMetadataRepositoryStorage(dataPath, repositoryInfo.alternateBlockTable);
             case LMDB_STORAGE -> new LmdbMetadataRepositoryStorage(dataPath, repositoryInfo.alternateBlockTable);
+            case LMDB_NON_MAPPING_STORAGE ->
+                    new LmdbMetadataRepositoryStorage.NonMemoryMapped(dataPath, repositoryInfo.alternateBlockTable);
             default -> throw new IllegalArgumentException("Unsupported repository version");
         };
     }

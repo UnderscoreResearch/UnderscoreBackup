@@ -1,22 +1,22 @@
 use MIME::Base64;
 
-if (!defined($ENV{CERT_DATA}) || !defined($ENV{CERT_PASSWORD})) {
+if (!defined($ENV{WINDOWS_CERT_DATA}) || !defined($ENV{WINDOWS_CERT_PASSWORD})) {
     if ($ARGV[0] eq "optional") {
-        print "Skipping signing because CERT_DATA and CERT_PASSWORD environment variables are not set\n";
+        print "Skipping signing because WINDOWS_CERT_DATA and WINDOWS_CERT_PASSWORD environment variables are not set\n";
         exit 0;
     }
     else {
-        die "CERT_DATA and CERT_PASSWORD environment variables must be set";
+        die "WINDOWS_CERT_DATA and WINDOWS_CERT_PASSWORD environment variables must be set";
     }
 }
 
 my $CERT_FILE = "build\\cert.pfx";
-my $CERT_PASS = $ENV{CERT_PASSWORD};
+my $CERT_PASS = $ENV{WINDOWS_CERT_PASSWORD};
 my $SIGN_TOOL_BASE = "C:\\Program Files (x86)\\Windows Kits\\10\\bin";
 
 open(CERT_FILE, ">$CERT_FILE") or die "Can't open $CERT_FILE: $!";
 binmode CERT_FILE;
-print CERT_FILE decode_base64($ENV{CERT_DATA});
+print CERT_FILE decode_base64($ENV{WINDOWS_CERT_DATA});
 close CERT_FILE;
 
 sub checkDir {

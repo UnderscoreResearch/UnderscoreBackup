@@ -50,7 +50,7 @@ public class KeyPost extends JsonWrap {
                 InstanceFactory.getInstance(EncryptionKey.class);
                 return new RsText(WRITER.writeValueAsString(new KeyResponse(true)));
             } catch (Exception exc) {
-                log.warn("Failed to get key", exc);
+                log.warn("Failed to get key");
                 return new RsText(WRITER.writeValueAsString(new KeyResponse(false)));
             }
         }

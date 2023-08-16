@@ -11,15 +11,15 @@ application {
     mainClass = 'com.underscoreresearch.backup.cli.Main'
     applicationDefaultJvmArgs = [
 //          '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n',
-            '-Xmx256m',
-            '--add-opens=java.base/java.nio=ALL-UNNAMED',
-            '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED'
+'-Xmx256m',
+'--add-opens=java.base/java.nio=ALL-UNNAMED',
+'--add-opens=java.base/sun.nio.ch=ALL-UNNAMED'
     ]
 }
 
 group 'com.underscoreresearch'
-version '2.2.0.7'
-def releaseType = ''
+version '2.2.1.0'
+def releaseType = 'rc'
 
 def archiveName = 'underscorebackup'
 def edition = ''
@@ -162,7 +162,6 @@ dependencies {
             'com.google.guava:guava:32.0.0-jre',
             'com.google.inject:guice:7.0.0',
             'com.hierynomus:smbj:0.12.1',
-            'org.lmdbjava:lmdbjava:0.8.3',
             'com.joestelmach:natty:0.13',
             'commons-cli:commons-cli:1.5.0',
             'commons-codec:commons-codec:1.16.0',
@@ -176,6 +175,7 @@ dependencies {
             'org.apache.logging.log4j:log4j-core:2.20.0',
             'org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0',
             'org.mapdb:mapdb:3.0.9',
+            'org.lmdbjava:lmdbjava:0.8.3',
             'org.openapitools:jackson-databind-nullable:0.2.6',
             'org.projectlombok:lombok:1.18.28',
             'org.reflections:reflections:0.10.2',
@@ -250,15 +250,9 @@ task installerLinux(type: Exec) {
     commandLine 'bash', '-c', "linux/builddeb.sh && linux/buildrpm.sh"
 }
 
-task installerPkg(dependsOn: ["runtime"], type: Exec) {
+task installerDmg(type: Exec) {
     workingDir "${rootProject.projectDir}"
     executable 'osx/createinstaller.sh'
-    args "${rootProject.version}${releaseType}"
-}
-
-task uninstallerPkg(type: Exec) {
-    workingDir "${rootProject.projectDir}"
-    executable 'osx/createuninstaller.sh'
     args "${rootProject.version}${releaseType}"
 }
 
@@ -266,7 +260,7 @@ task installer {
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         dependsOn installerWindows
     } else if (Os.isFamily(Os.FAMILY_MAC)) {
-        dependsOn uninstallerPkg, installerPkg
+        dependsOn installerDmg
     } else {
         dependsOn installerLinux
     }

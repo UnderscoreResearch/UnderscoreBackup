@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
@@ -81,25 +82,27 @@ public abstract class MetadataRepositoryStoragePerformance {
 
     public void blockPerformance(boolean large) throws IOException {
         if (storage != null) {
-            Stopwatch watch = Stopwatch.createStarted();
-            for (int i = 0; i < SIZE; i++) {
-                if ((i + 1) % (SIZE / 10) == 0) {
-                    storage.commit();
+            try (CloseableLock ignored = storage.exclusiveLock()) {
+                Stopwatch watch = Stopwatch.createStarted();
+                for (int i = 0; i < SIZE; i++) {
+                    if ((i + 1) % (SIZE / 10) == 0) {
+                        storage.commit();
+                    }
+                    storage.addBlock(createTestBlock(i, large));
                 }
-                storage.addBlock(createTestBlock(i, large));
+                storage.commit();
+                System.out.printf("%s: Created %s%s blocks: %.3f%n",
+                        getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+                Random random = new Random();
+                watch.reset();
+                watch.start();
+                for (int i = 0; i < SIZE; i++) {
+                    int val = Math.abs(random.nextInt()) % SIZE;
+                    assertNotNull(storage.block(hash(val)));
+                }
+                System.out.printf("%s: Random read %s%s blocks: %.3f%n",
+                        getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
             }
-            storage.commit();
-            System.out.printf("%s: Created %s%s blocks: %.3f%n",
-                    getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
-            Random random = new Random();
-            watch.reset();
-            watch.start();
-            for (int i = 0; i < SIZE; i++) {
-                int val = Math.abs(random.nextInt()) % SIZE;
-                assertNotNull(storage.block(hash(val)));
-            }
-            System.out.printf("%s: Random read %s%s blocks: %.3f%n",
-                    getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
         }
     }
 
@@ -109,111 +112,116 @@ public abstract class MetadataRepositoryStoragePerformance {
 
     public void randomFilePerformance(boolean large) throws IOException {
         if (storage != null) {
-            Stopwatch watch = Stopwatch.createStarted();
-            for (int i = 0; i < SIZE; i++) {
-                if ((i + 1) % (SIZE / 10) == 0) {
-                    storage.commit();
-                }
-                storage.addFile(createTestFile(i, true, large));
-            }
-            storage.commit();
-            System.out.printf("%s: Random created %s%s files: %.3f%n",
-                    getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
-            Random random = new Random();
-            watch.reset();
-            watch.start();
-            for (int i = 0; i < SIZE; i++) {
-                int val = Math.abs(random.nextInt()) % SIZE;
-                assertNotNull(storage.file(hash(val), null));
-            }
-            System.out.printf("%s: Random read %s%s files: %.3f%n",
-                    getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
-        }
-    }
-
-    public void filePerformance(boolean large) throws IOException {
-        if (storage != null) {
-            Stopwatch watch = Stopwatch.createStarted();
-            for (int i = 0; i < SIZE; i++) {
-                if ((i + 1) % (SIZE / 10) == 0) {
-                    storage.commit();
-                }
-                storage.addFile(createTestFile(i, false, large));
-            }
-            storage.commit();
-            System.out.printf("%s: Sequential create %s%s files: %.3f%n",
-                    getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
-            watch.reset();
-            watch.start();
-            for (int i = 0; i < SIZE; i++) {
-                assertNotNull(storage.file(String.format("%010d", i), null));
-            }
-            System.out.printf("%s: Sequential read %s%s files: %.3f%n",
-                    getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
-            watch.reset();
-            watch.start();
-            AtomicInteger count = new AtomicInteger();
-            try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
-                assertEquals(SIZE, files.stream().map(item -> {
-                    try {
-                        storage.addFile(item);
-                        if (count.incrementAndGet() % (SIZE / 10) == 0) {
-                            storage.commit();
-                        }
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                    return item;
-                }).count());
-            }
-            System.out.printf("%s: Stream read and update %s%s files: %.3f%n",
-                    getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
-            watch.reset();
-            watch.start();
-            try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
-                assertEquals(SIZE, files.stream().count());
-            }
-            System.out.printf("%s: Stream read %s%s files: %.3f%n",
-                    getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
-        }
-    }
-
-    public void temporaryTable(boolean large) throws IOException {
-        if (storage != null) {
-            try (CloseableMap<String, String> map = storage.temporaryMap(new MapSerializer<String, String>() {
-                @Override
-                public byte[] encodeKey(String s) {
-                    return s.getBytes(StandardCharsets.UTF_8);
-                }
-
-                @Override
-                public byte[] encodeValue(String s) {
-                    return s.getBytes(StandardCharsets.UTF_8);
-                }
-
-                @Override
-                public String decodeValue(byte[] data) {
-                    return new String(data, StandardCharsets.UTF_8);
-                }
-            })) {
+            try (CloseableLock ignored = storage.exclusiveLock()) {
                 Stopwatch watch = Stopwatch.createStarted();
                 for (int i = 0; i < SIZE; i++) {
-                    map.put(hash(i), createTempPayload(large, i));
+                    if ((i + 1) % (SIZE / 10) == 0) {
+                        storage.commit();
+                    }
+                    storage.addFile(createTestFile(i, true, large));
                 }
                 storage.commit();
-                System.out.printf("%s: Created %s%s temporary map: %.3f%n",
+                System.out.printf("%s: Random created %s%s files: %.3f%n",
                         getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
                 Random random = new Random();
                 watch.reset();
                 watch.start();
                 for (int i = 0; i < SIZE; i++) {
                     int val = Math.abs(random.nextInt()) % SIZE;
-                    assertNotNull(map.get(hash(i)));
+                    assertNotNull(storage.file(hash(val), null));
                 }
-                System.out.printf("%s: Random read %s%s temporary map: %.3f%n",
+                System.out.printf("%s: Random read %s%s files: %.3f%n",
                         getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
             }
+        }
+    }
 
+    public void filePerformance(boolean large) throws IOException {
+        if (storage != null) {
+            try (CloseableLock ignored = storage.exclusiveLock()) {
+                Stopwatch watch = Stopwatch.createStarted();
+                for (int i = 0; i < SIZE; i++) {
+                    if ((i + 1) % (SIZE / 10) == 0) {
+                        storage.commit();
+                    }
+                    storage.addFile(createTestFile(i, false, large));
+                }
+                storage.commit();
+                System.out.printf("%s: Sequential create %s%s files: %.3f%n",
+                        getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+                watch.reset();
+                watch.start();
+                for (int i = 0; i < SIZE; i++) {
+                    assertNotNull(storage.file(String.format("%010d", i), null));
+                }
+                System.out.printf("%s: Sequential read %s%s files: %.3f%n",
+                        getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+                watch.reset();
+                watch.start();
+                AtomicInteger count = new AtomicInteger();
+                try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
+                    assertEquals(SIZE, files.stream().map(item -> {
+                        try {
+                            storage.addFile(item);
+                            if (count.incrementAndGet() % (SIZE / 10) == 0) {
+                                storage.commit();
+                            }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return item;
+                    }).count());
+                }
+                System.out.printf("%s: Stream read and update %s%s files: %.3f%n",
+                        getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+                watch.reset();
+                watch.start();
+                try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
+                    assertEquals(SIZE, files.stream().count());
+                }
+                System.out.printf("%s: Stream read %s%s files: %.3f%n",
+                        getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+            }
+        }
+    }
+
+    public void temporaryTable(boolean large) throws IOException {
+        if (storage != null) {
+            try (CloseableLock ignored = storage.exclusiveLock()) {
+                try (CloseableMap<String, String> map = storage.temporaryMap(new MapSerializer<String, String>() {
+                    @Override
+                    public byte[] encodeKey(String s) {
+                        return s.getBytes(StandardCharsets.UTF_8);
+                    }
+
+                    @Override
+                    public byte[] encodeValue(String s) {
+                        return s.getBytes(StandardCharsets.UTF_8);
+                    }
+
+                    @Override
+                    public String decodeValue(byte[] data) {
+                        return new String(data, StandardCharsets.UTF_8);
+                    }
+                })) {
+                    Stopwatch watch = Stopwatch.createStarted();
+                    for (int i = 0; i < SIZE; i++) {
+                        map.put(hash(i), createTempPayload(large, i));
+                    }
+                    storage.commit();
+                    System.out.printf("%s: Created %s%s temporary map: %.3f%n",
+                            getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+                    Random random = new Random();
+                    watch.reset();
+                    watch.start();
+                    for (int i = 0; i < SIZE; i++) {
+                        int val = Math.abs(random.nextInt()) % SIZE;
+                        assertNotNull(map.get(hash(i)));
+                    }
+                    System.out.printf("%s: Random read %s%s temporary map: %.3f%n",
+                            getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+                }
+            }
         }
     }
 

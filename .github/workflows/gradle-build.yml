@@ -21,7 +21,6 @@ jobs:
         os:
           - windows-x64
           - ubuntu-latest
-          - macos-latest
           - macos-arm
     runs-on: ${{ matrix.os }}
 
@@ -45,15 +44,17 @@ jobs:
       - name: Install the Apple certificate and provisioning profile
         if: contains(matrix.os, 'macos')
         env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE }}
+          APPLICATION_CERTIFICATE_BASE64: ${{ secrets.APPLICATION_CERTIFICATE }}
           CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
           # create variables
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           # import certificate and provisioning profile from secrets
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          echo -n "$APPLICATION_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
           # create temporary keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
@@ -61,6 +62,7 @@ jobs:
           # import certificate to keychain
           security import $CERTIFICATE_PATH -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
+          xcrun notarytool store-credentials "$CERT_PASSWORD" --apple-id "support@underscoreresearch.com" --team-id $APPLE_TEAM_ID --password $APPLE_APP_PASSWORD
 
       - name: Building Web UI
         uses: actions/setup-node@v3
@@ -77,16 +79,17 @@ jobs:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
           GITHUB_ACTION: yes
           GITHUB_TARGET: ${{ matrix.os }}
-          CERT_DATA: ${{ secrets.WINDOWS_CODE_SIGN }}
-          CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+          WINDOWS_CERT_DATA: ${{ secrets.WINDOWS_CODE_SIGN }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
         with:
           arguments: allDistTest
 
       - name: Apply code signature to Windows installer
         if: contains(matrix.os, 'windows')
         env:
-          CERT_DATA: ${{ secrets.WINDOWS_CODE_SIGN }}
-          CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
+          WINDOWS_CERT_DATA: ${{ secrets.WINDOWS_CODE_SIGN }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
         run: |
           perl windows\signexe.pl required build\distributions
 

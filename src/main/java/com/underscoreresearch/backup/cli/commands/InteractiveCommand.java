@@ -8,10 +8,13 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -129,7 +132,13 @@ public class InteractiveCommand extends Command {
     }
 
     public void executeCommand(CommandLine commandLine) throws Exception {
-        if (commandLine.getArgList().size() > 1) {
+        boolean lock = false;
+        if (commandLine.getArgList().size() == 2) {
+            lock = commandLine.getArgList().get(1).equals("lock");
+            if (!lock) {
+                throw new ParseException("Invalid parameters");
+            }
+        } else if (commandLine.getArgList().size() > 1) {
             throw new ParseException("Too many arguments for command");
         }
 
@@ -163,8 +172,8 @@ public class InteractiveCommand extends Command {
                 throw exc;
             }
             if (configuration.getSets() == null
-                    || configuration.getSets().size() == 0
-                    || configuration.getSets().stream().noneMatch(set -> set.getRoots().size() > 0)) {
+                    || configuration.getSets().isEmpty()
+                    || configuration.getSets().stream().allMatch(set -> set.getRoots().isEmpty())) {
                 throw new ParseException("No backup sets configured");
             }
         } catch (Exception exc) {
@@ -175,6 +184,26 @@ public class InteractiveCommand extends Command {
 
         startBackupIfAvailable();
 
-        Thread.sleep(Long.MAX_VALUE);
+        waitForCompletion(lock);
+    }
+
+    private void waitForCompletion(boolean lock) throws InterruptedException {
+        if (lock) {
+            // On OSX we have a lock file that is locked by the UI application.
+            Path path = Paths.get(InstanceFactory.getInstance(CommandLineModule.MANIFEST_LOCATION),
+                    "notifications", "lock");
+
+            try {
+                try (RandomAccessFile file = new RandomAccessFile(path.toString(), "rw")) {
+                    file.getChannel().lock().close();
+                }
+            } catch (IOException e) {
+            }
+            InstanceFactory.shutdown();
+            InstanceFactory.waitForShutdown();
+            System.exit(0);
+        } else {
+            Thread.sleep(Integer.MAX_VALUE);
+        }
     }
 }

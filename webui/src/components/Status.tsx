@@ -175,6 +175,7 @@ export default function Status(props: StatusProps) {
         return !(item.code.startsWith("DOWNLOADED_ACTIVE") || item.code.startsWith("UPLOADED_ACTIVE"))
     });
     importantItems.sort((a, b) => IMPORTANT_CODES.indexOf(a.code) - IMPORTANT_CODES.indexOf(b.code));
+    scheduledItems.sort((a, b) => (a.value ?? 0) - (b.value ?? 0));
     statsItems.sort((a, b) => IMPORTANT_CODES.indexOf(a.code) - IMPORTANT_CODES.indexOf(b.code));
     statusItems.sort((a, b) => a.message.localeCompare(b.message));
     activeItems.sort((a, b) => a.message.localeCompare(b.message));
@@ -186,7 +187,8 @@ export default function Status(props: StatusProps) {
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
-                            {importantItems.map((row) => <StatusRow key={row.code} {...importantProperties(row, state.details)}/>)}
+                            {importantItems.map((row) => <StatusRow
+                                key={row.code} {...importantProperties(row, state.details)}/>)}
                         </TableBody>
                     </Table>
                 </TableContainer>
@@ -199,7 +201,8 @@ export default function Status(props: StatusProps) {
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
-                            {statsItems.map((row) => <StatusRow key={row.code} {...importantProperties(row, state.details)}/>)}
+                            {statsItems.map((row) => <StatusRow
+                                key={row.code} {...importantProperties(row, state.details)}/>)}
                         </TableBody>
                     </Table>
                 </TableContainer>

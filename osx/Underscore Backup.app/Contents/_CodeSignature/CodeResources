@@ -10,11 +10,15 @@
 		</data>
 		<key>Resources/Assets.car</key>
 		<data>
-		N5g6Mmu5aJS7j7vTx7O17T/WVtg=
+		wR+QZGi/VCSgmthBKGQN9Q0J75U=
 		</data>
 		<key>Resources/Base.lproj/MainMenu.nib</key>
 		<data>
-		ttThMBUCaQ1EK1RHmCukubQ97Gs=
+		SjP33P+qroBHCRPcSxQydUT5k1M=
+		</data>
+		<key>Resources/com.underscoreresearch.UnderscoreBackup.plist</key>
+		<data>
+		myvMa16l6TaSHmBR04O5hx4H2Xs=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -30,14 +34,21 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			3eoQc3gFVMqN6kSsAIpWKeUe1t7LItHQXtVmY45Ee6A=
+			y02c+7IPDJrMFCx1BPg6fP540ee5NYFCLiHbiu1QNMg=
 			</data>
 		</dict>
 		<key>Resources/Base.lproj/MainMenu.nib</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			pJhFKiwLhxc+wij2Uy6bGCMdwECR7bkN+ub1qpry7k0=
+			46ab+pmYBll3jgqzGcflVgL11uvKs5zrVqQ1XXPMeig=
+			</data>
+		</dict>
+		<key>Resources/com.underscoreresearch.UnderscoreBackup.plist</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			9qc3y518e1BAhzf+xux8yk5oN62sYqWI/bmRJ3JjjGs=
 			</data>
 		</dict>
 	</dict>

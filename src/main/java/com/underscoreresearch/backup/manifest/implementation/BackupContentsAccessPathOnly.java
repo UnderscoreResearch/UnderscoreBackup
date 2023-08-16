@@ -28,6 +28,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
     private final MetadataRepository repository;
     private final Long timestamp;
     private final boolean includeDeleted;
+
     public BackupContentsAccessPathOnly(MetadataRepository repository, Long timestamp, boolean includeDeleted) {
         this.repository = repository;
         this.timestamp = timestamp;

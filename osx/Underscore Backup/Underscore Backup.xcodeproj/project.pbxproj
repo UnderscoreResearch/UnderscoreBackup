@@ -10,6 +10,8 @@
 		3438F3642820693E00175C69 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3438F3632820693E00175C69 /* AppDelegate.swift */; };
 		3438F3662820694000175C69 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3438F3652820694000175C69 /* Assets.xcassets */; };
 		3438F3692820694000175C69 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 3438F3672820694000175C69 /* MainMenu.xib */; };
+		348EC1BB2A7C6397002701D6 /* SwiftCPUDetect in Frameworks */ = {isa = PBXBuildFile; productRef = 348EC1BA2A7C6397002701D6 /* SwiftCPUDetect */; };
+		348EC1BF2A7C7CE2002701D6 /* com.underscoreresearch.UnderscoreBackup.plist in Resources */ = {isa = PBXBuildFile; fileRef = 348EC1BE2A7C7CE2002701D6 /* com.underscoreresearch.UnderscoreBackup.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -18,6 +20,7 @@
 		3438F3652820694000175C69 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3438F3682820694000175C69 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		3438F36A2820694000175C69 /* Underscore_Backup.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Underscore_Backup.entitlements; sourceTree = "<group>"; };
+		348EC1BE2A7C7CE2002701D6 /* com.underscoreresearch.UnderscoreBackup.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = com.underscoreresearch.UnderscoreBackup.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -25,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				348EC1BB2A7C6397002701D6 /* SwiftCPUDetect in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -50,6 +54,7 @@
 		3438F3622820693E00175C69 /* Underscore Backup */ = {
 			isa = PBXGroup;
 			children = (
+				348EC1BE2A7C7CE2002701D6 /* com.underscoreresearch.UnderscoreBackup.plist */,
 				3438F3632820693E00175C69 /* AppDelegate.swift */,
 				3438F3652820694000175C69 /* Assets.xcassets */,
 				3438F3672820694000175C69 /* MainMenu.xib */,
@@ -74,6 +79,9 @@
 			dependencies = (
 			);
 			name = "Underscore Backup";
+			packageProductDependencies = (
+				348EC1BA2A7C6397002701D6 /* SwiftCPUDetect */,
+			);
 			productName = "Underscore Backup";
 			productReference = 3438F3602820693E00175C69 /* Underscore Backup.app */;
 			productType = "com.apple.product-type.application";
@@ -86,10 +94,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1330;
-				LastUpgradeCheck = 1330;
+				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					3438F35F2820693E00175C69 = {
 						CreatedOnToolsVersion = 13.3.1;
+						LastSwiftMigration = 1430;
 					};
 				};
 			};
@@ -102,6 +111,9 @@
 				Base,
 			);
 			mainGroup = 3438F3572820693E00175C69;
+			packageReferences = (
+				348EC1B92A7C6397002701D6 /* XCRemoteSwiftPackageReference "SwiftCPUDetect" */,
+			);
 			productRefGroup = 3438F3612820693E00175C69 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -116,6 +128,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				348EC1BF2A7C7CE2002701D6 /* com.underscoreresearch.UnderscoreBackup.plist in Resources */,
 				3438F3662820694000175C69 /* Assets.xcassets in Resources */,
 				3438F3692820694000175C69 /* MainMenu.xib in Resources */,
 			);
@@ -179,6 +192,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -239,6 +253,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -264,11 +279,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Underscore Backup/Underscore_Backup.entitlements";
-				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7628BMXCZE;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -279,11 +297,12 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.underscoreresearch.UnderscoreBackup.UI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -293,11 +312,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Underscore Backup/Underscore_Backup.entitlements";
-				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7628BMXCZE;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -308,7 +330,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.underscoreresearch.UnderscoreBackup.UI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -339,6 +361,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		348EC1B92A7C6397002701D6 /* XCRemoteSwiftPackageReference "SwiftCPUDetect" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ITzTravelInTime/SwiftCPUDetect.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		348EC1BA2A7C6397002701D6 /* SwiftCPUDetect */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 348EC1B92A7C6397002701D6 /* XCRemoteSwiftPackageReference "SwiftCPUDetect" */;
+			productName = SwiftCPUDetect;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3438F3582820693E00175C69 /* Project object */;
 }

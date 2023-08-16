@@ -12,3 +12,7 @@ src/main/resources/web
 webui/cypress/videos
 webui/cypress/screenshots
 *.xcuserstate
+project.xcworkspace
+xcuserdata
+node_modules
+installer-expanded.json

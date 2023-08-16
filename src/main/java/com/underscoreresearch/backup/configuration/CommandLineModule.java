@@ -333,12 +333,6 @@ public class CommandLineModule extends AbstractModule {
     @Named(URL_LOCATION)
     public String getUrlLocation(@Named(MANIFEST_LOCATION) String manifestLocation) {
         try {
-            if (SystemUtils.IS_OS_MAC_OSX) {
-                return new File(System.getProperty("user.home"),
-                        "Library/Containers/com.underscoreresearch.UnderscoreBackup.UI/Data/Applications/configuration.url")
-                        .getCanonicalPath();
-            }
-
             return new File(manifestLocation, "configuration.url").getCanonicalPath();
         } catch (IOException e) {
             throw new RuntimeException(e);

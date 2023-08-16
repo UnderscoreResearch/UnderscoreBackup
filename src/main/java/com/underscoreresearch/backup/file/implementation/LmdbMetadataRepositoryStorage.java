@@ -115,11 +115,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static final String ADDITIONAL_BLOCK_STORE = "additionalblocks";
     private static final String UPDATED_FILES_STORE = "updatedfiles";
     private static final String UPDATED_PENDING_FILES_STORE = "updatedpendingfiles";
-    private static final double ASSUMED_OVERHEAD = 1.1;
+    private static final double ASSUMED_OVERHEAD = 1.2;
     private static final int MAX_KEY_SIZE = 511;
     private static final long SMALL_MAP_SIZE = 64L * 1024 * 1024;
     private static final long LARGE_MAP_SIZE = 512L * 1024 * 1024;
-    private static final boolean SPARSE_MAP = SystemUtils.IS_OS_LINUX;
+    private static final boolean SPARSE_MAP = !SystemUtils.IS_OS_WINDOWS;
     private static final long INCREASE_SPACE = SPARSE_MAP ? (LARGE_MAP_SIZE / 2) : SMALL_MAP_SIZE;
     private static final long MINIMUM_FREE_SPACE = SPARSE_MAP ? (LARGE_MAP_SIZE / 4) : SMALL_MAP_SIZE;
     private static final String STORAGE_ROOT = "v2";
@@ -127,8 +127,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static final int MAXIMUM_UNCOMMITTED_UPDATES = 50000;
     private static final ByteBuffer EMPTY_STRING_BUFFER = ByteBuffer.allocateDirect(1);
     private static final int MAX_PATH_LENGTH = 500;
-    private final String dataPath;
     private final List<Runnable> preCommitActions = new ArrayList<>();
+    private final File root;
     private ExecutorService executor;
     private Env<ByteBuffer> db;
     private long mapSize;
@@ -151,12 +151,12 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private Stopwatch sharedTransactionAge;
 
     public LmdbMetadataRepositoryStorage(String dataPath, boolean alternateBlockTable) {
-        this.dataPath = dataPath;
+        this(dataPath, Paths.get(dataPath, STORAGE_ROOT).toFile(), alternateBlockTable);
+    }
+
+    protected LmdbMetadataRepositoryStorage(String dataPath, File root, boolean alternateBlockTable) {
         this.alternateBlockTable = alternateBlockTable;
-        File file = Paths.get(dataPath, STORAGE_ROOT).toFile();
-        if (!file.exists() && !file.mkdirs()) {
-            log.error("Failed to create {}", file);
-        }
+        this.root = root;
     }
 
     private static PathTimestamp decodeTimestampPath(ByteBuffer buffer) {
@@ -422,35 +422,6 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 .build();
     }
 
-    private static long openMapSize(File root) {
-        File dataFile = new File(root, "data.mdb");
-        if (dataFile.exists()) {
-            return dataFile.length();
-        } else if (SPARSE_MAP) {
-            return LARGE_MAP_SIZE;
-        } else {
-            return SMALL_MAP_SIZE;
-        }
-    }
-
-    private static Env<ByteBuffer> createDb(File root, long mapSize, boolean readOnly) {
-        EnvFlags[] flags;
-        if (readOnly)
-            flags = new EnvFlags[]{MDB_RDONLY_ENV, MDB_WRITEMAP};
-        else
-            flags = new EnvFlags[]{MDB_WRITEMAP};
-
-        if (!root.exists() && !root.mkdirs()) {
-            log.error("Failed to create directory {}", root);
-        }
-
-        return Env.create()
-                .setMapSize(mapSize)
-                .setMaxDbs(30)
-                .setMaxReaders(10)
-                .open(root, flags);
-    }
-
     private static long calculateStatSize(Stat dbStat) {
         long pageSizes = dbStat.pageSize * (dbStat.leafPages + dbStat.branchPages + dbStat.overflowPages);
         long entrySizes = dbStat.entries * (MAX_KEY_SIZE + 1);
@@ -469,6 +440,38 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     private static BackupBlockAdditional strippedCopy(BackupBlockAdditional block) {
         return BackupBlockAdditional.builder().used(block.isUsed()).properties(block.getProperties()).build();
+    }
+
+    protected long openMapSize(File root) {
+        File dataFile = new File(root, "data.mdb");
+        if (dataFile.exists()) {
+            return dataFile.length();
+        } else if (SPARSE_MAP) {
+            return LARGE_MAP_SIZE;
+        } else {
+            return SMALL_MAP_SIZE;
+        }
+    }
+
+    protected Env<ByteBuffer> createDb(File root, long mapSize, boolean readOnly) {
+        EnvFlags[] flags = createDbFlags(readOnly);
+
+        if (!root.exists() && !root.mkdirs()) {
+            log.error("Failed to create directory {}", root);
+        }
+
+        return Env.create()
+                .setMapSize(mapSize)
+                .setMaxDbs(30)
+                .setMaxReaders(10)
+                .open(root, flags);
+    }
+
+    protected EnvFlags[] createDbFlags(boolean readOnly) {
+        if (readOnly)
+            return new EnvFlags[]{MDB_RDONLY_ENV, MDB_WRITEMAP};
+        else
+            return new EnvFlags[]{MDB_WRITEMAP};
     }
 
     private <T> CloseableStream<T> createStream(Dbi<ByteBuffer> db,
@@ -616,7 +619,6 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     private Env<ByteBuffer> createDb(boolean readOnly) {
-        File root = new File(dataPath, STORAGE_ROOT);
         mapSize = openMapSize(root);
         return createDb(root, mapSize, readOnly);
     }
@@ -728,10 +730,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             try {
                 return decodeFile(entry);
             } catch (IOException e) {
+                entry.key().position(0);
                 PathTimestamp key = decodePathTimestamp(entry.key());
                 log.error("Invalid file {}:{}", PathNormalizer.physicalPath(key.path), key.path, e);
                 try {
-                    entry.key().reset();
+                    entry.key().position(0);
                     fileMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -748,10 +751,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             try {
                 return decodeBlock(entry);
             } catch (IOException e) {
+                entry.key().position(0);
                 String key = decodeString(entry.key());
                 log.error("Invalid block {}", key, e);
                 try {
-                    entry.key().reset();
+                    entry.key().position(0);
                     blockMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -775,7 +779,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 log.error("Invalid additional block {}:{}", keys[0], keys[1], e);
                 try {
-                    entry.key().reset();
+                    entry.key().position(0);
                     blockMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -792,10 +796,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             try {
                 return decodePath(entry);
             } catch (IOException e) {
+                entry.key().position(0);
                 String[] keys = decodeDoubleString(entry.key());
                 log.error("Invalid filePart {}:{}", keys[0], keys[1], e);
                 try {
-                    entry.key().reset();
+                    entry.key().position(0);
                     partsMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -812,10 +817,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             try {
                 return decodeDirectory(entry);
             } catch (IOException e) {
+                entry.key().position(0);
                 PathTimestamp pathTimestamp = decodePathTimestamp(entry.key());
                 log.error("Invalid directory {}:{}", pathTimestamp.path, pathTimestamp.timestamp, e);
                 try {
-                    entry.key().reset();
+                    entry.key().position(0);
                     directoryMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -853,6 +859,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 log.error("Invalid pending set " + setId, e);
                 try {
+                    entry.key().position(0);
                     pendingSetMap.delete(getWriteTransaction(), entry.key());
                     checkExpand();
                 } catch (Exception exc) {
@@ -1326,10 +1333,9 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public void clear() throws IOException {
-        File rootFile = Paths.get(dataPath, STORAGE_ROOT).toFile();
-        deleteContents(rootFile);
-        if (!rootFile.delete()) {
-            log.error("Failed to delete {}", rootFile);
+        deleteContents(root);
+        if (!root.delete()) {
+            log.error("Failed to delete {}", root);
         }
     }
 
@@ -1351,7 +1357,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         }
     }
 
-    private void checkExpand() {
+    protected void checkExpand() {
         if ((++updateCount) % CHECK_EXPAND_FREQUENCY == 0) {
             long usedSize = getTotalUsedEstimatedSize();
 
@@ -1365,6 +1371,10 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             }
         }
 
+        commitIfNeeded();
+    }
+
+    protected void commitIfNeeded() {
         if (sharedTransactionAge.elapsed(TimeUnit.SECONDS) >= 60 || updateCount > MAXIMUM_UNCOMMITTED_UPDATES) {
             internalCommit();
         }
@@ -1401,7 +1411,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException {
-        return new TemporaryLmdbMap<>(serializer);
+        return new TemporaryLmdbMap<>(this, serializer);
     }
 
     @Override
@@ -1446,17 +1456,17 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         private Txn<ByteBuffer> txn;
         private long mapSize;
 
-        public TemporaryLmdbMap(MapSerializer<K, V> serializer) throws IOException {
+        public TemporaryLmdbMap(LmdbMetadataRepositoryStorage storage, MapSerializer<K, V> serializer) throws IOException {
             this.serializer = serializer;
 
             root = Files.createTempDirectory("underscorebackup").toFile();
-            db = createDb();
+            db = createDb(storage);
             map = db.openDbi((String) null, MDB_CREATE);
         }
 
-        private Env<ByteBuffer> createDb() {
-            mapSize = openMapSize(root);
-            return LmdbMetadataRepositoryStorage.createDb(root, mapSize, false);
+        private Env<ByteBuffer> createDb(LmdbMetadataRepositoryStorage storage) {
+            mapSize = storage.openMapSize(root);
+            return storage.createDb(root, mapSize, false);
         }
 
         @Override
@@ -1483,23 +1493,31 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         private void increaseWrite() {
             writeCount++;
             if (writeCount >= 1000) {
-                Stat stat = db.stat();
-                long usedSize = calculateStatSize(stat);
-                stat = map.stat(txn);
-                usedSize += calculateStatSize(stat);
-
-                txn.commit();
-                txn.close();
-
-                if (usedSize * ASSUMED_OVERHEAD > mapSize - MINIMUM_FREE_SPACE) {
-                    map.close();
-                    mapSize += INCREASE_SPACE;
-                    debug(() -> log.debug("Increasing temporary map size to {}", readableSize(mapSize)));
-                    db.setMapSize(mapSize);
-                    map = db.openDbi((String) null, MDB_CREATE);
-                }
+                commitAndGrowIfNeeded();
                 writeCount = 0;
-                txn = null;
+            }
+        }
+
+        protected void commit() {
+            txn.commit();
+            txn.close();
+            txn = null;
+        }
+
+        protected void commitAndGrowIfNeeded() {
+            Stat stat = db.stat();
+            long usedSize = calculateStatSize(stat);
+            stat = map.stat(txn);
+            usedSize += calculateStatSize(stat);
+
+            commit();
+
+            if (usedSize * ASSUMED_OVERHEAD > mapSize - MINIMUM_FREE_SPACE) {
+                map.close();
+                mapSize += INCREASE_SPACE;
+                debug(() -> log.debug("Increasing temporary map size to {}", readableSize(mapSize)));
+                db.setMapSize(mapSize);
+                map = db.openDbi((String) null, MDB_CREATE);
             }
         }
 
@@ -1545,6 +1563,48 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             byte[] bytes = new byte[byteBuffer.limit()];
             byteBuffer.get(bytes);
             return serializer.decodeValue(bytes);
+        }
+    }
+
+    private static class NonMemoryMappedTemporaryMap<K, V> extends TemporaryLmdbMap<K, V> {
+        public NonMemoryMappedTemporaryMap(LmdbMetadataRepositoryStorage storage, MapSerializer<K, V> serializer) throws IOException {
+            super(storage, serializer);
+        }
+
+        @Override
+        protected void commitAndGrowIfNeeded() {
+            super.commit();
+        }
+    }
+
+    public static class NonMemoryMapped extends LmdbMetadataRepositoryStorage {
+        private static final long MAP_SIZE = 512L * 1024 * 1024 * 1024;
+
+        public NonMemoryMapped(String dataPath, boolean alternateBlockTable) {
+            super(dataPath, Paths.get(dataPath, "v3").toFile(), alternateBlockTable);
+        }
+
+        @Override
+        protected void checkExpand() {
+            super.commitIfNeeded();
+        }
+
+        @Override
+        protected long openMapSize(File root) {
+            return MAP_SIZE;
+        }
+
+        @Override
+        protected EnvFlags[] createDbFlags(boolean readOnly) {
+            if (readOnly)
+                return new EnvFlags[]{MDB_RDONLY_ENV};
+            else
+                return new EnvFlags[]{};
+        }
+
+        @Override
+        public <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException {
+            return new NonMemoryMappedTemporaryMap<K, V>(this, serializer);
         }
     }
 

@@ -35,6 +35,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 public class AdditionalManifestManager {
     private final Map<String, Destination> additionalProviders = new HashMap<>();
     private final RateLimitController rateLimitController;
+
     public AdditionalManifestManager(BackupConfiguration configuration, RateLimitController rateLimitController) {
         if (configuration.getManifest() != null && configuration.getManifest().getAdditionalDestinations() != null) {
             for (String additionalDestination : configuration.getManifest().getAdditionalDestinations()) {

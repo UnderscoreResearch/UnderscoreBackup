@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21507" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21507"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -14,13 +14,14 @@
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="Underscore_Backup" customModuleProvider="target">
             <connections>
+                <outlet property="autostartItem" destination="feT-Ff-wm8" id="J8s-4G-Ly4"/>
                 <outlet property="configureItem" destination="V4k-90-LhR" id="R6P-Pb-WxU"/>
                 <outlet property="menu" destination="Q5k-jH-vks" id="566-RV-zim"/>
                 <outlet property="pauseItem" destination="dgf-ha-xeQ" id="Rvw-NA-TvB"/>
             </connections>
         </customObject>
         <customObject id="YLy-65-1bz" customClass="NSFontManager"/>
-        <menu id="Q5k-jH-vks">
+        <menu autoenablesItems="NO" id="Q5k-jH-vks">
             <items>
                 <menuItem title="Configure..." id="V4k-90-LhR">
                     <modifierMask key="keyEquivalentModifierMask"/>
@@ -28,14 +29,21 @@
                         <action selector="configure:" target="Voe-Tx-rLC" id="LMG-Kb-CXA"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Stop" id="dgf-ha-xeQ">
+                <menuItem title="Launch at startup" enabled="NO" id="feT-Ff-wm8">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
-                        <action selector="pauseItem:" target="Voe-Tx-rLC" id="TwS-LE-4No"/>
+                        <action selector="autostartToggle:" target="Voe-Tx-rLC" id="kPK-vT-sCU"/>
+                    </connections>
+                </menuItem>
+                <menuItem isSeparatorItem="YES" id="0Eh-B1-T9V"/>
+                <menuItem title="Quit" id="dgf-ha-xeQ">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="quitItem:" target="Voe-Tx-rLC" id="TwS-LE-4No"/>
                     </connections>
                 </menuItem>
             </items>
-            <point key="canvasLocation" x="164" y="167"/>
+            <point key="canvasLocation" x="163.5" y="166.5"/>
         </menu>
     </objects>
 </document>

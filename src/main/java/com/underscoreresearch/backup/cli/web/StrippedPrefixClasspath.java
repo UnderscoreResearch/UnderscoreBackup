@@ -46,7 +46,7 @@ public final class StrippedPrefixClasspath extends TkWrap {
                                 );
                             }
                             return new RsWithBody(input);
-                        } catch (IOException|RuntimeException exc) {
+                        } catch (IOException | RuntimeException exc) {
                             log.warn("Failed to fetch {}", path, exc);
                             throw exc;
                         }
