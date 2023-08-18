@@ -167,7 +167,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                     if (start / GB != end / GB) {
                         log.info("Processed {} / {} for {}", readableSize(end), readableSize(file.getLength()),
                                 PathNormalizer.physicalPath(file.getPath()));
-                        machineState.waitForPower();
+                        machineState.waitForRunCheck();
                     }
                 }
             } catch (Exception e) {

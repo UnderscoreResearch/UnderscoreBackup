@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.utils.state;
 
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -19,19 +20,38 @@ public class MachineState {
 
     private boolean loggedOnBattery;
     private Instant nextCheck = Instant.MIN;
+    private Instant nextCpuCheck = Instant.MIN;
     private boolean lastValue;
+    private double lastCpuUsage;
 
+    private final static double MAX_CPU_USAGE = 0.25;
     public boolean getOnBattery() {
         return false;
     }
 
-    public void waitForPower() {
+    public double getCpuUsage() {
+        try {
+            com.sun.management.OperatingSystemMXBean osBean = ManagementFactory.getPlatformMXBean(
+                    com.sun.management.OperatingSystemMXBean.class);
+            double cpuLoad = osBean.getCpuLoad();
+            double processLoad = osBean.getProcessCpuLoad();
+
+            return Math.max(cpuLoad - processLoad, 0);
+        } catch (IllegalArgumentException exc) {
+        }
+        return Double.NaN;
+    }
+
+    public void waitForRunCheck() {
         if (pauseOnBattery) {
-            if (occassionallyGetOnBattery()) {
+            if (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > MAX_CPU_USAGE) {
                 synchronized (this) {
                     if (!loggedOnBattery) {
                         loggedOnBattery = true;
-                        log.info("Pausing until power is restored");
+                        if (occasionallyGetOnBattery())
+                            log.info("Pausing until power is restored");
+                        else
+                            log.info("Pausing until CPU usage goes down");
                     }
                 }
                 do {
@@ -43,11 +63,12 @@ public class MachineState {
                     if (InstanceFactory.isShutdown()) {
                         return;
                     }
-                } while (occassionallyGetOnBattery());
+                } while (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > MAX_CPU_USAGE);
+
                 synchronized (this) {
                     if (loggedOnBattery) {
                         loggedOnBattery = false;
-                        log.info("Continuing after restored power");
+                        log.info("Continuing after pausing for power or CPU usage");
                     }
                 }
             }
@@ -67,7 +88,16 @@ public class MachineState {
     public void lowPriority() {
     }
 
-    private synchronized boolean occassionallyGetOnBattery() {
+    private synchronized double occasionallyGetCpuUsage() {
+        if (nextCpuCheck.isBefore(Instant.now())) {
+            lastCpuUsage = getCpuUsage();
+            nextCpuCheck = Instant.now().plus(MINIMUM_WAIT);
+        }
+
+        return lastCpuUsage;
+    }
+
+    private synchronized boolean occasionallyGetOnBattery() {
         if (nextCheck.isBefore(Instant.now())) {
             lastValue = getOnBattery();
             nextCheck = Instant.now().plus(MINIMUM_WAIT);

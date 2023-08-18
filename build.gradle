@@ -18,7 +18,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.2.1.0'
+version '2.2.1.1'
 def releaseType = 'rc'
 
 def archiveName = 'underscorebackup'
@@ -72,6 +72,7 @@ runtime {
                'java.compiler',
                'java.scripting',
                'java.management',
+               'jdk.management',
                'jdk.compiler',
                'java.instrument',
                'jdk.crypto.ec']

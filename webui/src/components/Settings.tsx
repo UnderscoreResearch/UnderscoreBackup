@@ -349,7 +349,7 @@ export default function Settings() {
                                 pauseOnBattery: e.target.checked
                             }
                         })}
-                    />} label="Pause backup when running on battery power"/>
+                    />} label="Pause backup when running on battery power or when CPU load is high"/>
                 </Grid>
             </Grid>
             <Grid container spacing={2}>

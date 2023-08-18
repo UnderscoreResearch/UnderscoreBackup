@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.utils.state.MachineState;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -99,6 +100,11 @@ public class StateLogger implements StatusLogger {
             log.warn("Heap memory after GC use {}% (Old gen collections {})", memoryAfterGCUse,
                     oldGcBean.get().getCollectionCount());
         }
+
+        debug(() -> {
+            MachineState state = InstanceFactory.getInstance(MachineState.class);
+            log.debug("Current CPU usage {}", state.getCpuUsage());
+        });
 
         printLogStatus((type) -> type != Type.LOG, (a) -> debug(() -> log.debug(a)));
     }

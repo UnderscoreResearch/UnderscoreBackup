@@ -253,7 +253,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
 
             lock.unlock();
             try {
-                machineState.waitForPower();
+                machineState.waitForRunCheck();
             } finally {
                 lock.lock();
             }
