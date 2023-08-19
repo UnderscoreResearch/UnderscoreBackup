@@ -349,10 +349,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return decodeFile(entry);
             } catch (IOException e) {
                 log.error("Invalid file {}:{}", PathNormalizer.physicalPath((String) entry.getKey()[0]), entry.getKey()[1], e);
-                try {
-                    fileMap.remove(entry.getKey());
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        fileMap.remove(entry.getKey());
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -367,10 +369,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return decodeBlock(entry.getKey(), entry.getValue());
             } catch (IOException e) {
                 log.error("Invalid block " + entry.getKey(), e);
-                try {
-                    blockMap.remove(entry.getKey());
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        blockMap.remove(entry.getKey());
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -386,10 +390,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return decodePath(entry);
             } catch (IOException e) {
                 log.error("Invalid filePart {}:{}", entry.getKey()[0], entry.getKey()[1], e);
-                try {
-                    partsMap.remove(entry.getKey());
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        partsMap.remove(entry.getKey());
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -413,10 +419,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                         decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
             } catch (IOException e) {
                 log.error("Invalid directory {}:{}", entry.getKey()[0], entry.getKey()[1], e);
-                try {
-                    directoryMap.remove(entry.getKey());
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        directoryMap.remove(entry.getKey());
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -437,10 +445,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return ret;
             } catch (IOException e) {
                 log.error("Invalid additional block {}:{}", entry.getKey()[0], entry.getKey()[1], e);
-                try {
-                    additionalBlockMap.remove(entry.getKey());
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        additionalBlockMap.remove(entry.getKey());
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }

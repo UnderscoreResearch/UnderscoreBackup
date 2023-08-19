@@ -375,6 +375,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public CloseableStream<BackupBlockAdditional> allAdditionalBlocks() throws IOException {
+        return repository.allAdditionalBlocks();
+    }
+
+    @Override
     public CloseableStream<BackupFilePart> allFileParts() throws IOException {
         return repository.allFileParts();
     }

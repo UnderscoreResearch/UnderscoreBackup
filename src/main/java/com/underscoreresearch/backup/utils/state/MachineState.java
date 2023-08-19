@@ -24,7 +24,10 @@ public class MachineState {
     private boolean lastValue;
     private double lastCpuUsage;
 
-    private final static double MAX_CPU_USAGE = 0.25;
+    protected double getMaxCpuUsage() {
+        return 1;
+    }
+
     public boolean getOnBattery() {
         return false;
     }
@@ -36,7 +39,7 @@ public class MachineState {
             double cpuLoad = osBean.getCpuLoad();
             double processLoad = osBean.getProcessCpuLoad();
 
-            return Math.max(cpuLoad - processLoad, 0);
+            return Math.max(cpuLoad - processLoad, 0) * osBean.getAvailableProcessors();
         } catch (IllegalArgumentException exc) {
         }
         return Double.NaN;
@@ -44,7 +47,7 @@ public class MachineState {
 
     public void waitForRunCheck() {
         if (pauseOnBattery) {
-            if (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > MAX_CPU_USAGE) {
+            if (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > getMaxCpuUsage()) {
                 synchronized (this) {
                     if (!loggedOnBattery) {
                         loggedOnBattery = true;
@@ -63,7 +66,7 @@ public class MachineState {
                     if (InstanceFactory.isShutdown()) {
                         return;
                     }
-                } while (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > MAX_CPU_USAGE);
+                } while (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > getMaxCpuUsage());
 
                 synchronized (this) {
                     if (loggedOnBattery) {

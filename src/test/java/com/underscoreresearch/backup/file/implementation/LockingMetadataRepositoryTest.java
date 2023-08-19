@@ -4,6 +4,9 @@ import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
 import static com.underscoreresearch.backup.file.implementation.performance.MetadataRepositoryStoragePerformance.deleteDir;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,6 +21,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.hamcrest.Matchers;
 import org.hamcrest.core.Is;
@@ -125,6 +129,7 @@ abstract class LockingMetadataRepositoryTest {
 
         repository.addFile(backupFile);
         repository.addFile(backupFile);
+        repository.addFile(BackupFile.builder().path("/other/path").added(1L).build());
         assertThat(repository.file(path).size(), Is.is(2));
         assertThat(repository.file(path, null), Is.is(backupFile));
         assertThat(repository.existingFilePart(PART_HASH).size(), Is.is(2));
@@ -135,13 +140,43 @@ abstract class LockingMetadataRepositoryTest {
 
         halfwayUpgrade();
 
-        assertThat(repository.getFileCount(), Is.is(2L));
+        try (CloseableStream<BackupFile> stream = repository.allFiles(false)) {
+            AtomicReference<BackupFile> last = new AtomicReference<>();
+            assertThat(stream.stream().map((d) -> {
+                if (last.get() != null) {
+                    if (last.get().getPath().equals(d.getPath())) {
+                        assertThat(last.get().getAdded(), Is.is(greaterThan(d.getAdded())));
+                    }
+                }
+                last.set(d);
+                return 1;
+            }).count(), Is.is(3L));
+        }
+
+        try (CloseableStream<BackupFile> stream = repository.allFiles(true)) {
+            AtomicReference<BackupFile> last = new AtomicReference<>();
+            assertThat(stream.stream().map((d) -> {
+                if (last.get() != null) {
+                    if (last.get().getPath().equals(d.getPath())) {
+                        assertThat(last.get().getAdded(), Is.is(lessThan(d.getAdded())));
+                    }
+                }
+                last.set(d);
+                return 1;
+            }).count(), Is.is(3L));
+        }
+
+        try (CloseableStream<BackupFilePart> stream = repository.allFileParts()) {
+            assertThat(stream.stream().count(), Is.is(2L));
+        }
+
+        assertThat(repository.getFileCount(), Is.is(3L));
         repository.deleteFile(backupFile);
         repository.deleteFilePart(filePart);
         assertThat(repository.file(path).size(), Is.is(1));
         assertThat(repository.existingFilePart(PART_HASH).size(), Is.is(1));
 
-        assertThat(repository.getFileCount(), Is.is(1L));
+        assertThat(repository.getFileCount(), Is.is(2L));
         assertThat(repository.getPartCount(), Is.is(1L));
     }
 
@@ -250,19 +285,46 @@ abstract class LockingMetadataRepositoryTest {
         repository.addDirectory(new BackupDirectory(path, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b"))));
         repository.addDirectory(new BackupDirectory(path, timestamp + 1, Sets.newTreeSet(Lists.newArrayList("b", "c"))));
         repository.addDirectory(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("c", "d"))));
+        repository.addDirectory(BackupDirectory.builder().path("/other/path").added(1L).build());
         assertThat(repository.directory(path, timestamp, false), Is.is(new BackupDirectory(path, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b")))));
         assertThat(repository.directory(path, null, false), Is.is(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("c", "d")))));
         assertThat(repository.directory(path, null, true), Is.is(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c", "d")))));
         assertThat(repository.directory(path, timestamp + 1, true), Is.is(new BackupDirectory(path, timestamp + 1, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c")))));
-        assertThat(repository.getDirectoryCount(), Is.is(3L));
+        assertThat(repository.getDirectoryCount(), Is.is(4L));
 
         halfwayUpgrade();
+
+        try (CloseableStream<BackupDirectory> stream = repository.allDirectories(false)) {
+            AtomicReference<BackupDirectory> lastDir = new AtomicReference<>();
+            assertThat(stream.stream().map((d) -> {
+                if (lastDir.get() != null) {
+                    if (lastDir.get().getPath().equals(d.getPath())) {
+                        assertThat(lastDir.get().getAdded(), Is.is(greaterThan(d.getAdded())));
+                    }
+                }
+                lastDir.set(d);
+                return 1;
+            }).count(), Is.is(4L));
+        }
+
+        try (CloseableStream<BackupDirectory> stream = repository.allDirectories(true)) {
+            AtomicReference<BackupDirectory> lastDir = new AtomicReference<>();
+            assertThat(stream.stream().map((d) -> {
+                if (lastDir.get() != null) {
+                    if (lastDir.get().getPath().equals(d.getPath())) {
+                        assertThat(lastDir.get().getAdded(), Is.is(lessThan(d.getAdded())));
+                    }
+                }
+                lastDir.set(d);
+                return 1;
+            }).count(), Is.is(4L));
+        }
 
         repository.deleteDirectory(path, timestamp + 2);
         repository.deleteDirectory(path, timestamp + 1);
         repository.deleteDirectory(path, timestamp);
         assertNull(repository.directory(path, null, false));
-        assertThat(repository.getDirectoryCount(), Is.is(0L));
+        assertThat(repository.getDirectoryCount(), Is.is(1L));
     }
 
     @Test
@@ -468,6 +530,10 @@ abstract class LockingMetadataRepositoryTest {
         assertThat(repository.additionalBlock("p1", "h1"), Is.is(ba1));
         assertThat(repository.additionalBlock("p2", "h1"), Is.is(ba3));
 
+        try (CloseableStream<BackupBlockAdditional> blocks = repository.allAdditionalBlocks()) {
+            assertThat(blocks.stream().count(), Is.is(4L));
+        }
+
         repository.deleteAdditionalBlock("p1", "h1");
         repository.deleteAdditionalBlock("p2", null);
         assertNull(repository.additionalBlock("p1", "h1"));
@@ -516,15 +582,15 @@ abstract class LockingMetadataRepositoryTest {
                 switch (item.getPath()) {
                     case PATH -> {
                         assertThat(item.getLastUpdated(), Matchers.greaterThanOrEqualTo(start + MINIMUM_WAIT_UPDATE_MS + 1000));
-                        assertThat(item.getLastUpdated(), Matchers.lessThanOrEqualTo(System.currentTimeMillis() + MINIMUM_WAIT_UPDATE_MS + 1000));
+                        assertThat(item.getLastUpdated(), lessThanOrEqualTo(System.currentTimeMillis() + MINIMUM_WAIT_UPDATE_MS + 1000));
                     }
                     case LARGE_PATH, "/p2" -> {
                         assertThat(item.getLastUpdated(), Matchers.greaterThanOrEqualTo(start + MINIMUM_WAIT_UPDATE_MS));
-                        assertThat(item.getLastUpdated(), Matchers.lessThanOrEqualTo(System.currentTimeMillis() + MINIMUM_WAIT_UPDATE_MS));
+                        assertThat(item.getLastUpdated(), lessThanOrEqualTo(System.currentTimeMillis() + MINIMUM_WAIT_UPDATE_MS));
                     }
                     case "/p3" -> {
                         assertThat(item.getLastUpdated(), Matchers.greaterThanOrEqualTo(start + 20000L + MINIMUM_WAIT_UPDATE_MS));
-                        assertThat(item.getLastUpdated(), Matchers.lessThanOrEqualTo(System.currentTimeMillis() + 20000L + MINIMUM_WAIT_UPDATE_MS));
+                        assertThat(item.getLastUpdated(), lessThanOrEqualTo(System.currentTimeMillis() + 20000L + MINIMUM_WAIT_UPDATE_MS));
                     }
                     default -> throw new AssertionError("Unknown " + item.getPath());
                 }

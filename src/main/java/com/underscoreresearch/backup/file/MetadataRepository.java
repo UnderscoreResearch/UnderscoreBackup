@@ -71,6 +71,8 @@ public interface MetadataRepository {
 
     CloseableStream<BackupBlock> allBlocks() throws IOException;
 
+    CloseableStream<BackupBlockAdditional> allAdditionalBlocks() throws IOException;
+
     CloseableStream<BackupFilePart> allFileParts() throws IOException;
 
     CloseableStream<BackupDirectory> allDirectories(boolean ascending) throws IOException;

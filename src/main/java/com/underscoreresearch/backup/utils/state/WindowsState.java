@@ -18,6 +18,11 @@ public class WindowsState extends MachineState {
     }
 
     @Override
+    protected double getMaxCpuUsage() {
+        return 0.75;
+    }
+
+    @Override
     public boolean getOnBattery() {
         try {
             Process proc = Runtime.getRuntime().exec(

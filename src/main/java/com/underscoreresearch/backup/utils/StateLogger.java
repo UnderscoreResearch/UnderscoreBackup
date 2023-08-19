@@ -18,10 +18,10 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.underscoreresearch.backup.utils.state.MachineState;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class StateLogger implements StatusLogger {

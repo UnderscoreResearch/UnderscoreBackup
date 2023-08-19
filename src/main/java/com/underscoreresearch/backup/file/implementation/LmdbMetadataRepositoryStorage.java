@@ -733,12 +733,14 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 entry.key().position(0);
                 PathTimestamp key = decodePathTimestamp(entry.key());
                 log.error("Invalid file {}:{}", PathNormalizer.physicalPath(key.path), key.path, e);
-                try {
-                    entry.key().position(0);
-                    fileMap.delete(getWriteTransaction(), entry.key());
-                    checkExpand();
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        entry.key().position(0);
+                        fileMap.delete(getWriteTransaction(), entry.key());
+                        checkExpand();
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -754,12 +756,14 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 entry.key().position(0);
                 String key = decodeString(entry.key());
                 log.error("Invalid block {}", key, e);
-                try {
-                    entry.key().position(0);
-                    blockMap.delete(getWriteTransaction(), entry.key());
-                    checkExpand();
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        entry.key().position(0);
+                        blockMap.delete(getWriteTransaction(), entry.key());
+                        checkExpand();
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -772,18 +776,20 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             ByteBuffer data = entry.key();
             String[] keys = decodeDoubleString(data);
             try {
-                BackupBlockAdditional block = decodeData(BACKUP_BLOCK_ADDITIONAL_READER, data);
+                BackupBlockAdditional block = decodeData(BACKUP_BLOCK_ADDITIONAL_READER, entry.val());
                 block.setHash(keys[1]);
                 block.setPublicKey(keys[0]);
                 return block;
             } catch (IOException e) {
                 log.error("Invalid additional block {}:{}", keys[0], keys[1], e);
-                try {
-                    entry.key().position(0);
-                    blockMap.delete(getWriteTransaction(), entry.key());
-                    checkExpand();
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        entry.key().position(0);
+                        additionalBlockMap.delete(getWriteTransaction(), entry.key());
+                        checkExpand();
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -799,12 +805,14 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 entry.key().position(0);
                 String[] keys = decodeDoubleString(entry.key());
                 log.error("Invalid filePart {}:{}", keys[0], keys[1], e);
-                try {
-                    entry.key().position(0);
-                    partsMap.delete(getWriteTransaction(), entry.key());
-                    checkExpand();
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        entry.key().position(0);
+                        partsMap.delete(getWriteTransaction(), entry.key());
+                        checkExpand();
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -820,12 +828,14 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 entry.key().position(0);
                 PathTimestamp pathTimestamp = decodePathTimestamp(entry.key());
                 log.error("Invalid directory {}:{}", pathTimestamp.path, pathTimestamp.timestamp, e);
-                try {
-                    entry.key().position(0);
-                    directoryMap.delete(getWriteTransaction(), entry.key());
-                    checkExpand();
-                } catch (Exception exc) {
-                    log.error("Failed to delete invalid entry", exc);
+                if (!readOnly) {
+                    try {
+                        entry.key().position(0);
+                        directoryMap.delete(getWriteTransaction(), entry.key());
+                        checkExpand();
+                    } catch (Exception exc) {
+                        log.error("Failed to delete invalid entry", exc);
+                    }
                 }
                 return null;
             }
@@ -1334,7 +1344,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public void clear() throws IOException {
         deleteContents(root);
-        if (!root.delete()) {
+        if (root.exists() && !root.delete()) {
             log.error("Failed to delete {}", root);
         }
     }

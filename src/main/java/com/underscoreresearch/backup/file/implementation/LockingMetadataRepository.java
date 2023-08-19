@@ -392,6 +392,11 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     @Override
+    public CloseableStream<BackupBlockAdditional> allAdditionalBlocks() throws IOException {
+        return storage.allAdditionalBlocks();
+    }
+
+    @Override
     public CloseableStream<BackupFilePart> allFileParts() throws IOException {
         CloseableLock lock = acquireStreamLock();
 
@@ -737,13 +742,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         if (repositoryInfo.version != getDefaultVersion()) {
             try (RepositoryLock ignored = new RepositoryLock()) {
                 try (Closeable ignored2 = UIManager.registerTask("Upgrading metadata repository")) {
-                    ensureOpen();
+                    open(true);
 
-                    MetadataRepositoryStorage upgradedStorage = createStorage(getDefaultVersion());
+                    int version = getDefaultVersion();
+                    MetadataRepositoryStorage upgradedStorage = createStorage(version);
 
                     new RepositoryUpgrader(storage, upgradedStorage).upgrade();
 
-                    repositoryInfo.version = getDefaultVersion();
+                    repositoryInfo.version = version;
                     saveRepositoryInfo();
 
                     storage.close();

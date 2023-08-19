@@ -220,6 +220,11 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
+    public CloseableStream<BackupBlockAdditional> allAdditionalBlocks() throws IOException {
+        return null;
+    }
+
+    @Override
     public CloseableStream<BackupFilePart> allFileParts() throws IOException {
         return null;
     }
