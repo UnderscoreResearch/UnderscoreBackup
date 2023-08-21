@@ -10,7 +10,6 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.SOUR
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -28,13 +27,10 @@ import com.underscoreresearch.backup.cli.PasswordReader;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
-import com.underscoreresearch.backup.encryption.Encryptor;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -88,14 +84,10 @@ public class ChangePasswordCommand extends Command {
         repository.open(false);
 
         try {
-            Encryptor encryptor = EncryptorFactory.getEncryptor(destination.getEncryption());
-
             File fileName = getDefaultEncryptionFileName(commandLine);
             ChangePrivateKeyManifestManager changePrivateKeyManifestManager = new ChangePrivateKeyManifestManager(
                     configuration,
                     InstanceFactory.getInstance(MANIFEST_LOCATION),
-                    IOProviderFactory.getProvider(destination),
-                    encryptor,
                     InstanceFactory.getInstance(RateLimitController.class),
                     InstanceFactory.getInstance(ServiceManager.class),
                     InstanceFactory.getInstance(INSTALLATION_IDENTITY),
@@ -104,7 +96,8 @@ public class ChangePasswordCommand extends Command {
                     newKey,
                     oldPrivateKey,
                     null,
-                    InstanceFactory.getInstance(AdditionalManifestManager.class));
+                    InstanceFactory.getInstance(AdditionalManifestManager.class),
+                    InstanceFactory.getInstance(UploadScheduler.class));
 
             changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
             repository.flushLogging();
@@ -160,8 +153,6 @@ public class ChangePasswordCommand extends Command {
 
         public ChangePrivateKeyManifestManager(BackupConfiguration configuration,
                                                String manifestLocation,
-                                               IOProvider provider,
-                                               Encryptor encryptor,
                                                RateLimitController rateLimitController,
                                                ServiceManager serviceManager,
                                                String installationIdentity,
@@ -170,10 +161,11 @@ public class ChangePasswordCommand extends Command {
                                                EncryptionKey publicKey,
                                                EncryptionKey.PrivateKey oldPrivateKey,
                                                BackupStatsLogger statsLogger,
-                                               AdditionalManifestManager additionalManifestManager) throws IOException {
-            super(configuration, manifestLocation, provider, encryptor, rateLimitController, serviceManager,
+                                               AdditionalManifestManager additionalManifestManager,
+                                               UploadScheduler uploadScheduler) throws IOException {
+            super(configuration, manifestLocation, rateLimitController, serviceManager,
                     installationIdentity, null, false, publicKey, statsLogger,
-                    additionalManifestManager);
+                    additionalManifestManager, uploadScheduler);
 
             this.keyFile = keyFile;
             this.repository = repository;
@@ -219,9 +211,11 @@ public class ChangePasswordCommand extends Command {
             repository.installTemporaryBlocks();
 
             uploadConfigData(CONFIGURATION_FILENAME,
-                    new ByteArrayInputStream(InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8)),
-                    true);
+                    InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8),
+                    true, null);
             uploadPublicKey(getPublicKey());
+
+            completeUploads();
 
             super.deleteLogFiles(existingLogs);
         }

@@ -616,8 +616,8 @@ waitpid($pid, 0);
 &prepareRunPath();
 
 for my $row (split(/\n/, &executeUnderscoreBackupWithOutput("generate-key", "--additional", "--password", $FIRST_PASSWORD))) {
-    print $row;
-    if ($row =~ /(\S+)/) {
+    print "$row\n";
+    if ($row =~ /^(\S+)$/) {
         my $key = $1;
         if ($key !~ /^=/) {
             $sharedPublicKey = $key;

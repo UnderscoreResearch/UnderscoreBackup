@@ -40,7 +40,6 @@ import com.underscoreresearch.backup.cli.helpers.BlockRefresher;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
 import com.underscoreresearch.backup.file.FileConsumer;
@@ -60,7 +59,6 @@ import com.underscoreresearch.backup.file.implementation.LockingMetadataReposito
 import com.underscoreresearch.backup.file.implementation.PermissionFileSystemAccess;
 import com.underscoreresearch.backup.file.implementation.PosixPermissionManager;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
-import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
@@ -71,7 +69,6 @@ import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.implementation.AdditionalManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.MachineState;
 
@@ -259,15 +256,11 @@ public class BackupModule extends AbstractModule {
                                                              EncryptionKey encryptionKey,
                                                              CommandLine commandLine,
                                                              BackupStatsLogger statsLogger,
-                                                             AdditionalManifestManager additionalManifestManager)
+                                                             AdditionalManifestManager additionalManifestManager,
+                                                             UploadScheduler uploadScheduler)
             throws IOException {
-        BackupDestination destination = configuration.getDestinations().get(configuration.getManifest()
-                .getDestination());
-
         return new ManifestManagerImpl(configuration,
                 manifestLocation,
-                IOProviderFactory.getProvider(destination),
-                EncryptorFactory.getEncryptor(destination.getEncryption()),
                 rateLimitController,
                 serviceManager,
                 installationIdentity,
@@ -275,18 +268,20 @@ public class BackupModule extends AbstractModule {
                 commandLine.hasOption(FORCE),
                 encryptionKey,
                 statsLogger,
-                additionalManifestManager);
+                additionalManifestManager,
+                uploadScheduler);
     }
 
     @Provides
     @Singleton
     public AdditionalManifestManager additionalManifestManager(@Named(ADDITIONAL_SOURCE) String source,
                                                                BackupConfiguration config,
-                                                               RateLimitController rateLimitController) {
+                                                               RateLimitController rateLimitController,
+                                                               UploadScheduler uploadScheduler) {
         if (!Strings.isNullOrEmpty(source)) {
-            return new AdditionalManifestManager(BackupConfiguration.builder().build(), rateLimitController);
+            return new AdditionalManifestManager(BackupConfiguration.builder().build(), rateLimitController, uploadScheduler);
         }
-        return new AdditionalManifestManager(config, rateLimitController);
+        return new AdditionalManifestManager(config, rateLimitController, uploadScheduler);
     }
 
     @Provides

@@ -13,10 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
-import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
-import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.StatusLine;
@@ -26,8 +25,6 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 public class ManifestManagerImpl extends OptimizingManifestManager implements StatusLogger {
     public ManifestManagerImpl(BackupConfiguration configuration,
                                String manifestLocation,
-                               IOProvider provider,
-                               Encryptor encryptor,
                                RateLimitController rateLimitController,
                                ServiceManager serviceManager,
                                String installationIdentity,
@@ -35,12 +32,11 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                                boolean forceIdentity,
                                EncryptionKey publicKey,
                                BackupStatsLogger statsLogger,
-                               AdditionalManifestManager additionalManifestManager)
+                               AdditionalManifestManager additionalManifestManager,
+                               UploadScheduler uploadScheduler)
             throws IOException {
         super(configuration,
                 manifestLocation,
-                provider,
-                encryptor,
                 rateLimitController,
                 serviceManager,
                 installationIdentity,
@@ -48,7 +44,8 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                 forceIdentity,
                 publicKey,
                 statsLogger,
-                additionalManifestManager);
+                additionalManifestManager,
+                uploadScheduler);
     }
 
     public List<StatusLine> status() {

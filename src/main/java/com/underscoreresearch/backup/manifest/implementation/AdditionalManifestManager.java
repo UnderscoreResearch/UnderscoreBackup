@@ -6,7 +6,6 @@ import static com.underscoreresearch.backup.manifest.implementation.OptimizingMa
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -28,6 +27,7 @@ import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
@@ -35,8 +35,11 @@ import com.underscoreresearch.backup.model.BackupDestination;
 public class AdditionalManifestManager {
     private final Map<String, Destination> additionalProviders = new HashMap<>();
     private final RateLimitController rateLimitController;
+    private final UploadScheduler uploadScheduler;
 
-    public AdditionalManifestManager(BackupConfiguration configuration, RateLimitController rateLimitController) {
+    public AdditionalManifestManager(BackupConfiguration configuration,
+                                     RateLimitController rateLimitController,
+                                     UploadScheduler uploadScheduler) {
         if (configuration.getManifest() != null && configuration.getManifest().getAdditionalDestinations() != null) {
             for (String additionalDestination : configuration.getManifest().getAdditionalDestinations()) {
                 BackupDestination destination = configuration.getDestinations().get(additionalDestination);
@@ -45,6 +48,7 @@ public class AdditionalManifestManager {
             }
         }
         this.rateLimitController = rateLimitController;
+        this.uploadScheduler = uploadScheduler;
     }
 
     public void startOptimizeLog() throws IOException {
@@ -66,7 +70,8 @@ public class AdditionalManifestManager {
     }
 
     public void uploadConfigurationData(String filename, byte[] data, byte[] unencryptedData,
-                                        Encryptor encryptor, EncryptionKey encryptionKey) throws IOException {
+                                        Encryptor encryptor, EncryptionKey encryptionKey,
+                                        Runnable success) {
         for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
             byte[] useData = data;
             if (encryptor != null) {
@@ -75,13 +80,16 @@ public class AdditionalManifestManager {
                     useData = neededEncryptor.encryptBlock(null, unencryptedData, encryptionKey);
                 }
             }
-            uploadConfigurationData(filename, useData, entry.getValue());
+            uploadConfigurationData(filename, useData, entry.getValue(), success);
         }
     }
 
-    private void uploadConfigurationData(String filename, byte[] data, Destination destination) throws IOException {
-        destination.getProvider().upload(filename, data);
-        rateLimitController.acquireUploadPermits(destination.getDestination(), data.length);
+    private void uploadConfigurationData(String filename, byte[] data, Destination destination,
+                                         Runnable success) {
+        uploadScheduler.scheduleUpload(destination.getDestination(), filename, data, (key) -> {
+            if (key != null && success != null)
+                success.run();
+        });
     }
 
     public void uploadConfiguration(BackupConfiguration configuration, EncryptionKey encryptionKey) throws IOException {
@@ -95,11 +103,10 @@ public class AdditionalManifestManager {
                 copy.getManifest().setDestination(entry.getKey());
                 copy.getManifest().setAdditionalDestinations(allDestinations.stream()
                         .filter(s -> !s.equals(entry.getKey())).collect(Collectors.toList()));
-                byte[] rawData = compressConfigData(new ByteArrayInputStream(
-                        BACKUP_CONFIGURATION_WRITER.writeValueAsBytes(copy)));
+                byte[] rawData = compressConfigData(BACKUP_CONFIGURATION_WRITER.writeValueAsBytes(copy));
                 Encryptor encryptor = EncryptorFactory.getEncryptor(entry.getValue().getDestination().getEncryption());
                 byte[] data = encryptor.encryptBlock(null, rawData, encryptionKey);
-                uploadConfigurationData(CONFIGURATION_FILENAME, data, rawData, encryptor, encryptionKey);
+                uploadConfigurationData(CONFIGURATION_FILENAME, data, rawData, encryptor, encryptionKey, null);
             }
         }
     }
@@ -146,6 +153,10 @@ public class AdditionalManifestManager {
                 }
             }
         }
+    }
+
+    public int count() {
+        return additionalProviders.size();
     }
 
     @Getter

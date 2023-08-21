@@ -12,7 +12,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 public final class EncryptorFactory {
-    private static Map<String, Class<? extends Encryptor>> encryptors;
+    private static Map<String, Holder> encryptors;
 
     static {
         encryptors = new HashMap<>();
@@ -24,7 +24,7 @@ public final class EncryptorFactory {
             @SuppressWarnings("unchecked")
             Class<? extends Encryptor> clz = (Class<Encryptor>) untyped;
             EncryptorPlugin plugin = clz.getAnnotation(EncryptorPlugin.class);
-            encryptors.put(plugin.value(), clz);
+            encryptors.put(plugin.value(), new Holder(clz));
         }
     }
 
@@ -35,25 +35,38 @@ public final class EncryptorFactory {
     }
 
     public static boolean hasEncryptor(String encryption) {
-        Class<? extends Encryptor> clz = encryptors.get(encryption);
-        if (clz == null)
+        Holder holder = encryptors.get(encryption);
+        if (holder == null)
             throw new IllegalArgumentException("Unsupported encryption type " + encryption);
         return true;
     }
 
     public static boolean requireStorage(String encryption) {
-        Class<? extends Encryptor> clz = encryptors.get(encryption);
-        if (clz == null)
+        Holder holder = encryptors.get(encryption);
+        if (holder == null)
             return false;
-        EncryptorPlugin plugin = clz.getAnnotation(EncryptorPlugin.class);
+        EncryptorPlugin plugin = holder.clz.getAnnotation(EncryptorPlugin.class);
         return plugin.requireStorage();
     }
 
     public static Encryptor getEncryptor(String encryption) {
-        Class<? extends Encryptor> clz = encryptors.get(encryption);
-        if (clz == null)
+        Holder holder = encryptors.get(encryption);
+        if (holder == null)
             throw new IllegalArgumentException("Unsupported encryption type " + encryption);
-        return InstanceFactory.getInstance(clz);
+        if (holder.encryptor == null) {
+            synchronized (holder) {
+                if (holder.encryptor == null) {
+                    holder.encryptor = InstanceFactory.getInstance(holder.clz);
+                }
+            }
+        }
+        return holder.encryptor;
+    }
+
+    public static void injectEncryptor(String encryption, Encryptor encryptor) {
+        Holder holder = new Holder(encryptor.getClass());
+        holder.encryptor = encryptor;
+        encryptors.put(encryption, holder);
     }
 
     public static byte[] encryptBlock(String encryption, BackupBlockStorage storage, byte[] data, EncryptionKey key) {
@@ -65,5 +78,14 @@ public final class EncryptorFactory {
 
     public static byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, EncryptionKey.PrivateKey key) {
         return getEncryptor(storage.getEncryption()).decodeBlock(storage, encryptedData, key);
+    }
+
+    private static class Holder {
+        public Class<? extends Encryptor> clz;
+        public Encryptor encryptor;
+
+        public Holder(Class<? extends Encryptor> clz) {
+            this.clz = clz;
+        }
     }
 }

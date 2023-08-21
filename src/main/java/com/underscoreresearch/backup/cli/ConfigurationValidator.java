@@ -152,7 +152,7 @@ public class ConfigurationValidator {
         }
 
         if (EncryptorFactory.requireStorage(destination.getEncryption())) {
-            throw new IllegalArgumentException("Encryption for destination used by metadata ust not require storage");
+            throw new IllegalArgumentException("Encryption for destination used by metadata must not require storage");
         }
 
         if (!destination.getErrorCorrection().equals(DEFAULT_ERROR_CORRECTION)) {

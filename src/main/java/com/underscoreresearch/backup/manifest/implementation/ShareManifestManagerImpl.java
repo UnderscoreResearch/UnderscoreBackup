@@ -5,7 +5,6 @@ import static com.underscoreresearch.backup.manifest.implementation.OptimizingMa
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,9 +21,9 @@ import lombok.extern.slf4j.Slf4j;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
-import com.underscoreresearch.backup.encryption.Encryptor;
-import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.ShareManifestManager;
@@ -32,7 +31,6 @@ import com.underscoreresearch.backup.model.BackupActivatedShare;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.AccessLock;
-import com.underscoreresearch.backup.utils.NonClosingInputStream;
 
 @Slf4j
 public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements ShareManifestManager {
@@ -44,17 +42,16 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     public ShareManifestManagerImpl(BackupConfiguration configuration,
                                     BackupDestination manifestDestination,
                                     String manifestLocation,
-                                    IOProvider provider,
-                                    Encryptor encryptor,
                                     RateLimitController rateLimitController,
                                     ServiceManager serviceManager,
                                     String installationIdentity,
                                     boolean forceIdentity,
                                     EncryptionKey publicKey,
                                     boolean activated,
-                                    BackupActivatedShare activatedShare) {
-        super(configuration, manifestDestination, manifestLocation, provider, encryptor,
-                rateLimitController, serviceManager, installationIdentity, forceIdentity, publicKey);
+                                    BackupActivatedShare activatedShare,
+                                    UploadScheduler uploadScheduler) {
+        super(configuration, manifestDestination, manifestLocation, rateLimitController, serviceManager,
+                installationIdentity, forceIdentity, publicKey, uploadScheduler);
         this.activated = activated;
         this.activatedShare = activatedShare;
     }
@@ -95,25 +92,28 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
 
         if (files.size() > 0) {
             for (File file : files) {
+                byte[] data = null;
                 try (AccessLock lock = new AccessLock(file.getAbsolutePath())) {
                     if (lock.tryLock(true)) {
-                        InputStream stream = new NonClosingInputStream(Channels
-                                .newInputStream(lock.getLockedChannel()));
-                        uploadLogFile(file.getAbsolutePath(), stream);
+                        try (InputStream stream = Channels
+                                .newInputStream(lock.getLockedChannel())) {
+                            data = IOUtils.readAllBytes(stream);
+                        }
                     } else {
                         log.warn("Log file {} locked by other process", file.getAbsolutePath());
                     }
                 }
-
-                file.delete();
+                if (data != null) {
+                    uploadLogFile(file.getAbsolutePath(), data);
+                }
             }
         }
     }
 
     private void uploadConfigurationFile() throws IOException {
         uploadConfigData(CONFIGURATION_FILENAME,
-                new ByteArrayInputStream(getConfigurationData().getBytes(StandardCharsets.UTF_8)),
-                true);
+                getConfigurationData().getBytes(StandardCharsets.UTF_8),
+                true, null);
     }
 
     private String getConfigurationData() throws JsonProcessingException {

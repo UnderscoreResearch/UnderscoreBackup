@@ -31,6 +31,7 @@ public class StateLogger implements StatusLogger {
     private final AtomicLong lastMemoryAfterGCUse = new AtomicLong();
     private final AtomicLong lastGCCollectionCount = new AtomicLong();
     private final boolean debugMemory;
+    private final List<ManualStatusLogger> additionalLoggers = new ArrayList<>();
     private List<ManualStatusLogger> loggers;
 
     public StateLogger(boolean debugMemory) {
@@ -40,9 +41,8 @@ public class StateLogger implements StatusLogger {
     public static void addLogger(ManualStatusLogger logger) {
         if (InstanceFactory.isInitialized()) {
             StateLogger state = InstanceFactory.getInstance(StateLogger.class);
-            state.initialize();
-            synchronized (state.loggers) {
-                state.loggers.add(logger);
+            synchronized (state.additionalLoggers) {
+                state.additionalLoggers.add(logger);
             }
         }
     }
@@ -50,9 +50,8 @@ public class StateLogger implements StatusLogger {
     public static void removeLogger(ManualStatusLogger logger) {
         if (InstanceFactory.isInitialized()) {
             StateLogger state = InstanceFactory.getInstance(StateLogger.class);
-            state.initialize();
-            synchronized (state.loggers) {
-                state.loggers.remove(logger);
+            synchronized (state.additionalLoggers) {
+                state.additionalLoggers.remove(logger);
             }
         }
     }
@@ -116,8 +115,11 @@ public class StateLogger implements StatusLogger {
     public void reset() {
         initialize();
 
-        synchronized (loggers) {
+        synchronized (this) {
             loggers.stream().filter(t -> t.type() != Type.LOG).forEach(ManualStatusLogger::resetStatus);
+        }
+        synchronized (additionalLoggers) {
+            additionalLoggers.stream().filter(t -> t.type() != Type.LOG).forEach(ManualStatusLogger::resetStatus);
         }
     }
 
@@ -126,10 +128,16 @@ public class StateLogger implements StatusLogger {
 
         List<ManualStatusLogger> currentLoggers;
 
-        synchronized (loggers) {
+        synchronized (this) {
             currentLoggers = loggers
                     .stream()
-                    .filter(t -> filter.apply(t.type())).toList();
+                    .filter(t -> filter.apply(t.type())).collect(Collectors.toList());
+        }
+
+        synchronized (additionalLoggers) {
+            currentLoggers.addAll(additionalLoggers
+                    .stream()
+                    .filter(t -> filter.apply(t.type())).toList());
         }
 
         List<StatusLine> ret = currentLoggers.stream().map(ManualStatusLogger::status)
@@ -145,18 +153,20 @@ public class StateLogger implements StatusLogger {
         logData(filter).forEach(item -> printer.accept(item.toString()));
     }
 
-    private synchronized void initialize() {
-        if (loggers == null || loggers.size() == 0) {
-            if (InstanceFactory.hasConfiguration(false)) {
-                loggers = InstanceFactory
-                        .getReflections()
-                        .getSubTypesOf(StatusLogger.class)
-                        .stream()
-                        .filter(clz -> !Modifier.isAbstract(clz.getModifiers()))
-                        .map(InstanceFactory::getInstance)
-                        .collect(Collectors.toList());
-            } else if (loggers == null) {
-                loggers = new ArrayList<>();
+    private void initialize() {
+        synchronized (this) {
+            if (loggers == null || loggers.size() == 0) {
+                if (InstanceFactory.hasConfiguration(false)) {
+                    loggers = InstanceFactory
+                            .getReflections()
+                            .getSubTypesOf(StatusLogger.class)
+                            .stream()
+                            .filter(clz -> !Modifier.isAbstract(clz.getModifiers()))
+                            .map(InstanceFactory::getInstance)
+                            .collect(Collectors.toList());
+                } else if (loggers == null) {
+                    loggers = new ArrayList<>();
+                }
             }
         }
     }

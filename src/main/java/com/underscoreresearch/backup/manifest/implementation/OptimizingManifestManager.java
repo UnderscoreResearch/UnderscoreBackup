@@ -13,6 +13,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
@@ -44,7 +46,6 @@ import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
-import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
@@ -54,10 +55,9 @@ import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.LogConsumer;
@@ -82,7 +82,6 @@ import com.underscoreresearch.backup.service.api.model.MessageResponse;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.utils.AccessLock;
-import com.underscoreresearch.backup.utils.NonClosingInputStream;
 
 @Slf4j
 public class OptimizingManifestManager extends BaseManifestManagerImpl implements ManifestManager {
@@ -96,6 +95,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     private final AdditionalManifestManager additionalManifestManager;
     @Getter(AccessLevel.PROTECTED)
     private final Object operationLock = new Object();
+    protected Closeable operationTask;
     private Map<String, ShareManifestManager> activeShares;
     private boolean repositoryReady = true;
     @Getter(AccessLevel.PROTECTED)
@@ -113,8 +113,6 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
     public OptimizingManifestManager(BackupConfiguration configuration,
                                      String manifestLocation,
-                                     IOProvider provider,
-                                     Encryptor encryptor,
                                      RateLimitController rateLimitController,
                                      ServiceManager serviceManager,
                                      String installationIdentity,
@@ -122,18 +120,17 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                                      boolean forceIdentity,
                                      EncryptionKey publicKey,
                                      BackupStatsLogger statsLogger,
-                                     AdditionalManifestManager additionalManifestManager)
-            throws IOException {
+                                     AdditionalManifestManager additionalManifestManager,
+                                     UploadScheduler uploadScheduler) {
         super(configuration,
                 configuration.getDestinations().get(configuration.getManifest().getDestination()),
                 manifestLocation,
-                provider,
-                encryptor,
                 rateLimitController,
                 serviceManager,
                 installationIdentity,
                 forceIdentity,
-                publicKey);
+                publicKey,
+                uploadScheduler);
         this.source = source;
         this.statsLogger = statsLogger;
         this.additionalManifestManager = additionalManifestManager;
@@ -150,8 +147,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             processedFiles.incrementAndGet();
 
             uploadConfigData(CONFIGURATION_FILENAME,
-                    new ByteArrayInputStream(InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8)),
-                    true);
+                    InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8),
+                    true, null);
             processedFiles.incrementAndGet();
 
             updateServiceSourceData(getPublicKey());
@@ -162,21 +159,21 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 totalFiles.addAndGet(files.size());
 
                 for (File file : files) {
+                    byte[] data = null;
                     try (AccessLock lock = new AccessLock(file.getAbsolutePath())) {
                         if (lock.tryLock(true)) {
-                            InputStream stream = new NonClosingInputStream(Channels
-                                    .newInputStream(lock.getLockedChannel()));
-                            processLogInputStream(logConsumer, stream);
-
-                            lock.getLockedChannel().position(0);
-
-                            uploadLogFile(file.getAbsolutePath(), stream);
+                            try (InputStream stream = Channels
+                                    .newInputStream(lock.getLockedChannel())) {
+                                data = IOUtils.readAllBytes(stream);
+                            }
                         } else {
                             log.warn("Log file {} locked by other process", file.getAbsolutePath());
                         }
                     }
-
-                    file.delete();
+                    if (data != null) {
+                        processLogInputStream(logConsumer, new ByteArrayInputStream(data));
+                        uploadLogFile(file.getAbsolutePath(), data);
+                    }
                     processedFiles.incrementAndGet();
                 }
             }
@@ -186,27 +183,43 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     }
 
     @Override
-    protected void uploadConfigData(String filename, InputStream inputStream, boolean encrypt) throws IOException {
+    protected void uploadConfigData(String filename, byte[] inputData, boolean encrypt, String deleteFilename) throws IOException {
         byte[] unencryptedData;
         byte[] data;
-        if (encrypt) {
-            validateIdentity();
+        validateIdentity();
 
-            unencryptedData = compressConfigData(inputStream);
+        if (encrypt) {
+            unencryptedData = compressConfigData(inputData);
             data = getEncryptor().encryptBlock(null, unencryptedData, getPublicKey());
         } else {
-            data = unencryptedData = IOUtils.readAllBytes(inputStream);
+            data = unencryptedData = inputData;
         }
         log.info("Uploading {} ({})", filename, readableSize(data.length));
-        uploadData(filename, data);
+
+        AtomicInteger successNeeded = new AtomicInteger(1 + additionalManifestManager.count());
+        Runnable success;
+        if (deleteFilename != null) {
+            success = () -> {
+                if (successNeeded.decrementAndGet() == 0) {
+                    if (deleteFilename != null && !new File(deleteFilename).delete()) {
+                        log.warn("Failed to delete file {}", deleteFilename);
+                    }
+                }
+            };
+        } else {
+            success = null;
+        }
+        uploadData(filename, data, success);
 
         if (filename.equals(CONFIGURATION_FILENAME)) {
             additionalManifestManager.uploadConfiguration(getConfiguration(), getPublicKey());
         } else {
             if (encrypt)
-                additionalManifestManager.uploadConfigurationData(filename, data, unencryptedData, getEncryptor(), getPublicKey());
+                additionalManifestManager.uploadConfigurationData(filename, data, unencryptedData, getEncryptor(),
+                        getPublicKey(), success);
             else
-                additionalManifestManager.uploadConfigurationData(filename, data, null, null, null);
+                additionalManifestManager.uploadConfigurationData(filename, data, null, null,
+                        null, success);
         }
     }
 
@@ -220,9 +233,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
                 destination = getConfiguration().getDestinations().get(getConfiguration().getManifest().getDestination());
                 BACKUP_DESTINATION_WRITER.writeValue(stream, destination);
-                try (InputStream inputStream = new ByteArrayInputStream(stream.toByteArray())) {
-                    destinationData = BaseEncoding.base64Url().encode(encryptConfigData(inputStream)).replace("=", "");
-                }
+                destinationData = BaseEncoding.base64Url().encode(encryptConfigData(stream.toByteArray())).replace("=", "");
             }
             String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.serviceOnlyKey());
             getServiceManager().call(null, new ServiceManager.ApiFunction<>() {
@@ -467,15 +478,14 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 getConfiguration(),
                 share.getShare().getDestination(),
                 Paths.get(getManifestLocation(), "shares", publicKey).toString(),
-                IOProviderFactory.getProvider(share.getShare().getDestination()),
-                EncryptorFactory.getEncryptor(share.getShare().getDestination().getEncryption()),
                 getRateLimitController(),
                 getServiceManager(),
                 getInstallationIdentity() + publicKey,
                 isForceIdentity(),
                 EncryptionKey.createWithPublicKey(publicKey),
                 activated,
-                share
+                share,
+                getUploadScheduler()
         );
     }
 
@@ -483,6 +493,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     public void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException {
         initialize(logConsumer, true);
         flushLogging();
+        getUploadScheduler().waitForCompletion();
 
         if (existingLogFiles().size() > 0) {
             log.warn("Still having pending log files, can't optimize");
@@ -575,6 +586,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
             ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                     getConfiguration().getManifest().getOptimizeSchedule());
+            completeUploads();
 
             log.info("Deleting old log files ({})", existingLogs.size());
             deleteLogFiles(existingLogs);

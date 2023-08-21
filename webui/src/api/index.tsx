@@ -1,4 +1,7 @@
 import {DisplayMessage} from "../App";
+import {generateKeyPair, sharedKey} from "curve25519-js";
+import base64url from "base64url";
+import { sha256 } from 'js-sha256';
 
 function determineBaseApi(): string {
     if (window.location.pathname.startsWith("/fixed/")) {
@@ -13,7 +16,21 @@ function determineBaseApi(): string {
     }
 }
 
+function determineBasePath(): string {
+    if (window.location.pathname.startsWith("/fixed/")) {
+        return "/fixed/api/";
+    } else {
+        let basePath = window.location.pathname;
+        let ind = basePath.indexOf("/", 1);
+        if (ind >= 0) {
+            basePath = basePath.substring(0, ind + 1);
+        }
+        return basePath + "api/";
+    }
+}
+
 const baseApi = determineBaseApi();
+const basePrefix = determineBasePath();
 
 export interface BackupFilter {
     paths: string[],
@@ -213,9 +230,33 @@ function reportError(errors: any) {
     DisplayMessage(errors.toString());
 }
 
+const exchangeKeyPair = generateKeyPair(crypto.getRandomValues(new Uint8Array(32)));
+const publicKey = base64url.encode(Buffer.from(exchangeKeyPair.public)).replace("=", "");
+let apiSharedKey: string | undefined = undefined;
+
 export async function makeApiCall(api: string, init?: RequestInit, silentError?: boolean): Promise<any | undefined> {
     try {
-        const response = await fetch(baseApi + api, init);
+        const useInit: RequestInit = {
+            ...init
+        };
+
+        let exchangeHeader: string;
+        if (apiSharedKey) {
+            const now = Date.now();
+            const auth = (init && init.method ? init.method : "GET") + ":" + basePrefix + api + ":" + apiSharedKey + ":" + now;
+            const digest = sha256(Buffer.from(auth));
+            const key = base64url(Buffer.from(digest, 'hex')).replace("=", "");
+            exchangeHeader = `${publicKey} ${now} ${key}`;
+        } else {
+            exchangeHeader = publicKey;
+        }
+
+        useInit.headers = {
+            ...useInit?.headers,
+            "x-keyexchange": exchangeHeader
+        };
+
+        const response = await fetch(baseApi + api, useInit);
         if (!response.ok) {
             if (!silentError) {
                 try {
@@ -233,6 +274,15 @@ export async function makeApiCall(api: string, init?: RequestInit, silentError?:
             }
             return undefined;
         }
+
+        const keyExchange = response.headers.get("x-keyexchange");
+
+        if (keyExchange) {
+            const publicKey = Buffer.from(keyExchange, "base64");
+            apiSharedKey = base64url(Buffer.from(sharedKey(exchangeKeyPair.private, publicKey)))
+                .replace("=", "");
+        }
+
         return await response.json();
     } catch (error) {
         if (!silentError) {

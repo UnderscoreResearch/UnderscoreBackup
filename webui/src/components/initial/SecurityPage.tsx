@@ -259,7 +259,12 @@ export function SecurityPage(props: SecurityPageProps) {
                             base64url.decode(window.localStorage.getItem("email") as string))
                     }
 
+                    const currentConfiguration = appContext.currentConfiguration;
                     await appContext.update(state.password);
+                    appContext.setState((oldState) => ({
+                        ...oldState,
+                        currentConfiguration: currentConfiguration
+                    }));
                 }
             }
         });

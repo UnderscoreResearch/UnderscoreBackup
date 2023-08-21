@@ -8,4 +8,9 @@ public interface UploadScheduler {
                         BackupUploadCompletion completionPromise);
 
     void shutdown();
+
+    void scheduleUpload(BackupDestination destination, String suggestedPath, byte[] data,
+                        BackupUploadCompletion completionPromise);
+
+    void waitForCompletion();
 }

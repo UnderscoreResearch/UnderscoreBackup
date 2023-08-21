@@ -83,12 +83,16 @@ public final class IOProviderFactory {
         try {
             Constructor<? extends IOProvider> constructor = clz.getConstructor(BackupDestination.class);
             provider = readOnlyOnSource(constructor.newInstance(destination));
-            providers.put(destination, provider);
+            injectProvider(destination, provider);
             return provider;
         } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
                  InvocationTargetException e) {
             throw new IllegalArgumentException("Invalid provider type " + destination.getType(), e);
         }
+    }
+
+    public static synchronized void injectProvider(BackupDestination destination, IOProvider provider) {
+        providers.put(destination, provider);
     }
 
     private static IOProvider readOnlyOnSource(IOProvider actualProvider) {

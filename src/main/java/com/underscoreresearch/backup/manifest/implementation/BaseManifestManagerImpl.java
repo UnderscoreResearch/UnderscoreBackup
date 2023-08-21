@@ -7,9 +7,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,9 +21,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
@@ -40,11 +41,14 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.BaseManifestManager;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -67,8 +71,6 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final String manifestLocation;
     private final BackupDestination manifestDestination;
     @Getter(AccessLevel.PROTECTED)
-    private final IOProvider provider;
-    @Getter(AccessLevel.PROTECTED)
     private final Encryptor encryptor;
     @Getter(AccessLevel.PROTECTED)
     private final String installationIdentity;
@@ -76,39 +78,41 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final boolean forceIdentity;
     @Getter(AccessLevel.PROTECTED)
     private final ServiceManager serviceManager;
-    protected Closeable operationTask;
+    @Getter(AccessLevel.PROTECTED)
+    private final Object lock = new Object();
+    private final ExecutorService uploadExecutor;
+    private final AtomicInteger uploadCount = new AtomicInteger();
+    private final AtomicBoolean currentlyClosingLog = new AtomicBoolean();
     @Getter
     private boolean shutdown;
-
     @Getter
     @Setter
     private boolean disabledFlushing;
-
     private AccessLock currentLogLock;
     private String lastLogFilename;
     private long currentLogLength;
-    @Getter(AccessLevel.PROTECTED)
-    private Object lock = new Object();
     private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
     @Getter(AccessLevel.PROTECTED)
     private LogConsumer logConsumer;
-    private AtomicBoolean currentlyClosingLog = new AtomicBoolean();
     @Getter(AccessLevel.PROTECTED)
     private boolean initialized;
     @Getter(AccessLevel.PROTECTED)
     private EncryptionKey publicKey;
+    @Getter(AccessLevel.PROTECTED)
+    private UploadScheduler uploadScheduler;
+    @Getter(AccessLevel.PROTECTED)
+    private IOProvider provider;
 
     public BaseManifestManagerImpl(BackupConfiguration configuration,
                                    BackupDestination manifestDestination,
                                    String manifestLocation,
-                                   IOProvider provider,
-                                   Encryptor encryptor,
                                    RateLimitController rateLimitController,
                                    ServiceManager serviceManager,
                                    String installationIdentity,
                                    boolean forceIdentity,
-                                   EncryptionKey publicKey) {
+                                   EncryptionKey publicKey,
+                                   UploadScheduler uploadScheduler) {
         this.configuration = configuration;
         this.rateLimitController = rateLimitController;
         this.manifestLocation = manifestLocation;
@@ -122,26 +126,29 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             throw new IllegalArgumentException("Can't find destination for manifest");
         }
 
-        this.provider = provider;
-        if (!(provider instanceof IOIndex)) {
-            throw new IllegalArgumentException("Manifest destination must be able to support listing files");
+        this.encryptor = EncryptorFactory.getEncryptor(manifestDestination.getEncryption());
+        this.provider = IOProviderFactory.getProvider(manifestDestination);
+        if (!(this.provider instanceof IOIndex)) {
+            throw new IllegalArgumentException("Manifest destination must be an index");
         }
+        this.uploadScheduler = uploadScheduler;
 
-        this.encryptor = encryptor;
+        uploadExecutor = Executors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder().setNameFormat("Manifest-Upload").build());
     }
 
-    public static byte[] compressConfigData(InputStream inputStream) throws IOException {
+    public static byte[] compressConfigData(byte[] data) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (GZIPOutputStream gzipStream = new GZIPOutputStream(outputStream)) {
-            IOUtils.copyStream(inputStream, gzipStream);
+            gzipStream.write(data);
         }
         return outputStream.toByteArray();
     }
 
     protected void uploadKeyData(EncryptionKey key) throws IOException {
         uploadConfigData(PUBLICKEY_FILENAME,
-                new ByteArrayInputStream(encryptionKeyForUpload(key)),
-                false);
+                encryptionKeyForUpload(key),
+                false, null);
     }
 
     protected abstract void uploadPending(LogConsumer logConsumer) throws IOException;
@@ -150,10 +157,10 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         return null;
     }
 
-    protected void uploadLogFile(String file, InputStream stream) throws IOException {
+    protected void uploadLogFile(String file, byte[] data) throws IOException {
         String uploadFilename = transformLogFilename(file);
         try {
-            uploadConfigData(uploadFilename, stream, true);
+            uploadConfigData(uploadFilename, data, true, file);
         } finally {
             if (logConsumer != null) {
                 if (logConsumer.lastSyncedLogFile(getShare()) != null && logConsumer.lastSyncedLogFile(getShare()).compareTo(uploadFilename) > 0) {
@@ -187,14 +194,27 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected byte[] downloadData(String file) throws IOException {
-        byte[] data = provider.download(file);
+        byte[] data = getProvider().download(file);
         rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
         return data;
     }
 
-    protected void uploadData(String file, byte[] data) throws IOException {
-        provider.upload(file, data);
-        rateLimitController.acquireUploadPermits(manifestDestination, data.length);
+    protected void uploadData(String file, byte[] data, Runnable success) {
+        uploadCount.incrementAndGet();
+        uploadExecutor.submit(() -> {
+            try {
+                uploadScheduler.scheduleUpload(manifestDestination, file, data, key -> {
+                    if (success != null && key != null) {
+                        success.run();
+                    }
+                });
+            } finally {
+                synchronized (uploadCount) {
+                    uploadCount.decrementAndGet();
+                    uploadCount.notifyAll();
+                }
+            }
+        });
     }
 
     public void validateIdentity() {
@@ -226,7 +246,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         log.info("Updating manifest installation identity");
         try {
             byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
-            uploadData(IDENTITY_MANIFEST_LOCATION, data);
+            rateLimitController.acquireUploadPermits(manifestDestination, data.length);
+            getProvider().upload(IDENTITY_MANIFEST_LOCATION, data);
         } catch (IOException e) {
             throw new RuntimeException(String.format("Failed to save identity to target: %s", e.getMessage()), e);
         }
@@ -303,26 +324,35 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected void uploadPublicKey(EncryptionKey encryptionKey) throws IOException {
-        uploadConfigData(PUBLICKEY_FILENAME,
-                new ByteArrayInputStream(encryptionKeyForUpload(encryptionKey)),
-                false);
+        uploadConfigData(PUBLICKEY_FILENAME, encryptionKeyForUpload(encryptionKey), false, null);
     }
 
-    protected void uploadConfigData(String filename, InputStream inputStream, boolean encrypt) throws IOException {
-        byte[] data;
+    protected void uploadConfigData(String filename, byte[] unencryptedData,
+                                    boolean encrypt,
+                                    String deleteFilename) throws IOException {
+        byte[] data = unencryptedData;
         if (encrypt) {
-            validateIdentity();
-
-            data = encryptConfigData(inputStream);
-        } else {
-            data = IOUtils.readAllBytes(inputStream);
+            data = encryptConfigData(unencryptedData);
         }
+
         log.info("Uploading {} ({})", filename, readableSize(data.length));
-        uploadData(filename, data);
+
+        Runnable success;
+        if (deleteFilename != null) {
+            success = () -> {
+                if (!new File(deleteFilename).delete()) {
+                    log.warn("Failed to delete file {}", deleteFilename);
+                }
+            };
+        } else {
+            success = null;
+        }
+
+        uploadData(filename, data, success);
     }
 
-    public byte[] encryptConfigData(InputStream inputStream) throws IOException {
-        return encryptor.encryptBlock(null, compressConfigData(inputStream), publicKey);
+    public byte[] encryptConfigData(byte[] data) throws IOException {
+        return encryptor.encryptBlock(null, compressConfigData(data), publicKey);
     }
 
     private String transformLogFilename(String path) {
@@ -404,6 +434,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                     currentlyClosingLog.set(false);
                 }
             }
+            waitUploadSubmission();
         }
     }
 
@@ -464,27 +495,22 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         if (currentLogLock != null) {
             currentLogLock.getLockedChannel().position(0);
             String filename = currentLogLock.getFilename();
-            boolean uploaded = false;
+            byte[] data;
             try (InputStream stream = Channels.newInputStream(currentLogLock.getLockedChannel())) {
-                try {
-                    uploadLogFile(filename, stream);
-                } catch (IOException exc) {
-                    throw new IOException(String.format("Failed to upload log file %s", filename), exc);
-                }
-                uploaded = true;
+                data = IOUtils.readAllBytes(stream);
             } finally {
                 try {
                     currentLogLock.close();
                 } catch (IOException exc) {
                     log.error("Failed to close log file lock {}", filename, exc);
                 }
-                if (uploaded) {
-                    if (!(new File(filename).delete())) {
-                        log.error("Failed to delete log file {}", filename);
-                    }
-                }
                 currentLogLength = 0;
                 currentLogLock = null;
+            }
+            try {
+                uploadLogFile(filename, data);
+            } catch (IOException exc) {
+                throw new IOException(String.format("Failed to upload log file %s", filename), exc);
             }
         }
     }
@@ -501,12 +527,33 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         synchronized (lock) {
             closeLogFile();
         }
+        waitUploadSubmission();
+    }
+
+    protected void completeUploads() throws IOException {
+        synchronized (lock) {
+            closeLogFile();
+        }
+        waitUploadSubmission();
+        uploadScheduler.waitForCompletion();
+    }
+
+    public void waitUploadSubmission() {
+        synchronized (uploadCount) {
+            while (uploadCount.get() > 0) {
+                try {
+                    uploadCount.wait();
+                } catch (InterruptedException e) {
+                }
+            }
+        }
     }
 
     public void shutdown() throws IOException {
         synchronized (lock) {
+            completeUploads();
+            uploadExecutor.shutdown();
             executor.shutdownNow();
-            closeLogFile();
             shutdown = true;
         }
     }

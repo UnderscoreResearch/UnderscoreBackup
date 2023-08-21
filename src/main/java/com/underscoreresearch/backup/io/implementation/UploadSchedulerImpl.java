@@ -27,8 +27,8 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
 
     public UploadSchedulerImpl(int maximumConcurrency, RateLimitController rateLimitController) {
         super(maximumConcurrency);
-        StateLogger.addLogger(this);
         this.rateLimitController = rateLimitController;
+        StateLogger.addLogger(this);
     }
 
     public static String splitHash(String hash) {
@@ -43,19 +43,22 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
     public void scheduleUpload(BackupDestination destination, String hash, int index, byte[] data, BackupUploadCompletion completionPromise) {
         String suggestedKey = PREFIX + splitHash(hash) + PATH_SEPARATOR + index;
 
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    IOProvider provider = IOProviderFactory.getProvider(destination);
-                    rateLimitController.acquireUploadPermits(destination, data.length);
-                    completionPromise.completed(provider.upload(suggestedKey, data));
-                    totalSize.addAndGet(data.length);
-                    totalCount.incrementAndGet();
-                } catch (Throwable exc) {
-                    log.error("Upload failed for " + suggestedKey, exc);
-                    completionPromise.completed(null);
-                }
+        scheduleUpload(destination, suggestedKey, data, completionPromise);
+    }
+
+    @Override
+    public void scheduleUpload(BackupDestination destination, String suggestedPath, byte[] data,
+                               BackupUploadCompletion completionPromise) {
+        Runnable runnable = () -> {
+            try {
+                IOProvider provider = IOProviderFactory.getProvider(destination);
+                rateLimitController.acquireUploadPermits(destination, data.length);
+                completionPromise.completed(provider.upload(suggestedPath, data));
+                totalSize.addAndGet(data.length);
+                totalCount.incrementAndGet();
+            } catch (Throwable exc) {
+                log.error("Upload failed for " + suggestedPath, exc);
+                completionPromise.completed(null);
             }
         };
 

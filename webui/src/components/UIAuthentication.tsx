@@ -1,4 +1,4 @@
-import {Checkbox, FormControlLabel, Grid, Paper, TextField} from "@mui/material";
+import {Alert, Checkbox, FormControlLabel, Grid, Paper, TextField} from "@mui/material";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import * as React from "react";
 import {BackupManifest} from "../api";
@@ -48,6 +48,8 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
                         enabled: e.target.checked
                     })}
                 />} label="Require authentication for user interface"/>
+                <Alert severity="warning">The interface password is stored in clear text.
+                    Do not use the same password for the interface as for the backup private key!</Alert>
             </Grid>
             <Grid item xs={6}>
                 <TextField label="Username" variant="outlined"

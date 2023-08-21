@@ -2,25 +2,27 @@ package com.underscoreresearch.backup.cli.web;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lombok.EqualsAndHashCode;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
+import org.jetbrains.annotations.NotNull;
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.facets.auth.Identity;
 import org.takes.facets.auth.Pass;
-import org.takes.facets.flash.RsFlash;
 import org.takes.facets.forward.RsForward;
 import org.takes.misc.Href;
 import org.takes.misc.Opt;
@@ -30,11 +32,15 @@ import org.takes.rq.RqMethod;
 import org.takes.rs.RsEmpty;
 import org.takes.rs.RsWithHeader;
 
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.x25519.X25519;
+
 @EqualsAndHashCode
-public final class PsDigest implements Pass {
+public final class PsCustomWebAuth implements Pass {
+    public static final String X_KEYEXCHANGE_HEADER = "x-keyexchange";
     private static final Pattern PARSE_PARAMETER = Pattern.compile("\\s*([a-z]+)\\s*\\=\\s*(?:(?:\\\"([^\\\"]*)\\\")|([^\\s,]+))\\s*(?:,|$)");
     private static final Pattern PATH_PATTERN = Pattern.compile("^.*\\:\\/\\/[^\\/]+(.*)$");
-
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final MessageDigest MD5;
 
@@ -56,19 +62,33 @@ public final class PsDigest implements Pass {
      */
     private final String realm;
 
+    private final Map<String, byte[]> privateKeys = new HashMap<>();
+
     /**
      * Ctor.
      *
      * @param rlm   Realm
      * @param entry Entry
      */
-    public PsDigest(final String rlm, final PsDigest.Entry entry) {
+    public PsCustomWebAuth(final String rlm, final PsCustomWebAuth.Entry entry) {
         this.realm = rlm;
         this.entry = entry;
     }
 
     @Override
     public Opt<Identity> enter(final Request request) throws IOException {
+        final Iterator<String> keyExchange = new RqHeaders.Smart(request)
+                .header(X_KEYEXCHANGE_HEADER).iterator();
+        byte[] privateKeyExchangeKey = null;
+        if (keyExchange.hasNext()) {
+            String[] vals = keyExchange.next().split(" ");
+            if (vals.length == 1) {
+                privateKeyExchangeKey = registerPrivateKeyAuth(vals);
+            } else {
+                return validateKeyExchangeAuth(request, vals);
+            }
+        }
+
         final Iterator<String> headers = new RqHeaders.Smart(request)
                 .header("authorization").iterator();
         if (!headers.hasNext()) {
@@ -79,14 +99,67 @@ public final class PsDigest implements Pass {
 
         Map<String, String> parsedHeader = parseHeader(headerValue, request);
 
-        final Opt<Identity> identity = validateUser(parsedHeader, request);
-        if (!identity.has()) {
-            rejectNotAuthed(request, new RsFlash("access denied", Level.WARNING));
+        Boolean authenticated = validateUser(parsedHeader, request);
+        if (!authenticated) {
+            rejectNotAuthed(request, new RsEmpty());
         }
-        return identity;
+        return createKeyExchangeAuth(privateKeyExchangeKey);
     }
 
-    private Opt<Identity> validateUser(Map<String, String> params, Request request) throws IOException {
+    @NotNull
+    private byte[] registerPrivateKeyAuth(String[] vals) {
+        byte[] privateKeyExchangeKey;
+        byte[] privateKey = X25519.generatePrivateKey();
+        synchronized (privateKeys) {
+            privateKeys.put(vals[0], privateKey);
+        }
+        privateKeyExchangeKey = privateKey;
+        return privateKeyExchangeKey;
+    }
+
+    @NotNull
+    private Opt<Identity> validateKeyExchangeAuth(Request request, String[] vals) throws IOException {
+        if (vals.length == 3) {
+            byte[] privateKey = privateKeys.get(vals[0]);
+            if (privateKey != null) {
+                long now = Long.parseLong(vals[1]);
+                if (Math.abs(now - System.currentTimeMillis()) < 1000 || true) {
+                    try {
+                        URI uri = URI.create(new RqHref.Base(request).href().toString());
+
+                        String auth = new RqMethod.Base(request).method() + ":"
+                                + uri.getRawPath() + (Strings.isNullOrEmpty(uri.getRawQuery()) ? "" : "?" + uri.getRawQuery()) + ":"
+                                + Hash.encodeBytes64(X25519.computeSharedSecret(privateKey, Base64.decodeBase64(vals[0]))) + ":"
+                                + vals[1];
+                        String key = Hash.hash64(auth.getBytes(StandardCharsets.UTF_8));
+                        if (key.equals(vals[2])) {
+                            return createKeyExchangeAuth(privateKey);
+                        }
+                    } catch (InvalidKeyException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        }
+        throw new RsForward(
+                new RsEmpty(),
+                HttpURLConnection.HTTP_UNAUTHORIZED,
+                new RqHref.Base(request).href()
+        );
+    }
+
+    private Opt<Identity> createKeyExchangeAuth(byte[] privateKey) {
+        if (privateKey == null) {
+            return new Opt.Single<>(new Identity.Simple(""));
+        }
+        try {
+            return new Opt.Single<>(new Identity.Simple(Base64.encodeBase64String(X25519.publicFromPrivate(privateKey)).replace("=", "")));
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private boolean validateUser(Map<String, String> params, Request request) throws IOException {
         String username = params.get("username");
         String realm = params.get("realm");
         String nonce = params.get("nonce");
@@ -99,19 +172,19 @@ public final class PsDigest implements Pass {
         String nc = params.get("nc");
 
         if (username == null || qop == null || realm == null || nonce == null || uri == null || cnonce == null || opaque == null || response == null || method == null || nc == null) {
-            return new Opt.Empty<>();
+            return false;
         }
 
         Href href = new RqHref.Base(request).href();
         Matcher matcher = PATH_PATTERN.matcher(href.toString());
 
         if (!matcher.matches() || !matcher.group(1).equals(uri)) {
-            return new Opt.Empty<>();
+            return false;
         }
 
         final Opt<String> password = this.entry.passwordForUser(params.get("username"));
         if (!password.has()) {
-            return new Opt.Empty<>();
+            return false;
         }
 
         String ha1str = String.format("%s:%s:%s", username, realm, password.get());
@@ -127,8 +200,8 @@ public final class PsDigest implements Pass {
         String hash = Hex.encodeHexString(MD5.digest(hashStr.getBytes(StandardCharsets.UTF_8)));
 
         if (hash.equals(response))
-            return new Opt.Single<>(new Identity.Simple(username));
-        return new Opt.Empty<>();
+            return true;
+        return false;
     }
 
     private void rejectNotAuthed(Request request, Response response) throws IOException {
@@ -166,7 +239,15 @@ public final class PsDigest implements Pass {
 
     @Override
     public Response exit(final Response response, final Identity identity) {
-        return response;
+        String publicKey = identity.urn();
+
+        if (Strings.isNullOrEmpty(publicKey) || publicKey.startsWith("urn:")) {
+            return response;
+        }
+        return new RsWithHeader(response,
+                String.format(
+                        "%s: %s", X_KEYEXCHANGE_HEADER, identity.urn()
+                ));
     }
 
     /**

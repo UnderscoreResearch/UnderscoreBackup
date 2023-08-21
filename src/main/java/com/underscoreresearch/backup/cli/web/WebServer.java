@@ -238,7 +238,7 @@ public class WebServer {
                             ),
                             new PsChain(
                                     new PsNoAuthConfigured(base),
-                                    new PsDigest("backup", (user) -> {
+                                    new PsCustomWebAuth("backup", (user) -> {
                                         BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
                                         if (user.equals(config.getManifest().getConfigUser())) {
                                             return new Opt.Single<>(config.getManifest().getConfigPassword());
