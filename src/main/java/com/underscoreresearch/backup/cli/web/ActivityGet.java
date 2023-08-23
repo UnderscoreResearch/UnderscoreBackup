@@ -26,7 +26,7 @@ import com.underscoreresearch.backup.utils.StatusLine;
 @Slf4j
 public class ActivityGet extends JsonWrap {
 
-    private static ObjectWriter WRITER = MAPPER
+    private static final ObjectWriter WRITER = MAPPER
             .writerFor(StatusResponse.class);
 
     public ActivityGet() {

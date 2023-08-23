@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -70,6 +71,9 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     private final ScheduledThreadPoolExecutor activePathSubmitters = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat("LoggingMetadataRepository-%d").build());
     private final Map<String, ShareManifestManager> shareManagers;
+    @Getter
+    @Setter
+    private boolean recoveryMode = false;
 
     public LoggingMetadataRepository(MetadataRepository repository,
                                      ManifestManager manifestManager,
@@ -115,12 +119,14 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                     repository.pushActivePath(activePath.getSetId(), activePath.getPath(), activePath.getActivePath());
                 })
                 .put("previousFile", (json) -> {
-                    String lastFile = MAPPER.readValue(json, String.class);
-                    if (!lastFile.equals(repository.lastSyncedLogFile(null))) {
-                        log.error("Expected previous log file to be {} but got {}, could mean either missing data or backup tampering", lastFile,
-                                repository.lastSyncedLogFile(null));
-                    } else {
-                        debug(() -> log.debug("Validated previous log file {}", lastFile));
+                    if (!recoveryMode) {
+                        String lastFile = MAPPER.readValue(json, String.class);
+                        if (!lastFile.equals(repository.lastSyncedLogFile(null))) {
+                            log.error("Expected previous log file to be {} but got {}, could mean either missing data or backup tampering", lastFile,
+                                    repository.lastSyncedLogFile(null));
+                        } else {
+                            debug(() -> log.debug("Validated previous log file {}", lastFile));
+                        }
                     }
                 });
 
@@ -463,7 +469,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 }
                 BackupBlockAdditional existing = repository.additionalBlock(blockAdditional.getPublicKey(), blockAdditional.getHash());
                 if (existing != null && existing.isUsed()) {
-                    blockAdditional.setUsed(existing.isUsed());
+                    blockAdditional.setUsed(true);
 
                     BackupBlock newBlock = block.createAdditionalBlock(blockAdditional);
                     ShareManifestManager logWriter = getShareManagers().get(blockAdditional.getPublicKey());

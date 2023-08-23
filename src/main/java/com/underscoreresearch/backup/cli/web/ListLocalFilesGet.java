@@ -33,7 +33,7 @@ public class ListLocalFilesGet extends JsonWrap {
             String path = decodePath(req, base);
             Set<BackupFile> files = InstanceFactory.getInstance(FileSystemAccess.class).directoryFiles(path);
             return new RsText(EXTERNAL_BACKUP_FILES_WRITER.writeValueAsString(files
-                    .stream().map(t -> new ExternalBackupFile(t)).collect(Collectors.toList())));
+                    .stream().map(ExternalBackupFile::new).collect(Collectors.toList())));
         }
     }
 }

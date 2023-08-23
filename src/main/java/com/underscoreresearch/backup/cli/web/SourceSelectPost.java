@@ -13,6 +13,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.expa
 import static com.underscoreresearch.backup.configuration.CommandLineModule.getSourceConfigLocation;
 import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
 import static com.underscoreresearch.backup.encryption.EncryptionKey.DISPLAY_PREFIX;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
@@ -132,7 +133,7 @@ public class SourceSelectPost extends JsonWrap {
 
     private static void writeSourceKey(String share, EncryptionKey usedPrivateKey) throws IOException {
         File keyFile = new File(CommandLineModule.getKeyFileName(share));
-        keyFile.getParentFile().mkdirs();
+        createDirectory(keyFile.getParentFile());
         try (FileWriter outputStream = new FileWriter(keyFile, StandardCharsets.UTF_8)) {
             outputStream.write(ENCRYPTION_KEY_WRITER.writeValueAsString(usedPrivateKey));
         }
@@ -322,7 +323,7 @@ public class SourceSelectPost extends JsonWrap {
                 } catch (HttpException exc) {
                     // Intentionally ignored
                 }
-                InstanceFactory.reloadConfiguration(() -> InteractiveCommand.startBackupIfAvailable());
+                InstanceFactory.reloadConfiguration(InteractiveCommand::startBackupIfAvailable);
                 return messageJson(200, "Ok");
             } else {
                 String password = decodePrivateKeyRequest(req);

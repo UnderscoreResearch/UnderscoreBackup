@@ -79,7 +79,7 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
         private static final long MINIMUM_COMPRESSED_SIZE = 8192;
         private static final long MINIMUM_COMPRESSED_RATIO = 2;
         private final String hash;
-        private Map<String, CacheEntry> blockEntries;
+        private final Map<String, CacheEntry> blockEntries;
 
         private ZipCachedData(String hash, String password) {
             this.hash = hash;
@@ -111,7 +111,7 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
         }
 
         public byte[] get(int index, String partHash) throws IOException {
-            CacheEntry entry = blockEntries.get(index + "");
+            CacheEntry entry = blockEntries.get(String.valueOf(index));
             if (entry != null) {
                 return entry.get();
             }
@@ -136,7 +136,7 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
 
         @Override
         protected void addPartData(int index, byte[] data, String partHash) throws IOException {
-            ZipEntry entry = new ZipEntry(index + "");
+            ZipEntry entry = new ZipEntry(String.valueOf(index));
             zipOutputStream.putNextEntry(entry);
             zipOutputStream.write(data, 0, data.length);
             zipOutputStream.closeEntry();

@@ -52,24 +52,6 @@ public class Matrix {
     }
 
     /**
-     * Initializes a matrix with the given row-major data.
-     */
-    public Matrix(byte[][] initData) {
-        rows = initData.length;
-        columns = initData[0].length;
-        data = new byte[rows][];
-        for (int r = 0; r < rows; r++) {
-            if (initData[r].length != columns) {
-                throw new IllegalArgumentException("Not all rows have the same number of columns");
-            }
-            data[r] = new byte[columns];
-            for (int c = 0; c < columns; c++) {
-                data[r][c] = initData[r][c];
-            }
-        }
-    }
-
-    /**
      * Returns an identity matrix of the given size.
      */
     public static Matrix identity(int size) {
@@ -103,30 +85,6 @@ public class Matrix {
             result.append(']');
         }
         result.append(']');
-        return result.toString();
-    }
-
-    /**
-     * Returns a human-readable string of the matrix contents.
-     * <p>
-     * Example:
-     * 00 01 02
-     * 03 04 05
-     * 06 07 08
-     * 09 0a 0b
-     */
-    public String toBigString() {
-        StringBuilder result = new StringBuilder();
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < columns; c++) {
-                int value = get(r, c);
-                if (value < 0) {
-                    value += 256;
-                }
-                result.append(String.format("%02x ", value));
-            }
-            result.append("\n");
-        }
         return result.toString();
     }
 
@@ -218,12 +176,8 @@ public class Matrix {
         }
         Matrix result = new Matrix(rows, columns + right.columns);
         for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < columns; c++) {
-                result.data[r][c] = data[r][c];
-            }
-            for (int c = 0; c < right.columns; c++) {
-                result.data[r][columns + c] = right.data[r][c];
-            }
+            if (columns >= 0) System.arraycopy(data[r], 0, result.data[r], 0, columns);
+            if (right.columns >= 0) System.arraycopy(right.data[r], 0, result.data[r], columns, right.columns);
         }
         return result;
     }
@@ -234,9 +188,7 @@ public class Matrix {
     public Matrix submatrix(int rmin, int cmin, int rmax, int cmax) {
         Matrix result = new Matrix(rmax - rmin, cmax - cmin);
         for (int r = rmin; r < rmax; r++) {
-            for (int c = cmin; c < cmax; c++) {
-                result.data[r - rmin][c - cmin] = data[r][c];
-            }
+            if (cmax - cmin >= 0) System.arraycopy(data[r], cmin, result.data[r - rmin], 0, cmax - cmin);
         }
         return result;
     }

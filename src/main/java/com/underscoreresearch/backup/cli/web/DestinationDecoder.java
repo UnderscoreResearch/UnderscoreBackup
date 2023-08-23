@@ -87,6 +87,7 @@ public final class DestinationDecoder {
         for (String val : href.param("include-deleted")) {
             if ("true".equals(val)) {
                 deleted = true;
+                break;
             }
         }
 

@@ -22,7 +22,7 @@ import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 
 public abstract class BaseBlockAssignment implements FileBlockAssignment, ManualStatusLogger {
-    private List<Progress> backupPartialFiles = new ArrayList<>();
+    private final List<Progress> backupPartialFiles = new ArrayList<>();
 
     public BaseBlockAssignment() {
         StateLogger.addLogger(this);
@@ -93,13 +93,12 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Manual
 
     @Getter
     private static class Progress {
-        private BackupPartialFile partialFile;
-        private Instant started;
+        private final BackupPartialFile partialFile;
+        private final Instant started = Instant.now();
         private long initialCompleted;
 
         public Progress(BackupPartialFile partialFile) {
             this.partialFile = partialFile;
-            this.started = Instant.now();
             if (partialFile.getParts() != null && partialFile.getParts().size() > 0) {
                 initialCompleted = partialFile.getParts().get(partialFile.getParts().size() - 1).getPosition();
             }

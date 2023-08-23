@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -89,18 +90,18 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
                 if (existingBlock != null) {
                     boolean usable = true;
                     for (String destinationName : neededDestinations) {
-                        if (!existingBlock.getStorage().stream().anyMatch(t -> t.getDestination().equals(destinationName))) {
+                        if (existingBlock.getStorage().stream().noneMatch(t -> t.getDestination().equals(destinationName))) {
                             usable = false;
                         }
                     }
                     if (!usable) {
-                        if (existingBlock.getFormat() == format) {
-                            existingBlock.getStorage().stream().forEach(t -> {
+                        if (existingBlock.getFormat().equals(format)) {
+                            existingBlock.getStorage().forEach(t -> {
                                 neededDestinations.remove(t.getDestination());
                                 block.getStorage().add(t);
                             });
                         } else {
-                            existingBlock.getStorage().stream().forEach(t -> neededDestinations.add(t.getDestination()));
+                            existingBlock.getStorage().forEach(t -> neededDestinations.add(t.getDestination()));
                         }
 
                         // Only keep destinations that are used by any sets in the configuration.
@@ -153,7 +154,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
 
                                 if (canComplete.get() && completions.size() == 0) {
                                     try {
-                                        if (storage.getParts().stream().anyMatch(t -> t == null)) {
+                                        if (storage.getParts().stream().anyMatch(Objects::isNull)) {
                                             completionFuture.completed(false);
                                         } else {
                                             totalBlocks.incrementAndGet();

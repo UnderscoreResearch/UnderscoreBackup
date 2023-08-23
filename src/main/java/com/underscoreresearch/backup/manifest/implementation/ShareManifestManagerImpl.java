@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
@@ -91,21 +92,26 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
         List<File> files = existingLogFiles();
 
         if (files.size() > 0) {
-            for (File file : files) {
-                byte[] data = null;
-                try (AccessLock lock = new AccessLock(file.getAbsolutePath())) {
-                    if (lock.tryLock(true)) {
-                        try (InputStream stream = Channels
-                                .newInputStream(lock.getLockedChannel())) {
-                            data = IOUtils.readAllBytes(stream);
+            getLogConsumer().setRecoveryMode(true);
+            try {
+                for (File file : files) {
+                    byte[] data = null;
+                    try (AccessLock lock = new AccessLock(file.getAbsolutePath())) {
+                        if (lock.tryLock(true)) {
+                            try (InputStream stream = Channels
+                                    .newInputStream(lock.getLockedChannel())) {
+                                data = IOUtils.readAllBytes(stream);
+                            }
+                        } else {
+                            log.warn("Log file {} locked by other process", file.getAbsolutePath());
                         }
-                    } else {
-                        log.warn("Log file {} locked by other process", file.getAbsolutePath());
+                    }
+                    if (data != null) {
+                        uploadLogFile(file.getAbsolutePath(), data);
                     }
                 }
-                if (data != null) {
-                    uploadLogFile(file.getAbsolutePath(), data);
-                }
+            } finally {
+                getLogConsumer().setRecoveryMode(false);
             }
         }
     }
@@ -140,7 +146,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     private void saveShareFile() throws IOException {
         File configLocation = Paths.get(InstanceFactory.getInstance(MANIFEST_LOCATION), "shares", getPublicKey().getPublicKey(),
                 SHARE_CONFIG_FILE).toFile();
-        configLocation.getParentFile().mkdirs();
+        createDirectory(configLocation.getParentFile());
         BACKUP_ACTIVATED_SHARE_WRITER.writeValue(
                 configLocation,
                 activatedShare);

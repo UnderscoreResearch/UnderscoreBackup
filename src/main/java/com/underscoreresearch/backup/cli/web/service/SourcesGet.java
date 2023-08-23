@@ -19,6 +19,7 @@ import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
@@ -48,7 +49,7 @@ public class SourcesGet extends JsonWrap {
                         }
                         return new RsText(WRITER.writeValueAsString(ret));
                     }
-                final ListSourcesResponse ret = serviceManager.call(null, (api) -> api.listSources());
+                final ListSourcesResponse ret = serviceManager.call(null, BackupApi::listSources);
                 final Iterable<String> excludeSelf = href.param("excludeSelf");
                 for (String par : excludeSelf)
                     if ("true".equals(par)) {

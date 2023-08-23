@@ -335,6 +335,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         return parts;
     }
 
+    private String invalidRepositoryLogEntry(String msg) {
+        if (readOnly)
+            return msg + " (Read only repository)";
+        return msg + " (Removing from repository)";
+    }
+
     @Override
     public CloseableStream<BackupFile> allFiles(boolean ascending) throws IOException {
         final Map<Object[], byte[]> map;
@@ -348,10 +354,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             try {
                 return decodeFile(entry);
             } catch (IOException e) {
-                log.error("Invalid file {}:{}", PathNormalizer.physicalPath((String) entry.getKey()[0]), entry.getKey()[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid file {}:{}"), PathNormalizer.physicalPath((String) entry.getKey()[0]), entry.getKey()[1], e);
                 if (!readOnly) {
                     try {
-                        fileMap.remove(entry.getKey());
+                        if (fileMap.remove(entry.getKey()) == null) {
+                            log.error("Delete indicated no entry was deleted");
+                        }
                     } catch (Exception exc) {
                         log.error("Failed to delete invalid entry", exc);
                     }
@@ -368,10 +376,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             try {
                 return decodeBlock(entry.getKey(), entry.getValue());
             } catch (IOException e) {
-                log.error("Invalid block " + entry.getKey(), e);
+                log.error(invalidRepositoryLogEntry("Invalid block {}"), entry.getKey(), e);
                 if (!readOnly) {
                     try {
-                        blockMap.remove(entry.getKey());
+                        if (blockMap.remove(entry.getKey()) == null) {
+                            log.error("Delete indicated no entry was deleted");
+                        }
                     } catch (Exception exc) {
                         log.error("Failed to delete invalid entry", exc);
                     }
@@ -389,10 +399,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             try {
                 return decodePath(entry);
             } catch (IOException e) {
-                log.error("Invalid filePart {}:{}", entry.getKey()[0], entry.getKey()[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid filePart {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
                 if (!readOnly) {
                     try {
-                        partsMap.remove(entry.getKey());
+                        if (partsMap.remove(entry.getKey()) == null) {
+                            log.error("Delete indicated no entry was deleted");
+                        }
                     } catch (Exception exc) {
                         log.error("Failed to delete invalid entry", exc);
                     }
@@ -418,10 +430,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return new BackupDirectory((String) entry.getKey()[0], (Long) entry.getKey()[1],
                         decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
             } catch (IOException e) {
-                log.error("Invalid directory {}:{}", entry.getKey()[0], entry.getKey()[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid directory {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
                 if (!readOnly) {
                     try {
-                        directoryMap.remove(entry.getKey());
+                        if (directoryMap.remove(entry.getKey()) == null) {
+                            log.error("Delete indicated no entry was deleted");
+                        }
                     } catch (Exception exc) {
                         log.error("Failed to delete invalid entry", exc);
                     }
@@ -444,10 +458,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 ret.setHash((String) entry.getKey()[1]);
                 return ret;
             } catch (IOException e) {
-                log.error("Invalid additional block {}:{}", entry.getKey()[0], entry.getKey()[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid additional block {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
                 if (!readOnly) {
                     try {
-                        additionalBlockMap.remove(entry.getKey());
+                        if (additionalBlockMap.remove(entry.getKey()) == null) {
+                            log.error("Delete indicated no entry was deleted");
+                        }
                     } catch (Exception exc) {
                         log.error("Failed to delete invalid entry", exc);
                     }
@@ -658,9 +674,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private void deleteAlternativeBlocksTable() {
         String file = alternateBlockTable ? BLOCK_STORE : BLOCK_ALT_STORE;
         File oldFile = getPath(file).toFile();
-        if (oldFile.exists() && !oldFile.delete()) {
-            log.error("Failed to delete old block table");
-        }
+        IOUtils.deleteFile(oldFile);
     }
 
     @Override
@@ -883,9 +897,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         });
         if (files != null) {
             for (File file : files) {
-                if (!file.delete()) {
-                    log.error("Failed to delete " + file);
-                }
+                IOUtils.deleteFile(file);
             }
         }
     }
@@ -1041,7 +1053,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                     if (ld != 0)
                         return ld;
                 } else {
-                    int compare = ((Comparable) k1).compareTo(key2[i]);
+                    int compare = ((Comparable<Object>) k1).compareTo(key2[i]);
                     if (compare != 0) {
                         return compare;
                     }
@@ -1144,9 +1156,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             this.serializer = serializer;
 
             root = File.createTempFile("underscorebackup", ".db");
-            if (!root.delete()) {
-                log.error("Failed to delete {}", root);
-            }
+            IOUtils.deleteFile(root);
 
             DBMaker.Maker maker = DBMaker
                     .fileDB(root)
@@ -1165,9 +1175,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             map.close();
             db.close();
 
-            if (!root.delete()) {
-                log.error("Failed to delete {}", root);
-            }
+            IOUtils.deleteFile(root);
         }
 
         @Override

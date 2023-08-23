@@ -31,7 +31,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 @Slf4j
 public class AuthEndpointGet extends JsonWrap {
 
-    private static ObjectWriter WRITER = MAPPER.writerFor(EndpointResponse.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(EndpointResponse.class);
 
     public AuthEndpointGet(InetAddress address, URI baseApi) {
         super(new Implementation(address, baseApi));
@@ -130,7 +130,7 @@ public class AuthEndpointGet extends JsonWrap {
             return "Creating auth endpoint";
         }
 
-        private class AuthRedirect extends TkWrap {
+        private static class AuthRedirect extends TkWrap {
             public AuthRedirect(String redirectUrl) {
                 super(req -> {
                     final String uri = new RqRequestLine.Base(req).uri();

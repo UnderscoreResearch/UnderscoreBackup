@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.helpers;
 
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -70,12 +71,10 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
     private final boolean force;
-    private Stopwatch stopwatch = Stopwatch.createUnstarted();
-    private AtomicLong processedSteps = new AtomicLong();
-    private AtomicLong totalSteps = new AtomicLong();
-    private BackupFile lastProcessed;
-    private Duration lastHeartbeat;
-    private LoadingCache<String, NavigableSet<String>> directoryCache = CacheBuilder
+    private final Stopwatch stopwatch = Stopwatch.createUnstarted();
+    private final AtomicLong processedSteps = new AtomicLong();
+    private final AtomicLong totalSteps = new AtomicLong();
+    private final LoadingCache<String, NavigableSet<String>> directoryCache = CacheBuilder
             .newBuilder()
             .maximumSize(50)
             .build(new CacheLoader<>() {
@@ -88,6 +87,8 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     return ret.getFiles();
                 }
             });
+    private BackupFile lastProcessed;
+    private Duration lastHeartbeat;
 
     public RepositoryTrimmer(MetadataRepository metadataRepository, BackupConfiguration configuration, ManifestManager manifestManager, boolean force) {
         this.metadataRepository = metadataRepository;
@@ -133,7 +134,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
         manifestManager.setDisabledFlushing(true);
         try (Closeable ignored2 = UIManager.registerTask("Trimming repository")) {
-            tempFile.delete();
+            deleteFile(tempFile);
 
             Statistics statistics = new Statistics();
 
@@ -166,7 +167,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
                     if (!filesOnly)
                         metadataRepository.clearPartialFiles();
-                } catch (InterruptedException exc) {
+                } catch (InterruptedException ignored) {
                 } finally {
                     stopwatch.stop();
                 }
@@ -178,7 +179,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             }
             return statistics;
         } finally {
-            tempFile.delete();
+            deleteFile(tempFile);
             manifestManager.setDisabledFlushing(false);
         }
     }
@@ -188,7 +189,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         boolean anyFound = false;
         for (Map.Entry<String, BackupActivePath> paths : activepaths.entrySet()) {
             for (String setId : paths.getValue().getSetIds()) {
-                if (!configuration.getSets().stream().anyMatch(t -> t.getId().equals(setId))) {
+                if (configuration.getSets().stream().noneMatch(t -> t.getId().equals(setId))) {
                     log.warn("Removing active path {} from non existing set {}",
                             PathNormalizer.physicalPath(paths.getKey()), setId);
                     metadataRepository.popActivePath(setId, paths.getKey());
@@ -216,7 +217,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     if (!ret) {
                         statistics.addBlocks(1);
                         if (t.getStorage() != null)
-                            t.getStorage().stream().forEach(s -> statistics.addBlockParts(s.getParts().size()));
+                            t.getStorage().forEach(s -> statistics.addBlockParts(s.getParts().size()));
                     }
                     return ret;
                 }).forEach(block -> {

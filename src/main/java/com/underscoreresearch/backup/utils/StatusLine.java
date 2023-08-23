@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @Data
 public class StatusLine {
     @JsonIgnore
-    private Class reporterClass;
+    private Class<?> reporterClass;
     @JsonIgnore
     private String reporter;
     private String code;
@@ -18,7 +18,7 @@ public class StatusLine {
     private Long totalValue;
     private String valueString;
 
-    public StatusLine(Class reporter, String code, String message) {
+    public StatusLine(Class<?> reporter, String code, String message) {
         this.reporterClass = reporter;
         this.code = code;
         this.message = message;
@@ -30,14 +30,14 @@ public class StatusLine {
         this.message = message;
     }
 
-    public StatusLine(Class reporter, String code, String message, Long value) {
+    public StatusLine(Class<?> reporter, String code, String message, Long value) {
         this.reporterClass = reporter;
         this.code = code;
         this.message = message;
         this.value = value;
     }
 
-    public StatusLine(Class reporterClass, String code, String message, Long value, String valueString) {
+    public StatusLine(Class<?> reporterClass, String code, String message, Long value, String valueString) {
         this.reporterClass = reporterClass;
         this.code = code;
         this.message = message;
@@ -45,7 +45,7 @@ public class StatusLine {
         this.valueString = valueString;
     }
 
-    public StatusLine(Class reporterClass, String code, String message, Long value, Long totalValue,
+    public StatusLine(Class<?> reporterClass, String code, String message, Long value, Long totalValue,
                       String valueString) {
         this.reporterClass = reporterClass;
         this.code = code;
@@ -63,10 +63,6 @@ public class StatusLine {
             return reporter;
         }
         return reporterClass.getSimpleName();
-    }
-
-    public void setReporter(String name) {
-        throw new UnsupportedOperationException();
     }
 
     public String getValueString() {

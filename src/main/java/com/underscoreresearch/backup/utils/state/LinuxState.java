@@ -39,10 +39,7 @@ public class LinuxState extends MachineState {
             ret = files.stream().filter(file -> file.getName().endsWith(".deb")).findAny();
         else
             ret = files.stream().filter(file -> file.getName().endsWith(".rpm")).findAny();
-        if (ret.isPresent()) {
-            return ret.get();
-        }
-        return null;
+        return ret.orElse(null);
     }
 
     @Override

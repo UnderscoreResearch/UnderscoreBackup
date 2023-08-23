@@ -6,9 +6,6 @@
 
 package com.underscoreresearch.backup.errorcorrection.implementation.reedsolomon;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * 8-bit Galois Field
  * <p>
@@ -28,19 +25,6 @@ public final class Galois {
      */
 
     public static final int FIELD_SIZE = 256;
-
-    /**
-     * The polynomial used to generate the logarithm table.
-     * <p>
-     * There are a number of polynomials that work to generate
-     * a Galois field of 256 elements.  The choice is arbitrary,
-     * and we just use the first one.
-     * <p>
-     * The possibilities are: 29, 43, 45, 77, 95, 99, 101, 105,
-     * 113, 135, 141, 169, 195, 207, 231, and 245.
-     */
-
-    public static final int GENERATING_POLYNOMIAL = 29;
 
     /**
      * Mapping from members of the Galois Field to their
@@ -186,14 +170,6 @@ public final class Galois {
     }
 
     /**
-     * Inverse of addition.  If you're in an inner loop,
-     * you should inline this function: it's just XOR.
-     */
-    public static byte subtract(byte a, byte b) {
-        return (byte) (a ^ b);
-    }
-
-    /**
      * Multiplies two elements of the field.
      */
     public static byte multiply(byte a, byte b) {
@@ -251,41 +227,6 @@ public final class Galois {
     }
 
     /**
-     * Generates a logarithm table given a starting polynomial.
-     */
-    public static short[] generateLogTable(int polynomial) {
-        short[] result = new short[FIELD_SIZE];
-        for (int i = 0; i < FIELD_SIZE; i++) {
-            result[i] = -1; // -1 means "not set"
-        }
-        int b = 1;
-        for (int log = 0; log < FIELD_SIZE - 1; log++) {
-            if (result[b] != -1) {
-                throw new RuntimeException("BUG: duplicate logarithm (bad polynomial?)");
-            }
-            result[b] = (short) log;
-            b = (b << 1);
-            if (FIELD_SIZE <= b) {
-                b = ((b - FIELD_SIZE) ^ polynomial);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Generates the inverse log table.
-     */
-    public static byte[] generateExpTable(short[] logTable) {
-        final byte[] result = new byte[FIELD_SIZE * 2 - 2];
-        for (int i = 1; i < FIELD_SIZE; i++) {
-            int log = logTable[i];
-            result[log] = (byte) i;
-            result[log + FIELD_SIZE - 1] = (byte) i;
-        }
-        return result;
-    }
-
-    /**
      * Generates a multiplication table as an array of byte arrays.
      * <p>
      * To get the result of multiplying a and b:
@@ -300,25 +241,6 @@ public final class Galois {
             }
         }
         return result;
-    }
-
-    /**
-     * Returns a list of all polynomials that can be used to generate
-     * the field.
-     * <p>
-     * This is never used in the code; it's just here for completeness.
-     */
-    public static Integer[] allPossiblePolynomials() {
-        List<Integer> result = new ArrayList<Integer>();
-        for (int i = 0; i < FIELD_SIZE; i++) {
-            try {
-                generateLogTable(i);
-                result.add(i);
-            } catch (RuntimeException e) {
-                // this one didn't work
-            }
-        }
-        return result.toArray(new Integer[result.size()]);
     }
 
 }

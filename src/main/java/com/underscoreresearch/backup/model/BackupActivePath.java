@@ -84,7 +84,7 @@ public class BackupActivePath {
 
     @JsonProperty
     public void setFiles(Set<BackupActiveFile> files) {
-        this.files = files.stream().collect(Collectors.toMap(t -> t.getPath(),
+        this.files = files.stream().collect(Collectors.toMap(BackupActiveFile::getPath,
                 t -> t));
     }
 
@@ -110,9 +110,7 @@ public class BackupActivePath {
         BackupActiveFile activeFile = getFile(file);
         if (activeFile == null)
             return false;
-        if (activeFile.getStatus() == null || activeFile.getStatus() == BackupActiveStatus.INCOMPLETE)
-            return true;
-        return false;
+        return activeFile.getStatus() == null || activeFile.getStatus() == BackupActiveStatus.INCOMPLETE;
     }
 
     @JsonIgnore
@@ -127,15 +125,15 @@ public class BackupActivePath {
 
     @JsonIgnore
     public boolean completed() {
-        return !files.values().stream()
-                .anyMatch(t -> t.getStatus() == null || t.getStatus() == BackupActiveStatus.INCOMPLETE);
+        return files.values().stream()
+                .noneMatch(t -> t.getStatus() == null || t.getStatus() == BackupActiveStatus.INCOMPLETE);
     }
 
     @JsonIgnore
     public Set<String> includedPaths() {
-        return files.entrySet().stream()
-                .filter(t -> t.getValue().getStatus() == BackupActiveStatus.INCLUDED)
-                .map(t -> t.getValue().getPath())
+        return files.values().stream()
+                .filter(backupActiveFile -> backupActiveFile.getStatus() == BackupActiveStatus.INCLUDED)
+                .map(BackupActiveFile::getPath)
                 .collect(Collectors.toSet());
     }
 

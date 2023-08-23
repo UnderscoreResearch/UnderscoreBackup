@@ -56,8 +56,8 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
     private final int maximumFileSize;
     @Getter(AccessLevel.PROTECTED)
     private final int targetSize;
-    private Map<BackupSet, PendingFile> pendingFiles = new HashMap<>();
-    private LoadingCache<KeyFetch, CachedData> cache = CacheBuilder
+    private final Map<BackupSet, PendingFile> pendingFiles = new HashMap<>();
+    private final LoadingCache<KeyFetch, CachedData> cache = CacheBuilder
             .newBuilder()
             .maximumSize(2)
             .build(new CacheLoader<>() {
@@ -118,9 +118,8 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
 
     private void uploadPending(BackupSet set, PendingFile pendingFile) {
         try {
-            uploader.uploadBlock(set, new BackupData(pendingFile.data()), pendingFile.hash(), getFormat(), (success) -> {
-                pendingFile.complete(success);
-            });
+            uploader.uploadBlock(set, new BackupData(pendingFile.data()), pendingFile.hash(), getFormat(),
+                    pendingFile::complete);
         } catch (IOException e) {
             log.error("Failed to upload block", e);
             pendingFile.complete(false);
@@ -179,15 +178,15 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
     }
 
     @Data
-    protected abstract class CachedData {
+    protected abstract static class CachedData {
         public abstract byte[] get(int index, String partHash) throws IOException;
     }
 
     protected abstract class PendingFile {
+        private final Hash hash = new Hash();
+        private final Map<String, List<BackupFilePart>> pendingParts = new HashMap<>();
+        private final List<BackupCompletion> completions = new ArrayList<>();
         private int currentIndex;
-        private Hash hash = new Hash();
-        private Map<String, List<BackupFilePart>> pendingParts = new HashMap<>();
-        private List<BackupCompletion> completions = new ArrayList<>();
 
         public PendingFile() {
             encryptionKey.addBlockHashSalt(hash);
@@ -211,8 +210,8 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
                     boolean skip = false;
                     if (block != null) {
                         for (String destination : set.getDestinations()) {
-                            if (!block.getStorage().stream()
-                                    .anyMatch(storage -> storage.getDestination().equals(destination))) {
+                            if (block.getStorage().stream()
+                                    .noneMatch(storage -> storage.getDestination().equals(destination))) {
                                 skip = true;
                                 break;
                             }

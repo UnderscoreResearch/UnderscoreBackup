@@ -36,7 +36,7 @@ public class KeyPost extends JsonWrap {
             String password = null;
             try {
                 password = PrivateKeyRequest.decodePrivateKeyRequest(req);
-            } catch (HttpException exc) {
+            } catch (HttpException ignored) {
             }
             try {
                 if (password != null) {

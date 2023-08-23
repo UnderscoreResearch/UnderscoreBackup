@@ -10,7 +10,6 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,7 +41,7 @@ public class LsCommand extends Command {
         if (paths.size() == 0) {
             paths = Lists.newArrayList(".");
         }
-        for (String path : paths.stream().map(file -> PathNormalizer.normalizePath(file)).collect(Collectors.toList())) {
+        for (String path : paths.stream().map(PathNormalizer::normalizePath).toList()) {
             if (!listPath(commandLine, contents, BackupFile.builder().path(path).build(), true)) {
                 System.out.println(path + " not found");
             }
@@ -71,7 +70,7 @@ public class LsCommand extends Command {
             }
 
             long totalSize = files.stream()
-                    .map(t -> t.getLength() != null ? t.getLength() : 0).reduce((a, b) -> a + b).orElseGet(() -> 0L);
+                    .map(t -> t.getLength() != null ? t.getLength() : 0).reduce(Long::sum).orElseGet(() -> 0L);
 
             if (!commandLine.hasOption(FULL_PATH)) {
 

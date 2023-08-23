@@ -40,7 +40,7 @@ public final class LogUtil {
 
     public static void debug(Runnable log) {
         InstanceFactory factory = InstanceFactory.getFactory(CommandLine.class);
-        if (factory == null || factory.getInstance(CommandLine.class).hasOption(DEBUG)) {
+        if (factory == null || InstanceFactory.getInstance(CommandLine.class).hasOption(DEBUG)) {
             log.run();
         }
     }
@@ -110,7 +110,7 @@ public final class LogUtil {
         }
     }
 
-    public static List<StatusLine> getThroughputStatus(Class clz, String description, String object,
+    public static List<StatusLine> getThroughputStatus(Class<?> clz, String description, String object,
                                                        long totalCount, long totalSize, Duration duration) {
         List<StatusLine> ret = new ArrayList<>();
 
@@ -138,7 +138,7 @@ public final class LogUtil {
             if (commandLine.hasOption(HUMAN_READABLE)) {
                 size = readableSize(file.getLength());
             } else {
-                size = file.getLength() + "";
+                size = String.valueOf(file.getLength());
             }
         } else {
             size = "-";

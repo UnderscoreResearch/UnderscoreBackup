@@ -56,7 +56,7 @@ class AssignmentTests {
         uploader = Mockito.mock(FileBlockUploader.class);
         repository = Mockito.mock(MetadataRepository.class);
         encryptionKey = EncryptionKey.generateKeys();
-        encryptionKey.generateBlockHashSalt(encryptionKey.getPrivateKey(null));
+        encryptionKey.generateBlockHashSalt();
         uploadedData = new HashMap<>();
         registerPart = false;
         set.setDestinations(Lists.newArrayList("destination"));

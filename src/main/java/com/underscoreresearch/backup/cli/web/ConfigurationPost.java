@@ -5,6 +5,8 @@ import static com.underscoreresearch.backup.cli.web.ResetDelete.executeShielded;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_FILE_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG_LOCATION;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
@@ -52,10 +54,10 @@ public class ConfigurationPost extends JsonWrap {
     public static void removeSourceData(String source) {
         File configParent = Paths.get(InstanceFactory.getInstance(MANIFEST_LOCATION), "sources", source).toFile();
         executeShielded(() -> deleteContents(configParent));
-        configParent.delete();
+        deleteFile(configParent);
         File repositoryParent = Paths.get(InstanceFactory.getInstance(MANIFEST_LOCATION), "db", "sources", source).toFile();
         executeShielded(() -> deleteContents(repositoryParent));
-        repositoryParent.delete();
+        deleteFile(repositoryParent);
     }
 
     public static BackupConfiguration updateConfiguration(String config,
@@ -174,7 +176,7 @@ public class ConfigurationPost extends JsonWrap {
             validateDestinations(configuration);
         }
         File configFile = new File(InstanceFactory.getInstance(SOURCE_CONFIG_LOCATION));
-        configFile.getParentFile().mkdirs();
+        createDirectory(configFile.getParentFile());
         BACKUP_CONFIGURATION_WRITER.writeValue(configFile, configuration);
         setOwnerOnlyPermissions(configFile);
     }
@@ -209,9 +211,9 @@ public class ConfigurationPost extends JsonWrap {
                             abandonedSources.removeAll(newConfig.getAdditionalSources().keySet());
                         }
 
-                        abandonedSources.forEach(source -> removeSourceData(source));
+                        abandonedSources.forEach(ConfigurationPost::removeSourceData);
                     }
-                    InstanceFactory.reloadConfiguration(() -> InteractiveCommand.startBackupIfAvailable());
+                    InstanceFactory.reloadConfiguration(InteractiveCommand::startBackupIfAvailable);
                 } else {
                     updateSourceConfiguration(config, true);
                     InstanceFactory.reloadConfigurationWithSource();

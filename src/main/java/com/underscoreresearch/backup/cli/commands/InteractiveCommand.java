@@ -126,7 +126,7 @@ public class InteractiveCommand extends Command {
                 log.info("Underscore Backup is already running, shutting down");
                 return true;
             }
-        } catch (Exception exc) {
+        } catch (Exception ignored) {
         }
         return false;
     }
@@ -197,7 +197,7 @@ public class InteractiveCommand extends Command {
                 try (RandomAccessFile file = new RandomAccessFile(path.toString(), "rw")) {
                     file.getChannel().lock().close();
                 }
-            } catch (IOException e) {
+            } catch (IOException ignored) {
             }
             InstanceFactory.shutdown();
             InstanceFactory.waitForShutdown();

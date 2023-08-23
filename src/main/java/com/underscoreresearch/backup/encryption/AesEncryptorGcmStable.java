@@ -104,22 +104,21 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
     @Override
     protected int adjustDecodeLength(byte paddingFormat, int payloadLength) {
         switch (paddingFormat) {
-            case NON_PADDED_GCM_STABLE:
+            case NON_PADDED_GCM_STABLE -> {
                 return payloadLength;
-            case PADDED_GCM_STABLE:
+            }
+            case PADDED_GCM_STABLE -> {
                 return payloadLength - 1;
+            }
         }
         throw new IllegalArgumentException("Unknown AES padding format");
     }
 
     private byte convertFormat(byte format) {
-        switch (format) {
-            case PADDED_GCM:
-                return PADDED_GCM_STABLE;
-            case NON_PADDED_GCM:
-                return NON_PADDED_GCM_STABLE;
-            default:
-                throw new IllegalArgumentException();
-        }
+        return switch (format) {
+            case PADDED_GCM -> PADDED_GCM_STABLE;
+            case NON_PADDED_GCM -> NON_PADDED_GCM_STABLE;
+            default -> throw new IllegalArgumentException();
+        };
     }
 }

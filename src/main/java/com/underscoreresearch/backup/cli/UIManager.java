@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli;
 
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
 import javax.imageio.ImageIO;
@@ -30,7 +31,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 public class UIManager {
 
     private static final Duration MINIMUM_WAIT_DURATION = Duration.ofSeconds(20);
-    private static List<CloseableTask> activeTasks = new ArrayList<>();
+    private static final List<CloseableTask> activeTasks = new ArrayList<>();
     private static TrayIcon trayIcon;
     private static Instant lastMessage;
 
@@ -39,7 +40,7 @@ public class UIManager {
             updateTooltip();
         } else {
             if (trayIcon == null) {
-                EventQueue.invokeLater(() -> createAndShowGUI());
+                EventQueue.invokeLater(UIManager::createAndShowGUI);
             }
         }
     }
@@ -117,9 +118,7 @@ public class UIManager {
 
     private static synchronized void writeOsxNotification(String location, String message) {
         File parentDirectory = new File(new File(InstanceFactory.getInstance(CommandLineModule.MANIFEST_LOCATION)), "notifications");
-        if (!parentDirectory.isDirectory()) {
-            parentDirectory.mkdirs();
-        }
+        createDirectory(parentDirectory);
         File file = new File(parentDirectory, location);
         try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
             writer.write(message);
@@ -196,7 +195,7 @@ public class UIManager {
 
     private static void updateTooltip() {
         if (trayIcon != null) {
-            EventQueue.invokeLater(() -> updateTooltipTrayIcon());
+            EventQueue.invokeLater(UIManager::updateTooltipTrayIcon);
         } else if (SystemUtils.IS_OS_MAC_OSX) {
             synchronized (activeTasks) {
                 String message;

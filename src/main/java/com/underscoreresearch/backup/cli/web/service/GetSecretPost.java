@@ -133,7 +133,7 @@ public class GetSecretPost extends JsonWrap {
                     }
 
                     InstanceFactory.reloadConfiguration(
-                            () -> InteractiveCommand.startBackupIfAvailable());
+                            InteractiveCommand::startBackupIfAvailable);
 
                     return new RsWithStatus(new RsText(WRITER.writeValueAsString(new GetSecretPostResponse(true, true))), 200);
                 } else if (restoreFromSource(sourceResponse.getName(),

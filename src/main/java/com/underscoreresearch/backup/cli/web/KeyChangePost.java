@@ -68,7 +68,7 @@ public class KeyChangePost extends JsonWrap {
                     request.getNewPassword());
 
             InstanceFactory.reloadConfiguration(
-                    () -> InteractiveCommand.startBackupIfAvailable());
+                    InteractiveCommand::startBackupIfAvailable);
 
             return messageJson(200, "Ok");
         }

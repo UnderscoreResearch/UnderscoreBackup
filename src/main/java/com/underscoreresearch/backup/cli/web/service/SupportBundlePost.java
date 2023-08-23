@@ -25,7 +25,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import org.jetbrains.annotations.NotNull;
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.rq.RqPrint;
@@ -46,8 +45,8 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 @Slf4j
 public class SupportBundlePost extends JsonWrap {
 
-    private static ObjectReader READER = MAPPER.readerFor(GenerateSupportBundleRequest.class);
-    private static ObjectWriter WRITER = MAPPER.writerFor(GenerateSupportBundleResponse.class);
+    private static final ObjectReader READER = MAPPER.readerFor(GenerateSupportBundleRequest.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(GenerateSupportBundleResponse.class);
 
     public SupportBundlePost() {
         super(new Implementation());
@@ -68,7 +67,6 @@ public class SupportBundlePost extends JsonWrap {
     }
 
     private static class Implementation extends ExclusiveImplementation {
-        @NotNull
         private static boolean createSupportBundle(GenerateSupportBundleRequest request, File f) {
             try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f))) {
                 String manifestLocation = InstanceFactory.getInstance(MANIFEST_LOCATION);
@@ -119,24 +117,27 @@ public class SupportBundlePost extends JsonWrap {
         private static void processShareConfigs(ZipOutputStream out, String manifestLocation) {
             File sharesDirectory = new File(manifestLocation, "shares");
             if (sharesDirectory.isDirectory()) {
-                for (File shareFile : sharesDirectory.listFiles()) {
-                    if (shareFile.isDirectory()) {
-                        File configFile = new File(shareFile, SHARE_CONFIG_FILE);
-                        if (configFile.exists()) {
-                            try {
-                                BackupActivatedShare share = BACKUP_ACTIVATED_SHARE_READER.readValue(configFile);
+                File[] files = sharesDirectory.listFiles();
+                if (files != null) {
+                    for (File shareFile : files) {
+                        if (shareFile.isDirectory()) {
+                            File configFile = new File(shareFile, SHARE_CONFIG_FILE);
+                            if (configFile.exists()) {
+                                try {
+                                    BackupActivatedShare share = BACKUP_ACTIVATED_SHARE_READER.readValue(configFile);
 
-                                BackupActivatedShare strippedShare = BackupActivatedShare.builder()
-                                        .share(share.getShare().toBuilder().destination(
-                                                share.getShare().getDestination()
-                                                        .strippedDestination(null, null)).build())
-                                        .usedDestinations(share.getUsedDestinations())
-                                        .build();
+                                    BackupActivatedShare strippedShare = BackupActivatedShare.builder()
+                                            .share(share.getShare().toBuilder().destination(
+                                                    share.getShare().getDestination()
+                                                            .strippedDestination(null, null)).build())
+                                            .usedDestinations(share.getUsedDestinations())
+                                            .build();
 
-                                addZipFile(out, Path.of("shares", shareFile.getName(), SHARE_CONFIG_FILE).toString(),
-                                        (str) -> BACKUP_ACTIVATED_SHARE_WRITER.writeValue(str, strippedShare));
-                            } catch (IOException e) {
-                                log.error("Failed to read share definition for {}", shareFile.getName(), e);
+                                    addZipFile(out, Path.of("shares", shareFile.getName(), SHARE_CONFIG_FILE).toString(),
+                                            (str) -> BACKUP_ACTIVATED_SHARE_WRITER.writeValue(str, strippedShare));
+                                } catch (IOException e) {
+                                    log.error("Failed to read share definition for {}", shareFile.getName(), e);
+                                }
                             }
                         }
                     }
@@ -157,8 +158,11 @@ public class SupportBundlePost extends JsonWrap {
 
         private static void addZipFile(ZipOutputStream out, File file, String name) throws IOException {
             if (file.isDirectory()) {
-                for (File child : file.listFiles()) {
-                    addZipFile(out, child, name + File.separator + child.getName());
+                File[] files = file.listFiles();
+                if (files != null) {
+                    for (File child : files) {
+                        addZipFile(out, child, name + File.separator + child.getName());
+                    }
                 }
             } else if (file.isFile()) {
                 try (FileInputStream stream = new FileInputStream(file)) {
@@ -201,7 +205,7 @@ public class SupportBundlePost extends JsonWrap {
         }
 
         private static class UnclosedStream extends OutputStream {
-            private OutputStream out;
+            private final OutputStream out;
 
             public UnclosedStream(OutputStream out) {
                 this.out = out;
@@ -215,10 +219,6 @@ public class SupportBundlePost extends JsonWrap {
             @Override
             public void write(byte b[], int off, int len) throws IOException {
                 out.write(b, off, len);
-            }
-
-            @Override
-            public void close() throws IOException {
             }
         }
     }

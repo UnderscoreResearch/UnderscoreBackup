@@ -30,24 +30,22 @@ public abstract class InstanceFactory {
     private static final ReentrantReadWriteLock configReadWriteLock = new ReentrantReadWriteLock();
     private static final Lock configUseLock = configReadWriteLock.readLock();
     private static final Lock configChangeLock = configReadWriteLock.writeLock();
+    private static final Reflections REFLECTIONS = new Reflections("com.underscoreresearch.backup");
+    private static final List<Runnable> shutdownHooks = new ArrayList<>();
+    private static final AtomicBoolean currentlyCleaningUp = new AtomicBoolean(false);
     private static InstanceFactory defaultFactory;
-    private static Reflections reflections = new Reflections("com.underscoreresearch.backup");
     private static boolean shutdown;
     private static String[] initialArguments;
-    private static List<Runnable> shutdownHooks = new ArrayList<>();
     private static BackupConfiguration cachedConfig;
     private static boolean cachedHasConfig;
     private static String additionalSource;
-    private static AtomicBoolean currentlyCleaningUp = new AtomicBoolean(false);
 
     static {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            executeOrderedCleanupHook();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(InstanceFactory::executeOrderedCleanupHook));
     }
 
     public static Reflections getReflections() {
-        return reflections;
+        return REFLECTIONS;
     }
 
     public static synchronized boolean hasConfiguration(boolean readOnly) {
@@ -129,7 +127,7 @@ public abstract class InstanceFactory {
                 MetadataRepository repository = null;
                 try {
                     repository = InstanceFactory.getInstance(MetadataRepository.class);
-                } catch (ProvisionException e) {
+                } catch (ProvisionException ignored) {
                 }
                 try {
                     if (repository != null) {

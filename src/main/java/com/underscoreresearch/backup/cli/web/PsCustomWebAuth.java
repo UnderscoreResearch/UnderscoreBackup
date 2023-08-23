@@ -39,8 +39,8 @@ import com.underscoreresearch.backup.encryption.x25519.X25519;
 @EqualsAndHashCode
 public final class PsCustomWebAuth implements Pass {
     public static final String X_KEYEXCHANGE_HEADER = "x-keyexchange";
-    private static final Pattern PARSE_PARAMETER = Pattern.compile("\\s*([a-z]+)\\s*\\=\\s*(?:(?:\\\"([^\\\"]*)\\\")|([^\\s,]+))\\s*(?:,|$)");
-    private static final Pattern PATH_PATTERN = Pattern.compile("^.*\\:\\/\\/[^\\/]+(.*)$");
+    private static final Pattern PARSE_PARAMETER = Pattern.compile("\\s*([a-z]+)\\s*=\\s*(?:\"([^\"]*)\"|([^\\s,]+))\\s*(?:,|$)");
+    private static final Pattern PATH_PATTERN = Pattern.compile("^.*://[^/]+(.*)$");
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final MessageDigest MD5;
 
@@ -99,7 +99,7 @@ public final class PsCustomWebAuth implements Pass {
 
         Map<String, String> parsedHeader = parseHeader(headerValue, request);
 
-        Boolean authenticated = validateUser(parsedHeader, request);
+        boolean authenticated = validateUser(parsedHeader, request);
         if (!authenticated) {
             rejectNotAuthed(request, new RsEmpty());
         }
@@ -123,7 +123,7 @@ public final class PsCustomWebAuth implements Pass {
             byte[] privateKey = privateKeys.get(vals[0]);
             if (privateKey != null) {
                 long now = Long.parseLong(vals[1]);
-                if (Math.abs(now - System.currentTimeMillis()) < 1000 || true) {
+                if (Math.abs(now - System.currentTimeMillis()) < 1000) {
                     try {
                         URI uri = URI.create(new RqHref.Base(request).href().toString());
 
@@ -199,9 +199,7 @@ public final class PsCustomWebAuth implements Pass {
             hashStr = String.format("%s:%s:%s", ha1, nonce, ha2);
         String hash = Hex.encodeHexString(MD5.digest(hashStr.getBytes(StandardCharsets.UTF_8)));
 
-        if (hash.equals(response))
-            return true;
-        return false;
+        return hash.equals(response);
     }
 
     private void rejectNotAuthed(Request request, Response response) throws IOException {

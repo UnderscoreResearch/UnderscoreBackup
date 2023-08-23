@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -41,9 +42,9 @@ public class BlockValidator implements ManualStatusLogger {
     private final ManifestManager manifestManager;
     private final BlockRefresher blockRefresher;
     private final int maxBlockSize;
-    private Stopwatch stopwatch = Stopwatch.createUnstarted();
-    private AtomicLong processedSteps = new AtomicLong();
-    private AtomicLong totalSteps = new AtomicLong();
+    private final Stopwatch stopwatch = Stopwatch.createUnstarted();
+    private final AtomicLong processedSteps = new AtomicLong();
+    private final AtomicLong totalSteps = new AtomicLong();
     private Duration lastHeartbeat;
     private BackupFile lastProcessed;
 
@@ -156,9 +157,7 @@ public class BlockValidator implements ManualStatusLogger {
             if (maximumSize != null) {
                 maximumSize.addAndGet(maxBlockSize);
             }
-            if (!validateBlockStorage(block)) {
-                return false;
-            }
+            return validateBlockStorage(block);
         }
         return true;
     }
@@ -184,7 +183,7 @@ public class BlockValidator implements ManualStatusLogger {
                 block.getStorage().remove(i);
                 continue;
             }
-            if (storage.getParts().stream().anyMatch(part -> part == null)) {
+            if (storage.getParts().stream().anyMatch(Objects::isNull)) {
                 log.warn("Block hash {} has missing parts", block.getHash());
                 anyChange = true;
                 block.getStorage().remove(i);

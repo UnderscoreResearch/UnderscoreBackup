@@ -56,9 +56,7 @@ public class BackupSetRoot {
                 return false;
             }
 
-            if (withoutFinalSeparator(file).length() == withoutFinalSeparator(normalizedPath).length()) {
-                return true;
-            } else {
+            if (withoutFinalSeparator(file).length() != withoutFinalSeparator(normalizedPath).length()) {
                 String subPath = getSubPath(file);
                 if (filters != null) {
                     for (BackupFilter filter : filters) {
@@ -68,8 +66,8 @@ public class BackupSetRoot {
                         }
                     }
                 }
-                return true;
             }
+            return true;
         } else {
             return false;
         }
@@ -86,9 +84,7 @@ public class BackupSetRoot {
     public boolean includeDirectory(String path) {
         if (inRoot(path)) {
 
-            if (withoutFinalSeparator(path).length() == withoutFinalSeparator(normalizedPath).length()) {
-                return true;
-            } else {
+            if (withoutFinalSeparator(path).length() != withoutFinalSeparator(normalizedPath).length()) {
                 String subPath = getSubPath(path);
                 if (filters != null) {
                     for (BackupFilter filter : filters) {
@@ -98,8 +94,8 @@ public class BackupSetRoot {
                         }
                     }
                 }
-                return true;
             }
+            return true;
         } else {
             return false;
         }
@@ -131,7 +127,7 @@ public class BackupSetRoot {
         if (path != null) {
             setNormalizedPath(PathNormalizer.normalizePath(path));
         } else {
-            normalizedPath = path;
+            normalizedPath = null;
         }
     }
 

@@ -48,6 +48,7 @@ import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.StateLogger;
 
@@ -255,7 +256,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                         break;
                     }
                     try {
-                        InstanceFactory.getInstance(ManifestManager.class).flushLog();
+                        InstanceFactory.getInstance(ManifestManager.class).syncLog();
                     } catch (IOException e) {
                         log.error("Failed to flush backup log", e);
                     }
@@ -332,8 +333,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     }
 
     private boolean shouldOnlyDoFileTrim() {
-        for (int i = 0; i < pendingSets.length; i++) {
-            if (pendingSets[i]) {
+        for (boolean set : pendingSets) {
+            if (set) {
                 return true;
             }
         }
@@ -344,12 +345,9 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 if (pendingSet != null) {
                     if (pendingSet.getScheduledAt() != null && pendingSet.getScheduledAt().before(new Date())) {
                         return false;
-                    } else if (!Objects.equals(pendingSet.getSchedule(),
-                            configuration.getManifest().getTrimSchedule())) {
-                        return false;
-                    } else {
-                        return true;
-                    }
+                    } else
+                        return Objects.equals(pendingSet.getSchedule(),
+                                configuration.getManifest().getTrimSchedule());
                 }
             } catch (IOException exc) {
                 log.error("Failed to get pending set for trim", exc);
@@ -372,16 +370,16 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     }
 
     private void backupCompletedCleanup() throws IOException {
-        InstanceFactory.getInstance(ManifestManager.class).flushLog();
+        InstanceFactory.getInstance(ManifestManager.class).syncLog();
         stateLogger.reset();
         BackupPendingSet pendingSet = getOptimizeSchedulePendingSet();
         if (pendingSet != null
                 && pendingSet.getScheduledAt() != null
                 && pendingSet.getScheduledAt().before(new Date())) {
-            InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
-            stateLogger.reset();
             InstanceFactory.getInstance(ManifestManager.class)
                     .optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
+            stateLogger.reset();
+            InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
             stateLogger.reset();
         }
     }
@@ -389,17 +387,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     private BackupPendingSet getOptimizeSchedulePendingSet() throws IOException {
         Optional<BackupPendingSet> ret = repository.getPendingSets().stream().filter(t -> t.getSetId().equals(""))
                 .findAny();
-        if (ret.isPresent())
-            return ret.get();
-        return null;
+        return ret.orElse(null);
     }
 
     private BackupPendingSet getTrimSchedulePendingSet() throws IOException {
         Optional<BackupPendingSet> ret = repository.getPendingSets().stream().filter(t -> t.getSetId().equals("="))
                 .findAny();
-        if (ret.isPresent())
-            return ret.get();
-        return null;
+        return ret.orElse(null);
     }
 
     private boolean initializeScheduler() {
@@ -411,7 +405,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 repository.addDirectory(new BackupDirectory("",
                         Instant.now().toEpochMilli(),
                         configuration.getSets().stream().flatMap(t -> t.getRoots().stream()
-                                        .map(s -> s.getNormalizedPath()))
+                                        .map(BackupSetRoot::getNormalizedPath))
                                 .collect(Collectors.toCollection(TreeSet::new))));
             } catch (IOException e) {
                 log.error("Failed to register root of backup sets in repository", e);
@@ -419,9 +413,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
 
             Map<String, BackupPendingSet> pendingScheduled = new HashMap<>();
             try {
-                repository.getPendingSets().forEach((pending) -> {
-                    pendingScheduled.put(pending.getSetId(), pending);
-                });
+                repository.getPendingSets().forEach((pending) -> pendingScheduled.put(pending.getSetId(), pending));
             } catch (IOException e) {
                 log.warn("Failed to read scheduled sets");
             }
@@ -519,7 +511,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 scanner.shutdown();
                 condition.signal();
             } else {
-                log.info("Set {} not completed, so not restarting it", set.getAllRoots(), set.getId());
+                log.info("Set {} not completed, so not restarting it", set.getId());
             }
             scheduleNext(set, index);
         } finally {

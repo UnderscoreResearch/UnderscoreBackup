@@ -22,8 +22,8 @@ import com.underscoreresearch.backup.utils.StatusLine;
 public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLogger, UploadScheduler {
     public static final String PREFIX = "blocks" + PATH_SEPARATOR;
     private final RateLimitController rateLimitController;
-    private AtomicLong totalSize = new AtomicLong();
-    private AtomicLong totalCount = new AtomicLong();
+    private final AtomicLong totalSize = new AtomicLong();
+    private final AtomicLong totalCount = new AtomicLong();
 
     public UploadSchedulerImpl(int maximumConcurrency, RateLimitController rateLimitController) {
         super(maximumConcurrency);

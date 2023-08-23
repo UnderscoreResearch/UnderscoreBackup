@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -34,7 +35,7 @@ public class BackupFile implements Comparable<BackupFile> {
         int pathCompare = path.compareTo(backupFile.path);
         if (pathCompare != 0)
             return pathCompare;
-        if (added == backupFile.added)
+        if (Objects.equals(added, backupFile.added))
             return 0;
         if (added == null)
             return -1;

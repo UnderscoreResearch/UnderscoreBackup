@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.model;
 
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
@@ -11,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -20,9 +22,10 @@ import com.google.common.collect.Sets;
 @NoArgsConstructor
 @Builder
 @Data
+@Slf4j
 public class BackupSetDestinations {
-    private static ObjectWriter WRITER = MAPPER.writerFor(BackupSetDestinations.class);
-    private static ObjectReader READER = MAPPER.readerFor(BackupSetDestinations.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(BackupSetDestinations.class);
+    private static final ObjectReader READER = MAPPER.readerFor(BackupSetDestinations.class);
 
     private boolean initial;
     private Set<String> minUsedDestinations;
@@ -32,7 +35,7 @@ public class BackupSetDestinations {
     private static File backupSetLocationInfo(String manifestLocation, BackupSet backupSet) {
         File file = Paths.get(manifestLocation, "db", "sets",
                 backupSet.getId() + ".json").toFile();
-        file.getParentFile().mkdirs();
+        createDirectory(file.getParentFile());
         return file;
     }
 

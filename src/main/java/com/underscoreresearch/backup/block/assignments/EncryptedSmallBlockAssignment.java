@@ -68,10 +68,8 @@ public class EncryptedSmallBlockAssignment extends SmallFileBlockAssignment impl
     }
 
     private class EncryptedCachedData extends CachedData {
-        private static final long MINIMUM_COMPRESSED_SIZE = 8192;
-        private static final long MINIMUM_COMPRESSED_RATIO = 2;
-        private String hash;
-        private ArrayList<byte[]> blockEntries;
+        private final String hash;
+        private final ArrayList<byte[]> blockEntries;
 
         private EncryptedCachedData(String hash, String password) {
             this.hash = hash;
@@ -83,7 +81,9 @@ public class EncryptedSmallBlockAssignment extends SmallFileBlockAssignment impl
                         while (dataInputStream.available() > 0) {
                             int length = dataInputStream.readInt();
                             byte[] data = new byte[length];
-                            dataInputStream.read(data);
+                            if (dataInputStream.read(data) != length) {
+                                throw new IOException("Unexpected end of file");
+                            }
                             blockEntries.add(data);
                         }
                     }

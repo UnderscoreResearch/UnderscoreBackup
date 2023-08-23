@@ -40,7 +40,7 @@ public class MachineState {
             double processLoad = osBean.getProcessCpuLoad();
 
             return Math.max(cpuLoad - processLoad, 0) * osBean.getAvailableProcessors();
-        } catch (IllegalArgumentException exc) {
+        } catch (IllegalArgumentException ignored) {
         }
         return Double.NaN;
     }
@@ -83,9 +83,7 @@ public class MachineState {
         if (ret.isPresent())
             return ret.get();
         ret = files.stream().filter(file -> file.getName().endsWith(".zip")).findAny();
-        if (ret.isPresent())
-            return ret.get();
-        return null;
+        return ret.orElse(null);
     }
 
     public void lowPriority() {

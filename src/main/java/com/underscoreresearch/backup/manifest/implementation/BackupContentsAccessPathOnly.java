@@ -47,12 +47,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
 
             ret = processAdditionalPaths(ret);
         } else {
-            BackupDirectory entry = pathEntry(path);
-            if (entry != null) {
-                ret = entry;
-            } else {
-                ret = null;
-            }
+            ret = pathEntry(path);
         }
 
         if (ret != null && includeDeleted) {

@@ -39,9 +39,9 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     private final MetadataRepository metadataRepository;
     private final EncryptionKey key;
 
-    private AtomicLong totalSize = new AtomicLong();
-    private AtomicLong totalCount = new AtomicLong();
-    private AtomicLong blockCount = new AtomicLong();
+    private final AtomicLong totalSize = new AtomicLong();
+    private final AtomicLong totalCount = new AtomicLong();
+    private final AtomicLong blockCount = new AtomicLong();
 
     public BlockDownloaderImpl(BackupConfiguration configuration,
                                RateLimitController rateLimitController,
@@ -87,7 +87,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         ErrorCorrector corrector = ErrorCorrectorFactory.getCorrector(storage.getEc());
         int neededParts = corrector.getMinimumSufficientParts(storage);
         byte[] errorCorrected = null;
-        Set<Integer> pendingParts = new HashSet<>();
+        final Set<Integer> pendingParts = new HashSet<>();
 
         int i = 0;
         while (i < storage.getParts().size() && i < neededParts) {
@@ -107,7 +107,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
                         throw new IOException("Shutting down");
                     try {
                         pendingParts.wait(1000);
-                    } catch (InterruptedException exc) {
+                    } catch (InterruptedException ignored) {
                     }
                 }
             }

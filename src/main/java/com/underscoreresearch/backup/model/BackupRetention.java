@@ -59,9 +59,6 @@ public class BackupRetention {
         if (frequency == null)
             frequency = new BackupTimespan();
 
-        if (!frequency.isImmediate() && (frequency.isForever() || frequency.toTime(previousFile.addedToTime()).isBefore(fileInstant))) {
-            return false;
-        }
-        return true;
+        return frequency.isImmediate() || (!frequency.isForever() && !frequency.toTime(previousFile.addedToTime()).isBefore(fileInstant));
     }
 }

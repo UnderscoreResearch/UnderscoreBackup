@@ -29,6 +29,7 @@ import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.DownloadScheduler;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.StateLogger;
@@ -37,10 +38,10 @@ import com.underscoreresearch.backup.utils.StatusLine;
 @Slf4j
 public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatusLogger, DownloadScheduler {
     private final FileDownloader fileDownloader;
-    private AtomicLong totalSize = new AtomicLong();
-    private AtomicLong totalCount = new AtomicLong();
-    private AtomicLong failedCount = new AtomicLong();
-    private AtomicLong pendingOutstanding = new AtomicLong();
+    private final AtomicLong totalSize = new AtomicLong();
+    private final AtomicLong totalCount = new AtomicLong();
+    private final AtomicLong failedCount = new AtomicLong();
+    private final AtomicLong pendingOutstanding = new AtomicLong();
     private BackupFile lastProcessed;
     private Stopwatch duration;
     private DB fileDb;
@@ -81,7 +82,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         if (fileDb == null) {
             try {
                 File file = File.createTempFile("underscorebackup-restore", ".db");
-                file.delete();
+                IOUtils.deleteFile(file);
                 fileDb = DBMaker
                         .fileDB(file)
                         .fileDeleteAfterClose()

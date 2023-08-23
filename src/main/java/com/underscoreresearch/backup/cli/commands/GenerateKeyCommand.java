@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.commands;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_KEY;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.ENCRYPTION_KEY_DATA;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
 import java.io.File;
@@ -27,7 +28,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 public class GenerateKeyCommand extends Command {
     public static String generateAndSaveNewKey(CommandLine commandLine, String firstTry) throws IOException {
         EncryptionKey encryptionKey = EncryptionKey.generateKeyWithPassword(firstTry);
-        encryptionKey.generateBlockHashSalt(encryptionKey.getPrivateKey(firstTry));
+        encryptionKey.generateBlockHashSalt();
 
         File keyFile = getDefaultEncryptionFileName(commandLine);
 
@@ -46,8 +47,7 @@ public class GenerateKeyCommand extends Command {
         }
 
         File keyFile = new File(file);
-        if (!keyFile.getParentFile().isDirectory())
-            keyFile.getParentFile().mkdirs();
+        createDirectory(keyFile.getParentFile());
 
         return keyFile;
     }
@@ -110,7 +110,7 @@ public class GenerateKeyCommand extends Command {
                     System.exit(1);
                 }
                 System.out.println("Private key already exists, replacing it because --force flag was used");
-            } catch (Exception ex) {
+            } catch (Exception ignored) {
             }
 
             String file = generateAndSaveNewKey(commandLine, firstTry);

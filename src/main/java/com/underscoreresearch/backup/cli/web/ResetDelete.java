@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_FILE_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
@@ -32,12 +33,15 @@ public class ResetDelete extends JsonWrap {
 
     public static void deleteContents(File file) {
         if (file.isDirectory()) {
-            for (File child : file.listFiles()) {
-                if (!child.getName().startsWith(".")) {
-                    if (child.isDirectory()) {
-                        deleteContents(child);
+            File[] files = file.listFiles();
+            if (files != null) {
+                for (File child : files) {
+                    if (!child.getName().startsWith(".")) {
+                        if (child.isDirectory()) {
+                            deleteContents(child);
+                        }
+                        deleteFile(child);
                     }
-                    child.delete();
                 }
             }
         }
@@ -48,8 +52,8 @@ public class ResetDelete extends JsonWrap {
         public Response actualAct(Request req) throws Exception {
             InstanceFactory.reloadConfiguration(null);
             executeShielded(() -> InstanceFactory.getInstance(ServiceManager.class).reset());
-            executeShielded(() -> new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION)).delete());
-            executeShielded(() -> new File(InstanceFactory.getInstance(KEY_FILE_NAME)).delete());
+            executeShielded(() -> deleteFile(new File(InstanceFactory.getInstance(CONFIG_FILE_LOCATION))));
+            executeShielded(() -> new File(InstanceFactory.getInstance(KEY_FILE_NAME)));
 
             executeShielded(() -> InstanceFactory.reloadConfiguration(null));
             executeShielded(() -> deleteContents(new File(InstanceFactory.getInstance(MANIFEST_LOCATION))));

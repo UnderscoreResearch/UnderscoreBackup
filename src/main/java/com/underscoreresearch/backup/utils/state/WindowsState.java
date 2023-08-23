@@ -38,7 +38,7 @@ public class WindowsState extends MachineState {
                     }
                 }
             }
-        } catch (IOException ex) {
+        } catch (IOException ignored) {
         }
         return false;
     }
@@ -46,10 +46,7 @@ public class WindowsState extends MachineState {
     @Override
     public ReleaseFileItem getDistribution(List<ReleaseFileItem> files) {
         Optional<ReleaseFileItem> ret = files.stream().filter(file -> file.getName().endsWith(".exe")).findAny();
-        if (ret.isPresent()) {
-            return ret.get();
-        }
-        return null;
+        return ret.orElse(null);
     }
 
     @Override

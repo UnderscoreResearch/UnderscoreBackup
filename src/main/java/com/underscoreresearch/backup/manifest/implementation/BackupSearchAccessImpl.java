@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,7 +34,7 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
     private final BackupContentsAccess contentsAccess;
     private final Long timestamp;
     private final boolean includeDeleted;
-    private LoadingCache<String, Set<String>> directoryCache = CacheBuilder
+    private final LoadingCache<String, Set<String>> directoryCache = CacheBuilder
             .newBuilder()
             .maximumSize(50)
             .build(new CacheLoader<>() {
@@ -43,9 +44,8 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
                     if (directory == null) {
                         return new HashSet<>();
                     }
-                    Set<String> ret = directory.stream()
-                            .map(t -> t.getPath()).collect(Collectors.toSet());
-                    return ret;
+                    return directory.stream()
+                            .map(BackupFile::getPath).collect(Collectors.toSet());
                 }
             });
 
@@ -81,9 +81,9 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
                     }
                     return null;
                 })
-                .filter(files -> files != null)
-                .map(files -> findSearchFile(files))
-                .filter(file -> file != null);
+                .filter(Objects::nonNull)
+                .map(this::findSearchFile)
+                .filter(Objects::nonNull);
 
         return new CloseableStream<>() {
             @Override

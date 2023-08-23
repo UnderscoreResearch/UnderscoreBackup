@@ -2,6 +2,8 @@ package com.underscoreresearch.backup.utils;
 
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.LOG_FILE;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -40,7 +42,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 @Slf4j
 public class LogWriter extends AbstractAppender {
     private static final long MAXIMUM_FILE_AGE = Duration.ofDays(7).toMillis();
-    private static final Pattern LOG_TIMESTAMP = Pattern.compile("^\\d{4}-\\d{2}-\\d{2} \\d{2}\\:\\d{2}\\:\\d{2}");
+    private static final Pattern LOG_TIMESTAMP = Pattern.compile("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     long creationDate;
@@ -93,7 +95,7 @@ public class LogWriter extends AbstractAppender {
                     File file = new File(fileName);
                     boolean exists = file.exists();
                     if (!exists) {
-                        file.getParentFile().mkdirs();
+                        createDirectory(file.getParentFile());
                         creationDate = System.currentTimeMillis();
                     } else {
                         try {
@@ -160,7 +162,7 @@ public class LogWriter extends AbstractAppender {
 
             File file = new File(fileName);
             if (file.exists()) {
-                new File(nextFileName).delete();
+                deleteFile(new File(nextFileName));
                 if (!file.renameTo(new File(nextFileName))) {
                     log.error("Failed to rename log file {} to {}", fileName, nextFileName);
                     return;
@@ -190,7 +192,7 @@ public class LogWriter extends AbstractAppender {
         }
 
         File file = new File(baseFileName);
-        file.delete();
+        deleteFile(file);
     }
 
     @Override

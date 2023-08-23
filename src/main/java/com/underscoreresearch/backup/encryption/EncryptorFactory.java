@@ -12,7 +12,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 public final class EncryptorFactory {
-    private static Map<String, Holder> encryptors;
+    private static final Map<String, Holder> encryptors;
 
     static {
         encryptors = new HashMap<>();

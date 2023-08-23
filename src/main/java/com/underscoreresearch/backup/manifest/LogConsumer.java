@@ -8,4 +8,6 @@ public interface LogConsumer {
     String lastSyncedLogFile(String share) throws IOException;
 
     void setLastSyncedLogFile(String share, String entry) throws IOException;
+
+    void setRecoveryMode(boolean recoveryMode);
 }

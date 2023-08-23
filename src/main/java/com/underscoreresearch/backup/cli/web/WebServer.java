@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.BIND_ADDRESS;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
 import java.awt.*;
 import java.io.File;
@@ -266,7 +267,7 @@ public class WebServer {
 
             try {
                 File urlFile = new File(InstanceFactory.getInstance(CommandLineModule.URL_LOCATION));
-                urlFile.getParentFile().mkdirs();
+                createDirectory(urlFile.getParentFile());
                 urlFile.deleteOnExit();
                 try (FileWriter writer = new FileWriter(urlFile, StandardCharsets.UTF_8)) {
                     writer.write(configUrl.toString());
@@ -350,7 +351,7 @@ public class WebServer {
                             return new Opt.Empty<Identity>();
                         }
                     }
-                } catch (Exception exc) {
+                } catch (Exception ignored) {
                 }
             }
             return AUTHENTICATED;

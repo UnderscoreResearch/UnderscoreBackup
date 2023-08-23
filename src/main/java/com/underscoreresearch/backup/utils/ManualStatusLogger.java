@@ -14,7 +14,7 @@ public interface ManualStatusLogger {
 
     List<StatusLine> status();
 
-    public static enum Type {
+    enum Type {
         NORMAL,
         LOG,
         PERMANENT

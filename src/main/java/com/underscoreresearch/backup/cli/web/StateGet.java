@@ -211,7 +211,7 @@ public class StateGet extends JsonWrap {
                 if (validDestinations) {
                     try {
                         repositoryReady = InstanceFactory.getInstance(ManifestManager.class).isRepositoryReady();
-                    } catch (ProvisionException exc) {
+                    } catch (ProvisionException ignored) {
                     }
                 }
 

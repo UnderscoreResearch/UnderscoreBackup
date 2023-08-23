@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.manifest.implementation;
 import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
 import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
@@ -158,23 +159,28 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             if (files.size() > 0) {
                 totalFiles.addAndGet(files.size());
 
-                for (File file : files) {
-                    byte[] data = null;
-                    try (AccessLock lock = new AccessLock(file.getAbsolutePath())) {
-                        if (lock.tryLock(true)) {
-                            try (InputStream stream = Channels
-                                    .newInputStream(lock.getLockedChannel())) {
-                                data = IOUtils.readAllBytes(stream);
+                logConsumer.setRecoveryMode(true);
+                try {
+                    for (File file : files) {
+                        byte[] data = null;
+                        try (AccessLock lock = new AccessLock(file.getAbsolutePath())) {
+                            if (lock.tryLock(true)) {
+                                try (InputStream stream = Channels
+                                        .newInputStream(lock.getLockedChannel())) {
+                                    data = IOUtils.readAllBytes(stream);
+                                }
+                            } else {
+                                log.warn("Log file {} locked by other process", file.getAbsolutePath());
                             }
-                        } else {
-                            log.warn("Log file {} locked by other process", file.getAbsolutePath());
                         }
+                        if (data != null) {
+                            processLogInputStream(logConsumer, new ByteArrayInputStream(data));
+                            uploadLogFile(file.getAbsolutePath(), data);
+                        }
+                        processedFiles.incrementAndGet();
                     }
-                    if (data != null) {
-                        processLogInputStream(logConsumer, new ByteArrayInputStream(data));
-                        uploadLogFile(file.getAbsolutePath(), data);
-                    }
-                    processedFiles.incrementAndGet();
+                } finally {
+                    logConsumer.setRecoveryMode(false);
                 }
             }
         } finally {
@@ -201,9 +207,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
         if (deleteFilename != null) {
             success = () -> {
                 if (successNeeded.decrementAndGet() == 0) {
-                    if (deleteFilename != null && !new File(deleteFilename).delete()) {
-                        log.warn("Failed to delete file {}", deleteFilename);
-                    }
+                    deleteFile(new File(deleteFilename));
                 }
             };
         } else {
@@ -347,7 +351,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             } else {
                 log.info("Optimizing repository metadata");
             }
-            flushLogging();
+            flushRepositoryLogging();
             repositoryReady = true;
         } finally {
             log.info("Completed reprocessing logs");
@@ -382,15 +386,18 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             Map<String, BackupActivatedShare> existingShares = new HashMap<>();
             File sharesDirectory = new File(getManifestLocation(), "shares");
             if (sharesDirectory.isDirectory()) {
-                for (File shareFile : sharesDirectory.listFiles()) {
-                    if (shareFile.isDirectory()) {
-                        File configFile = new File(shareFile, SHARE_CONFIG_FILE);
-                        if (configFile.exists()) {
-                            try {
-                                BackupActivatedShare share = BACKUP_ACTIVATED_SHARE_READER.readValue(configFile);
-                                existingShares.put(shareFile.getName(), share);
-                            } catch (IOException e) {
-                                log.error("Failed to read share definition for {}", shareFile.getName(), e);
+                File[] files = sharesDirectory.listFiles();
+                if (files != null) {
+                    for (File shareFile : files) {
+                        if (shareFile.isDirectory()) {
+                            File configFile = new File(shareFile, SHARE_CONFIG_FILE);
+                            if (configFile.exists()) {
+                                try {
+                                    BackupActivatedShare share = BACKUP_ACTIVATED_SHARE_READER.readValue(configFile);
+                                    existingShares.put(shareFile.getName(), share);
+                                } catch (IOException e) {
+                                    log.error("Failed to read share definition for {}", shareFile.getName(), e);
+                                }
                             }
                         }
                     }
@@ -456,7 +463,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
                         File shareDir = new File(sharesDirectory, share);
                         deleteContents(shareDir);
-                        shareDir.delete();
+                        deleteFile(shareDir);
                         processedOperations.incrementAndGet();
                     }
                 } finally {
@@ -492,7 +499,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     @Override
     public void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer) throws IOException {
         initialize(logConsumer, true);
-        flushLogging();
+        flushRepositoryLogging();
         getUploadScheduler().waitForCompletion();
 
         if (existingLogFiles().size() > 0) {
@@ -573,7 +580,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             existingRepository.getPendingSets().forEach((pendingSet) -> {
                 processedOperations.incrementAndGet();
                 try {
-                    if (pendingSet.getSetId() != "") {
+                    if ("".equals(pendingSet.getSetId())) {
                         copyRepository.addPendingSets(pendingSet);
                     }
                 } catch (IOException e) {
@@ -582,7 +589,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             });
 
             copyRepository.close();
-            flushLogging();
+            flushRepositoryLogging();
 
             ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                     getConfiguration().getManifest().getOptimizeSchedule());
@@ -791,7 +798,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                     totalFiles = new AtomicLong(existingLogs.values().stream().map(List::size).reduce(0, Integer::sum));
                     processedFiles = new AtomicLong();
                     for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
-                        entry.getValue().flushLog();
+                        entry.getValue().syncLog();
                         entry.getValue().deleteLogFiles(existingLogs.get(entry.getKey().getPublicKey()));
                         processedFiles.addAndGet(existingLogs.get(entry.getKey().getPublicKey()).size());
                         entry.getValue().completeActivation();
@@ -854,13 +861,13 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     }
 
     @Override
-    public void flushLog() throws IOException {
+    public void syncLog() throws IOException {
         synchronized (getLock()) {
-            super.flushLog();
+            super.syncLog();
 
             if (activeShares != null) {
                 for (ShareManifestManager others : activeShares.values())
-                    others.flushLog();
+                    others.syncLog();
             }
         }
     }

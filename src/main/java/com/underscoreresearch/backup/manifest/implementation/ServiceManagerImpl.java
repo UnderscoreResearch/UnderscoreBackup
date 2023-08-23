@@ -2,6 +2,8 @@ package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -62,9 +64,8 @@ public class ServiceManagerImpl implements ServiceManager {
     private static final ObjectWriter WRITER = MAPPER.writerFor(ServiceManagerData.class);
 
     private final String manifestLocation;
-
+    private final Map<String, BackupApi> clients = new HashMap<>();
     private ServiceManagerData data;
-    private Map<String, BackupApi> clients = new HashMap<>();
 
     public ServiceManagerImpl(@Named(MANIFEST_LOCATION) String manifestLocation) throws IOException {
         this(manifestLocation, createData(manifestLocation));
@@ -85,17 +86,15 @@ public class ServiceManagerImpl implements ServiceManager {
     }
 
     public static RsWithStatus sendApiFailureOn(IOException exc) throws IOException {
-        if (exc.getCause() instanceof ApiException) {
-            ApiException apiExc = (ApiException) exc.getCause();
+        if (exc.getCause() instanceof ApiException apiExc) {
             return new RsWithStatus(new RsText(apiExc.getResponseBody()), apiExc.getCode());
         }
         throw exc;
     }
 
     private static String getShareDestinationString(String sourceId, BackupShare share, EncryptionKey publicKey) throws JsonProcessingException {
-        String destination = Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
+        return Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
                 BACKUP_DESTINATION_WRITER.writeValueAsBytes(share.getDestination().strippedDestination(sourceId, publicKey.getPublicKey())), publicKey));
-        return destination;
     }
 
     static <T> T callApi(BackupApi client, String region, ApiFunction<T> callable) throws ApiException {
@@ -104,10 +103,7 @@ public class ServiceManagerImpl implements ServiceManager {
                 if (exc instanceof ApiException) {
                     int code = ((ApiException) exc).getCode();
                     if (code >= 400 && code < 500) {
-                        if (code == 404 && callable.shouldRetryMissing(region)) {
-                            return true;
-                        }
-                        return false;
+                        return code == 404 && callable.shouldRetryMissing(region);
                     }
                 }
                 return callable.shouldRetry();
@@ -162,7 +158,7 @@ public class ServiceManagerImpl implements ServiceManager {
         try {
             File file = getDataFile();
             boolean exists = file.exists();
-            file.getParentFile().mkdirs();
+            createDirectory(file.getParentFile());
             WRITER.writeValue(getDataFile(), data);
             if (!exists)
                 ConfigurationPost.setOwnerOnlyPermissions(file);
@@ -189,12 +185,12 @@ public class ServiceManagerImpl implements ServiceManager {
             } catch (IOException exc) {
                 if (exc.getCause() instanceof ApiException) {
                     switch (((ApiException) exc.getCause()).getCode()) {
-                        case 401:
-                        case 403:
+                        case 401, 403 -> {
                             log.error("Invalid token, lost service authorization");
                             data.setToken(null);
                             saveFile();
                             return false;
+                        }
                     }
                 }
                 throw exc;
@@ -208,7 +204,7 @@ public class ServiceManagerImpl implements ServiceManager {
         try {
             ReleaseResponse release;
             if (PRE_RELEASE.matcher(VersionCommand.getVersion()).find())
-                release = callApi(null, new ApiFunction<ReleaseResponse>() {
+                release = callApi(null, new ApiFunction<>() {
                     @Override
                     public boolean shouldRetry() {
                         return false;
@@ -220,7 +216,7 @@ public class ServiceManagerImpl implements ServiceManager {
                     }
                 });
             else
-                release = callApi(null, new ApiFunction<ReleaseResponse>() {
+                release = callApi(null, new ApiFunction<>() {
                     @Override
                     public boolean shouldRetry() {
                         return false;
@@ -308,7 +304,7 @@ public class ServiceManagerImpl implements ServiceManager {
                 if (idx > 0)
                     name = name.substring(0, idx);
                 return name;
-            } catch (UnknownHostException e) {
+            } catch (UnknownHostException ignored) {
             }
         }
         return ret;
@@ -398,7 +394,7 @@ public class ServiceManagerImpl implements ServiceManager {
                     targetAccountEmailHash(targetAccountHash)));
 
             if (keys.getPublicKeys().stream().anyMatch(publicKey ->
-                    !response.getPrivateKeys().stream().anyMatch(entry -> entry.getPublicKey().equals(publicKey)))) {
+                    response.getPrivateKeys().stream().noneMatch(entry -> entry.getPublicKey().equals(publicKey)))) {
 
                 if (privateKey != null) {
                     EncryptionKey publicKey = EncryptionKey.createWithPublicKey(shareId);
@@ -465,7 +461,7 @@ public class ServiceManagerImpl implements ServiceManager {
 
     @Override
     public void reset() {
-        getDataFile().delete();
+        deleteFile(getDataFile());
         data = new ServiceManagerData();
     }
 

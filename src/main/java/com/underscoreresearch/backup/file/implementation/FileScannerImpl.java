@@ -62,9 +62,9 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
     private final AtomicInteger outstandingFiles = new AtomicInteger();
     private final AtomicLong completedFiles = new AtomicLong();
     private final AtomicLong completedSize = new AtomicLong();
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition pendingDirectoriesUpdated = lock.newCondition();
     private TreeMap<String, BackupActivePath> pendingPaths;
-    private ReentrantLock lock = new ReentrantLock();
-    private Condition pendingDirectoriesUpdated = lock.newCondition();
     private boolean shutdown;
     private Stopwatch duration;
     private BackupFile lastProcessed;
@@ -101,9 +101,8 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
             log.info("Enabled storage validation for set {}", backupSet.getId());
 
         if (pendingPaths.size() > 0) {
-            debug(() -> log.debug("Resuming paths from {}", String.join("; ",
-                    pendingPaths.keySet().stream().map(t -> PathNormalizer.physicalPath(t))
-                            .collect(Collectors.toList()))));
+            debug(() -> log.debug("Resuming paths from {}", pendingPaths.keySet().stream().map(PathNormalizer::physicalPath)
+                    .collect(Collectors.joining("; "))));
         }
 
         if (!registerBackupRoots(backupSet)) {
@@ -158,16 +157,14 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
     }
 
     private String formatPathList(Collection<String> keySet) {
-        return String.join(", ",
-                keySet.stream().map(t -> PathNormalizer.physicalPath(t)).collect(Collectors.toList()));
+        return keySet.stream().map(PathNormalizer::physicalPath).collect(Collectors.joining(", "));
     }
 
     private boolean registerBackupRoots(BackupSet backupSet) {
         boolean anyFound = false;
         for (BackupSetRoot root : backupSet.getRoots()) {
-            if (addPendingPath(backupSet, root.getNormalizedPath())) {
-                anyFound = true;
-            }
+            addPendingPath(backupSet, root.getNormalizedPath());
+            anyFound = true;
         }
         return anyFound;
     }
@@ -261,12 +258,9 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
             if (pendingFiles.unprocessedFile(file.getPath())) {
                 if (file.isDirectory()) {
                     if (set.includeDirectory(file.getPath())) {
-                        BackupActiveStatus status;
-                        if (addPendingPath(set, file.getPath())) {
-                            status = processPath(set, file.getPath(), needStorageValidation);
-                        } else {
-                            status = BackupActiveStatus.EXCLUDED;
-                        }
+                        addPendingPath(set, file.getPath());
+                        BackupActiveStatus status = processPath(set, file.getPath(), needStorageValidation);
+
                         if (status == BackupActiveStatus.INCLUDED || status == BackupActiveStatus.INCOMPLETE) {
                             anyIncluded = true;
                         }
@@ -392,34 +386,36 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         lock.unlock();
     }
 
-    private boolean addPendingPath(BackupSet set, String path) {
-        if (pendingPaths.containsKey(path))
-            return true;
+    private void addPendingPath(BackupSet set, String path) {
+        if (!pendingPaths.containsKey(path)) {
+            lock.unlock();
 
-        lock.unlock();
+            BackupActivePath activePath;
 
-        BackupActivePath activePath;
-        if (path.endsWith(PATH_SEPARATOR)) {
-            Set<BackupActiveFile> files = filesystem.directoryFiles(path).stream()
-                    .map(file -> new BackupActiveFile(BackupActivePath.stripPath(file.getPath())))
-                    .collect(Collectors.toSet());
-            activePath = new BackupActivePath(path, files);
-        } else {
-            activePath = new BackupActivePath("", Sets.newHashSet(new BackupActiveFile(path)));
+            try {
+                if (path.endsWith(PATH_SEPARATOR)) {
+                    Set<BackupActiveFile> files = filesystem.directoryFiles(path).stream()
+                            .map(file -> new BackupActiveFile(BackupActivePath.stripPath(file.getPath())))
+                            .collect(Collectors.toSet());
+
+                    activePath = new BackupActivePath(path, files);
+                } else {
+                    activePath = new BackupActivePath("", Sets.newHashSet(new BackupActiveFile(path)));
+                }
+            } finally {
+                lock.lock();
+            }
+
+            pendingPaths.put(path, activePath);
+
+            final String debugPath = path;
+            debug(() -> log.debug("Started processing {}", PathNormalizer.physicalPath(debugPath)));
+            try {
+                repository.pushActivePath(set.getId(), path, activePath);
+            } catch (IOException e) {
+                log.error("Failed to add active path " + path, e);
+            }
         }
-
-        lock.lock();
-
-        pendingPaths.put(path, activePath);
-
-        final String debugPath = path;
-        debug(() -> log.debug("Started processing {}", PathNormalizer.physicalPath(debugPath)));
-        try {
-            repository.pushActivePath(set.getId(), path, activePath);
-        } catch (IOException e) {
-            log.error("Failed to add active path " + path, e);
-        }
-        return true;
     }
 
     private void updateActivePath(BackupSet set, String currentPath, boolean forceClose) {

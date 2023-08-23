@@ -15,7 +15,7 @@ import org.takes.rq.RqMethod;
 
 @Slf4j
 public abstract class ExclusiveImplementation extends BaseImplementation {
-    private static Lock lock = new ReentrantLock();
+    private static final Lock lock = new ReentrantLock();
     private static String busyMessage;
 
     @Override

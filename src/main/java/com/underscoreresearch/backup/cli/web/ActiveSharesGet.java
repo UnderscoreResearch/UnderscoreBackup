@@ -22,7 +22,7 @@ import com.underscoreresearch.backup.manifest.ShareManifestManager;
 
 @Slf4j
 public class ActiveSharesGet extends JsonWrap {
-    private static ObjectWriter WRITER = MAPPER.writerFor(Shares.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(Shares.class);
 
     public ActiveSharesGet() {
         super(new Implementation());

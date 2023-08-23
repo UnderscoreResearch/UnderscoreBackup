@@ -32,16 +32,13 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.inject.ProvisionException;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 @Slf4j
 public class BestRegionGet extends JsonWrap {
     private static final Map<String, List<URL>> REGIONS;
     private static final int ITERATIONS = 5;
-    private static ObjectWriter WRITER = MAPPER.writerFor(BestRegion.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(BestRegion.class);
 
     static {
         try {
@@ -60,14 +57,14 @@ public class BestRegionGet extends JsonWrap {
     }
 
     static String determineBestRegion() {
-        Map<String, AtomicLong> result = REGIONS.entrySet().stream().map((entry) -> (Maps.immutableEntry(entry.getKey(),
+        Map<String, AtomicLong> result = REGIONS.keySet().stream().map(urls -> (Maps.immutableEntry(urls,
                 new AtomicLong()))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        Map<String, AtomicInteger> successCount = REGIONS.entrySet().stream().map((entry) -> (Maps.immutableEntry(entry.getKey(),
+        Map<String, AtomicInteger> successCount = REGIONS.keySet().stream().map(urls -> (Maps.immutableEntry(urls,
                 new AtomicInteger()))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         ExecutorService pool = Executors.newFixedThreadPool(ITERATIONS
                 * REGIONS.values().stream().map(List::size).reduce(0, Integer::sum));
         try {
-            List<Future> futures = new ArrayList<>();
+            List<Future<?>> futures = new ArrayList<>();
             for (int i = 0; i < ITERATIONS; i++) {
                 for (Map.Entry<String, List<URL>> entry : REGIONS.entrySet()) {
                     final String region = entry.getKey();
@@ -83,7 +80,7 @@ public class BestRegionGet extends JsonWrap {
                                     result.get(region).addAndGet(timer.elapsed(TimeUnit.MILLISECONDS));
                                     successCount.get(region).incrementAndGet();
                                 }
-                            } catch (IOException exc) {
+                            } catch (IOException ignored) {
                             }
                         }));
                     }
@@ -92,7 +89,7 @@ public class BestRegionGet extends JsonWrap {
             futures.forEach(item -> {
                 try {
                     item.get();
-                } catch (InterruptedException | ExecutionException e) {
+                } catch (InterruptedException | ExecutionException ignored) {
                 }
             });
 
@@ -128,15 +125,6 @@ public class BestRegionGet extends JsonWrap {
                 log.warn("Failed to determine best region", exc);
             }
             return messageJson(400, "Failed to determine best region");
-        }
-
-        private boolean hasKey() {
-            try {
-                InstanceFactory.getInstance(EncryptionKey.class);
-                return true;
-            } catch (ProvisionException exc) {
-                return false;
-            }
         }
     }
 }

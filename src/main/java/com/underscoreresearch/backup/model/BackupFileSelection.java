@@ -58,18 +58,12 @@ public class BackupFileSelection {
 
     @JsonIgnore
     boolean checkExcluded(String finalFile) {
-        if (exclusionPatterns.stream().anyMatch(pattern -> pattern.matcher(finalFile).find())) {
-            return true;
-        }
-        return false;
+        return exclusionPatterns.stream().anyMatch(pattern -> pattern.matcher(finalFile).find());
     }
 
     @JsonIgnore
     private boolean checkExcludedDirectory(String finalDirectory) {
-        if (exclusionDirectoryPatterns.stream().anyMatch(pattern -> pattern.matcher(finalDirectory).find())) {
-            return true;
-        }
-        return false;
+        return exclusionDirectoryPatterns.stream().anyMatch(pattern -> pattern.matcher(finalDirectory).find());
     }
 
     @JsonIgnore
@@ -123,6 +117,6 @@ public class BackupFileSelection {
 
     @JsonIgnore
     public String getAllRoots() {
-        return String.join(", ", roots.stream().map(t -> t.getPath()).collect(Collectors.toList()));
+        return roots.stream().map(BackupSetRoot::getPath).collect(Collectors.joining(", "));
     }
 }

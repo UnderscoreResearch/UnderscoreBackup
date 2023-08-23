@@ -141,11 +141,11 @@ public abstract class AesEncryptorFormat {
 
     public void applyAdditionalStorageKeyData(byte[] encryptionKey, BackupBlockStorage storage, EncryptionKey privateKey) {
         if (storage != null && storage.hasAdditionalStorageProperties()) {
-            storage.getAdditionalStorageProperties().entrySet().forEach(entry -> {
-                byte[] combinedKey = EncryptionKey.combinedSecret(privateKey.getPrivateKey(null), entry.getKey());
+            storage.getAdditionalStorageProperties().forEach((key, value) -> {
+                byte[] combinedKey = EncryptionKey.combinedSecret(privateKey.getPrivateKey(null), key);
                 byte[] keyData = AesEncryptor.applyKeyData(encryptionKey, combinedKey);
-                entry.getValue().put(KEY_DATA, Hash.encodeBytes(keyData));
-                entry.getValue().put(PUBLIC_KEY, privateKey.getPublicKey());
+                value.put(KEY_DATA, Hash.encodeBytes(keyData));
+                value.put(PUBLIC_KEY, privateKey.getPublicKey());
             });
         }
     }

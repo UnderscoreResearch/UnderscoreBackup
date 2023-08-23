@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -38,7 +39,7 @@ import com.underscoreresearch.backup.model.BackupSetRoot;
 @Slf4j
 public class RestorePost extends JsonWrap {
     private static final ObjectReader READER = MAPPER.readerFor(BackupRestoreRequest.class);
-    private static ObjectWriter WRITER = MAPPER.writerFor(com.underscoreresearch.backup.cli.web.KeyPost.KeyResponse.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(com.underscoreresearch.backup.cli.web.KeyPost.KeyResponse.class);
 
     public RestorePost() {
         super(new Implementation());
@@ -126,7 +127,7 @@ public class RestorePost extends JsonWrap {
                                 request.getPassword(),
                                 InstanceFactory.getInstance(BackupStatsLogger.class));
                         if (destination != null && !isNullFile(destination)) {
-                            new File(destination).mkdirs();
+                            createDirectory(new File(destination));
                         }
                         restoreExecutor.restorePaths(request.files, destination, true,
                                 request.overwrite,

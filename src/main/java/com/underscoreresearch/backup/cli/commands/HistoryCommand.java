@@ -6,7 +6,6 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,7 +34,7 @@ public class HistoryCommand extends Command {
             throw new ParseException("No files specified");
         }
 
-        for (String path : paths.stream().map(file -> PathNormalizer.normalizePath(file)).collect(Collectors.toList())) {
+        for (String path : paths.stream().map(PathNormalizer::normalizePath).toList()) {
             listHistory(commandLine, repository, path);
         }
     }
@@ -46,7 +45,7 @@ public class HistoryCommand extends Command {
         List<ExternalBackupFile> versions = repository.file(path);
         if (versions != null) {
             System.out.println(path + ":");
-            long totalSize = versions.stream().map(t -> t.getLength() != null ? t.getLength() : 0).reduce((a, b) -> a + b).get();
+            long totalSize = versions.stream().map(t -> t.getLength() != null ? t.getLength() : 0).reduce(Long::sum).orElseGet(() -> 0L);
             if (commandLine.hasOption(HUMAN_READABLE))
                 System.out.println("total " + readableSize(totalSize));
             else

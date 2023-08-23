@@ -15,7 +15,7 @@ import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 @Slf4j
 public final class ErrorCorrectorFactory {
-    private static Map<String, Class<? extends ErrorCorrector>> correctors;
+    private static final Map<String, Class<? extends ErrorCorrector>> correctors;
 
     static {
         correctors = new HashMap<>();

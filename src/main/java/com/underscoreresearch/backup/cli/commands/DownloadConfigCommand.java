@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOn
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.downloadKeyData;
 import static com.underscoreresearch.backup.cli.web.SourceSelectPost.downloadSourceConfig;
 import static com.underscoreresearch.backup.cli.web.SourceSelectPost.validatePrivateKey;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -35,7 +36,7 @@ public class DownloadConfigCommand extends Command {
     public static void storeKeyData(String key, String source) throws ParseException, IOException {
         byte[] keyData = downloadKeyData(key, source);
         File keyFile = new File(CommandLineModule.getKeyFileName(source));
-        keyFile.getParentFile().mkdirs();
+        createDirectory(keyFile.getParentFile());
         try (FileOutputStream outputStream = new FileOutputStream(keyFile)) {
             outputStream.write(keyData);
         }
@@ -55,6 +56,7 @@ public class DownloadConfigCommand extends Command {
                 System.exit(1);
             }
 
+            // This can be null if no source is specified even though the model says it can't.
             if (sourceResponse.getSourceId() == null) {
                 storeKeyData(key, source);
 

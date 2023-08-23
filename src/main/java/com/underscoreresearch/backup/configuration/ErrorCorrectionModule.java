@@ -1,7 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import java.io.IOException;
-
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -18,7 +16,7 @@ public class ErrorCorrectionModule extends AbstractModule {
     @Provides
     @Singleton
     public ReedSolomonErrorCorrector reedSolomonErrorCorrector(
-            @Named(CommandLineModule.SOURCE_CONFIG) BackupConfiguration configuration) throws IOException {
+            @Named(CommandLineModule.SOURCE_CONFIG) BackupConfiguration configuration) {
         return new ReedSolomonErrorCorrector(
                 configuration.getProperty("reedSolomon.dataSlices", DEFAULT_DATA_SLICES),
                 configuration.getProperty("reedSolomon.paritySlices", DEFAULT_PARITY_SLICES));
@@ -27,7 +25,7 @@ public class ErrorCorrectionModule extends AbstractModule {
     @Provides
     @Singleton
     public NoneErrorCorrector noneErrorCorrector(
-            @Named(CommandLineModule.SOURCE_CONFIG) BackupConfiguration configuration) throws IOException {
+            @Named(CommandLineModule.SOURCE_CONFIG) BackupConfiguration configuration) {
         return new NoneErrorCorrector(
                 configuration.getProperty("noneErrorCorrection.maximumFileSize", DEFAULT_MAXIMUM_FILE_SIZE)
         );

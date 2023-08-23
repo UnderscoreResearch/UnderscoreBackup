@@ -83,9 +83,8 @@ public class EncryptionModule extends AbstractModule {
         if (!Strings.isNullOrEmpty(keyData) && !commandLine.hasOption(ADDITIONAL_KEY)) {
             encryptionKey = EncryptionKey.createWithKeyData(keyData);
         } else {
-            String keyFile = rootKeyFile;
 
-            try (FileInputStream inputStream = new FileInputStream(keyFile)) {
+            try (FileInputStream inputStream = new FileInputStream(rootKeyFile)) {
                 encryptionKey = ENCRYPTION_KEY_READER.readValue(IOUtils.readAllBytes(inputStream));
             }
         }

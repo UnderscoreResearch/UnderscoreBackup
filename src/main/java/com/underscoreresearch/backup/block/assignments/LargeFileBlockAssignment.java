@@ -208,7 +208,8 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
         BackupPartialFile file = locationRef.get();
         if (file != null) {
             return BackupLocation.builder().creation(Instant.now().toEpochMilli())
-                    .parts(file.getParts().stream().map(t -> t.getPart()).collect(Collectors.toList())).build();
+                    .parts(file.getParts().stream().map(BackupPartialFile.PartialCompletedPath::getPart)
+                            .collect(Collectors.toList())).build();
         } else {
             throw new RuntimeException("Expected an existing location reference");
         }

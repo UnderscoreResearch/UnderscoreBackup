@@ -50,10 +50,9 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
     private final MetadataRepository repository;
     private final ContinuousBackup continuousBackup;
     private final Path manifestDirectory;
+    private final Lock lock = new ReentrantLock();
+    private final Condition condition = lock.newCondition();
     private WatchService watchService;
-
-    private Lock lock = new ReentrantLock();
-    private Condition condition = lock.newCondition();
     private Thread thread;
     private ExecutorService executorService;
     private BlockingQueue<Runnable> executionQueue;
@@ -149,7 +148,7 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
     }
 
     private class PollingThread implements Runnable {
-        private AtomicBoolean overflowing = new AtomicBoolean();
+        private final AtomicBoolean overflowing = new AtomicBoolean();
 
         @Override
         public void run() {

@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.cli;
 
 import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
 import static com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector.NONE;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
@@ -43,7 +44,7 @@ public class ConfigurationValidator {
     private static final String DEFAULT_ENCRYPTION = AES_ENCRYPTION;
     private static final String DEFAULT_ERROR_CORRECTION = NONE;
     private static final int DEFAULT_UNSYNCED_SIZE = 8 * 1024 * 1024;
-    private static final Pattern INVALID_CHARACTERS = Pattern.compile("[\\/\\:\\\\]");
+    private static final Pattern INVALID_CHARACTERS = Pattern.compile("[/:\\\\]");
 
     public static void validateConfiguration(BackupConfiguration configuration, boolean readOnly, boolean source) {
         validateSets(configuration, source);
@@ -167,7 +168,7 @@ public class ConfigurationValidator {
                 throw new IllegalArgumentException("Repository does not exist, run backup or rebuild-repository first");
             }
             log.warn("Local location for backup metadata does not exist.");
-            file.mkdirs();
+            createDirectory(file);
         } else {
             file = new File(file, "db");
             if (file.exists() && !file.isDirectory()) {
@@ -230,7 +231,7 @@ public class ConfigurationValidator {
         if (configuration.getSets() == null) {
             configuration.setSets(new ArrayList<>());
         }
-        validateUniqueness("Sets ", configuration.getSets().stream().map(t -> t.getId())
+        validateUniqueness("Sets ", configuration.getSets().stream().map(BackupSet::getId)
                 .collect(Collectors.toList()));
         HashSet<String> existingSetIds = new HashSet<>();
         for (BackupSet backupSet : configuration.getSets()) {
@@ -259,7 +260,7 @@ public class ConfigurationValidator {
 
             if (backupSet.getRetention() == null) {
                 backupSet.setRetention(new BackupRetention());
-            } else if (backupSet.getRetention() != null) {
+            } else {
                 long previousFrequency = 0;
 
                 if (backupSet.getRetention().getDefaultFrequency() == null) {

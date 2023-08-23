@@ -77,7 +77,7 @@ public class BackupDownloadPost extends TkWrap {
                         InstanceFactory.reloadConfiguration(
                                 InstanceFactory.getAdditionalSource(),
                                 InstanceFactory.getAdditionalSourceName(),
-                                () -> InteractiveCommand.startBackupIfAvailable());
+                                InteractiveCommand::startBackupIfAvailable);
                     } catch (Exception e) {
                         log.error("Failed to restart backup", e);
                     }

@@ -16,7 +16,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 public class JsonWrap extends TkWrap {
-    private static ObjectWriter WRITER = MAPPER.writerFor(Message.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(Message.class);
 
     public JsonWrap(Take take) {
         super(new TkWithType(take, "application/json"));

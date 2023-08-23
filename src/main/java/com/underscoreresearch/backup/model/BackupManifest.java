@@ -33,7 +33,7 @@ public class BackupManifest {
     private String trimSchedule;
     private String optimizeSchedule;
 
-    private void setLocalLocation(String str) {
+    public void setLocalLocation(String str) {
         // Intentional Nop
     }
 }

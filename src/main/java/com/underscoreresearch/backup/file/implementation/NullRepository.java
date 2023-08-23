@@ -40,12 +40,12 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public String lastSyncedLogFile(String share) throws IOException {
+    public String lastSyncedLogFile(String share) {
         return null;
     }
 
     @Override
-    public void setLastSyncedLogFile(String share, String entry) throws IOException {
+    public void setLastSyncedLogFile(String share, String entry) {
 
     }
 
@@ -65,17 +65,17 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
+    public void deleteAdditionalBlock(String publicKey, String blockHash) {
 
     }
 
     @Override
-    public boolean addUpdatedFile(BackupUpdatedFile file, long howOftenMs) throws IOException {
+    public boolean addUpdatedFile(BackupUpdatedFile file, long howOftenMs) {
         return false;
     }
 
     @Override
-    public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
+    public void removeUpdatedFile(BackupUpdatedFile file) {
 
     }
 
@@ -85,7 +85,7 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public void upgradeStorage() throws IOException {
+    public void upgradeStorage() {
     }
 
     @Override
@@ -138,11 +138,11 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public void addTemporaryBlock(BackupBlock block) throws IOException {
+    public void addTemporaryBlock(BackupBlock block) {
     }
 
     @Override
-    public void installTemporaryBlocks() throws IOException {
+    public void installTemporaryBlocks() {
     }
 
     @Override
@@ -164,7 +164,7 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public boolean hasActivePath(String setId, String path) throws IOException {
+    public boolean hasActivePath(String setId, String path) {
         return false;
     }
 
@@ -183,7 +183,7 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public void clearPartialFiles() throws IOException {
+    public void clearPartialFiles() {
 
     }
 
@@ -220,7 +220,7 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public CloseableStream<BackupBlockAdditional> allAdditionalBlocks() throws IOException {
+    public CloseableStream<BackupBlockAdditional> allAdditionalBlocks() {
         return null;
     }
 

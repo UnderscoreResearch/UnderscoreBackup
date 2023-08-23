@@ -8,6 +8,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.MANI
 import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE_REBUILD;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
@@ -308,9 +309,7 @@ public class BackupModule extends AbstractModule {
         } else {
             metadataRoot = Paths.get(manifestLocation, "db").toFile();
         }
-        if (!metadataRoot.isDirectory()) {
-            metadataRoot.mkdirs();
-        }
+        createDirectory(metadataRoot);
         return metadataRoot.toString();
     }
 

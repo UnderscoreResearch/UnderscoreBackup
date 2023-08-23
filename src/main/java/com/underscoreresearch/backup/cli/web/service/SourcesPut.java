@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryComman
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
 import static com.underscoreresearch.backup.cli.web.service.SourcesPost.encryptionKey;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
@@ -121,7 +122,7 @@ public class SourcesPut extends JsonWrap {
             return true;
         } catch (Exception exc) {
             log.error("Failed to download configuration", exc);
-            privateKeyFile.delete();
+            deleteFile(privateKeyFile);
             return false;
         }
     }

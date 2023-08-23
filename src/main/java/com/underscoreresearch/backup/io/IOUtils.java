@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_BASE;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,8 +25,8 @@ public final class IOUtils {
     public static final long INTERNET_WAIT = 1000;
     private static final Duration INTERNET_SUCCESS_CACHE = Duration.ofSeconds(2);
     private static final int DEFAULT_BUFFER_SIZE = 8192;
+    private static final AtomicBoolean waitingForInternetMessage = new AtomicBoolean();
     private static Instant internetSuccessfulUntil = null;
-    private static AtomicBoolean waitingForInternetMessage = new AtomicBoolean();
 
     public static byte[] readAllBytes(InputStream stream) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -65,7 +66,7 @@ public final class IOUtils {
                     if (3 == i || !(exc instanceof IOException)) {
                         throw exc;
                     }
-                    Thread.sleep((int) Math.pow(2, i) * DEFAULT_BASE);
+                    Thread.sleep((long) Math.pow(2, i) * DEFAULT_BASE);
                 }
             }
 
@@ -99,7 +100,7 @@ public final class IOUtils {
                             }
                             try {
                                 Thread.sleep(INTERNET_WAIT);
-                            } catch (InterruptedException e) {
+                            } catch (InterruptedException ignored) {
                                 Thread.interrupted();
                             }
                             i++;
@@ -120,4 +121,25 @@ public final class IOUtils {
             }
         }
     }
+
+    public static void createDirectory(File file) {
+        if (!file.exists() && !file.mkdirs()) {
+            log.warn("Failed to create directory {}", file);
+        }
+    }
+
+    public static void deleteFile(File file) {
+        try {
+            deleteFileException(file);
+        } catch (IOException e) {
+            log.warn(e.getMessage());
+        }
+    }
+
+    public static void deleteFileException(File file) throws IOException {
+        if (file.exists() && !file.delete()) {
+            throw new IOException("Failed to delete " + file);
+        }
+    }
+
 }

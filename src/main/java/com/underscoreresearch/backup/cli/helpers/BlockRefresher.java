@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -135,7 +136,7 @@ public class BlockRefresher extends SchedulerImpl {
                             }
                         }
                         List<String> partList = Lists.newArrayList(parts);
-                        if (partList.stream().anyMatch(t -> t == null)) {
+                        if (partList.stream().anyMatch(Objects::isNull)) {
                             log.error("Failed to refresh storage for block {}", block.getHash());
                         } else {
                             debug(() -> log.debug("Refreshed storage for block {}", block.getHash()));

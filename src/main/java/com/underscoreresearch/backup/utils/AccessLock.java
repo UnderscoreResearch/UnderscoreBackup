@@ -12,7 +12,7 @@ import lombok.Getter;
 
 public class AccessLock implements Closeable {
     @Getter
-    private String filename;
+    private final String filename;
     private RandomAccessFile file;
     private FileChannel channel;
     private FileLock lock;
@@ -69,7 +69,7 @@ public class AccessLock implements Closeable {
                     break;
                 } catch (ClosedChannelException e) {
                     ensureOpenFile();
-                } catch (FileLockInterruptionException e) {
+                } catch (FileLockInterruptionException ignored) {
                 }
             }
         }

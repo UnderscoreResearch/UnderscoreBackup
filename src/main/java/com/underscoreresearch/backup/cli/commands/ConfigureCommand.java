@@ -51,7 +51,7 @@ public class ConfigureCommand extends SimpleCommand {
             } else {
                 log.info("Reloaded configuration for background application");
             }
-        } catch (ConfigurationUrlException exc) {
+        } catch (ConfigurationUrlException ignored) {
         }
     }
 
@@ -70,7 +70,7 @@ public class ConfigureCommand extends SimpleCommand {
                 } else {
                     Desktop.getDesktop().browse(new URI(url.trim()));
                 }
-            } catch (IOException | UnsupportedOperationException e) {
+            } catch (IOException | UnsupportedOperationException ignored) {
             }
         } catch (ConfigurationUrlException exc) {
             log.error(exc.getMessage());

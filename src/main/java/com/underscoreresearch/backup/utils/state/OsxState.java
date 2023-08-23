@@ -37,7 +37,7 @@ public class OsxState extends MachineState {
                     }
                 }
             }
-        } catch (IOException ex) {
+        } catch (IOException ignored) {
         }
         return false;
     }
@@ -50,10 +50,7 @@ public class OsxState extends MachineState {
         } else {
             ret = files.stream().filter(file -> file.getName().endsWith(".x86_64.pkg")).findAny();
         }
-        if (ret.isPresent()) {
-            return ret.get();
-        }
-        return null;
+        return ret.orElse(null);
     }
 
     @Override

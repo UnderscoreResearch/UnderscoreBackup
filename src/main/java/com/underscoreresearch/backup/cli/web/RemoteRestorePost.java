@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
 import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
@@ -58,8 +59,7 @@ public class RemoteRestorePost extends JsonWrap {
 
     public static IOProvider getIoProvider(String source) {
         BackupDestination destination = getManifestDestination(source);
-        IOProvider provider = IOProviderFactory.getProvider(destination);
-        return provider;
+        return IOProviderFactory.getProvider(destination);
     }
 
     public static BackupDestination getManifestDestination(String source) {
@@ -102,7 +102,7 @@ public class RemoteRestorePost extends JsonWrap {
                         updateConfiguration(config, true, true, true);
                     } catch (Exception exc) {
                         log.error("Failed to download configuration", exc);
-                        privateKeyFile.delete();
+                        deleteFile(privateKeyFile);
                         return messageJson(500, "Failed to download configuration");
                     }
 

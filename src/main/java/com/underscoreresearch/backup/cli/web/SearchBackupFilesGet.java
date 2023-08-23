@@ -30,7 +30,7 @@ import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public class SearchBackupFilesGet extends JsonWrap {
     private static final long MAX_HITS = 1000;
-    private static ObjectWriter WRITER = MAPPER.writerFor(new TypeReference<List<ExternalBackupFile>>() {
+    private static final ObjectWriter WRITER = MAPPER.writerFor(new TypeReference<List<ExternalBackupFile>>() {
     });
 
     public SearchBackupFilesGet(String base) {

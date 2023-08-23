@@ -23,13 +23,14 @@ import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
 public class GenerateTokenPost extends JsonWrap {
-    private static ObjectReader READER = MAPPER.readerFor(InternalGenerateTokenRequest.class);
-    private static ObjectWriter WRITER = MAPPER.writerFor(InternalGenerateTokenResponse.class);
+    private static final ObjectReader READER = MAPPER.readerFor(InternalGenerateTokenRequest.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(InternalGenerateTokenResponse.class);
 
     public GenerateTokenPost() {
         super(new Implementation());
@@ -57,7 +58,7 @@ public class GenerateTokenPost extends JsonWrap {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
                 serviceManager.generateToken(request.getCode(),
                         request.getCodeVerifier());
-                ListSourcesResponse sources = serviceManager.call(null, (api) -> api.listSources());
+                ListSourcesResponse sources = serviceManager.call(null, BackupApi::listSources);
                 String identity = InstanceFactory.getInstance(CommandLineModule.INSTALLATION_IDENTITY);
                 Optional<SourceResponse> found = sources.getSources().stream()
                         .filter(source -> source.getIdentity().equals(identity)).findAny();

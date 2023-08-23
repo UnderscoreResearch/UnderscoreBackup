@@ -1,6 +1,8 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
@@ -83,6 +85,14 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final ExecutorService uploadExecutor;
     private final AtomicInteger uploadCount = new AtomicInteger();
     private final AtomicBoolean currentlyClosingLog = new AtomicBoolean();
+    private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
+            new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
+    @Getter(AccessLevel.PROTECTED)
+    private final EncryptionKey publicKey;
+    @Getter(AccessLevel.PROTECTED)
+    private final UploadScheduler uploadScheduler;
+    @Getter(AccessLevel.PROTECTED)
+    private final IOProvider provider;
     @Getter
     private boolean shutdown;
     @Getter
@@ -91,18 +101,10 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private AccessLock currentLogLock;
     private String lastLogFilename;
     private long currentLogLength;
-    private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
-            new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
     @Getter(AccessLevel.PROTECTED)
     private LogConsumer logConsumer;
     @Getter(AccessLevel.PROTECTED)
     private boolean initialized;
-    @Getter(AccessLevel.PROTECTED)
-    private EncryptionKey publicKey;
-    @Getter(AccessLevel.PROTECTED)
-    private UploadScheduler uploadScheduler;
-    @Getter(AccessLevel.PROTECTED)
-    private IOProvider provider;
 
     public BaseManifestManagerImpl(BackupConfiguration configuration,
                                    BackupDestination manifestDestination,
@@ -176,7 +178,10 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     protected List<File> existingLogFiles() throws IOException {
         File parent = Paths.get(manifestLocation, "logs").toFile();
         if (parent.isDirectory()) {
-            return Arrays.stream(parent.list()).map(file -> new File(parent, file)).collect(Collectors.toList());
+            String[] files = parent.list();
+            if (files != null) {
+                return Arrays.stream(files).map(file -> new File(parent, file)).collect(Collectors.toList());
+            }
         }
         return new ArrayList<>();
     }
@@ -202,18 +207,15 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     protected void uploadData(String file, byte[] data, Runnable success) {
         uploadCount.incrementAndGet();
         uploadExecutor.submit(() -> {
-            try {
-                uploadScheduler.scheduleUpload(manifestDestination, file, data, key -> {
-                    if (success != null && key != null) {
-                        success.run();
-                    }
-                });
-            } finally {
+            uploadScheduler.scheduleUpload(manifestDestination, file, data, key -> {
+                if (success != null && key != null) {
+                    success.run();
+                }
                 synchronized (uploadCount) {
                     uploadCount.decrementAndGet();
                     uploadCount.notifyAll();
                 }
-            }
+            });
         });
     }
 
@@ -340,9 +342,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         Runnable success;
         if (deleteFilename != null) {
             success = () -> {
-                if (!new File(deleteFilename).delete()) {
-                    log.warn("Failed to delete file {}", deleteFilename);
-                }
+                deleteFile(new File(deleteFilename));
             };
         } else {
             success = null;
@@ -380,7 +380,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 log.error("Failed to save log entry: " + type + ": " + jsonDefinition, exc);
 
                 try {
-                    flushLogging();
+                    flushRepositoryLogging();
                 } catch (IOException exc2) {
                     log.error("Start new log file", exc2);
                     try {
@@ -395,7 +395,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
         if (flush) {
             try {
-                flushLogging();
+                flushRepositoryLogging();
             } catch (IOException exc) {
                 log.error("Failed to flush log");
             }
@@ -404,14 +404,16 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
     private void writeLogEntry(String type, String jsonDefinition) throws IOException {
         byte[] data = (type + ":" + jsonDefinition + "\n").getBytes(StandardCharsets.UTF_8);
-        currentLogLock.getLockedChannel().write(ByteBuffer.wrap(data));
+        if (currentLogLock.getLockedChannel().write(ByteBuffer.wrap(data)) != data.length) {
+            log.error("Failed to write log entry");
+        }
         if (!disabledFlushing) {
             currentLogLock.getLockedChannel().force(false);
         }
         currentLogLength += data.length;
     }
 
-    protected void flushLogging() throws IOException {
+    protected void flushRepositoryLogging() throws IOException {
         boolean performFlush = false;
         synchronized (lock) {
             if (!currentlyClosingLog.get()) {
@@ -444,7 +446,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         String filename;
         filename = createLogFilename();
 
-        new File(filename).getParentFile().mkdirs();
+        createDirectory(new File(filename).getParentFile());
+
         currentLogLock = new AccessLock(filename);
         lastLogFilename = filename;
         currentLogLock.lock(true);
@@ -456,14 +459,12 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
 
         File dir = new File(filename).getParentFile();
-        if (!dir.isDirectory())
-            dir.mkdirs();
+        createDirectory(dir);
 
         if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
-            String logName = filename;
             executor.schedule(() -> {
                         synchronized (lock) {
-                            if (currentLogLock != null && currentLogLength > 0 && logName.equals(currentLogLock.getFilename())) {
+                            if (currentLogLock != null && currentLogLength > 0 && filename.equals(currentLogLock.getFilename())) {
                                 try {
                                     closeLogFile();
                                 } catch (IOException exc) {
@@ -483,7 +484,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         while (filename.equals(lastLogFilename)) {
             try {
                 Thread.sleep(50);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ignored) {
             }
             debug(() -> log.warn("Had to wait a bit to get a unique filename for log"));
             filename = Paths.get(manifestLocation, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
@@ -523,7 +524,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
-    public void flushLog() throws IOException {
+    public void syncLog() throws IOException {
         synchronized (lock) {
             closeLogFile();
         }
@@ -535,7 +536,6 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             closeLogFile();
         }
         waitUploadSubmission();
-        uploadScheduler.waitForCompletion();
     }
 
     public void waitUploadSubmission() {
@@ -543,7 +543,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             while (uploadCount.get() > 0) {
                 try {
                     uploadCount.wait();
-                } catch (InterruptedException e) {
+                } catch (InterruptedException ignored) {
                 }
             }
         }

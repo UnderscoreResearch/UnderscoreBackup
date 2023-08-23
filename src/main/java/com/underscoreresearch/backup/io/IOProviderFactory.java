@@ -19,7 +19,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
 public final class IOProviderFactory {
-    private static Map<String, Class<? extends IOProvider>> providerClasses;
+    private static final Map<String, Class<? extends IOProvider>> providerClasses;
     private static Map<BackupDestination, IOProvider> providers = new HashMap<>();
 
     static {
@@ -66,9 +66,7 @@ public final class IOProviderFactory {
             return true;
         }
         Class<? extends IOProvider> clz = providerClasses.get(destination.getType());
-        if (clz == null)
-            return false;
-        return true;
+        return clz != null;
     }
 
     public static synchronized IOProvider getProvider(BackupDestination destination) {

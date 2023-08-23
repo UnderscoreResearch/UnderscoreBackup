@@ -1,7 +1,6 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 
 import lombok.RequiredArgsConstructor;
@@ -17,7 +16,7 @@ public class PermissionFileSystemAccess extends FileSystemAccessImpl {
     private final FilePermissionManager permissionManager;
 
     @Override
-    public void populatePermissions(BackupFile backupFile) throws IOException {
+    public void populatePermissions(BackupFile backupFile) {
         backupFile.setPermissions(permissionManager.getPermissions(
                 Path.of(PathNormalizer.physicalPath(backupFile.getPath()))));
     }

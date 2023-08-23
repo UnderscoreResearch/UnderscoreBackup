@@ -18,7 +18,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 public class AdditionalKeysPost extends JsonWrap {
-    private static ObjectWriter WRITER = MAPPER.writerFor(AdditionalKeysResponse.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(AdditionalKeysResponse.class);
 
     public AdditionalKeysPost() {
         super(new Implementation());

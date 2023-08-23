@@ -14,7 +14,7 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
 public class AdditionalKeyPut extends JsonWrap {
-    private static ObjectWriter WRITER = MAPPER.writerFor(ExternalEncryptionKey.class);
+    private static final ObjectWriter WRITER = MAPPER.writerFor(ExternalEncryptionKey.class);
 
     public AdditionalKeyPut() {
         super(new Implementation());

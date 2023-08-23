@@ -46,10 +46,10 @@ public class UnderscoreBackupProvider implements IOIndex {
     private static final long START_TIMEOUT_MINUTES = 1;
     private static final long MAX_TIMEOUT_MINUTES = 1;
     private static final int S3_UPLOAD_TIMEOUT = (int) Duration.ofSeconds(10).toMillis();
+    private static final HashSet<String> verifiedSources = new HashSet<>();
     private static String cachedIdentityKey;
     private static Instant cachedIdentityTimeout;
     private static byte[] cachedIdentity;
-    private static HashSet<String> verifiedSources = new HashSet<>();
     private String region;
     private String sourceId;
     private String shareId;
@@ -92,7 +92,7 @@ public class UnderscoreBackupProvider implements IOIndex {
 
     private <T> T callRetry(ServiceManager.ApiFunction<T> callable) throws IOException {
         try {
-            return getServiceManager().callApi(region, new ServiceManager.ApiFunction<T>() {
+            return getServiceManager().callApi(region, new ServiceManager.ApiFunction<>() {
                 @Override
                 public boolean shouldRetryMissing(String region) {
                     synchronized (verifiedSources) {
@@ -143,7 +143,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         FileListResponse response = callRetry((api) -> api.listLogFiles(getSourceId(), lastSyncedFile, shareId));
 
         // Almost all backups will be less than one page, so we can optimize for that case
-        if (response.getCompleted()) {
+        if (Boolean.TRUE.equals(response.getCompleted())) {
             return response.getFiles();
         }
 
@@ -152,7 +152,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         do {
             response = callRetry((api) -> api.listLogFiles(getSourceId(), ret.get(ret.size() - 1), shareId));
             ret.addAll(response.getFiles());
-        } while (!response.getCompleted());
+        } while (Boolean.FALSE.equals(response.getCompleted()));
         return ret;
     }
 
@@ -233,9 +233,7 @@ public class UnderscoreBackupProvider implements IOIndex {
 
     private boolean retrySignedException(Exception exc) {
         if (exc instanceof IOException) {
-            if (TIMEOUT_MESSAGE.equals(exc.getMessage())) {
-                return true;
-            }
+            return TIMEOUT_MESSAGE.equals(exc.getMessage());
         }
         return false;
     }

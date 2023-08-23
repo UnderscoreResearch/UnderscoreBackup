@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reload
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
@@ -69,13 +70,13 @@ public class RebuildRepositoryCommand extends Command {
 
     private static void cleanDir(File tempDir) {
         String[] entries = tempDir.list();
-        for (String s : entries) {
-            File currentFile = new File(tempDir.getPath(), s);
-            if (currentFile.isDirectory()) {
-                cleanDir(currentFile);
-                currentFile.delete();
-            } else {
-                currentFile.delete();
+        if (entries != null) {
+            for (String s : entries) {
+                File currentFile = new File(tempDir.getPath(), s);
+                if (currentFile.isDirectory()) {
+                    cleanDir(currentFile);
+                }
+                deleteFile(currentFile);
             }
         }
     }
@@ -109,13 +110,13 @@ public class RebuildRepositoryCommand extends Command {
                     thread.join(1000);
                     if (!thread.isAlive())
                         return;
-                } catch (InterruptedException e) {
+                } catch (InterruptedException ignored) {
                 }
                 log.info("Waiting for rebuild to get to a checkpoint");
                 do {
                     try {
                         thread.join();
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException ignored) {
                     }
                 } while (thread.isAlive());
             });

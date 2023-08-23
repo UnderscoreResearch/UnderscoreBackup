@@ -122,7 +122,7 @@ final class Curve25519 {
      *
      * @return true if two arrays are equal.
      */
-    private static final boolean byteEqual(final byte[] x, final byte[] y) {
+    private static boolean byteEqual(final byte[] x, final byte[] y) {
         if (x == null || y == null) {
             return false;
         }
@@ -295,7 +295,7 @@ final class Curve25519 {
         long[] nqx2 = new long[19];
         long[] nqz2 = new long[19];
         nqz2[0] = 1;
-        long[] t = new long[19];
+        long[] t;
 
         System.arraycopy(q, 0, nqpqx, 0, Field25519.LIMB_CNT);
 
@@ -361,9 +361,9 @@ final class Curve25519 {
         // Clears the most significant bit as in the method decodeUCoordinate() of RFC7748.
         pubKey[31] &= (byte) 0x7f;
 
-        for (int i = 0; i < BANNED_PUBLIC_KEYS.length; i++) {
-            if (byteEqual(BANNED_PUBLIC_KEYS[i], pubKey)) {
-                throw new InvalidKeyException("Banned public key: " + hexEncode(BANNED_PUBLIC_KEYS[i]));
+        for (byte[] bannedPublicKey : BANNED_PUBLIC_KEYS) {
+            if (byteEqual(bannedPublicKey, pubKey)) {
+                throw new InvalidKeyException("Banned public key: " + hexEncode(bannedPublicKey));
             }
         }
     }

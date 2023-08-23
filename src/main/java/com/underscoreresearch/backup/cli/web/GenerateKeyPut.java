@@ -28,7 +28,7 @@ public class GenerateKeyPut extends JsonWrap {
                 try {
                     InstanceFactory.getInstance(EncryptionKey.class);
                     return messageJson(400, "Already have encryption key generated");
-                } catch (Exception exc) {
+                } catch (Exception ignored) {
                 }
                 GenerateKeyCommand.generateAndSaveNewKey(InstanceFactory.getInstance(CommandLine.class),
                         password);

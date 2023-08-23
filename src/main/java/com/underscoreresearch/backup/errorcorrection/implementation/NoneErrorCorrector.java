@@ -22,7 +22,7 @@ public class NoneErrorCorrector implements ErrorCorrector {
     private final int maximumPartSize;
 
     @Override
-    public List<byte[]> encodeErrorCorrection(BackupBlockStorage storage, byte[] originalData) throws Exception {
+    public List<byte[]> encodeErrorCorrection(BackupBlockStorage storage, byte[] originalData) {
         storage.setEc(NONE);
         if (originalData.length <= maximumPartSize) {
             return Lists.newArrayList(originalData);

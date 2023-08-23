@@ -16,7 +16,7 @@ import com.underscoreresearch.backup.model.BackupActiveStatus;
 
 @Slf4j
 public class BackupContentsAccessImpl extends BackupContentsAccessPathOnly {
-    private Map<String, BackupActivePath> activePaths;
+    private final Map<String, BackupActivePath> activePaths;
     private Set<String> rootPaths;
 
     public BackupContentsAccessImpl(MetadataRepository repository, Long timestamp, boolean includeDeleted)

@@ -97,27 +97,6 @@ public class ReedSolomon {
     }
 
     /**
-     * Returns the number of data shards.
-     */
-    public int getDataShardCount() {
-        return dataShardCount;
-    }
-
-    /**
-     * Returns the number of parity shards.
-     */
-    public int getParityShardCount() {
-        return parityShardCount;
-    }
-
-    /**
-     * Returns the total number of shards.
-     */
-    public int getTotalShardCount() {
-        return totalShardCount;
-    }
-
-    /**
      * Encodes parity for a set of data shards.
      *
      * @param shards    An array containing data shards followed by parity shards.
@@ -140,66 +119,6 @@ public class ReedSolomon {
                 shards, dataShardCount,
                 outputs, parityShardCount,
                 offset, byteCount);
-    }
-
-    /**
-     * Returns true if the parity shards contain the right data.
-     *
-     * @param shards    An array containing data shards followed by parity shards.
-     *                  Each shard is a byte array, and they must all be the same
-     *                  size.
-     * @param firstByte The index of the first byte in each shard to check.
-     * @param byteCount The number of bytes to check in each shard.
-     */
-    public boolean isParityCorrect(byte[][] shards, int firstByte, int byteCount) {
-        // Check arguments.
-        checkBuffersAndSizes(shards, firstByte, byteCount);
-
-        // Build the array of buffers being checked.
-        byte[][] toCheck = new byte[parityShardCount][];
-        System.arraycopy(shards, dataShardCount, toCheck, 0, parityShardCount);
-
-        // Do the checking.
-        return codingLoop.checkSomeShards(
-                parityRows,
-                shards, dataShardCount,
-                toCheck, parityShardCount,
-                firstByte, byteCount,
-                null);
-    }
-
-    /**
-     * Returns true if the parity shards contain the right data.
-     * <p>
-     * This method may be significantly faster than the one above that does
-     * not use a temporary buffer.
-     *
-     * @param shards     An array containing data shards followed by parity shards.
-     *                   Each shard is a byte array, and they must all be the same
-     *                   size.
-     * @param firstByte  The index of the first byte in each shard to check.
-     * @param byteCount  The number of bytes to check in each shard.
-     * @param tempBuffer A temporary buffer (the same size as each of the
-     *                   shards) to use when computing parity.
-     */
-    public boolean isParityCorrect(byte[][] shards, int firstByte, int byteCount, byte[] tempBuffer) {
-        // Check arguments.
-        checkBuffersAndSizes(shards, firstByte, byteCount);
-        if (tempBuffer.length < firstByte + byteCount) {
-            throw new IllegalArgumentException("tempBuffer is not big enough");
-        }
-
-        // Build the array of buffers being checked.
-        byte[][] toCheck = new byte[parityShardCount][];
-        System.arraycopy(shards, dataShardCount, toCheck, 0, parityShardCount);
-
-        // Do the checking.
-        return codingLoop.checkSomeShards(
-                parityRows,
-                shards, dataShardCount,
-                toCheck, parityShardCount,
-                firstByte, byteCount,
-                tempBuffer);
     }
 
     /**

@@ -18,11 +18,11 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 @Slf4j
 public class SchedulerImpl {
     private final int maximumConcurrency;
-    private ExecutorService executor;
-    private List<Runnable> executingTasks = new ArrayList<>();
+    private final ExecutorService executor;
+    private final List<Runnable> executingTasks = new ArrayList<>();
+    private final Stopwatch stopwatch = Stopwatch.createUnstarted();
     @Getter(AccessLevel.PROTECTED)
     private boolean shutdown;
-    private Stopwatch stopwatch = Stopwatch.createUnstarted();
 
     public SchedulerImpl(int maximumConcurrency) {
         this.maximumConcurrency = maximumConcurrency;

@@ -18,6 +18,7 @@ import com.dropbox.core.v2.files.DownloadErrorException;
 import com.dropbox.core.v2.files.FileMetadata;
 import com.dropbox.core.v2.files.ListFolderErrorException;
 import com.dropbox.core.v2.files.ListFolderResult;
+import com.dropbox.core.v2.files.Metadata;
 import com.dropbox.core.v2.files.UploadBuilder;
 import com.dropbox.core.v2.files.UploadUploader;
 import com.dropbox.core.v2.files.WriteMode;
@@ -56,7 +57,7 @@ public class DropboxIOProvider implements IOIndex {
         try {
             ListFolderResult result = RetryUtils.retry(() -> clientV2.files().listFolder(getFullPath(prefix)),
                     (e) -> !(e instanceof ListFolderErrorException));
-            return result.getEntries().stream().map(item -> item.getName()).collect(Collectors.toList());
+            return result.getEntries().stream().map(Metadata::getName).collect(Collectors.toList());
         } catch (ListFolderErrorException e) {
             return Lists.newArrayList();
         } catch (Exception e) {

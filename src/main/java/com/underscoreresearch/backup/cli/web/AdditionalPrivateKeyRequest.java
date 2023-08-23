@@ -22,7 +22,7 @@ import com.google.common.base.Strings;
 @NoArgsConstructor
 @Slf4j
 public class AdditionalPrivateKeyRequest {
-    private static ObjectReader READER = MAPPER
+    private static final ObjectReader READER = MAPPER
             .readerFor(AdditionalPrivateKeyRequest.class);
     private String password;
     private String privateKey;

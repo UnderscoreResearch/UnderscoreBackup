@@ -10,7 +10,7 @@ public interface BaseManifestManager {
 
     void deleteLogFiles(List<String> file) throws IOException;
 
-    void flushLog() throws IOException;
+    void syncLog() throws IOException;
 
     void initialize(LogConsumer logConsumer, boolean immediate) throws IOException;
 

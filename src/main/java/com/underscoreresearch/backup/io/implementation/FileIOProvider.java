@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.io.implementation;
 
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
 import static com.underscoreresearch.backup.io.implementation.FileIOProvider.FILE_TYPE;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
@@ -52,9 +54,8 @@ public class FileIOProvider implements IOIndex {
     @Override
     public String upload(String key, byte[] data) throws IOException {
         File file = getFile(key);
-        if (!file.getParentFile().isDirectory()) {
-            file.getParentFile().mkdirs();
-        }
+
+        createDirectory(file.getParentFile());
 
         try (FileOutputStream stream = new FileOutputStream(file)) {
             stream.write(data, 0, data.length);
@@ -78,9 +79,7 @@ public class FileIOProvider implements IOIndex {
     @Override
     public void delete(String key) throws IOException {
         File file = getFile(key);
-        if (file.exists() && !file.delete()) {
-            throw new IOException("Failed to delete " + file);
-        }
+        deleteFileException(file);
 
         File parent = file.getParentFile();
         File root = new File(this.root);

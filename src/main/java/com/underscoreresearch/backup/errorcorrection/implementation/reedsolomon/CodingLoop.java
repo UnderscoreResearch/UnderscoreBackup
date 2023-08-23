@@ -7,43 +7,6 @@
 package com.underscoreresearch.backup.errorcorrection.implementation.reedsolomon;
 
 public interface CodingLoop {
-
-    /**
-     * All of the available coding loop algorithms.
-     * <p>
-     * The different choices nest the three loops in different orders,
-     * and either use the log/exponents tables, or use the multiplication
-     * table.
-     * <p>
-     * The naming of the three loops is (with number of loops in benchmark):
-     * <p>
-     * "byte"   - Index of byte within shard.  (200,000 bytes in each shard)
-     * <p>
-     * "input"  - Which input shard is being read.  (17 data shards)
-     * <p>
-     * "output"  - Which output shard is being computed.  (3 parity shards)
-     * <p>
-     * And the naming for multiplication method is:
-     * <p>
-     * "table"  - Use the multiplication table.
-     * <p>
-     * "exp"    - Use the logarithm/exponent table.
-     * <p>
-     * The ReedSolomonBenchmark class compares the performance of the different
-     * loops, which will depend on the specific processor you're running on.
-     * <p>
-     * This is the inner loop.  It needs to be fast.  Be careful
-     * if you change it.
-     * <p>
-     * I have tried inlining Galois.multiply(), but it doesn't
-     * make things any faster.  The JIT compiler is known to inline
-     * methods, so it's probably already doing so.
-     */
-    CodingLoop[] ALL_CODING_LOOPS =
-            new CodingLoop[]{
-                    new InputOutputByteTableCodingLoop(),
-            };
-
     /**
      * Multiplies a subset of rows from a coding matrix by a full set of
      * input shards to produce some output shards.

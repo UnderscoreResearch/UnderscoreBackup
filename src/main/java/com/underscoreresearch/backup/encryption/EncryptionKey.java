@@ -100,12 +100,12 @@ public class EncryptionKey {
                                                                           PrivateKey oldPrivateKey) throws IOException {
         EncryptionKey ret = generateKeyWithPassword(newPassword);
         PrivateKey newPrivateKey = ret.getPrivateKey(newPassword);
-        ret.generateBlockHashSalt(newPrivateKey);
+        ret.generateBlockHashSalt();
         oldPrivateKey.getAdditionalKeyManager().writeAdditionalKeys(newPrivateKey);
         newPrivateKey.keyManager = null;
         ret.sharingPublicKey = oldPrivateKey.getParent().sharingPublicKey;
         ret.blockHashSalt = oldPrivateKey.getParent().blockHashSalt;
-        ret.updateEncryptedBlockHashSalt(newPrivateKey);
+        ret.updateEncryptedBlockHashSalt();
         return ret;
     }
 
@@ -226,15 +226,15 @@ public class EncryptionKey {
     }
 
     @JsonIgnore
-    public void generateBlockHashSalt(PrivateKey privateKey) {
+    public void generateBlockHashSalt() {
         if (blockHashSalt == null) {
             blockHashSalt = new byte[32];
             RANDOM.nextBytes(blockHashSalt);
-            updateEncryptedBlockHashSalt(privateKey);
+            updateEncryptedBlockHashSalt();
         }
     }
 
-    private void updateEncryptedBlockHashSalt(PrivateKey privateKey) {
+    private void updateEncryptedBlockHashSalt() {
         if (blockHashSalt != null)
             blockHashSaltEncrypted = Hash.encodeBytes64(ENCRYPTOR.encryptBlock(null, blockHashSalt, this));
         else
@@ -331,10 +331,7 @@ public class EncryptionKey {
 
     @JsonProperty
     public void setPublicKeyHash(String publicKeyHash) {
-        if (publicKeyHash != null)
-            this.publicKeyHash = publicKeyHash;
-        else
-            this.publicKeyHash = null;
+        this.publicKeyHash = publicKeyHash;
     }
 
     @JsonProperty

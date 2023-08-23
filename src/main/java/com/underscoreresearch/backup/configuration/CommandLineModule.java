@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.configuration;
 
 import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAULT_KEY_FILES;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
@@ -42,6 +43,7 @@ import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupManifest;
+import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 import com.underscoreresearch.backup.utils.ActivityAppender;
@@ -99,11 +101,7 @@ public class CommandLineModule extends AbstractModule {
         this.argv = argv;
         if (source != null) {
             this.source = source;
-            if (sourceName != null) {
-                this.sourceName = sourceName;
-            } else {
-                this.sourceName = source;
-            }
+            this.sourceName = Objects.requireNonNullElse(sourceName, source);
         } else {
             this.source = "";
             this.sourceName = "";
@@ -137,7 +135,7 @@ public class CommandLineModule extends AbstractModule {
         } else {
             configDir = new File(userDir, ".underscoreBackup");
         }
-        configDir.mkdirs();
+        createDirectory(configDir);
         return configDir.getAbsolutePath();
     }
 
@@ -170,7 +168,7 @@ public class CommandLineModule extends AbstractModule {
         }
 
         // So this is a bit tricky. If the configuration for the manifest matches the URI and type we have then
-        // replace the destination with what is defined in the backup configuration. Otherwise, add a new destination
+        // replaced the destination with what is defined in the backup configuration. Otherwise, add a new destination
         // with a generated name and make that the manifest location.
         if (manifestDestination.get() == null
                 || !Objects.equals(destination.getEndpointUri(), manifestDestination.get().getEndpointUri())
@@ -229,8 +227,7 @@ public class CommandLineModule extends AbstractModule {
     @Singleton
     public CommandLine commandLine(Options options) throws ParseException {
         CommandLineParser parser = new DefaultParser();
-        CommandLine cl = parser.parse(options, argv);
-        return cl;
+        return parser.parse(options, argv);
     }
 
     @Provides
@@ -282,7 +279,7 @@ public class CommandLineModule extends AbstractModule {
                     return additionalSource;
                 }
                 if (serviceManager.getToken() != null) {
-                    ListSourcesResponse serviceSources = serviceManager.call(null, (api) -> api.listSources());
+                    ListSourcesResponse serviceSources = serviceManager.call(null, BackupApi::listSources);
                     Optional<SourceResponse> service = serviceSources.getSources().stream()
                             .filter((source) -> source.getSourceId().equals(additionalSource)
                                     || source.getName().equals(additionalSource)).findAny();
@@ -301,7 +298,7 @@ public class CommandLineModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public SourceResponse sourceDefinition(@Named(ADDITIONAL_SOURCE) String source) {
+    public SourceResponse sourceDefinition(@Named(ADDITIONAL_SOURCE) String ignored) {
         if (sourceDefinition == null) {
             return new SourceResponse();
         }
@@ -385,9 +382,8 @@ public class CommandLineModule extends AbstractModule {
         } else {
             if (commandLine.getArgList().size() > 0 && commandLine.getArgList().get(0).equals("interactive")) {
                 File systemDir = new File("/etc/underscorebackup");
-                if (!systemDir.exists()) {
-                    systemDir.mkdir();
-                }
+                createDirectory(systemDir);
+
                 if (Files.isWritable(systemDir.toPath())) {
                     return DEFAULT_CONFIG;
                 }
@@ -416,7 +412,7 @@ public class CommandLineModule extends AbstractModule {
         if (commandLine.hasOption(CONFIG)) {
             try {
                 File file = new File(commandLine.getOptionValue(CONFIG)).getParentFile().getCanonicalFile();
-                file.mkdirs();
+                createDirectory(file);
                 return file.getAbsolutePath();
             } catch (IOException exc) {
                 log.warn("Failed to resolve default manifest location from config location {}",
@@ -426,9 +422,7 @@ public class CommandLineModule extends AbstractModule {
 
         if (!SystemUtils.IS_OS_WINDOWS) {
             File systemFile = new File(DEFAULT_LOCAL_PATH);
-            if (!systemFile.exists()) {
-                systemFile.mkdirs();
-            }
+            createDirectory(systemFile);
             if (Files.isWritable(systemFile.toPath())) {
                 return DEFAULT_LOCAL_PATH;
             }
@@ -527,8 +521,7 @@ public class CommandLineModule extends AbstractModule {
                 return DEFAULT_LOG_PATH;
             }
             try {
-                try (FileOutputStream stream = new FileOutputStream(systemLogFile)) {
-                }
+                new FileOutputStream(systemLogFile).close();
                 return DEFAULT_LOG_PATH;
             } catch (IOException exc) {
                 // We don't have access default to user log file.

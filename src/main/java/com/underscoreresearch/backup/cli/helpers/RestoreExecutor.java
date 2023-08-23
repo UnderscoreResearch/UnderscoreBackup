@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.helpers;
 import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
 import java.io.Closeable;
@@ -151,17 +152,14 @@ public class RestoreExecutor {
             root = true;
         }
         if (files != null) {
-            files = files.stream().filter(file -> rootPath.includeFileOrDirectory(file))
-                    .collect(Collectors.toList());
+            files = files.stream().filter(rootPath::includeFileOrDirectory).collect(Collectors.toList());
 
             File destinationFile = new File(PathNormalizer.physicalPath(destination));
             if (root && files.size() == 1 && !files.get(0).isDirectory() && !destinationFile.isDirectory()) {
                 downloadFile(scheduler, files.get(0), destination, overwrite, skipPermissions);
             } else {
                 if (!isNullFile(inputDestination) && destination.length() > 0 && !destinationFile.isDirectory()) {
-                    if (!destinationFile.mkdirs()) {
-                        throw new IOException("Failed to create destination directories " + destinationFile.toString());
-                    }
+                    createDirectory(destinationFile);
                 }
 
                 for (BackupFile file : files) {

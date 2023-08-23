@@ -2,6 +2,8 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.File;
@@ -123,7 +125,9 @@ public class FileSystemAccessImpl implements FileSystemAccess {
         ensureDirectoryExists(file);
         try (RandomAccessFile stream = new RandomAccessFile(file, "rw")) {
             try (FileChannel ch = stream.getChannel()) {
-                ch.write(ByteBuffer.wrap(buffer, 0, length), offset);
+                if (ch.write(ByteBuffer.wrap(buffer, 0, length), offset) != length) {
+                    throw new IOException("Failed to write data to file " + file.getAbsolutePath());
+                }
             }
         }
     }
@@ -147,15 +151,11 @@ public class FileSystemAccessImpl implements FileSystemAccess {
     @Override
     public void delete(String path) throws IOException {
         File file = new File(PathNormalizer.physicalPath(path));
-        if (!file.delete()) {
-            throw new IOException("Failed to delete file " + file.getAbsolutePath());
-        }
+        deleteFileException(file);
     }
 
     private void ensureDirectoryExists(File file) {
         File parent = file.getParentFile();
-        if (!parent.isDirectory()) {
-            parent.mkdirs();
-        }
+        createDirectory(parent);
     }
 }

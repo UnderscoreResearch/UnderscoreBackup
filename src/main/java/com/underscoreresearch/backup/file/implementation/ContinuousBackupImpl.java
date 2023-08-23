@@ -42,6 +42,7 @@ import com.underscoreresearch.backup.utils.StatusLine;
 @Slf4j
 public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogger {
     private static final int MAX_PENDING_FILES = 100;
+    private static final long FLUSH_TIME_MS = Duration.ofMinutes(1).toMillis();
     private final Lock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
     private final MetadataRepository repository;
@@ -54,7 +55,6 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
     private boolean shutdown;
     private boolean retry;
     private Thread thread;
-    private long FLUSH_TIME_MS = Duration.ofMinutes(1).toMillis();
     private boolean pause;
 
     public ContinuousBackupImpl(MetadataRepository repository, FileConsumer fileConsumer,
@@ -198,7 +198,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
             try {
                 repository.deletePartialFile(partialFile);
             } catch (IOException e) {
-                log.warn("Failed to delete partial file {}", file.toString(), e);
+                log.warn("Failed to delete partial file {}", file, e);
             }
             processedFiles.incrementAndGet();
             processedSize.addAndGet(backupFile.getLength());
@@ -312,7 +312,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                         });
                     } catch (IOException e) {
                         log.error("Error scanning for updated files", e);
-                    } catch (InterruptedScan e) {
+                    } catch (InterruptedScan ignored) {
                     }
 
                     try {
@@ -382,7 +382,9 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         private void waitNext(long next) {
             try {
                 if (next > 0) {
-                    condition.awaitUntil(new Date(next));
+                    if (!condition.awaitUntil(new Date(next))) {
+                        throw new InterruptedException();
+                    }
                 } else {
                     condition.await();
                 }

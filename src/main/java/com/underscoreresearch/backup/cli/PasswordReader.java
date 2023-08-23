@@ -14,7 +14,7 @@ public final class PasswordReader {
         if (System.console() != null) {
             return new String(System.console().readPassword(format, args));
         }
-        System.out.print(String.format(format, args));
+        System.out.printf(format, args);
         BufferedReader reader = new BufferedReader(new InputStreamReader(
                 System.in));
         return reader.readLine();

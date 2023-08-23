@@ -46,8 +46,7 @@ public class BackupFilter {
         for (String path : paths) {
             if (file.startsWith(path)) {
                 if (path.length() == file.length() ||
-                        file.substring(path.length(), path.length() + PathNormalizer.PATH_SEPARATOR.length()).
-                                equals(PathNormalizer.PATH_SEPARATOR)) {
+                        file.startsWith(PathNormalizer.PATH_SEPARATOR, path.length())) {
                     return path;
                 }
             }
@@ -64,8 +63,7 @@ public class BackupFilter {
         for (String path : paths) {
             if (path.startsWith(file)) {
                 if (path.length() == file.length() ||
-                        path.substring(file.length(), file.length() + PathNormalizer.PATH_SEPARATOR.length()).
-                                equals(PathNormalizer.PATH_SEPARATOR)) {
+                        path.startsWith(PathNormalizer.PATH_SEPARATOR, file.length())) {
                     return path;
                 }
             }

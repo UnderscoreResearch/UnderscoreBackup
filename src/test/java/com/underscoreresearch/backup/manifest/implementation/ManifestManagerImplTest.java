@@ -122,7 +122,7 @@ class ManifestManagerImplTest {
                 .manifest(BackupManifest.builder()
                         .destination("TEST")
                         .maximumUnsyncedSize(100)
-                        .maximumUnsyncedSeconds(2)
+                        .maximumUnsyncedSeconds(1)
                         .pauseOnBattery(false)
                         .build())
                 .build();
@@ -192,7 +192,7 @@ class ManifestManagerImplTest {
 
         Mockito.verify(ioProvider, Mockito.times(3)).upload(anyString(), any());
 
-        Thread.sleep(2500);
+        Thread.sleep(1500);
 
         Mockito.verify(ioProvider, Mockito.times(4)).upload(anyString(), any());
     }

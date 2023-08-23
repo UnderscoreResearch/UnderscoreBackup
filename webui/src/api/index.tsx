@@ -1,7 +1,7 @@
 import {DisplayMessage} from "../App";
 import {generateKeyPair, sharedKey} from "curve25519-js";
 import base64url from "base64url";
-import { sha256 } from 'js-sha256';
+import {sha256} from 'js-sha256';
 
 function determineBaseApi(): string {
     if (window.location.pathname.startsWith("/fixed/")) {

@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
@@ -147,14 +148,15 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private Txn<ByteBuffer> sharedTransaction;
     private boolean readOnly;
     private int updateCount;
+    private final Object exclusiveLock = new Object();
     private Thread exclusiveThread;
     private Stopwatch sharedTransactionAge;
 
     public LmdbMetadataRepositoryStorage(String dataPath, boolean alternateBlockTable) {
-        this(dataPath, Paths.get(dataPath, STORAGE_ROOT).toFile(), alternateBlockTable);
+        this(Paths.get(dataPath, STORAGE_ROOT).toFile(), alternateBlockTable);
     }
 
-    protected LmdbMetadataRepositoryStorage(String dataPath, File root, boolean alternateBlockTable) {
+    protected LmdbMetadataRepositoryStorage(File root, boolean alternateBlockTable) {
         this.alternateBlockTable = alternateBlockTable;
         this.root = root;
     }
@@ -456,9 +458,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     protected Env<ByteBuffer> createDb(File root, long mapSize, boolean readOnly) {
         EnvFlags[] flags = createDbFlags(readOnly);
 
-        if (!root.exists() && !root.mkdirs()) {
-            log.error("Failed to create directory {}", root);
-        }
+        createDirectory(root);
 
         return Env.create()
                 .setMapSize(mapSize)
@@ -499,17 +499,23 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public CloseableLock exclusiveLock() throws IOException {
-        if (exclusiveThread != null)
-            throw new RuntimeException("Exclusive lock already granted");
-        commit();
+        synchronized (exclusiveLock) {
+            if (exclusiveThread != null)
+                throw new RuntimeException("Exclusive lock already granted");
+            commit();
 
-        exclusiveThread = Thread.currentThread();
+            removeExecutor();
+            exclusiveThread = Thread.currentThread();
+        }
 
         return new CloseableLock() {
             @Override
             public void close() {
                 internalCommit();
-                exclusiveThread = null;
+                synchronized (exclusiveLock) {
+                    exclusiveThread = null;
+                    createExecutor();
+                }
             }
 
             @Override
@@ -537,38 +543,46 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         partialFileMap = openCreateMap(db, PARTIAL_FILE_STORE);
         updatedFilesMap = openCreateMap(db, UPDATED_FILES_STORE);
 
+        createExecutor();
+    }
+
+    private void createExecutor() {
         executor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName())
                 .build());
     }
 
     private <T> T synchronizeDbAccess(ExceptionSupplier<T> function) throws IOException {
-        if (exclusiveThread != null) {
-            if (exclusiveThread != Thread.currentThread()) {
-                throw new IllegalStateException("Exclusive lock from other thread");
-            }
-            try {
-                return function.get();
-            } catch (Exception e) {
-                logUsage(e);
-                throwException(e);
-            }
-        }
-
-        AtomicReference<T> result = new AtomicReference<>();
+        AtomicReference<T> result;
         AtomicReference<Throwable> exception = new AtomicReference<>();
 
         synchronized (exception) {
-            executor.execute(() -> {
-                synchronized (exception) {
-                    try {
-                        result.set(function.get());
-                    } catch (Throwable e) {
-                        logUsage(e);
-                        exception.set(e);
+            synchronized (exclusiveLock) {
+                if (exclusiveThread != null) {
+                    if (exclusiveThread != Thread.currentThread()) {
+                        throw new IllegalStateException("Exclusive lock from other thread");
                     }
-                    exception.notify();
+                    try {
+                        return function.get();
+                    } catch (Exception e) {
+                        logUsage(e);
+                        throwException(e);
+                    }
                 }
-            });
+
+                result = new AtomicReference<>();
+
+                executor.submit(() -> {
+                    synchronized (exception) {
+                        try {
+                            result.set(function.get());
+                        } catch (Throwable e) {
+                            logUsage(e);
+                            exception.set(e);
+                        }
+                        exception.notify();
+                    }
+                });
+            }
 
             try {
                 exception.wait();
@@ -625,16 +639,30 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public void close() throws IOException {
-        if (executor != null) {
-            synchronizeDbAccess(() -> {
-                internalCommit();
+        synchronized (exclusiveLock) {
+            if (executor != null) {
+                synchronizeDbAccess(() -> {
+                    internalCommit();
 
+                    closeFiles(true);
+                });
+
+                removeExecutor();
+            } else {
                 closeFiles(true);
-            });
-        } else {
-            closeFiles(true);
+            }
         }
+    }
+
+    private void removeExecutor() {
         executor.shutdown();
+        try {
+            if (!executor.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS)) {
+                throw new RuntimeException("Failed to wait for executor shutdown");
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         executor = null;
     }
 
@@ -724,6 +752,12 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         });
     }
 
+    private String invalidRepositoryLogEntry(String msg) {
+        if (readOnly)
+            return msg + " (Read only repository)";
+        return msg + " (Removing from repository)";
+    }
+
     @Override
     public CloseableStream<BackupFile> allFiles(boolean ascending) throws IOException {
         return createStream(fileMap, ascending, (entry) -> {
@@ -732,7 +766,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 entry.key().position(0);
                 PathTimestamp key = decodePathTimestamp(entry.key());
-                log.error("Invalid file {}:{}", PathNormalizer.physicalPath(key.path), key.path, e);
+                log.error(invalidRepositoryLogEntry("Invalid file {}:{}"), PathNormalizer.physicalPath(key.path), key.path, e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -755,7 +789,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 entry.key().position(0);
                 String key = decodeString(entry.key());
-                log.error("Invalid block {}", key, e);
+                log.error(invalidRepositoryLogEntry("Invalid block {}"), key, e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -781,7 +815,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 block.setPublicKey(keys[0]);
                 return block;
             } catch (IOException e) {
-                log.error("Invalid additional block {}:{}", keys[0], keys[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid additional block {}:{}"), keys[0], keys[1], e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -804,7 +838,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 entry.key().position(0);
                 String[] keys = decodeDoubleString(entry.key());
-                log.error("Invalid filePart {}:{}", keys[0], keys[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid filePart {}:{}"), keys[0], keys[1], e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -827,7 +861,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 entry.key().position(0);
                 PathTimestamp pathTimestamp = decodePathTimestamp(entry.key());
-                log.error("Invalid directory {}:{}", pathTimestamp.path, pathTimestamp.timestamp, e);
+                log.error(invalidRepositoryLogEntry("Invalid directory {}:{}"), pathTimestamp.path, pathTimestamp.timestamp, e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -1344,15 +1378,15 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public void clear() throws IOException {
         deleteContents(root);
-        if (root.exists() && !root.delete()) {
-            log.error("Failed to delete {}", root);
-        }
+        IOUtils.deleteFile(root);
     }
 
     @Override
     public void commit() throws IOException {
-        if (exclusiveThread == null) {
-            synchronizeDbAccess(this::internalCommit);
+        synchronized (exclusiveLock) {
+            if (exclusiveThread == null || exclusiveLock == Thread.currentThread()) {
+                synchronizeDbAccess(this::internalCommit);
+            }
         }
     }
 
@@ -1486,9 +1520,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             db.close();
 
             deleteContents(root);
-            if (!root.delete()) {
-                log.error("Failed to delete {}", root);
-            }
+            IOUtils.deleteFile(root);
         }
 
         @Override
@@ -1591,7 +1623,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         private static final long MAP_SIZE = 512L * 1024 * 1024 * 1024;
 
         public NonMemoryMapped(String dataPath, boolean alternateBlockTable) {
-            super(dataPath, Paths.get(dataPath, "v3").toFile(), alternateBlockTable);
+            super(Paths.get(dataPath, "v3").toFile(), alternateBlockTable);
         }
 
         @Override

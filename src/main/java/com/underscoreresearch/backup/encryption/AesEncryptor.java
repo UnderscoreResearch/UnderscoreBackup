@@ -85,14 +85,15 @@ public class AesEncryptor implements Encryptor {
             return legacyFormat;
         }
         switch (data[0]) {
-            case AesEncryptorCbc.CBC:
+            case AesEncryptorCbc.CBC -> {
                 return legacyFormat;
-            case AesEncryptorGcm.NON_PADDED_GCM:
-            case AesEncryptorGcm.PADDED_GCM:
+            }
+            case AesEncryptorGcm.NON_PADDED_GCM, AesEncryptorGcm.PADDED_GCM -> {
                 return defaultFormat;
-            case AesEncryptorGcmStable.NON_PADDED_GCM_STABLE:
-            case AesEncryptorGcmStable.PADDED_GCM_STABLE:
+            }
+            case AesEncryptorGcmStable.NON_PADDED_GCM_STABLE, AesEncryptorGcmStable.PADDED_GCM_STABLE -> {
                 return stableFormat;
+            }
         }
         throw new IllegalArgumentException("Unknown AES encryption padding");
     }

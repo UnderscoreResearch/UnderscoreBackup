@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.model.BackupPendingSet;
 
 @Slf4j
 public class RestartSetsPost extends JsonWrap {
@@ -41,7 +42,7 @@ public class RestartSetsPost extends JsonWrap {
                 repository.open(false);
                 Set<String> sets;
                 if (request.sets == null) {
-                    sets = repository.getPendingSets().stream().map(set -> set.getSetId())
+                    sets = repository.getPendingSets().stream().map(BackupPendingSet::getSetId)
                             .filter(id -> !id.equals("") && !id.equals("=")).collect(Collectors.toSet());
                 } else {
                     sets = request.getSets();
@@ -54,7 +55,7 @@ public class RestartSetsPost extends JsonWrap {
                     }
                 });
                 InstanceFactory.reloadConfiguration(
-                        () -> InteractiveCommand.startBackupIfAvailable());
+                        InteractiveCommand::startBackupIfAvailable);
                 return messageJson(200, "Updated configuration");
             } catch (Exception exc) {
                 log.error("Failed to reset sets", exc);

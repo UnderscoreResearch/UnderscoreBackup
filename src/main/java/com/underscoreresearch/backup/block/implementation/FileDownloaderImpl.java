@@ -35,8 +35,8 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
     private static final long GB = 1024 * 1024 * 1024;
     private final MetadataRepository repository;
     private final FileSystemAccess fileSystemAccess;
-    private AtomicBoolean shutdown = new AtomicBoolean();
-    private TreeMap<String, Progress> activeFiles = new TreeMap<>();
+    private final AtomicBoolean shutdown = new AtomicBoolean();
+    private final TreeMap<String, Progress> activeFiles = new TreeMap<>();
 
     public FileDownloaderImpl(MetadataRepository repository,
                               FileSystemAccess fileSystemAccess) {
@@ -97,7 +97,7 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                                 List<BackupBlock> blocks = BackupBlock.expandBlock(part.getBlockHash(), repository);
                                 for (BackupBlock block : blocks) {
                                     if (block == null) {
-                                        throw new IOException(String.format("File referenced block {} that doesn't exist",
+                                        throw new IOException(String.format("File referenced block %s that doesn't exist",
                                                 part.getBlockHash()));
                                     }
                                     FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
@@ -113,7 +113,9 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                                             for (int originalOffset = 0; originalStream != null && originalOffset < fileData.length; originalOffset += 8192) {
                                                 byte[] original = new byte[8192];
                                                 int length = Math.min(8192, fileData.length - originalOffset);
-                                                originalStream.read(original, 0, length);
+                                                if (originalStream.read(original, 0, length) != length) {
+                                                    throw new IOException("Unexpected end of stream");
+                                                }
                                                 for (int j = 0; j < length; j++)
                                                     if (original[j] != fileData[j + originalOffset]) {
                                                         String message = String.format("File %s does not match locally at location %s",

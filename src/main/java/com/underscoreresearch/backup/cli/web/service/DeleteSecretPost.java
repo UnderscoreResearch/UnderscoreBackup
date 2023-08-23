@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
 
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
@@ -25,7 +24,6 @@ public class DeleteSecretPost extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String config = new RqPrint(req).printBody();
             try {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
                 if (serviceManager.getSourceId() == null) {

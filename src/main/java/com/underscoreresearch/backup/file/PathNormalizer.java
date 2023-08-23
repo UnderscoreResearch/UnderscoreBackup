@@ -13,8 +13,8 @@ public final class PathNormalizer {
 
     public static final String PATH_SEPARATOR = "/";
     public static final String ROOT = "/";
-    private static Pattern RESOLVE_RELATIVE = Pattern.compile("/(([^/]+/\\.\\.(/|$))|(\\.(/|$)))+");
-    private static Pattern ROOTED = Pattern.compile("^([a-z0-9]\\:)?(\\\\|\\/)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern RESOLVE_RELATIVE = Pattern.compile("/(([^/]+/\\.\\.(/|$))|(\\.(/|$)))+");
+    private static final Pattern ROOTED = Pattern.compile("^([a-z0-9]:)?([\\\\/])", Pattern.CASE_INSENSITIVE);
 
     public static String normalizePath(final String path) {
         if (path.equals(ROOT) || path.equals(File.separator)) {

@@ -29,10 +29,12 @@ public class AesEncryptorGcm extends AesEncryptorFormat {
     @Override
     protected int adjustEstimatedSize(byte paddingFormat, int estimatedSize) {
         switch (paddingFormat) {
-            case NON_PADDED_GCM:
+            case NON_PADDED_GCM -> {
                 return estimatedSize;
-            case PADDED_GCM:
+            }
+            case PADDED_GCM -> {
                 return estimatedSize + 1;
+            }
         }
         throw new IllegalArgumentException("Unknown AES padding format");
     }
@@ -40,10 +42,12 @@ public class AesEncryptorGcm extends AesEncryptorFormat {
     @Override
     protected int adjustDecodeLength(byte paddingFormat, int payloadLength) {
         switch (paddingFormat) {
-            case NON_PADDED_GCM:
+            case NON_PADDED_GCM -> {
                 return payloadLength;
-            case PADDED_GCM:
+            }
+            case PADDED_GCM -> {
                 return payloadLength - 1;
+            }
         }
         throw new IllegalArgumentException("Unknown AES padding format");
     }

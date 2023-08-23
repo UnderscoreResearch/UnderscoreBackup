@@ -17,11 +17,10 @@ public class RebuildAvailableGet extends JsonWrap {
             if (destination.getResponse() != null) {
                 return destination.getResponse();
             }
-            if (!(destination.getProvider() instanceof IOIndex)) {
+            if (!(destination.getProvider() instanceof IOIndex index)) {
                 return messageJson(400, "Destination " + destination + " does not support index");
             }
 
-            IOIndex index = (IOIndex) destination.getProvider();
             if (index.rebuildAvailable())
                 return messageJson(200, "Rebuild " + destination + " available");
             return messageJson(404, "Rebuild " + destination + " not available");

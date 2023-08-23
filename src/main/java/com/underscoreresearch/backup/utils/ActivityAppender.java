@@ -32,9 +32,9 @@ import com.underscoreresearch.backup.cli.UIManager;
 public class ActivityAppender extends AbstractAppender implements StatusLogger {
     private static final int MAX_ENTRIES = 100;
 
-    private static Map<String, ActivityAppender> APPENDERS = new HashMap<>();
-    private ConcurrentLinkedDeque<LogStatusLine> events = new ConcurrentLinkedDeque<>();
-    private ConcurrentLinkedDeque<LogStatusLine> errorEvents = new ConcurrentLinkedDeque<>();
+    private static final Map<String, ActivityAppender> APPENDERS = new HashMap<>();
+    private final ConcurrentLinkedDeque<LogStatusLine> events = new ConcurrentLinkedDeque<>();
+    private final ConcurrentLinkedDeque<LogStatusLine> errorEvents = new ConcurrentLinkedDeque<>();
 
     protected ActivityAppender(String name, Filter filter, Layout<String> layout) {
         super(name, filter, layout, true, Property.EMPTY_ARRAY);
@@ -91,15 +91,15 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
     @Override
     public List<StatusLine> status() {
         List<StatusLine> ret = new ArrayList<>();
-        errorEvents.forEach(ret::add);
-        events.forEach(ret::add);
+        ret.addAll(errorEvents);
+        ret.addAll(events);
         return ret;
     }
 
     private static class LogStatusLine extends StatusLine {
         @Getter
         @JsonIgnore
-        private Instant expire;
+        private final Instant expire;
 
         public LogStatusLine(String reporter, String code, String message) {
             super(reporter, code, message);

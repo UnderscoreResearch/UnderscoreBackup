@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.hierynomus.msdtyp.AccessMask;
+import com.hierynomus.msfscc.fileinformation.FileDirectoryQueryableInformation;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.mssmb2.SMBApiException;
@@ -38,7 +39,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 public class SMBIOProvider implements IOIndex, Closeable {
     public static final String SMB_TYPE = "SMB";
     private static final Pattern PATH_PARSER = Pattern.compile("^\\\\\\\\([^\\\\]+)\\\\([^\\\\]+)\\\\?(.*)");
-    private static final Pattern URI_PARSER = Pattern.compile("^smb://([^//]+)/([^//]+)/?(.*)");
+    private static final Pattern URI_PARSER = Pattern.compile("^smb://([^/]+)/([^/]+)/?(.*)");
     private final BackupDestination destination;
     private final String host;
     private final String shareName;
@@ -95,7 +96,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
             if (getShare().folderExists(root + physicalKey)) {
                 return getShare().list(root + physicalKey)
                         .stream()
-                        .map(t -> t.getFileName())
+                        .map(FileDirectoryQueryableInformation::getFileName)
                         .filter(t -> !t.equals(".") && !t.equals(".."))
                         .collect(Collectors.toList());
             }

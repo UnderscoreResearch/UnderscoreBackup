@@ -65,47 +65,30 @@ public class BackupTimespan {
             return IMMEDIATE;
         }
 
-        switch (unit) {
-            case YEARS:
-                return now.minus(Period.ofYears((int) duration));
-            case MONTHS:
-                return now.minus(Period.ofMonths((int) duration));
-            case WEEKS:
-                return now.minus(Period.ofWeeks((int) duration));
-            case DAYS:
-                return now.minus(Period.ofDays((int) duration));
-            case HOURS:
-                return now.minus(duration, ChronoUnit.HOURS);
-            case MINUTES:
-                return now.minus(duration, ChronoUnit.MINUTES);
-            case SECONDS:
-                return now.minus(duration, ChronoUnit.SECONDS);
-            default:
-                throw new IllegalArgumentException("Unknown time unit: " + unit);
-        }
+        return switch (unit) {
+            case YEARS -> now.minus(Period.ofYears((int) duration));
+            case MONTHS -> now.minus(Period.ofMonths((int) duration));
+            case WEEKS -> now.minus(Period.ofWeeks((int) duration));
+            case DAYS -> now.minus(Period.ofDays((int) duration));
+            case HOURS -> now.minus(duration, ChronoUnit.HOURS);
+            case MINUTES -> now.minus(duration, ChronoUnit.MINUTES);
+            case SECONDS -> now.minus(duration, ChronoUnit.SECONDS);
+            default -> throw new IllegalArgumentException("Unknown time unit: " + unit);
+        };
     }
 
     public Duration toDuration() {
         if (unit == null)
             return null;
 
-        switch (unit) {
-            case FOREVER:
-            case YEARS:
-            case MONTHS:
-                return null;
-            case WEEKS:
-                return Duration.ofDays(7 * duration);
-            case DAYS:
-                return Duration.ofDays(duration);
-            case HOURS:
-                return Duration.ofHours(duration);
-            case MINUTES:
-                return Duration.ofMinutes(duration);
-            case SECONDS:
-                return Duration.ofSeconds(duration);
-            default:
-                throw new IllegalArgumentException("Unknown time unit: " + unit);
-        }
+        return switch (unit) {
+            case FOREVER, YEARS, MONTHS -> null;
+            case WEEKS -> Duration.ofDays(7 * duration);
+            case DAYS -> Duration.ofDays(duration);
+            case HOURS -> Duration.ofHours(duration);
+            case MINUTES -> Duration.ofMinutes(duration);
+            case SECONDS -> Duration.ofSeconds(duration);
+            default -> throw new IllegalArgumentException("Unknown time unit: " + unit);
+        };
     }
 }
