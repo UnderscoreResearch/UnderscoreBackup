@@ -16,5 +16,7 @@ public interface BaseManifestManager {
 
     void validateIdentity();
 
+    void waitUploads();
+
     void shutdown() throws IOException;
 }

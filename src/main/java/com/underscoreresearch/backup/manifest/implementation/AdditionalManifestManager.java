@@ -11,6 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import lombok.Getter;
@@ -21,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.ParseException;
 
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
@@ -36,6 +40,8 @@ public class AdditionalManifestManager {
     private final Map<String, Destination> additionalProviders = new HashMap<>();
     private final RateLimitController rateLimitController;
     private final UploadScheduler uploadScheduler;
+    private final AtomicInteger uploadCount = new AtomicInteger();
+    private final ExecutorService uploadExecutor;
 
     public AdditionalManifestManager(BackupConfiguration configuration,
                                      RateLimitController rateLimitController,
@@ -49,6 +55,9 @@ public class AdditionalManifestManager {
         }
         this.rateLimitController = rateLimitController;
         this.uploadScheduler = uploadScheduler;
+
+        uploadExecutor = Executors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder().setNameFormat("AdditionalManifest-Upload").build());
     }
 
     public void startOptimizeLog() throws IOException {
@@ -86,9 +95,16 @@ public class AdditionalManifestManager {
 
     private void uploadConfigurationData(String filename, byte[] data, Destination destination,
                                          Runnable success) {
-        uploadScheduler.scheduleUpload(destination.getDestination(), filename, data, (key) -> {
-            if (key != null && success != null)
-                success.run();
+        uploadCount.incrementAndGet();
+        uploadExecutor.submit(() -> {
+            uploadScheduler.scheduleUpload(destination.getDestination(), filename, data, (key) -> {
+                if (key != null && success != null)
+                    success.run();
+                synchronized (uploadCount) {
+                    uploadCount.decrementAndGet();
+                    uploadCount.notifyAll();
+                }
+            });
         });
     }
 
@@ -157,6 +173,22 @@ public class AdditionalManifestManager {
 
     public int count() {
         return additionalProviders.size();
+    }
+
+    public void waitUploads() {
+        synchronized (uploadCount) {
+            while (uploadCount.get() > 0) {
+                try {
+                    uploadCount.wait();
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+    }
+
+    public void shutdown() {
+        uploadExecutor.shutdown();
+        waitUploads();
     }
 
     @Getter

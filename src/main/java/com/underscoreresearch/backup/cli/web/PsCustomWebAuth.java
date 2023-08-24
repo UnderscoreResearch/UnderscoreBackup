@@ -11,6 +11,8 @@ import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -43,6 +45,7 @@ public final class PsCustomWebAuth implements Pass {
     private static final Pattern PATH_PATTERN = Pattern.compile("^.*://[^/]+(.*)$");
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final MessageDigest MD5;
+    private static final int MAX_NONCE = 100;
 
     static {
         try {
@@ -62,7 +65,16 @@ public final class PsCustomWebAuth implements Pass {
      */
     private final String realm;
 
-    private final Map<String, byte[]> privateKeys = new HashMap<>();
+    private static class EndpointInfo {
+        private final byte[] privateKey;
+        private final SortedSet<Long> lastNonce = new TreeSet<>();
+
+        public EndpointInfo(byte[] privateKey) {
+            this.privateKey = privateKey;
+        }
+    }
+
+    private final Map<String, EndpointInfo> endpointInfo = new HashMap<>();
 
     /**
      * Ctor.
@@ -110,8 +122,8 @@ public final class PsCustomWebAuth implements Pass {
     private byte[] registerPrivateKeyAuth(String[] vals) {
         byte[] privateKeyExchangeKey;
         byte[] privateKey = X25519.generatePrivateKey();
-        synchronized (privateKeys) {
-            privateKeys.put(vals[0], privateKey);
+        synchronized (endpointInfo) {
+            endpointInfo.put(vals[0], new EndpointInfo(privateKey));
         }
         privateKeyExchangeKey = privateKey;
         return privateKeyExchangeKey;
@@ -120,23 +132,28 @@ public final class PsCustomWebAuth implements Pass {
     @NotNull
     private Opt<Identity> validateKeyExchangeAuth(Request request, String[] vals) throws IOException {
         if (vals.length == 3) {
-            byte[] privateKey = privateKeys.get(vals[0]);
-            if (privateKey != null) {
-                long now = Long.parseLong(vals[1]);
-                if (Math.abs(now - System.currentTimeMillis()) < 1000) {
-                    try {
-                        URI uri = URI.create(new RqHref.Base(request).href().toString());
+            EndpointInfo currentEndpoint;
+            synchronized (endpointInfo) {
+                currentEndpoint = endpointInfo.get(vals[0]);
+            }
+            if (currentEndpoint != null) {
+                synchronized (currentEndpoint) {
+                    long nonce = Long.parseLong(vals[1]);
+                    if (validateNonce(currentEndpoint, nonce)) {
+                        try {
+                            URI uri = URI.create(new RqHref.Base(request).href().toString());
 
-                        String auth = new RqMethod.Base(request).method() + ":"
-                                + uri.getRawPath() + (Strings.isNullOrEmpty(uri.getRawQuery()) ? "" : "?" + uri.getRawQuery()) + ":"
-                                + Hash.encodeBytes64(X25519.computeSharedSecret(privateKey, Base64.decodeBase64(vals[0]))) + ":"
-                                + vals[1];
-                        String key = Hash.hash64(auth.getBytes(StandardCharsets.UTF_8));
-                        if (key.equals(vals[2])) {
-                            return createKeyExchangeAuth(privateKey);
+                            String auth = new RqMethod.Base(request).method() + ":"
+                                    + uri.getRawPath() + (Strings.isNullOrEmpty(uri.getRawQuery()) ? "" : "?" + uri.getRawQuery()) + ":"
+                                    + Hash.encodeBytes64(X25519.computeSharedSecret(currentEndpoint.privateKey, Base64.decodeBase64(vals[0]))) + ":"
+                                    + vals[1];
+                            String key = Hash.hash64(auth.getBytes(StandardCharsets.UTF_8));
+                            if (key.equals(vals[2])) {
+                                return createKeyExchangeAuth(currentEndpoint.privateKey);
+                            }
+                        } catch (InvalidKeyException e) {
+                            throw new RuntimeException(e);
                         }
-                    } catch (InvalidKeyException e) {
-                        throw new RuntimeException(e);
                     }
                 }
             }
@@ -146,6 +163,19 @@ public final class PsCustomWebAuth implements Pass {
                 HttpURLConnection.HTTP_UNAUTHORIZED,
                 new RqHref.Base(request).href()
         );
+    }
+
+    // The nonce is really a counter on the client side, but they might not come in exactly the right order to the
+    // server. So we keep track of the last 100, and they have to be unique. Any new nonce also has to be greater than
+    // the oldest of the 100 nonces we keep track of.
+    private boolean validateNonce(EndpointInfo currentEndpoint, long nonce) {
+        if (currentEndpoint.lastNonce.size() >= MAX_NONCE) {
+            if (nonce <= currentEndpoint.lastNonce.first()) {
+                return false;
+            }
+            currentEndpoint.lastNonce.remove(currentEndpoint.lastNonce.first());
+        }
+        return currentEndpoint.lastNonce.add(nonce);
     }
 
     private Opt<Identity> createKeyExchangeAuth(byte[] privateKey) {

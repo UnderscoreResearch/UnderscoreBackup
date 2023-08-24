@@ -84,6 +84,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final Object lock = new Object();
     private final ExecutorService uploadExecutor;
     private final AtomicInteger uploadCount = new AtomicInteger();
+    private final AtomicInteger uploadSubmissionCount = new AtomicInteger();
     private final AtomicBoolean currentlyClosingLog = new AtomicBoolean();
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
@@ -206,16 +207,27 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
     protected void uploadData(String file, byte[] data, Runnable success) {
         uploadCount.incrementAndGet();
+        uploadSubmissionCount.incrementAndGet();
         uploadExecutor.submit(() -> {
-            uploadScheduler.scheduleUpload(manifestDestination, file, data, key -> {
-                if (success != null && key != null) {
-                    success.run();
+            try {
+                uploadScheduler.scheduleUpload(manifestDestination, file, data, key -> {
+                    try {
+                        if (success != null && key != null) {
+                            success.run();
+                        }
+                    } finally {
+                        synchronized (uploadCount) {
+                            uploadCount.decrementAndGet();
+                            uploadCount.notifyAll();
+                        }
+                    }
+                });
+            } finally {
+                synchronized (uploadSubmissionCount) {
+                    uploadSubmissionCount.decrementAndGet();
+                    uploadSubmissionCount.notifyAll();
                 }
-                synchronized (uploadCount) {
-                    uploadCount.decrementAndGet();
-                    uploadCount.notifyAll();
-                }
-            });
+            }
         });
     }
 
@@ -436,7 +448,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                     currentlyClosingLog.set(false);
                 }
             }
-            waitUploadSubmission();
+            waitUploadSubmissions();
         }
     }
 
@@ -528,17 +540,28 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         synchronized (lock) {
             closeLogFile();
         }
-        waitUploadSubmission();
+        waitUploads();
     }
 
     protected void completeUploads() throws IOException {
         synchronized (lock) {
             closeLogFile();
         }
-        waitUploadSubmission();
+        waitUploads();
     }
 
-    public void waitUploadSubmission() {
+    protected void waitUploadSubmissions() {
+        synchronized (uploadSubmissionCount) {
+            while (uploadSubmissionCount.get() > 0) {
+                try {
+                    uploadSubmissionCount.wait();
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+    }
+
+    public void waitUploads() {
         synchronized (uploadCount) {
             while (uploadCount.get() > 0) {
                 try {
@@ -550,6 +573,9 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     public void shutdown() throws IOException {
+        uploadScheduler.waitForCompletion();
+        flushRepositoryLogging();
+
         synchronized (lock) {
             completeUploads();
             uploadExecutor.shutdown();

@@ -34,7 +34,6 @@ public class AccessLock implements Closeable {
         if (lock == null) {
             while (true) {
                 try {
-                    Thread.interrupted();
                     lock = channel.tryLock(0, Long.MAX_VALUE, !exclusive);
                     if (lock == null || lock.isValid()) {
                         return lock != null;

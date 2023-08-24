@@ -233,6 +233,7 @@ function reportError(errors: any) {
 const exchangeKeyPair = generateKeyPair(crypto.getRandomValues(new Uint8Array(32)));
 const publicKey = base64url.encode(Buffer.from(exchangeKeyPair.public)).replace("=", "");
 let apiSharedKey: string | undefined = undefined;
+let nonce = 1;
 
 export async function makeApiCall(api: string, init?: RequestInit, silentError?: boolean): Promise<any | undefined> {
     try {
@@ -242,11 +243,11 @@ export async function makeApiCall(api: string, init?: RequestInit, silentError?:
 
         let exchangeHeader: string;
         if (apiSharedKey) {
-            const now = Date.now();
-            const auth = (init && init.method ? init.method : "GET") + ":" + basePrefix + api + ":" + apiSharedKey + ":" + now;
+            const currentNonce = ++nonce;
+            const auth = (init && init.method ? init.method : "GET") + ":" + basePrefix + api + ":" + apiSharedKey + ":" + currentNonce;
             const digest = sha256(Buffer.from(auth));
             const key = base64url(Buffer.from(digest, 'hex')).replace("=", "");
-            exchangeHeader = `${publicKey} ${now} ${key}`;
+            exchangeHeader = `${publicKey} ${currentNonce} ${key}`;
         } else {
             exchangeHeader = publicKey;
         }

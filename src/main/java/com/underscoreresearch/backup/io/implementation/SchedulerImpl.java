@@ -72,7 +72,7 @@ public class SchedulerImpl {
             executingTasks.notifyAll();
             debug(() -> log.debug(getClass().getSimpleName() + " shutting down"));
 
-            while (executingTasks.size() > 0) {
+            while (!executingTasks.isEmpty()) {
                 try {
                     executingTasks.wait();
                 } catch (InterruptedException e) {
@@ -87,7 +87,7 @@ public class SchedulerImpl {
 
     public void waitForCompletion() {
         synchronized (executingTasks) {
-            while (executingTasks.size() > 0) {
+            while (!executingTasks.isEmpty()) {
                 try {
                     executingTasks.wait();
                 } catch (InterruptedException e) {
@@ -113,7 +113,7 @@ public class SchedulerImpl {
             } finally {
                 synchronized (executingTasks) {
                     executingTasks.remove(this);
-                    if (executingTasks.size() == 0) {
+                    if (executingTasks.isEmpty()) {
                         synchronized (stopwatch) {
                             if (stopwatch.isRunning())
                                 stopwatch.stop();

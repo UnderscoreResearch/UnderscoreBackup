@@ -43,6 +43,7 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
             <Grid item xs={12}>
                 <FormControlLabel control={<Checkbox
                     checked={state.enabled}
+                    id={"uiAuthentication"}
                     onChange={(e) => updateState({
                         ...state,
                         enabled: e.target.checked
@@ -54,6 +55,7 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
             <Grid item xs={6}>
                 <TextField label="Username" variant="outlined"
                            fullWidth={true}
+                           id={"uiAuthenticationUser"}
                            value={state.manifest.configUser ? state.manifest.configUser : ""}
                            disabled={!state.enabled}
                            onChange={(e) => updateState({
@@ -67,6 +69,7 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
             <Grid item xs={6}>
                 <TextField label="Password" variant="outlined"
                            fullWidth={true}
+                           id={"uiAuthenticationPassword"}
                            type={"password"}
                            disabled={!state.enabled}
                            value={state.manifest.configPassword ? state.manifest.configPassword : ""}

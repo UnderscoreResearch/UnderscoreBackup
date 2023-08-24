@@ -156,7 +156,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
             List<File> files = existingLogFiles();
 
-            if (files.size() > 0) {
+            if (!files.isEmpty()) {
                 totalFiles.addAndGet(files.size());
 
                 logConsumer.setRecoveryMode(true);
@@ -873,13 +873,29 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     }
 
     @Override
+    public void waitUploads() {
+        super.waitUploads();
+
+        if (activeShares != null) {
+            for (ShareManifestManager others : activeShares.values())
+                others.waitUploads();
+        }
+
+        additionalManifestManager.waitUploads();
+    }
+
+    @Override
     public void shutdown() throws IOException {
         synchronized (getLock()) {
             super.shutdown();
+
             if (activeShares != null) {
                 for (ShareManifestManager others : activeShares.values())
                     others.shutdown();
             }
+
+            additionalManifestManager.shutdown();
+
             while (operation != null) {
                 try {
                     getLock().wait();

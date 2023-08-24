@@ -130,6 +130,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static final int MAX_PATH_LENGTH = 500;
     private final List<Runnable> preCommitActions = new ArrayList<>();
     private final File root;
+    private final Object exclusiveLock = new Object();
     private ExecutorService executor;
     private Env<ByteBuffer> db;
     private long mapSize;
@@ -148,7 +149,6 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private Txn<ByteBuffer> sharedTransaction;
     private boolean readOnly;
     private int updateCount;
-    private final Object exclusiveLock = new Object();
     private Thread exclusiveThread;
     private Stopwatch sharedTransactionAge;
 

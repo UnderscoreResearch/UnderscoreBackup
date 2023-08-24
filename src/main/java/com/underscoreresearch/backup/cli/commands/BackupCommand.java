@@ -50,14 +50,11 @@ public class BackupCommand extends SimpleCommand {
 
             InstanceFactory.shutdown();
             scheduler.shutdown();
-            uploadScheduler.shutdown();
             scheduler.waitForCompletion();
             InstanceFactory.getInstance(StateLogger.class).reset();
 
             synchronized (scheduler) {
-
                 try {
-                    repository.flushLogging();
                     manifestManager.shutdown();
                     repository.close();
                 } catch (IOException e) {

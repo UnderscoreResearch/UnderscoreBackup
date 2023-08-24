@@ -100,7 +100,7 @@ public class ChangePasswordCommand extends Command {
                     InstanceFactory.getInstance(UploadScheduler.class));
 
             changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
-            repository.flushLogging();
+            changePrivateKeyManifestManager.shutdown();
 
             System.out.println("Wrote public key to " + fileName);
         } catch (Exception exc) {

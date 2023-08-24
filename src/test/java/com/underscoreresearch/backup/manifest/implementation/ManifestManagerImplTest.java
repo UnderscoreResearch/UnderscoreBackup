@@ -39,6 +39,7 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.encryption.NoneEncryptor;
+import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
@@ -188,7 +189,7 @@ class ManifestManagerImplTest {
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.deleteDirectory("/a", Instant.now().toEpochMilli());
-        manifestManager.waitUploadSubmission();
+        manifestManager.waitUploads();
 
         Mockito.verify(ioProvider, Mockito.times(3)).upload(anyString(), any());
 
@@ -205,18 +206,19 @@ class ManifestManagerImplTest {
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
         repository.upgradeStorage();
-        repository.exclusiveLock();
-        repository.deleteDirectory("/a", Instant.now().toEpochMilli());
-        repository.popActivePath("s1", "/c");
-        repository.addDirectory(new BackupDirectory("d", Instant.now().toEpochMilli(),
-                Sets.newTreeSet(Lists.newArrayList("e", "f"))));
-        repository.deleteBlock(BackupBlock.builder().hash("g").build());
-        repository.addBlock(BackupBlock.builder().hash("h").build());
-        repository.deleteFilePart(BackupFilePart.builder().partHash("i").build());
-        repository.addFile(BackupFile.builder().path("j").build());
-        repository.deleteFile(BackupFile.builder().path("k").build());
-        repository.pushActivePath("s1", "/b", new BackupActivePath());
-        repository.flushLogging();
+        try (CloseableLock ignored = repository.exclusiveLock()) {
+            repository.deleteDirectory("/a", Instant.now().toEpochMilli());
+            repository.popActivePath("s1", "/c");
+            repository.addDirectory(new BackupDirectory("d", Instant.now().toEpochMilli(),
+                    Sets.newTreeSet(Lists.newArrayList("e", "f"))));
+            repository.deleteBlock(BackupBlock.builder().hash("g").build());
+            repository.addBlock(BackupBlock.builder().hash("h").build());
+            repository.deleteFilePart(BackupFilePart.builder().partHash("i").build());
+            repository.addFile(BackupFile.builder().path("j").build());
+            repository.deleteFile(BackupFile.builder().path("k").build());
+            repository.pushActivePath("s1", "/b", new BackupActivePath());
+            repository.flushLogging();
+        }
         manifestManager.shutdown();
 
         Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any(), any());

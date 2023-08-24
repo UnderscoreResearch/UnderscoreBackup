@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.manifest.implementation;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -89,5 +90,12 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
             }
         }
         return ret;
+    }
+
+    @Override
+    public void shutdown() throws IOException {
+        super.shutdown();
+
+        getUploadScheduler().shutdown();
     }
 }
