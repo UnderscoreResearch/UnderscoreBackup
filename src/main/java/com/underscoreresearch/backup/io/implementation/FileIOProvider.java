@@ -55,7 +55,7 @@ public class FileIOProvider implements IOIndex {
     public String upload(String key, byte[] data) throws IOException {
         File file = getFile(key);
 
-        createDirectory(file.getParentFile());
+        createDirectory(file.getParentFile(), true);
 
         try (FileOutputStream stream = new FileOutputStream(file)) {
             stream.write(data, 0, data.length);

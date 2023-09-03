@@ -47,7 +47,7 @@ public class GenerateKeyCommand extends Command {
         }
 
         File keyFile = new File(file);
-        createDirectory(keyFile.getParentFile());
+        createDirectory(keyFile.getParentFile(), true);
 
         return keyFile;
     }
@@ -102,6 +102,7 @@ public class GenerateKeyCommand extends Command {
                 System.err.println("If you are sharing then the private key below is what you need to pass to the recipient:");
                 System.out.println(newKey.getPrivateKey(null).getDisplayPrivateKey());
             }
+            manifestManager.shutdown();
         } else {
             try {
                 InstanceFactory.getInstance(EncryptionKey.class);

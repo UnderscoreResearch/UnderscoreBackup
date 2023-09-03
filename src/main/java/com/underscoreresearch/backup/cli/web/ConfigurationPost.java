@@ -176,7 +176,7 @@ public class ConfigurationPost extends JsonWrap {
             validateDestinations(configuration);
         }
         File configFile = new File(InstanceFactory.getInstance(SOURCE_CONFIG_LOCATION));
-        createDirectory(configFile.getParentFile());
+        createDirectory(configFile.getParentFile(), true);
         BACKUP_CONFIGURATION_WRITER.writeValue(configFile, configuration);
         setOwnerOnlyPermissions(configFile);
     }

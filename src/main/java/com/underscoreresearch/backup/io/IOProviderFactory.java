@@ -123,8 +123,8 @@ public final class IOProviderFactory {
                     }
 
                     @Override
-                    public List<String> availableLogs(String lastSyncedFile) throws IOException {
-                        return ((IOIndex) actualProvider).availableLogs(lastSyncedFile);
+                    public List<String> availableLogs(String lastSyncedFile, boolean all) throws IOException {
+                        return ((IOIndex) actualProvider).availableLogs(lastSyncedFile, all);
                     }
                 };
             } else {

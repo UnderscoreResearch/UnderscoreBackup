@@ -64,16 +64,6 @@ public final class PsCustomWebAuth implements Pass {
      * Realm.
      */
     private final String realm;
-
-    private static class EndpointInfo {
-        private final byte[] privateKey;
-        private final SortedSet<Long> lastNonce = new TreeSet<>();
-
-        public EndpointInfo(byte[] privateKey) {
-            this.privateKey = privateKey;
-        }
-    }
-
     private final Map<String, EndpointInfo> endpointInfo = new HashMap<>();
 
     /**
@@ -291,5 +281,14 @@ public final class PsCustomWebAuth implements Pass {
          * @return Identity.
          */
         Opt<String> passwordForUser(String user);
+    }
+
+    private static class EndpointInfo {
+        private final byte[] privateKey;
+        private final SortedSet<Long> lastNonce = new TreeSet<>();
+
+        public EndpointInfo(byte[] privateKey) {
+            this.privateKey = privateKey;
+        }
     }
 }

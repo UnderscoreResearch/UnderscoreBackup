@@ -258,7 +258,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         BackupDirectory directory = repository.directory(dirPath, null, false);
         if (directory != null) {
             if (directory.getFiles().remove(file.getName()) || directory.getFiles().remove(file.getName() + PathNormalizer.PATH_SEPARATOR)) {
-                if (directory.getFiles().size() > 0) {
+                if (!directory.getFiles().isEmpty()) {
                     directory.setAdded(System.currentTimeMillis());
                     repository.addDirectory(directory);
                 } else {
@@ -331,7 +331,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                                 log.error("Error processing file {}", file.getPath(), e);
                             }
                         });
-                        if (currentFiles.size() > 0)
+                        if (!currentFiles.isEmpty())
                             nextFlush = System.currentTimeMillis() + FLUSH_TIME_MS;
 
                     } finally {

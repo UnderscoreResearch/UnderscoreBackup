@@ -39,7 +39,6 @@ import com.underscoreresearch.backup.manifest.implementation.OptimizingManifestM
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
 @CommandPlugin(value = "change-password", description = "Change the password of an existing key",
@@ -67,8 +66,6 @@ public class ChangePasswordCommand extends Command {
     private static void generateNewPrivateKey(CommandLine commandLine, String oldPassword, String newPassword) throws IOException, ParseException {
         BackupConfiguration configuration = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
         ConfigurationValidator.validateConfiguration(configuration, false, false);
-        BackupDestination destination = configuration.getDestinations().get(configuration.getManifest()
-                .getDestination());
 
         EncryptionKey oldPublicKey = InstanceFactory.getInstance(EncryptionKey.class);
         EncryptionKey.PrivateKey oldPrivateKey = oldPublicKey.getPrivateKey(oldPassword);
@@ -201,7 +198,7 @@ public class ChangePasswordCommand extends Command {
         }
 
         @Override
-        public void deleteLogFiles(List<String> existingLogs) throws IOException {
+        public void deleteLogFiles(String lastOldLogFile) throws IOException {
             // The new key and configuration is written once all the new logs are written with the new key, but
             // before we delete all the old files. In case of a failure you will still have all the logs which
             // means you can recover from the failure even though you might get errors on the results.
@@ -217,7 +214,7 @@ public class ChangePasswordCommand extends Command {
 
             completeUploads();
 
-            super.deleteLogFiles(existingLogs);
+            super.deleteLogFiles(lastOldLogFile);
         }
     }
 }

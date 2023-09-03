@@ -14,11 +14,11 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.ParseException;
@@ -60,21 +60,9 @@ public class AdditionalManifestManager {
                 new ThreadFactoryBuilder().setNameFormat("AdditionalManifest-Upload").build());
     }
 
-    public void startOptimizeLog() throws IOException {
+    public void finishOptimizeLog(String lastExistingLog, AtomicLong totalFiles, AtomicLong processedFiles) throws IOException {
         for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
-            entry.getValue().setExistingFiles(entry.getValue().getProvider().availableLogs(null));
-        }
-    }
-
-    public void finishOptimizeLog() throws IOException {
-        for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
-            List<String> oldFiles = entry.getValue().getExistingFiles();
-            if (oldFiles != null) {
-                for (String file : oldFiles) {
-                    entry.getValue().getProvider().delete(file);
-                }
-                entry.getValue().setExistingFiles(null);
-            }
+            BaseManifestManagerImpl.deleteLogFiles(lastExistingLog, entry.getValue().getProvider(), totalFiles, processedFiles);
         }
     }
 
@@ -96,16 +84,14 @@ public class AdditionalManifestManager {
     private void uploadConfigurationData(String filename, byte[] data, Destination destination,
                                          Runnable success) {
         uploadCount.incrementAndGet();
-        uploadExecutor.submit(() -> {
-            uploadScheduler.scheduleUpload(destination.getDestination(), filename, data, (key) -> {
-                if (key != null && success != null)
-                    success.run();
-                synchronized (uploadCount) {
-                    uploadCount.decrementAndGet();
-                    uploadCount.notifyAll();
-                }
-            });
-        });
+        uploadExecutor.submit(() -> uploadScheduler.scheduleUpload(destination.getDestination(), filename, data, (key) -> {
+            if (key != null && success != null)
+                success.run();
+            synchronized (uploadCount) {
+                uploadCount.decrementAndGet();
+                uploadCount.notifyAll();
+            }
+        }));
     }
 
     public void uploadConfiguration(BackupConfiguration configuration, EncryptionKey encryptionKey) throws IOException {
@@ -196,7 +182,5 @@ public class AdditionalManifestManager {
     private static class Destination {
         private final BackupDestination destination;
         private final IOIndex provider;
-        @Setter
-        private List<String> existingFiles;
     }
 }

@@ -309,7 +309,7 @@ public class BackupModule extends AbstractModule {
         } else {
             metadataRoot = Paths.get(manifestLocation, "db").toFile();
         }
-        createDirectory(metadataRoot);
+        createDirectory(metadataRoot, true);
         return metadataRoot.toString();
     }
 

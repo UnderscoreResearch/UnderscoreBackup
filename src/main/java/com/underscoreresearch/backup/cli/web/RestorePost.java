@@ -127,7 +127,7 @@ public class RestorePost extends JsonWrap {
                                 request.getPassword(),
                                 InstanceFactory.getInstance(BackupStatsLogger.class));
                         if (destination != null && !isNullFile(destination)) {
-                            createDirectory(new File(destination));
+                            createDirectory(new File(destination), true);
                         }
                         restoreExecutor.restorePaths(request.files, destination, true,
                                 request.overwrite,

@@ -158,7 +158,7 @@ public class ServiceManagerImpl implements ServiceManager {
         try {
             File file = getDataFile();
             boolean exists = file.exists();
-            createDirectory(file.getParentFile());
+            createDirectory(file.getParentFile(), true);
             WRITER.writeValue(getDataFile(), data);
             if (!exists)
                 ConfigurationPost.setOwnerOnlyPermissions(file);

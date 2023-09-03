@@ -29,7 +29,7 @@ import org.apache.commons.lang3.SystemUtils;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.cli.UIManager;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
@@ -741,7 +741,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void upgradeStorage() throws IOException {
         if (repositoryInfo.version != getDefaultVersion()) {
             try (RepositoryLock ignored = new RepositoryLock()) {
-                try (Closeable ignored2 = UIManager.registerTask("Upgrading metadata repository")) {
+                try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository")) {
                     open(true);
 
                     int version = getDefaultVersion();

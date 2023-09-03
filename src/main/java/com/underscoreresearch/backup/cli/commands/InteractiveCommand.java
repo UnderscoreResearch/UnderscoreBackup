@@ -26,7 +26,8 @@ import org.apache.commons.cli.ParseException;
 import com.google.common.base.Stopwatch;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
-import com.underscoreresearch.backup.cli.UIManager;
+import com.underscoreresearch.backup.cli.ui.FileUIManager;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.cli.web.WebServer;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
@@ -53,7 +54,7 @@ public class InteractiveCommand extends Command {
                 log.info("No encryption key available");
                 return;
             }
-            if (configuration.getSets().size() > 0
+            if (!configuration.getSets().isEmpty()
                     && configuration.getManifest().getInteractiveBackup() != null
                     && configuration.getManifest().getInteractiveBackup()) {
                 try {
@@ -133,10 +134,12 @@ public class InteractiveCommand extends Command {
 
     public void executeCommand(CommandLine commandLine) throws Exception {
         boolean lock = false;
+        boolean service = false;
         if (commandLine.getArgList().size() == 2) {
-            lock = commandLine.getArgList().get(1).equals("lock");
-            if (!lock) {
-                throw new ParseException("Invalid parameters");
+            switch (commandLine.getArgList().get(1)) {
+                case "lock" -> lock = true;
+                case "service" -> service = true;
+                default -> throw new ParseException("Invalid parameters");
             }
         } else if (commandLine.getArgList().size() > 1) {
             throw new ParseException("Too many arguments for command");
@@ -148,7 +151,10 @@ public class InteractiveCommand extends Command {
         WebServer server = InstanceFactory.getInstance(WebServer.class);
         server.start(InstanceFactory.getInstance(CommandLine.class).hasOption(DEVELOPER_MODE));
 
-        UIManager.setup();
+        if (service)
+            UIHandler.setup(new FileUIManager());
+        else
+            UIHandler.setup();
 
         try {
             BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);

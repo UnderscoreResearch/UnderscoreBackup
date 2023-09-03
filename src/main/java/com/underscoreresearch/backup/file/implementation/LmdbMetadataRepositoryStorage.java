@@ -458,7 +458,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     protected Env<ByteBuffer> createDb(File root, long mapSize, boolean readOnly) {
         EnvFlags[] flags = createDbFlags(readOnly);
 
-        createDirectory(root);
+        createDirectory(root, true);
 
         return Env.create()
                 .setMapSize(mapSize)

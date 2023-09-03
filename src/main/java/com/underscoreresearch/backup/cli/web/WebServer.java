@@ -3,7 +3,6 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.BIND_ADDRESS;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
-import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -18,7 +17,6 @@ import java.security.SecureRandom;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.lang.SystemUtils;
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.Take;
@@ -41,6 +39,7 @@ import org.takes.rq.RqMethod;
 import org.takes.tk.TkWithType;
 
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.cli.web.service.BestRegionGet;
 import com.underscoreresearch.backup.cli.web.service.CreateSecretPut;
 import com.underscoreresearch.backup.cli.web.service.DeleteSecretPost;
@@ -267,7 +266,7 @@ public class WebServer {
 
             try {
                 File urlFile = new File(InstanceFactory.getInstance(CommandLineModule.URL_LOCATION));
-                createDirectory(urlFile.getParentFile());
+                createDirectory(urlFile.getParentFile(), false);
                 urlFile.deleteOnExit();
                 try (FileWriter writer = new FileWriter(urlFile, StandardCharsets.UTF_8)) {
                     writer.write(configUrl.toString());
@@ -288,16 +287,7 @@ public class WebServer {
     }
 
     public void launchPage() {
-        try {
-            URI uri = getConfigurationUrl();
-            if (SystemUtils.IS_OS_MAC_OSX) {
-                Runtime.getRuntime().exec(new String[]{"open", uri.toString()});
-            } else {
-                Desktop.getDesktop().browse(uri);
-            }
-        } catch (IOException | HeadlessException e) {
-            log.warn("Can't launch browser", e);
-        }
+        UIHandler.openUri(getConfigurationUrl());
     }
 
     private URI getConfigurationUrl() {

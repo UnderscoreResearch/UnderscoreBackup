@@ -38,7 +38,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.cli.UIManager;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
@@ -133,7 +133,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         File tempFile = File.createTempFile("block", ".db");
 
         manifestManager.setDisabledFlushing(true);
-        try (Closeable ignored2 = UIManager.registerTask("Trimming repository")) {
+        try (Closeable ignored2 = UIHandler.registerTask("Trimming repository")) {
             deleteFile(tempFile);
 
             Statistics statistics = new Statistics();

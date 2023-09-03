@@ -88,7 +88,10 @@ public class CommandLineModule extends AbstractModule {
     public static final String ADDITIONAL_SOURCE = "ADDITIONAL_SOURCE";
     public static final String ADDITIONAL_SOURCE_NAME = "ADDITIONAL_SOURCE_NAME";
     public static final String SOURCE_CONFIG = "SOURCE_CONFIG";
+    public static final String SERVICE_MODE = "SERVICE_MODE";
     public static final String SOURCE_CONFIG_LOCATION = "SOURCE_CONFIG_LOCATION";
+    public static final String NOTIFICATION_LOCATION = "NOTIFICATION_LOCATION";
+    private static final String SERVICE_DATA_LOCATION = "SERVICE_DATA_LOCATION";
     private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
     private static final String DEFAULT_LOCAL_PATH = "/var/cache/underscorebackup";
     private static final String DEFAULT_LOG_PATH = "/var/log/underscorebackup.log";
@@ -131,11 +134,15 @@ public class CommandLineModule extends AbstractModule {
         File userDir = new File(System.getProperty("user.home"));
         File configDir;
         if (SystemUtils.IS_OS_WINDOWS) {
-            configDir = new File(userDir, "AppData\\Local\\UnderscoreBackup");
+            String localAppData = System.getenv("LOCALAPPDATA");
+            if (Strings.isNullOrEmpty(localAppData)) {
+                localAppData = new File(userDir, "AppData\\Local").toString();
+            }
+            configDir = new File(localAppData, "UnderscoreBackup");
         } else {
             configDir = new File(userDir, ".underscoreBackup");
         }
-        createDirectory(configDir);
+        createDirectory(configDir, false);
         return configDir.getAbsolutePath();
     }
 
@@ -315,6 +322,49 @@ public class CommandLineModule extends AbstractModule {
         return source;
     }
 
+    @Provides
+    @Named(SERVICE_MODE)
+    public boolean isService(CommandLine commandLine, @Named(MANIFEST_LOCATION) String manifestLocation) {
+        if (!commandLine.getArgList().isEmpty()) {
+            switch (commandLine.getArgList().get(0)) {
+                case "gui" -> {
+                    return true;
+                }
+                case "interactive" -> {
+                    if (commandLine.getArgList().size() == 2) {
+                        return commandLine.getArgList().get(1).equals("service");
+                    }
+                }
+            }
+        }
+        return manifestLocation.equals(DEFAULT_LOCAL_PATH);
+    }
+
+    @Provides
+    @Named(SERVICE_DATA_LOCATION)
+    @Singleton
+    public String serviceDataLocation(@Named(SERVICE_MODE) boolean service, @Named(MANIFEST_LOCATION) String manifestLocation) {
+        if (service) {
+            if (SystemUtils.IS_OS_WINDOWS) {
+                String programData = System.getenv("ProgramData");
+                if (Strings.isNullOrEmpty(programData)) {
+                    programData = "C:\\ProgramData";
+                }
+                return Paths.get(programData, "UnderscoreBackup").toString();
+            }
+        }
+        return manifestLocation;
+    }
+
+    @Provides
+    @Named(NOTIFICATION_LOCATION)
+    @Singleton
+    public String notificationLocation(@Named(SERVICE_DATA_LOCATION) String location) {
+        File file = Paths.get(location, "notifications").toFile();
+        createDirectory(file, false);
+        return file.toString();
+    }
+
     private String calculateSource(CommandLine commandLine) {
         if (!Strings.isNullOrEmpty(source)) {
             return source;
@@ -328,9 +378,9 @@ public class CommandLineModule extends AbstractModule {
     @Provides
     @Singleton
     @Named(URL_LOCATION)
-    public String getUrlLocation(@Named(MANIFEST_LOCATION) String manifestLocation) {
+    public String getUrlLocation(@Named(SERVICE_DATA_LOCATION) String location) {
         try {
-            return new File(manifestLocation, "configuration.url").getCanonicalPath();
+            return new File(location, "configuration.url").getCanonicalPath();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -382,7 +432,7 @@ public class CommandLineModule extends AbstractModule {
         } else {
             if (commandLine.getArgList().size() > 0 && commandLine.getArgList().get(0).equals("interactive")) {
                 File systemDir = new File("/etc/underscorebackup");
-                createDirectory(systemDir);
+                createDirectory(systemDir, false);
 
                 if (Files.isWritable(systemDir.toPath())) {
                     return DEFAULT_CONFIG;
@@ -412,7 +462,7 @@ public class CommandLineModule extends AbstractModule {
         if (commandLine.hasOption(CONFIG)) {
             try {
                 File file = new File(commandLine.getOptionValue(CONFIG)).getParentFile().getCanonicalFile();
-                createDirectory(file);
+                createDirectory(file, false);
                 return file.getAbsolutePath();
             } catch (IOException exc) {
                 log.warn("Failed to resolve default manifest location from config location {}",
@@ -422,7 +472,7 @@ public class CommandLineModule extends AbstractModule {
 
         if (!SystemUtils.IS_OS_WINDOWS) {
             File systemFile = new File(DEFAULT_LOCAL_PATH);
-            createDirectory(systemFile);
+            createDirectory(systemFile, false);
             if (Files.isWritable(systemFile.toPath())) {
                 return DEFAULT_LOCAL_PATH;
             }

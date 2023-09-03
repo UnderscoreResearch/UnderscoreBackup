@@ -35,7 +35,7 @@ public class BackupSetDestinations {
     private static File backupSetLocationInfo(String manifestLocation, BackupSet backupSet) {
         File file = Paths.get(manifestLocation, "db", "sets",
                 backupSet.getId() + ".json").toFile();
-        createDirectory(file.getParentFile());
+        createDirectory(file.getParentFile(), true);
         return file;
     }
 

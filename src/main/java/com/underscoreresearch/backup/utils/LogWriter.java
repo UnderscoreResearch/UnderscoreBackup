@@ -95,7 +95,7 @@ public class LogWriter extends AbstractAppender {
                     File file = new File(fileName);
                     boolean exists = file.exists();
                     if (!exists) {
-                        createDirectory(file.getParentFile());
+                        createDirectory(file.getParentFile(), true);
                         creationDate = System.currentTimeMillis();
                     } else {
                         try {

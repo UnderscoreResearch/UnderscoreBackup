@@ -122,7 +122,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
     @Override
     public void writeData(String path, byte[] buffer, long offset, int length) throws IOException {
         File file = new File(PathNormalizer.physicalPath(path));
-        ensureDirectoryExists(file);
+        createDirectory(file.getParentFile(), true);
         try (RandomAccessFile stream = new RandomAccessFile(file, "rw")) {
             try (FileChannel ch = stream.getChannel()) {
                 if (ch.write(ByteBuffer.wrap(buffer, 0, length), offset) != length) {
@@ -152,10 +152,5 @@ public class FileSystemAccessImpl implements FileSystemAccess {
     public void delete(String path) throws IOException {
         File file = new File(PathNormalizer.physicalPath(path));
         deleteFileException(file);
-    }
-
-    private void ensureDirectoryExists(File file) {
-        File parent = file.getParentFile();
-        createDirectory(parent);
     }
 }

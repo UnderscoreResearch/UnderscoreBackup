@@ -29,6 +29,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
@@ -51,6 +52,7 @@ import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
 import com.underscoreresearch.backup.manifest.BaseManifestManager;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -146,6 +148,32 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             gzipStream.write(data);
         }
         return outputStream.toByteArray();
+    }
+
+    public static void deleteLogFiles(String lastLogFile, IOIndex provider,
+                                      AtomicLong totalFiles, AtomicLong processedFiles) throws IOException {
+        if (lastLogFile != null) {
+            DeletionScheduler scheduler = new DeletionScheduler(10);
+            try {
+                while (true) {
+                    List<String> fetchedFiles = provider.availableLogs(null, false);
+                    List<String> files = fetchedFiles.stream().filter((file) -> file.compareTo(lastLogFile) <= 0)
+                            .toList();
+                    totalFiles.addAndGet(files.size());
+                    for (String file : files) {
+                        if (file.compareTo(lastLogFile) <= 0) {
+                            scheduler.delete(provider, file, processedFiles);
+                        }
+                    }
+                    if (fetchedFiles.size() != files.size() || files.isEmpty()) {
+                        break;
+                    }
+                }
+            } finally {
+                scheduler.waitForCompletion();
+                scheduler.shutdown();
+            }
+        }
     }
 
     protected void uploadKeyData(EncryptionKey key) throws IOException {
@@ -288,10 +316,9 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     protected void additionalInitialization() {
     }
 
-    @Override
-    public List<String> getExistingLogs() throws IOException {
+    protected List<String> getExistingLogs() throws IOException {
         IOIndex index = (IOIndex) getProvider();
-        return index.availableLogs(null);
+        return index.availableLogs(null, true);
     }
 
     protected byte[] encryptionKeyForUpload(EncryptionKey encryptionKey) throws IOException {
@@ -458,7 +485,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         String filename;
         filename = createLogFilename();
 
-        createDirectory(new File(filename).getParentFile());
+        createDirectory(new File(filename).getParentFile(), true);
 
         currentLogLock = new AccessLock(filename);
         lastLogFilename = filename;
@@ -469,9 +496,6 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             writeLogEntry("previousFile", MAPPER.writeValueAsString(lastUploadFile));
             debug(() -> log.debug("Registering previous log file {} for {}", lastUploadFile, lastLogFilename));
         }
-
-        File dir = new File(filename).getParentFile();
-        createDirectory(dir);
 
         if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
             executor.schedule(() -> {
@@ -528,12 +552,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
-    @Override
-    public void deleteLogFiles(List<String> existingLogs) throws IOException {
-        for (String oldFile : existingLogs) {
-            getProvider().delete(oldFile);
-            debug(() -> log.debug("Deleted {}", oldFile));
-        }
+    public void deleteLogFiles(String lastLogFile) throws IOException {
+        deleteLogFiles(lastLogFile, (IOIndex) getProvider(), new AtomicLong(), new AtomicLong());
     }
 
     public void syncLog() throws IOException {
@@ -581,6 +601,24 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             uploadExecutor.shutdown();
             executor.shutdownNow();
             shutdown = true;
+        }
+    }
+
+    private static class DeletionScheduler extends SchedulerImpl {
+        public DeletionScheduler(int maximumConcurrency) {
+            super(maximumConcurrency);
+        }
+
+        public void delete(IOProvider provider, String file, AtomicLong counter) {
+            schedule(() -> {
+                try {
+                    provider.delete(file);
+                    counter.incrementAndGet();
+                    debug(() -> log.debug("Deleted {}", file));
+                } catch (IOException e) {
+                    log.error("Failed to delete {}", file, e);
+                }
+            });
         }
     }
 }

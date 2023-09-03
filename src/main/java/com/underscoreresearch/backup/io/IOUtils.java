@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.io;
 
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_BASE;
 
 import java.io.ByteArrayOutputStream;
@@ -17,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.extern.slf4j.Slf4j;
 
-import com.underscoreresearch.backup.cli.UIManager;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
@@ -79,7 +80,7 @@ public final class IOUtils {
 
     public static <T> T waitForInternet(Callable<T> callable) throws Exception {
         boolean clearFlag = false;
-        try (Closeable ignore = UIManager.registerTask("Waiting for internet to continue")) {
+        try (Closeable ignore = UIHandler.registerTask("Waiting for internet to continue")) {
             for (int i = 0; true; i++) {
                 try {
                     if (InstanceFactory.isShutdown()) {
@@ -122,9 +123,12 @@ public final class IOUtils {
         }
     }
 
-    public static void createDirectory(File file) {
+    public static void createDirectory(File file, boolean warning) {
         if (!file.exists() && !file.mkdirs()) {
-            log.warn("Failed to create directory {}", file);
+            if (warning)
+                log.warn("Failed to create directory {}", file);
+            else
+                debug(() -> log.debug("Failed to create directory {}", file));
         }
     }
 

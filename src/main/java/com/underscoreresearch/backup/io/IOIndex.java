@@ -12,7 +12,7 @@ public interface IOIndex extends IOProvider {
         return Utils.rebuildAvailable(this);
     }
 
-    default List<String> availableLogs(String lastSyncedFile) throws IOException {
-        return Utils.getListOfLogFiles(lastSyncedFile, this);
+    default List<String> availableLogs(String lastSyncedFile, boolean all) throws IOException {
+        return Utils.getListOfLogFiles(lastSyncedFile, this, all);
     }
 }

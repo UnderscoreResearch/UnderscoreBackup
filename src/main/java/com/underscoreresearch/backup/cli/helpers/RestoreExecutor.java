@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.UIManager;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
@@ -46,7 +46,7 @@ public class RestoreExecutor {
                              boolean skipPermisssions) throws IOException {
         String commonRoot = findCommonRoot(rootPaths);
         backupStatsLogger.setDownloadRunning(true);
-        try (Closeable ignored = UIManager.registerTask("Restoring from " + rootPaths.stream()
+        try (Closeable ignored = UIHandler.registerTask("Restoring from " + rootPaths.stream()
                 .map(BackupSetRoot::getPath)
                 .map(PathNormalizer::physicalPath)
                 .collect(Collectors.joining(", ")))) {
@@ -158,8 +158,8 @@ public class RestoreExecutor {
             if (root && files.size() == 1 && !files.get(0).isDirectory() && !destinationFile.isDirectory()) {
                 downloadFile(scheduler, files.get(0), destination, overwrite, skipPermissions);
             } else {
-                if (!isNullFile(inputDestination) && destination.length() > 0 && !destinationFile.isDirectory()) {
-                    createDirectory(destinationFile);
+                if (!isNullFile(inputDestination) && !destination.isEmpty() && !destinationFile.isDirectory()) {
+                    createDirectory(destinationFile, true);
                 }
 
                 for (BackupFile file : files) {

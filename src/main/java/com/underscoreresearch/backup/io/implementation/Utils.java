@@ -35,11 +35,14 @@ public class Utils {
         return files;
     }
 
-    public static List<String> getListOfLogFiles(String lastSyncedFile, IOIndex index) throws IOException {
+    public static List<String> getListOfLogFiles(String lastSyncedFile, IOIndex index, boolean all) throws IOException {
         List<String> days = getListOfLogFiles(lastSyncedFile, index, LOG_ROOT, true);
         List<String> files = new ArrayList<>();
         for (String day : days) {
             files.addAll(getListOfLogFiles(lastSyncedFile, index, day, false));
+            if (files.size() > 0 && !all) {
+                break;
+            }
         }
         return files;
     }

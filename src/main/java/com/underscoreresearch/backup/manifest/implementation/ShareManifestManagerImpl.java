@@ -146,7 +146,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     private void saveShareFile() throws IOException {
         File configLocation = Paths.get(InstanceFactory.getInstance(MANIFEST_LOCATION), "shares", getPublicKey().getPublicKey(),
                 SHARE_CONFIG_FILE).toFile();
-        createDirectory(configLocation.getParentFile());
+        createDirectory(configLocation.getParentFile(), true);
         BACKUP_ACTIVATED_SHARE_WRITER.writeValue(
                 configLocation,
                 activatedShare);

@@ -25,7 +25,7 @@ Compression=lzma
 SolidCompression=yes
 
 [Run]
-Filename: "{app}\\underscorebackup-gui.exe"; Flags: shellexec runasoriginaluser
+Filename: "{app}\\underscorebackup-gui.exe"; Flags: shellexec runasoriginaluser;
 
 [Files]
 Source: "..\\build\\installerimage\\underscorebackup.exe"; DestDir: "{app}"; Flags: ignoreversion; \\
@@ -35,6 +35,7 @@ Source: "..\\build\\installerimage\\underscorebackup-gui.exe"; DestDir: "{app}";
 Source: "..\\build\\installerimage\\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\\build\\installerimage\\app\\*"; DestDir: "{app}\\app"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\\build\\installerimage\\runtime\\*"; DestDir: "{app}\\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "nssm.exe"; DestDir: "{app}"; Flags: ignoreversion;
 
 [InstallDelete]
 Type: filesandordirs; Name: {app}\\app
@@ -47,7 +48,7 @@ Name: "{commonstartup}\\Underscore Backup"; Filename: "{app}\\underscorebackup-g
 Name: "{commonprograms}\\Underscore Backup"; Filename: "{app}\\underscorebackup-gui.exe";
 
 [Registry]
-Root: "HKLM"; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}" ; Check: NeedsAddPath('{app}')
+Root: "HKLM"; Subkey: "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath('{app}')
 
 [Code]
 
@@ -57,6 +58,46 @@ const
 var
   PreviousMemory: string;
   PreviousMemoryUI: string;
+  TypePage: TInputOptionWizardPage;
+
+function ServiceInstall: Boolean;
+begin
+  Result := TypePage.SelectedValueIndex = 0;
+end;
+
+function ApplicationInstall: Boolean;
+begin
+  Result := TypePage.SelectedValueIndex = 1;
+end;
+
+procedure InitializeWizard;
+begin
+
+  TypePage := CreateInputOptionPage(wpLicense,
+    'Installation Type', 'How would you like to run the application?',
+    'Select how you would like Underscore Backup to run.',
+    True, False);
+  TypePage.Add('Service. Run as service in the background on startup.');
+  TypePage.Add('Application. Run as user application only when logged in.');
+
+  case GetPreviousData('Type', '') of
+    'application': TypePage.SelectedValueIndex := 1;
+  else
+    TypePage.SelectedValueIndex := 0;
+  end;
+end;
+
+procedure RegisterPreviousData(PreviousDataKey: Integer);
+var
+  TypeMode: String;
+begin
+  if TypePage.SelectedValueIndex = 0 then
+    TypeMode := 'service'
+  else
+    TypeMode := 'application';
+
+  SetPreviousData(PreviousDataKey, 'Type', TypeMode);
+end;
 
 procedure TaskKill(FileName: String);
 var
@@ -69,6 +110,8 @@ procedure ShutdownApp();
 var
   ResultCode: integer;
 begin
+  Exec(ExpandConstant('{app}\\nssm'), 'stop UnderscoreBackup', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
+  Exec(ExpandConstant('{app}\\nssm'), 'remove UnderscoreBackup confirm', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
   Exec(ExpandConstant('{app}\\underscorebackup'), 'shutdown', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   TaskKill('underscorebackup.exe');
   TaskKill('underscorebackup-gui.exe');
@@ -77,6 +120,7 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   ShutdownApp();
+  Result := '';
 end;
 
 function NeedsAddPath(Param: string): boolean;
@@ -170,7 +214,7 @@ begin
   Result := '';
 end;
 
-procedure ReplaceMemory(file: string; newLine: string);
+procedure ReplaceMemory(file: string; newLine: string; service: boolean);
 var
   config : TArrayOfString;
   i : Integer;
@@ -186,15 +230,42 @@ begin
         if Pos('java-options=-Xmx', line) = 1 then
         begin
           config[i] := newLine;
-          SaveStringsToFile(file, config, False);
-          exit;
+        end;
+        if service then
+        begin
+          if Pos('arguments=', line) = 1 then
+          begin
+            config[i] := 'arguments=gui';
+          end;
         end;
       end;
+      SaveStringsToFile(file, config, False);
     end;
   end;
 end;
 
+procedure RunNssm(command: string);
+var
+  ResultCode: integer;
+begin
+  if Exec(ExpandConstant('{app}\\nssm'), command, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    if ResultCode <> 0 then
+    begin
+      MsgBox('Failed to install service on command'#13#10#13#10 + command + #13#10#13#10'Exit code ' + IntToStr(ResultCode),
+             mbError, MB_OK);
+    end;
+  end
+  else
+  begin
+    MsgBox('Failed to run NSSM'#13#10#13#10'Result code ' + IntToStr(ResultCode),
+           mbError, MB_OK);
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: integer;
 begin
   if CurStep = ssInstall then
   begin
@@ -205,11 +276,31 @@ begin
   begin
     if PreviousMemory <> '' then
     begin
-      ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup.cfg'), PreviousMemory);
+      ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup.cfg'), PreviousMemory, false);
     end;
+
+    if (PreviousMemoryUI = '') and ServiceInstall() then
+    begin
+      PreviousMemoryUI := 'java-options=-Xmx32m';
+    end
+    else if (PreviousMemoryUI = 'ja va-options=-Xmx32m') and ApplicationInstall() then
+    begin
+      PreviousMemoryUI := 'java-options=-Xmx256m';
+    end;
+
     if PreviousMemoryUI <> '' then
     begin
-      ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'), PreviousMemoryUI);
+      ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'), PreviousMemoryUI, ServiceInstall());
+    end;
+
+    if ServiceInstall() then
+    begin
+      RunNssm(ExpandConstant('install UnderscoreBackup "{app}\\underscorebackup.exe"'));
+      RunNssm('set UnderscoreBackup AppParameters interactive service');
+      RunNssm('set UnderscoreBackup Start SERVICE_AUTO_START');
+      RunNssm('set UnderscoreBackup DisplayName Underscore Backup');
+      RunNssm('set UnderscoreBackup Description Underscore Backup background service');
+      Exec(ExpandConstant('{app}\\nssm'), 'start UnderscoreBackup', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     end;
   end;
 end;

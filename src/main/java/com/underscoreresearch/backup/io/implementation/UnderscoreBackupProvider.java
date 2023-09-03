@@ -138,7 +138,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     }
 
     @Override
-    public List<String> availableLogs(String lastSyncedFile) throws IOException {
+    public List<String> availableLogs(String lastSyncedFile, boolean all) throws IOException {
         debug(() -> log.debug("Getting available logs"));
         FileListResponse response = callRetry((api) -> api.listLogFiles(getSourceId(), lastSyncedFile, shareId));
 
@@ -152,6 +152,9 @@ public class UnderscoreBackupProvider implements IOIndex {
         do {
             response = callRetry((api) -> api.listLogFiles(getSourceId(), ret.get(ret.size() - 1), shareId));
             ret.addAll(response.getFiles());
+            if (!ret.isEmpty() && !all) {
+                break;
+            }
         } while (Boolean.FALSE.equals(response.getCompleted()));
         return ret;
     }

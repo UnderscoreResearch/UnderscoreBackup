@@ -5,7 +5,6 @@ import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
@@ -30,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -42,8 +42,8 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
-import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
@@ -88,6 +88,7 @@ import com.underscoreresearch.backup.utils.AccessLock;
 public class OptimizingManifestManager extends BaseManifestManagerImpl implements ManifestManager {
     public final static String CONFIGURATION_FILENAME = "configuration.json";
     private static final String UPLOAD_PENDING = "Upload pending";
+    private static final long EVENTUAL_CONSISTENCY_TIMEOUT_MS = 10 * 1000;
 
     @Getter(AccessLevel.PROTECTED)
     private final String source;
@@ -310,7 +311,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
         try {
             IOIndex index = (IOIndex) getProvider();
-            List<String> files = index.availableLogs(consumer.lastSyncedLogFile(getShare()));
+            List<String> files = index.availableLogs(consumer.lastSyncedLogFile(getShare()), true);
 
             totalFiles = new AtomicLong(files.size());
             processedFiles = new AtomicLong(0L);
@@ -502,13 +503,12 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
         flushRepositoryLogging();
         getUploadScheduler().waitForCompletion();
 
-        if (existingLogFiles().size() > 0) {
+        if (!existingLogFiles().isEmpty()) {
             log.warn("Still having pending log files, can't optimize");
             return;
         }
 
-        List<String> existingLogs = getExistingLogs();
-        additionalManifestManager.startOptimizeLog();
+        String lastLogFile = logConsumer.lastSyncedLogFile(getShare());
 
         setDisabledFlushing(true);
 
@@ -591,17 +591,32 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             copyRepository.close();
             flushRepositoryLogging();
 
+            awaitEventualConsistency();
+
             ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                     getConfiguration().getManifest().getOptimizeSchedule());
             completeUploads();
 
-            log.info("Deleting old log files ({})", existingLogs.size());
-            deleteLogFiles(existingLogs);
-            additionalManifestManager.finishOptimizeLog();
+            deleteLogFiles(lastLogFile);
+            additionalManifestManager.finishOptimizeLog(lastLogFile, totalFiles, processedFiles);
         } finally {
             resetStatus();
 
             setDisabledFlushing(false);
+        }
+    }
+
+    protected void awaitEventualConsistency() {
+        if (operationDuration != null) {
+            long milliseconds = operationDuration.elapsed(TimeUnit.MILLISECONDS) - EVENTUAL_CONSISTENCY_TIMEOUT_MS;
+            if (milliseconds > 0) {
+                try {
+                    log.info("Waiting {} seconds for log file eventual consistency", milliseconds / 1000);
+                    Thread.sleep(milliseconds);
+                } catch (InterruptedException e) {
+                    log.warn("Failed to wait for eventual consistency", e);
+                }
+            }
         }
     }
 
@@ -610,14 +625,10 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     }
 
     @Override
-    public void deleteLogFiles(List<String> existingLogs) throws IOException {
-        totalFiles = new AtomicLong(existingLogs.size());
+    public void deleteLogFiles(String lastLogFile) throws IOException {
+        totalFiles = new AtomicLong();
         processedFiles = new AtomicLong();
-        for (String oldFile : existingLogs) {
-            getProvider().delete(oldFile);
-            debug(() -> log.debug("Deleted {}", oldFile));
-            processedFiles.incrementAndGet();
-        }
+        deleteLogFiles(lastLogFile, (IOIndex) getProvider(), totalFiles, processedFiles);
     }
 
     @Override
@@ -648,7 +659,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
         log.info(operation);
         synchronized (operationLock) {
             this.operation = operation;
-            this.operationTask = UIManager.registerTask(operation);
+            this.operationTask = UIHandler.registerTask(operation);
             operationDuration = Stopwatch.createStarted();
         }
     }
@@ -693,7 +704,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 }
             }
 
-            if (pendingShareManagers.size() > 0) {
+            if (!pendingShareManagers.isEmpty()) {
                 startOperation("Activating shares");
                 processedOperations = new AtomicLong();
 
@@ -702,10 +713,10 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                             + repository.getDirectoryCount());
                     log.info("Fetching existing logs");
 
-                    Map<String, List<String>> existingLogs = new HashMap<>();
+                    Map<String, String> existingLogs = new HashMap<>();
                     for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
                         entry.getValue().validateIdentity();
-                        existingLogs.put(entry.getKey().getPublicKey(), entry.getValue().getExistingLogs());
+                        existingLogs.put(entry.getKey().getPublicKey(), repository.lastSyncedLogFile(entry.getKey().getPublicKey()));
                         repository.setLastSyncedLogFile(entry.getKey().getPublicKey(), null);
                         entry.getValue().initialize(consumer, false);
                     }
@@ -795,12 +806,9 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
                     log.info("Deleting any existing log files");
 
-                    totalFiles = new AtomicLong(existingLogs.values().stream().map(List::size).reduce(0, Integer::sum));
-                    processedFiles = new AtomicLong();
                     for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
                         entry.getValue().syncLog();
                         entry.getValue().deleteLogFiles(existingLogs.get(entry.getKey().getPublicKey()));
-                        processedFiles.addAndGet(existingLogs.get(entry.getKey().getPublicKey()).size());
                         entry.getValue().completeActivation();
 
                         activeShares.put(entry.getKey().getPublicKey(), entry.getValue());

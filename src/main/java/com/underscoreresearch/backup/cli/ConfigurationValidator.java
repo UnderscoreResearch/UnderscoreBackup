@@ -168,7 +168,7 @@ public class ConfigurationValidator {
                 throw new IllegalArgumentException("Repository does not exist, run backup or rebuild-repository first");
             }
             log.warn("Local location for backup metadata does not exist.");
-            createDirectory(file);
+            createDirectory(file, true);
         } else {
             file = new File(file, "db");
             if (file.exists() && !file.isDirectory()) {

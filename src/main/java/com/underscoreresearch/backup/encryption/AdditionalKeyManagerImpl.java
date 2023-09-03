@@ -85,6 +85,7 @@ public class AdditionalKeyManagerImpl implements AdditionalKeyManager {
 
         if (manifestManager != null) {
             manifestManager.updateKeyData(privateKey.getParent());
+            manifestManager.waitUploads();
         }
     }
 

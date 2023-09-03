@@ -133,7 +133,7 @@ public class SourceSelectPost extends JsonWrap {
 
     private static void writeSourceKey(String share, EncryptionKey usedPrivateKey) throws IOException {
         File keyFile = new File(CommandLineModule.getKeyFileName(share));
-        createDirectory(keyFile.getParentFile());
+        createDirectory(keyFile.getParentFile(), true);
         try (FileWriter outputStream = new FileWriter(keyFile, StandardCharsets.UTF_8)) {
             outputStream.write(ENCRYPTION_KEY_WRITER.writeValueAsString(usedPrivateKey));
         }

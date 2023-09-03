@@ -31,9 +31,9 @@ import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.cli.UIManager;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
@@ -210,8 +210,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                     try {
                         String message = String.format("Started scanning %s for %s", set.getAllRoots(), set.getId());
                         log.info(message);
-                        UIManager.displayInfoMessage(message);
-                        try (Closeable ignored = UIManager.registerTask("Backing up " + set.getId())) {
+                        UIHandler.displayInfoMessage(message);
+                        try (Closeable ignored = UIHandler.registerTask("Backing up " + set.getId())) {
                             if (scanner.startScanning(set)) {
                                 anyRan = true;
                                 rescheduleCompletedSet(i, set);
@@ -246,7 +246,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                     try {
                         if (anyRan) {
                             backupCompletedCleanup();
-                            UIManager.displayInfoMessage("Backup completed");
+                            UIHandler.displayInfoMessage("Backup completed");
                         }
                         repository.close();
                     } catch (IOException e) {
@@ -266,10 +266,10 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                     Closeable task;
                     if (fileChangeWatcher.active()) {
                         log.info("Waiting for filesystem changes");
-                        task = UIManager.registerTask("Waiting for filesystem changes");
+                        task = UIHandler.registerTask("Waiting for filesystem changes");
                     } else {
                         log.info("Paused for next scheduled scan");
-                        task = UIManager.registerTask("Paused for next scheduled scan");
+                        task = UIHandler.registerTask("Paused for next scheduled scan");
                     }
                     try {
                         continuousBackup.start();
@@ -325,7 +325,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
             if (configuration.getManifest().getVersionCheck() == null || configuration.getManifest().getVersionCheck()) {
                 ReleaseResponse version = InstanceFactory.getInstance(ServiceManager.class).checkVersion();
                 if (version != null) {
-                    UIManager.displayInfoMessage(String.format("New version %s available:\n\n%s",
+                    UIHandler.displayInfoMessage(String.format("New version %s available:\n\n%s",
                             version.getVersion(), version.getName()));
                 }
             }

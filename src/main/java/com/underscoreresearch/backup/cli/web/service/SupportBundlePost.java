@@ -32,7 +32,7 @@ import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.underscoreresearch.backup.cli.UIManager;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -190,7 +190,7 @@ public class SupportBundlePost extends JsonWrap {
 
             log.info("Support bundle generated at " + f.getAbsolutePath());
 
-            UIManager.openFolder(f.getParentFile());
+            UIHandler.openFolder(f.getParentFile());
 
             return new RsText(WRITER.writeValueAsString(new GenerateSupportBundleResponse(f.getAbsolutePath())));
         }

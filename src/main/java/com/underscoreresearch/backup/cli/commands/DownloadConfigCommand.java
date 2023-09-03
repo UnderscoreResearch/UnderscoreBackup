@@ -36,7 +36,7 @@ public class DownloadConfigCommand extends Command {
     public static void storeKeyData(String key, String source) throws ParseException, IOException {
         byte[] keyData = downloadKeyData(key, source);
         File keyFile = new File(CommandLineModule.getKeyFileName(source));
-        createDirectory(keyFile.getParentFile());
+        createDirectory(keyFile.getParentFile(), true);
         try (FileOutputStream outputStream = new FileOutputStream(keyFile)) {
             outputStream.write(keyData);
         }
