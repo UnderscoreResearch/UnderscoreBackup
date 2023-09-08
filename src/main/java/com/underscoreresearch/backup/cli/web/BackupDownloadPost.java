@@ -40,6 +40,8 @@ public class BackupDownloadPost extends TkWrap {
 
         @Override
         public Response actualAct(Request req) throws Exception {
+            String password = decodePrivateKeyRequest(req);
+
             try {
                 String path = decodeFile(req, base);
                 Href href = new RqHref.Base(req).href();
@@ -54,8 +56,6 @@ public class BackupDownloadPost extends TkWrap {
                             "Missing timestamp to restore"
                     );
                 }
-
-                String password = decodePrivateKeyRequest(req);
 
                 BackupFile file = InstanceFactory.getInstance(MetadataRepository.class).file(path, timestamp);
                 if (file == null || !file.getAdded().equals(timestamp)) {

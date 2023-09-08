@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
+import static com.underscoreresearch.backup.cli.web.BaseWrap.jsonResponse;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
@@ -26,6 +27,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.takes.Response;
 import org.takes.rs.RsText;
 import org.takes.rs.RsWithStatus;
 
@@ -85,9 +87,9 @@ public class ServiceManagerImpl implements ServiceManager {
         }
     }
 
-    public static RsWithStatus sendApiFailureOn(IOException exc) throws IOException {
+    public static Response sendApiFailureOn(IOException exc) throws IOException {
         if (exc.getCause() instanceof ApiException apiExc) {
-            return new RsWithStatus(new RsText(apiExc.getResponseBody()), apiExc.getCode());
+            return jsonResponse(new RsWithStatus(new RsText(apiExc.getResponseBody()), apiExc.getCode()));
         }
         throw exc;
     }

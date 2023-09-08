@@ -10,7 +10,7 @@ import org.takes.rs.RsWithHeaders;
 import org.takes.rs.RsWithStatus;
 
 @Slf4j
-public class PingOptions extends JsonWrap {
+public class PingOptions extends BaseWrap {
     public PingOptions() {
         super(new Implementation());
     }

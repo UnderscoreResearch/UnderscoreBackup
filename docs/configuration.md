@@ -124,8 +124,7 @@ Contains information of how the backup repository is managed.
   scheduled or manual backup completes.
 * **trimSchedule** - If set this will be a schedule of how often the trim operation will look for and delete unused
   storage.
-* **configUsername** - Username required to log into the config web interface.
-* **configPassword** - Password required to log into the config web interface.
+* **authenticationRequired** - If set to true require providing encryption password to access UI.
 * **scheduleRandomize** - Amount of time to randomly add to any scheduled time to jitter the start of next scheduled
   run.
     * **unit** - Unit of timestamp (SECONDS, MINUTES, HOURS, DAYS, WEEKS, MONTHS, or YEARS).

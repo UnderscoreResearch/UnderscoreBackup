@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
@@ -25,17 +26,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.Take;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 
 @Slf4j
-public class BestRegionGet extends JsonWrap {
+public class BestRegionGet extends BaseWrap {
     private static final Map<String, List<URL>> REGIONS;
     private static final int ITERATIONS = 5;
     private static final ObjectWriter WRITER = MAPPER.writerFor(BestRegion.class);
@@ -120,7 +120,7 @@ public class BestRegionGet extends JsonWrap {
         @Override
         public Response act(Request req) throws Exception {
             try {
-                return new RsText(WRITER.writeValueAsString(new BestRegion(determineBestRegion())));
+                return encryptResponse(req, WRITER.writeValueAsString(new BestRegion(determineBestRegion())));
             } catch (Throwable exc) {
                 log.warn("Failed to determine best region", exc);
             }

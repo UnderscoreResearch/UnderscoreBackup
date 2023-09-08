@@ -125,7 +125,7 @@ class AssignmentTests {
     public void rawUpload() throws InterruptedException {
         RawLargeFileBlockAssignment largeFileBlockAssignment = new RawLargeFileBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class), access,
-                Mockito.mock(MetadataRepository.class), new MachineState(true), encryptionKey, 50);
+                Mockito.mock(MetadataRepository.class), new MachineState(false), encryptionKey, 50);
         expectedFormat = "RAW";
 
         AtomicBoolean failed = new AtomicBoolean();
@@ -163,7 +163,7 @@ class AssignmentTests {
     public void gzipUpload() throws InterruptedException {
         GzipLargeFileBlockAssignment largeFileBlockAssignment = new GzipLargeFileBlockAssignment(uploader,
                 Mockito.mock(BlockDownloader.class), access,
-                Mockito.mock(MetadataRepository.class), new MachineState(true), encryptionKey, 50);
+                Mockito.mock(MetadataRepository.class), new MachineState(false), encryptionKey, 50);
         expectedFormat = "GZIP";
 
         AtomicBoolean failed = new AtomicBoolean();

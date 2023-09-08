@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.utils.state;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.Instant;
@@ -10,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
+import com.underscoreresearch.backup.file.changepoller.FsChangePoller;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 
 @Slf4j
@@ -105,5 +108,11 @@ public class MachineState {
         }
 
         return lastValue;
+    }
+
+    public FileChangePoller createPoller() throws IOException {
+        if (FsChangePoller.isSupported())
+            return new FsChangePoller();
+        throw new UnsupportedOperationException("Not supported on this platform");
     }
 }

@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.cli.web.PingGet.getSiteUrl;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
@@ -21,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.SystemUtils;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
@@ -46,7 +46,7 @@ import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
-public class StateGet extends JsonWrap {
+public class StateGet extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(StateResponse.class);
 
     public StateGet() {
@@ -219,7 +219,7 @@ public class StateGet extends JsonWrap {
                         ? InstanceFactory.getAdditionalSourceName()
                         : InstanceFactory.getInstance(ServiceManager.class).getSourceName();
 
-                return new RsText(WRITER.writeValueAsString(StateResponse.builder()
+                return encryptResponse(req, WRITER.writeValueAsString(StateResponse.builder()
                         .defaultSet(set)
                         .version(VersionCommand.getVersionEdition())
                         .validDestinations(validDestinations)

@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
@@ -19,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -37,7 +37,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 
 @Slf4j
-public class RestorePost extends JsonWrap {
+public class RestorePost extends BaseWrap {
     private static final ObjectReader READER = MAPPER.readerFor(BackupRestoreRequest.class);
     private static final ObjectWriter WRITER = MAPPER.writerFor(com.underscoreresearch.backup.cli.web.KeyPost.KeyResponse.class);
 
@@ -77,7 +77,7 @@ public class RestorePost extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            BackupRestoreRequest request = READER.readValue(new RqPrint(req).printBody());
+            BackupRestoreRequest request = READER.readValue(decodeRequestBody(req));
 
             if (Strings.isEmpty(request.getPassword())) {
                 return messageJson(400, "Missing password to restore");
@@ -87,7 +87,7 @@ public class RestorePost extends JsonWrap {
                 return messageJson(403, "Invalid password provided");
             }
 
-            if (request.getFiles() == null || request.getFiles().size() < 1) {
+            if (request.getFiles() == null || request.getFiles().isEmpty()) {
                 return messageJson(400, "Missing files to restore");
             }
 

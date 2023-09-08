@@ -75,7 +75,7 @@ class FileScannerImplTest {
         consumer = new Consumer();
         delayedBackup = false;
 
-        scanner = new FileScannerImpl(repository, consumer, access, new MachineState(true), true,
+        scanner = new FileScannerImpl(repository, consumer, access, new MachineState(false), true,
                 manifestLocation.getAbsolutePath());
     }
 

@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.cli.web.service.SourcesPost.encryptionKey;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
@@ -12,14 +14,12 @@ import lombok.Data;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -28,7 +28,7 @@ import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
-public class GenerateTokenPost extends JsonWrap {
+public class GenerateTokenPost extends BaseWrap {
     private static final ObjectReader READER = MAPPER.readerFor(InternalGenerateTokenRequest.class);
     private static final ObjectWriter WRITER = MAPPER.writerFor(InternalGenerateTokenResponse.class);
 
@@ -52,7 +52,7 @@ public class GenerateTokenPost extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            InternalGenerateTokenRequest request = READER.readValue(new RqPrint(req).printBody());
+            InternalGenerateTokenRequest request = READER.readValue(decodeRequestBody(req));
 
             try {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
@@ -72,7 +72,7 @@ public class GenerateTokenPost extends JsonWrap {
                                     .identity(identity)));
                     serviceManager.setSourceId(created.getSourceId());
                 }
-                return new RsText(WRITER.writeValueAsString(new InternalGenerateTokenResponse(
+                return encryptResponse(req, WRITER.writeValueAsString(new InternalGenerateTokenResponse(
                         serviceManager.getToken())));
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);

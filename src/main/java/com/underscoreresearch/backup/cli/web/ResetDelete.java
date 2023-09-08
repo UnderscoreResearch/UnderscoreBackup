@@ -18,7 +18,7 @@ import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.utils.ActivityAppender;
 
 @Slf4j
-public class ResetDelete extends JsonWrap {
+public class ResetDelete extends BaseWrap {
     public ResetDelete() {
         super(new Implementation());
     }

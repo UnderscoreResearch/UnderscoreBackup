@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Underscore Backup
+GenericName=Backup Application
+Comment=Private, secure backups in the cloud of any size with minimal resource usage exactly the way you want them.
+Exec=/opt/underscorebackup/bin/underscorebackup gui
+Icon=underscorebackup
+Terminal=false
+Type=Application
+Categories=Utility;Archiving

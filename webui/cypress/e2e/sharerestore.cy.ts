@@ -1,5 +1,4 @@
-const shareLocation = Cypress.env('TEST_SHARE')
-    .replaceAll("\\", "\\\\");
+const shareLocation = Cypress.env('TEST_SHARE');
 const configInterface = Cypress.env("CONFIG_INTERFACE")
 
 it('sharerestore', function () {

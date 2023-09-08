@@ -9,14 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.takes.Request;
 import org.takes.Response;
 
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
 @Slf4j
-public class DeleteSecretPost extends JsonWrap {
+public class DeleteSecretPost extends BaseWrap {
     public DeleteSecretPost() {
         super(new Implementation());
     }

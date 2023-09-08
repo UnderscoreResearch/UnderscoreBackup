@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getD
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.cli.web.service.SourcesPost.encryptionKey;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
@@ -27,14 +28,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.io.BaseEncoding;
 import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.cli.web.PrivateKeyRequest;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -48,7 +48,7 @@ import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
 @Slf4j
-public class SourcesPut extends JsonWrap {
+public class SourcesPut extends BaseWrap {
     private static final ObjectReader READER = MAPPER.readerFor(UpdateSourceRequest.class);
 
     public SourcesPut() {
@@ -176,7 +176,7 @@ public class SourcesPut extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String requestBody = new RqPrint(req).printBody();
+            String requestBody = decodeRequestBody(req);
             UpdateSourceRequest request = READER.readValue(requestBody);
             try {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);

@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -10,12 +11,11 @@ import org.takes.Request;
 import org.takes.Response;
 import org.takes.misc.Href;
 import org.takes.rq.RqHref;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -23,7 +23,7 @@ import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
-public class SourcesGet extends JsonWrap {
+public class SourcesGet extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(ListSourcesResponse.class);
 
     public SourcesGet() {
@@ -47,7 +47,7 @@ public class SourcesGet extends JsonWrap {
                         } else {
                             ret.setSources(Lists.newArrayList());
                         }
-                        return new RsText(WRITER.writeValueAsString(ret));
+                        return encryptResponse(req, WRITER.writeValueAsString(ret));
                     }
                 final ListSourcesResponse ret = serviceManager.call(null, BackupApi::listSources);
                 final Iterable<String> excludeSelf = href.param("excludeSelf");
@@ -58,7 +58,7 @@ public class SourcesGet extends JsonWrap {
                                 .collect(Collectors.toList()));
                         break;
                     }
-                return new RsText(WRITER.writeValueAsString(ret));
+                return encryptResponse(req, WRITER.writeValueAsString(ret));
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);
             }

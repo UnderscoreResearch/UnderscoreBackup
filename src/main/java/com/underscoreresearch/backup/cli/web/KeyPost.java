@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import lombok.AllArgsConstructor;
@@ -9,14 +10,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 @Slf4j
-public class KeyPost extends JsonWrap {
+public class KeyPost extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER
             .writerFor(KeyResponse.class);
 
@@ -41,17 +41,17 @@ public class KeyPost extends JsonWrap {
             try {
                 if (password != null) {
                     if (PrivateKeyRequest.validatePassword(password)) {
-                        return new RsText(WRITER.writeValueAsString(new KeyResponse(true)));
+                        return encryptResponse(req, WRITER.writeValueAsString(new KeyResponse(true)));
                     } else {
                         return messageJson(403, "Invalid password provided");
                     }
                 }
 
                 InstanceFactory.getInstance(EncryptionKey.class);
-                return new RsText(WRITER.writeValueAsString(new KeyResponse(true)));
+                return encryptResponse(req, WRITER.writeValueAsString(new KeyResponse(true)));
             } catch (Exception exc) {
                 log.warn("Failed to get key");
-                return new RsText(WRITER.writeValueAsString(new KeyResponse(false)));
+                return encryptResponse(req, WRITER.writeValueAsString(new KeyResponse(false)));
             }
         }
     }

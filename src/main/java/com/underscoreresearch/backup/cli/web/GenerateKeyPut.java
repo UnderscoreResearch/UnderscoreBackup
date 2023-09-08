@@ -13,7 +13,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 
 @Slf4j
-public class GenerateKeyPut extends JsonWrap {
+public class GenerateKeyPut extends BaseWrap {
 
     public GenerateKeyPut() {
         super(new Implementation());

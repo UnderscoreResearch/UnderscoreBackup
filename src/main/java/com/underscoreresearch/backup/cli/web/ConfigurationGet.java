@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
 import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.getRegion;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
@@ -11,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rs.RsText;
 
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
@@ -20,7 +20,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
-public class ConfigurationGet extends JsonWrap {
+public class ConfigurationGet extends BaseWrap {
 
     public ConfigurationGet() {
         super(new Implementation());
@@ -41,7 +41,7 @@ public class ConfigurationGet extends JsonWrap {
                                 entry.getValue().setEndpointUri(getRegion(entry.getValue().getEndpointUri()));
                         }
                     }
-                    return new RsText(BACKUP_CONFIGURATION_WRITER.writeValueAsString(config));
+                    return encryptResponse(req, BACKUP_CONFIGURATION_WRITER.writeValueAsString(config));
                 } else if (InstanceFactory.getAdditionalSource() != null) {
                     log.warn("Have a source but an invalid configuration {}, bailing",
                             InstanceFactory.getAdditionalSource());

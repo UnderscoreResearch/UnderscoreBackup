@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -11,13 +12,12 @@ import lombok.Data;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 
-public class AdditionalKeysPost extends JsonWrap {
+public class AdditionalKeysPost extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(AdditionalKeysResponse.class);
 
     public AdditionalKeysPost() {
@@ -48,7 +48,7 @@ public class AdditionalKeysPost extends JsonWrap {
                 keys.add(new AdditionalKeyPut.ExternalEncryptionKey(key));
             }
 
-            return new RsText(WRITER.writeValueAsString(new AdditionalKeysResponse(keys)));
+            return encryptResponse(req, WRITER.writeValueAsString(new AdditionalKeysResponse(keys)));
         }
     }
 }

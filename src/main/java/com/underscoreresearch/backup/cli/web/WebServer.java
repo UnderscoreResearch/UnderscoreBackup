@@ -54,7 +54,6 @@ import com.underscoreresearch.backup.cli.web.service.TokenDelete;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class WebServer {
@@ -117,6 +116,9 @@ public class WebServer {
                                             new FkMethods("GET", new PingGet()),
                                             new FkMethods("OPTIONS", new PingOptions()),
                                             new FkMethods("POST", new PingPost())
+                                    )),
+                                    new FkRegex(base + "/api/auth", new TkFork(
+                                            new FkMethods("POST", new AuthPost())
                                     )),
 
                                     new FkRegex(base + "/api", new TkFork(
@@ -237,14 +239,8 @@ public class WebServer {
                                             ))
                             ),
                             new PsChain(
-                                    new PsNoAuthConfigured(base),
-                                    new PsCustomWebAuth("backup", (user) -> {
-                                        BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
-                                        if (user.equals(config.getManifest().getConfigUser())) {
-                                            return new Opt.Single<>(config.getManifest().getConfigPassword());
-                                        }
-                                        return new Opt.Empty<>();
-                                    })
+                                    new PsUnauthedContent(base),
+                                    new PsAuthedContent()
                             )
                     )
             );
@@ -272,7 +268,6 @@ public class WebServer {
                     writer.write(configUrl.toString());
                     writer.write("\n");
                 }
-                ConfigurationPost.setOwnerOnlyPermissions(urlFile);
             } catch (Exception exc) {
                 log.warn("Failed to write configuration location to disk", exc);
             }
@@ -315,34 +310,25 @@ public class WebServer {
                 ));
     }
 
-    private static class PsNoAuthConfigured implements Pass {
+    private static class PsUnauthedContent implements Pass {
 
         private final String base;
-        private final java.util.List<String> allowedPaths;
+        private final java.util.List<String> allowedPathMethods;
 
-        public PsNoAuthConfigured(String base) {
-            this.base = base + "/";
-            this.allowedPaths = Lists.newArrayList(
-                    base + "/api/ping",
-                    base + "/api/activity"
+        public PsUnauthedContent(String base) {
+            this.base = base + "/api/";
+            this.allowedPathMethods = Lists.newArrayList(
+                    this.base + "ping GET",
+                    this.base + "auth POST"
             );
         }
 
         @Override
         public Opt<Identity> enter(Request request) throws Exception {
             String path = new RqHref.Base(request).href().path();
-            if (path.startsWith(base) && (!allowedPaths.contains(path) || !new RqMethod.Base(request).method().equals("GET"))) {
-                try {
-                    if (InstanceFactory.hasConfiguration(false)) {
-                        BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
-                        String configUser = config.getManifest().getConfigUser();
-                        String configPassword = config.getManifest().getConfigPassword();
-                        if (configUser != null && configPassword != null) {
-                            return new Opt.Empty<Identity>();
-                        }
-                    }
-                } catch (Exception ignored) {
-                }
+            String pathMethod = path + " " + new RqMethod.Base(request).method();
+            if (path.startsWith(base) && (!allowedPathMethods.contains(pathMethod))) {
+                return new Opt.Empty<Identity>();
             }
             return AUTHENTICATED;
         }

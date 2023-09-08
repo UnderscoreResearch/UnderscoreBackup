@@ -7,12 +7,12 @@ import java.io.IOException;
 import org.takes.Request;
 import org.takes.Response;
 
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 
-public class TokenDelete extends JsonWrap {
+public class TokenDelete extends BaseWrap {
     public TokenDelete() {
         super(new Implementation());
     }

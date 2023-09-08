@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -11,13 +13,11 @@ import lombok.NoArgsConstructor;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
@@ -26,7 +26,7 @@ import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
-public class SourcesPost extends JsonWrap {
+public class SourcesPost extends BaseWrap {
     private static final ObjectReader READER = MAPPER.readerFor(CreateSourceRequest.class);
 
     public SourcesPost() {
@@ -57,7 +57,7 @@ public class SourcesPost extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String config = new RqPrint(req).printBody();
+            String config = decodeRequestBody(req);
             CreateSourceRequest request = READER.readValue(config);
             try {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
@@ -74,7 +74,7 @@ public class SourcesPost extends JsonWrap {
                             .identity(identity)));
                     serviceManager.setSourceId(ret.getSourceId());
                 }
-                return new RsText(MAPPER.writeValueAsString(new CreateSourceResponse(serviceManager.getSourceId())));
+                return encryptResponse(req, MAPPER.writeValueAsString(new CreateSourceResponse(serviceManager.getSourceId())));
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);
             }

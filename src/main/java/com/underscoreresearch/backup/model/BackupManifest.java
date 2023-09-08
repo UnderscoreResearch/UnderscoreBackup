@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.google.common.base.Strings;
 
 @Data
 @Builder(toBuilder = true)
@@ -20,8 +21,7 @@ public class BackupManifest {
     private Integer maximumUnsyncedSize;
     private Integer maximumUnsyncedSeconds;
 
-    private String configUser;
-    private String configPassword;
+    private Boolean authenticationRequired;
     private Boolean interactiveBackup;
     private Boolean pauseOnBattery;
     private Boolean hideNotifications;
@@ -35,5 +35,16 @@ public class BackupManifest {
 
     public void setLocalLocation(String str) {
         // Intentional Nop
+    }
+
+    // If you previously had a UI user and password you get require authentication now.
+    public void setConfigUser(String str) {
+        setConfigPassword(str);
+    }
+
+    public void setConfigPassword(String str) {
+        if (!Strings.isNullOrEmpty(str)) {
+            authenticationRequired = true;
+        }
     }
 }

@@ -29,7 +29,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
-public class RemoteRestorePost extends JsonWrap {
+public class RemoteRestorePost extends BaseWrap {
 
     public RemoteRestorePost() {
         super(new Implementation());
@@ -111,7 +111,7 @@ public class RemoteRestorePost extends JsonWrap {
                             () -> RebuildRepositoryCommand.rebuildFromLog(password, true));
                     return messageJson(200, "Remote restore initiated");
                 } catch (Exception exc) {
-                    return JsonWrap.messageJson(400, "Couldn't fetch remote configuration");
+                    return BaseWrap.messageJson(400, "Couldn't fetch remote configuration");
                 }
             } catch (Exception exc) {
                 log.error("Failed to read existing config", exc);

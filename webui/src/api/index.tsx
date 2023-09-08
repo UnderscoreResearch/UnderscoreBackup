@@ -2,35 +2,11 @@ import {DisplayMessage} from "../App";
 import {generateKeyPair, sharedKey} from "curve25519-js";
 import base64url from "base64url";
 import {sha256} from 'js-sha256';
+import argon2 from "./argon2";
+import {base32} from "rfc4648";
+import aesjs from "aes-js";
 
-function determineBaseApi(): string {
-    if (window.location.pathname.startsWith("/fixed/")) {
-        return "http://localhost:12345/fixed/api/";
-    } else {
-        let basePath = window.location.pathname;
-        let ind = basePath.indexOf("/", 1);
-        if (ind >= 0) {
-            basePath = basePath.substring(0, ind + 1);
-        }
-        return window.location.protocol + "//" + location.host + basePath + "api/";
-    }
-}
-
-function determineBasePath(): string {
-    if (window.location.pathname.startsWith("/fixed/")) {
-        return "/fixed/api/";
-    } else {
-        let basePath = window.location.pathname;
-        let ind = basePath.indexOf("/", 1);
-        if (ind >= 0) {
-            basePath = basePath.substring(0, ind + 1);
-        }
-        return basePath + "api/";
-    }
-}
-
-const baseApi = determineBaseApi();
-const basePrefix = determineBasePath();
+// Bunch of API interfaces.
 
 export interface BackupFilter {
     paths: string[],
@@ -97,8 +73,7 @@ export interface BackupManifest {
     trimSchedule?: string,
     scheduleRandomize?: BackupTimespan,
     versionCheck?: boolean,
-    configUser?: string
-    configPassword?: string
+    authenticationRequired?: boolean,
     interactiveBackup?: boolean,
     initialSetup?: boolean,
     ignorePermissions?: boolean
@@ -230,34 +205,243 @@ function reportError(errors: any) {
     DisplayMessage(errors.toString());
 }
 
+// From down here is the part that deals with basic calling, authentication and encryption of the API.
+
+function determineBaseApi(): string {
+    if (window.location.pathname.startsWith("/fixed/")) {
+        return "http://localhost:12345/fixed/api/";
+    } else {
+        let basePath = window.location.pathname;
+        let ind = basePath.indexOf("/", 1);
+        if (ind >= 0) {
+            basePath = basePath.substring(0, ind + 1);
+        }
+        return window.location.protocol + "//" + location.host + basePath + "api/";
+    }
+}
+
+function determineBasePath(): string {
+    if (window.location.pathname.startsWith("/fixed/")) {
+        return "/fixed/api/";
+    } else {
+        let basePath = window.location.pathname;
+        let ind = basePath.indexOf("/", 1);
+        if (ind >= 0) {
+            basePath = basePath.substring(0, ind + 1);
+        }
+        return basePath + "api/";
+    }
+}
+
+const baseApi = determineBaseApi();
+const basePrefix = determineBasePath();
+
 const exchangeKeyPair = generateKeyPair(crypto.getRandomValues(new Uint8Array(32)));
 const publicKey = base64url.encode(Buffer.from(exchangeKeyPair.public)).replace("=", "");
 let apiSharedKey: string | undefined = undefined;
+let apiSharedKeyBytes: Uint8Array | undefined = undefined;
+let keySalt: string | undefined = undefined;
+let keyData: string | undefined = undefined;
+let encryptionPublicKey: string | undefined = undefined;
+let authAwaits: (() => void)[] = [];
 let nonce = 1;
 
-export async function makeApiCall(api: string, init?: RequestInit, silentError?: boolean): Promise<any | undefined> {
-    try {
-        const useInit: RequestInit = {
+export async function fecthAuth() {
+    const response = await fetch(baseApi + "auth", {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json;charset=UTF-8',
+        },
+        body: JSON.stringify({
+            "publicKey": publicKey
+        })
+    });
+    if (!response.ok) {
+        try {
+            if (response.status !== 404) {
+                let json = await response.json();
+                if (json.message) {
+                    reportError(json.message);
+                } else {
+                    reportError(response.statusText);
+                }
+            }
+        } catch (error) {
+            reportError(response.statusText);
+        }
+        return undefined;
+    }
+
+    const json = await response.json();
+    const serverApiKey = Buffer.from(json.publicKey, "base64");
+    apiSharedKeyBytes = Buffer.from(sharedKey(exchangeKeyPair.private, serverApiKey));
+    apiSharedKey = base32.stringify(apiSharedKeyBytes, {pad: false});
+
+    // If you get a keySalt, you need to ask the user for a password and use it and potential keyData
+    // to derive the public encryption key from the private key which you must use that to also sign all API requests.
+
+    if (json.keySalt) {
+        keySalt = json.keySalt;
+        keyData = json.keyData;
+    }
+}
+
+function postAwaits() {
+    authAwaits.forEach((awaiter) => awaiter());
+    authAwaits = [];
+}
+
+fecthAuth().then(() => {
+    postAwaits();
+});
+
+/**
+ * This method is used to wait for the authentication to complete so we only call auth once even though there
+ * might be several API calls that are waiting for the authentication to complete.
+ * @param wait Should you wait or just return true or false immediately (Used by activity polling for instance)
+ */
+async function authCompleted(wait: boolean): Promise<boolean> {
+    if (apiSharedKey) {
+        return true;
+    }
+    if (!wait) {
+        return false;
+    }
+    await new Promise<void>((resolve) => {
+        authAwaits.push(resolve);
+    });
+    return true;
+}
+
+export async function submitPrivateKeyPassword(password: string) {
+    if (keySalt) {
+        let argonData = await argon2.hash({
+            pass: password,
+            salt: base32.parse(keySalt, {loose: true}),
+            time: 64,
+            mem: 8192,
+            hashLen: 32,
+            parallelism: 2,
+            type: argon2.ArgonType.Argon2i
+        })
+
+        let data;
+        if (keyData) {
+            const keyDataBytes = base32.parse(keyData, {loose: true});
+            const ret = new Uint8Array(argonData.hash);
+
+            for (let i = 0; i < ret.length; i++) {
+                ret[i] = (argonData.hash[i] ^ keyDataBytes[i]);
+            }
+
+            data = ret;
+        } else {
+            data = argonData.hash;
+        }
+
+        data[0] = (data[0] | 7);
+        data[31] = (data[31] & 63);
+        data[31] = (data[31] | 128);
+
+        const encryptionKeySecret = generateKeyPair(data);
+        encryptionPublicKey = base32.stringify(Buffer.from(encryptionKeySecret.public), {pad: false});
+    } else {
+        encryptionPublicKey = undefined;
+    }
+    postAwaits();
+}
+
+export async function needPrivateKeyPassword(wait: boolean): Promise<boolean> {
+    const completedAuth = await authCompleted(wait);
+    return !completedAuth || (!!keySalt && !encryptionPublicKey);
+}
+
+function createSignedHash(method: string, api: string, sharedKey: string, currentNonce: number) {
+    const auth = method + ":" + basePrefix + api + ":" + sharedKey + ":" + currentNonce;
+    const digest = sha256(Buffer.from(auth));
+    return base64url(Buffer.from(digest, 'hex')).replace("=", "");
+}
+
+function generateAuthHeader(method: string, api: string) {
+    const currentNonce = ++nonce
+    const key = createSignedHash(method, api, apiSharedKey as string, currentNonce);
+    if (encryptionPublicKey) {
+        const encryptionKey = createSignedHash(method, api, encryptionPublicKey as string, currentNonce);
+        return `${publicKey} ${currentNonce} ${key} ${encryptionKey}`;
+    } else {
+        return `${publicKey} ${currentNonce} ${key}`;
+    }
+}
+
+function decryptData(data: ArrayBuffer) {
+    const iv = new Uint8Array(data.slice(0, 16));
+    const encrypted = new Uint8Array(data.slice(16));
+
+    var aesCbc = new aesjs.ModeOfOperation.cbc(apiSharedKeyBytes as Uint8Array, iv);
+    return aesjs.padding.pkcs7.strip(aesCbc.decrypt(encrypted));
+}
+
+function encryptData(data: string) {
+    const iv = crypto.getRandomValues(new Uint8Array(16));
+    var aesCbc = new aesjs.ModeOfOperation.cbc(apiSharedKeyBytes as Uint8Array, iv);
+    const encrypted = aesCbc.encrypt(aesjs.padding.pkcs7.pad(Buffer.from(data, 'utf8')));
+    return Buffer.concat([iv, encrypted]);
+}
+
+export async function performFetch(api: string, init?: RequestInit, silentError?: boolean) {
+    if (await needPrivateKeyPassword(!silentError)) {
+        return null;
+    }
+
+    const useInit: RequestInit =
+        {
             ...init
         };
 
-        let exchangeHeader: string;
-        if (apiSharedKey) {
-            const currentNonce = ++nonce;
-            const auth = (init && init.method ? init.method : "GET") + ":" + basePrefix + api + ":" + apiSharedKey + ":" + currentNonce;
-            const digest = sha256(Buffer.from(auth));
-            const key = base64url(Buffer.from(digest, 'hex')).replace("=", "");
-            exchangeHeader = `${publicKey} ${currentNonce} ${key}`;
-        } else {
-            exchangeHeader = publicKey;
+    let exchangeHeader = generateAuthHeader((init && init.method ? init.method : "GET"), api);
+
+    useInit.headers = {
+        ...useInit?.headers,
+        "x-keyexchange": exchangeHeader,
+        "Content-Type": "x-application/encrypted-json"
+    };
+
+    if (useInit.body) {
+        useInit.body = encryptData(useInit.body as string);
+    }
+
+    const response = await fetch(baseApi + api, useInit);
+    if (!response.ok) {
+        if (response.status === 401) {
+            if (keySalt) {
+                encryptionPublicKey = undefined;
+                reportError("Invalid password");
+            } else if (apiSharedKey) {
+                apiSharedKey = undefined;
+                fecthAuth().then(() => {
+                    postAwaits();
+                });
+            }
+            return null;
         }
+    }
 
-        useInit.headers = {
-            ...useInit?.headers,
-            "x-keyexchange": exchangeHeader
-        };
+    return response;
+}
 
-        const response = await fetch(baseApi + api, useInit);
+/**
+ * Make an API call with encryption and auth.
+ * @param api The API to call.
+ * @param init Any API information.
+ * @param silentError
+ * @returns The decrypted JSON of the result or undefined on an error or null if the auth is not ready.
+ */
+export async function makeApiCall(api: string, init?: RequestInit, silentError?: boolean): Promise<any | undefined | null> {
+    try {
+        const response = await performFetch(api, init, silentError);
+        if (!response) {
+            return response;
+        }
         if (!response.ok) {
             if (!silentError) {
                 try {
@@ -276,14 +460,11 @@ export async function makeApiCall(api: string, init?: RequestInit, silentError?:
             return undefined;
         }
 
-        const keyExchange = response.headers.get("x-keyexchange");
-
-        if (keyExchange) {
-            const publicKey = Buffer.from(keyExchange, "base64");
-            apiSharedKey = base64url(Buffer.from(sharedKey(exchangeKeyPair.private, publicKey)))
-                .replace("=", "");
+        if (response.headers.get("Content-Type") === "x-application/encrypted-json") {
+            const data = await response.arrayBuffer();
+            const decryptedData = decryptData(data);
+            return JSON.parse(Buffer.from(decryptedData).toString('utf8'));
         }
-
         return await response.json();
     } catch (error) {
         if (!silentError) {
@@ -292,6 +473,8 @@ export async function makeApiCall(api: string, init?: RequestInit, silentError?:
         return undefined;
     }
 }
+
+// Below are the actual API call methods.
 
 export async function getConfiguration(): Promise<BackupConfiguration | undefined> {
     return await makeApiCall("configuration");
@@ -357,14 +540,14 @@ export async function getBackupVersions(path: string): Promise<BackupFile[] | un
     return await makeApiCall(url);
 }
 
-export async function getActivity(temporal: boolean): Promise<StatusLine[] | undefined> {
+export async function getActivity(temporal: boolean): Promise<StatusLine[] | undefined | null> {
     const ret = await makeApiCall(
         "activity?temporal=" + (temporal ? "true" : "false"),
         undefined, true) as StatusResponse;
     if (ret) {
         return ret.status;
     }
-    return undefined;
+    return ret;
 }
 
 export async function rebuildAvailable(destination: string): Promise<boolean> {
@@ -394,10 +577,12 @@ export function downloadBackupFile(file: string, added: number, password: string
 
     request.responseType = "blob";
     request.open("post", getBackupDownloadLink(file, added), true);
-    request.setRequestHeader('content-type', 'application/json;charset=UTF-8');
-    request.send(JSON.stringify({
+    request.setRequestHeader('content-type', 'x-application/encrypted-json');
+    request.setRequestHeader('x-keyexchange', generateAuthHeader("POST",
+        "backup-download/" + encodeURIComponent(file) + "/" + encodeURIComponent(added.toString())));
+    request.send(encryptData(JSON.stringify({
         "password": password
-    }));
+    })));
 
     request.onreadystatechange = function () {
         if (this.readyState == 4 && this.status == 200) {
@@ -415,9 +600,6 @@ export function downloadBackupFile(file: string, added: number, password: string
 export async function getEncryptionKey(password?: string): Promise<boolean> {
     const ret = await makeApiCall("encryption-key", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             "password": password
         })
@@ -429,17 +611,19 @@ export async function getEncryptionKey(password?: string): Promise<boolean> {
     return ret.isSpecified;
 }
 
-export async function selectSource(source: string, password?: string): Promise<string | undefined> {
+export async function selectSource(source: string, password?: string): Promise<string | undefined | null> {
     try {
-        const response = await fetch(baseApi + "sources/" + encodeURIComponent(source), {
+        const response = await performFetch("sources/" + encodeURIComponent(source), {
             method: 'POST',
-            headers: {
-                'content-type': 'application/json;charset=UTF-8',
-            },
             body: JSON.stringify({
-                "password": password
+                "password": password,
             })
         });
+
+        if (!response) {
+            return response;
+        }
+
         if (!response.ok) {
             try {
                 const json = await response.json();
@@ -465,9 +649,6 @@ export async function selectSource(source: string, password?: string): Promise<s
 export async function createEncryptionKey(password: string): Promise<boolean> {
     const ret = await makeApiCall("encryption-key", {
         method: 'PUT',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             "password": password
         })
@@ -479,9 +660,6 @@ export async function createEncryptionKey(password: string): Promise<boolean> {
 export async function createAdditionalEncryptionKey(password: string, privateKey?: string): Promise<AdditionalKey | undefined> {
     return await makeApiCall("encryption-key/additional", {
         method: 'PUT',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             "password": password,
             "privateKey": privateKey
@@ -492,9 +670,6 @@ export async function createAdditionalEncryptionKey(password: string, privateKey
 export async function listAdditionalEncryptionKeys(password: string): Promise<AdditionalKeys | undefined> {
     return await makeApiCall("encryption-key/additional", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             "password": password
         })
@@ -508,9 +683,6 @@ export async function listActiveShares(): Promise<ActiveShares | undefined> {
 export async function activateShares(password: string): Promise<AdditionalKeys | undefined> {
     return await makeApiCall("shares", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             "password": password
         })
@@ -528,9 +700,6 @@ export async function resetSettings(): Promise<boolean> {
 export async function changeEncryptionKey(password: string, newPassword: string): Promise<boolean> {
     const ret = await makeApiCall("encryption-key/change", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             "password": password,
             "newPassword": newPassword
@@ -543,9 +712,6 @@ export async function changeEncryptionKey(password: string, newPassword: string)
 export async function postConfiguration(config: BackupConfiguration): Promise<boolean> {
     const ret = await makeApiCall("configuration", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify(config, null, 2)
     });
 
@@ -558,9 +724,6 @@ export async function postConfiguration(config: BackupConfiguration): Promise<bo
 export async function startRemoteRestore(password: string): Promise<boolean> {
     const ret = await makeApiCall("remote-configuration/rebuild", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             password: password
         })
@@ -575,9 +738,6 @@ export async function startRemoteRestore(password: string): Promise<boolean> {
 export async function restartSets(sets?: string[]): Promise<boolean> {
     const ret = await makeApiCall("sets/restart", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             sets: sets
         })
@@ -592,9 +752,6 @@ export async function restartSets(sets?: string[]): Promise<boolean> {
 export async function initiateRestore(request: BackupRestoreRequest): Promise<boolean> {
     const ret = await makeApiCall("restore", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify(request)
     });
 

@@ -5,7 +5,7 @@ import org.takes.Response;
 
 import com.underscoreresearch.backup.io.IOIndex;
 
-public class RebuildAvailableGet extends JsonWrap {
+public class RebuildAvailableGet extends BaseWrap {
     public RebuildAvailableGet() {
         super(new Implementation());
     }

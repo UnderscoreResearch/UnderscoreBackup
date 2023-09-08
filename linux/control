@@ -3,4 +3,4 @@ Version: VERSION-1
 Architecture: amd64
 Maintainer: Underscore Research <support@underscoreresearch.com>
 Description: Serverless backup solution with client side encryption.
-Depends: libc6
+Depends: libc6, fswatch (>= 1.0.0)

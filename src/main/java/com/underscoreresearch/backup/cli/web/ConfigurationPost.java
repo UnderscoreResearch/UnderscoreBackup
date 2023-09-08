@@ -28,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.SystemUtils;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
 
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.ConfigurationValidator;
@@ -41,7 +40,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupShare;
 
 @Slf4j
-public class ConfigurationPost extends JsonWrap {
+public class ConfigurationPost extends BaseWrap {
 
     private static BackupConfiguration cachedValidDestinationConfig;
     private static boolean cachedValidDestinationResult;
@@ -195,7 +194,7 @@ public class ConfigurationPost extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String config = new RqPrint(req).printBody();
+            String config = PsAuthedContent.decodeRequestBody(req);
             try {
                 if (Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource())) {
                     BackupConfiguration currentConfig = null;

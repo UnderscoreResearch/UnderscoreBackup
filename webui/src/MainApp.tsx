@@ -286,11 +286,13 @@ export default function MainApp() {
                         action: () => changeBackup(true)
                     };
 
-                    acceptButton = {
-                        title: "Stop Schedule",
-                        color: "error",
-                        disabled: false,
-                        action: () => changeBackup(false)
+                    if (activityContext.activity.filter((item) => item.code.startsWith("SCHEDULED_BACKUP_")).length > 0) {
+                        acceptButton = {
+                            title: "Stop Schedule",
+                            color: "error",
+                            disabled: false,
+                            action: () => changeBackup(false)
+                        }
                     }
                 } else {
                     acceptButton = {

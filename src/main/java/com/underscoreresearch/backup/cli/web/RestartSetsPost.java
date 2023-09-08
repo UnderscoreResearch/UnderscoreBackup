@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
@@ -11,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
@@ -20,7 +20,7 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 
 @Slf4j
-public class RestartSetsPost extends JsonWrap {
+public class RestartSetsPost extends BaseWrap {
     private static final ObjectReader READER = MAPPER.readerFor(RestartSetRequest.class);
 
     public RestartSetsPost() {
@@ -35,7 +35,7 @@ public class RestartSetsPost extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String body = new RqPrint(req).printBody();
+            String body = decodeRequestBody(req);
             try {
                 RestartSetRequest request = READER.readValue(body);
                 MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);

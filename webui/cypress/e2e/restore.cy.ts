@@ -26,9 +26,12 @@ it('restore', function () {
     cy.get('#passwordSecond').type('KqNK4bFj8ZTc');
     cy.get("#submitPasswordChange").click();
     cy.get("#loading").should('not.be.visible');
+    cy.wait(2000);
 
     cy.visit(configInterface);
 
+    cy.get('#uiPassword').type('KqNK4bFj8ZTc');
+    cy.get('#acceptButton').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('#restorePassword').clear();

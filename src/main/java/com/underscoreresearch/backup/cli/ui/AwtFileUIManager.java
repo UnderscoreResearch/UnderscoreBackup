@@ -23,7 +23,6 @@ import java.nio.file.WatchService;
 
 import lombok.extern.slf4j.Slf4j;
 
-import com.sun.nio.file.ExtendedWatchEventModifier;
 import com.underscoreresearch.backup.cli.commands.ConfigureCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
@@ -37,14 +36,10 @@ public class AwtFileUIManager extends AwtUIManager {
             watchService = FileSystems.getDefault().newWatchService();
 
             Path path = FileSystems.getDefault().getPath(InstanceFactory.getInstance(NOTIFICATION_LOCATION));
-            path.register(watchService, new WatchEvent.Kind[]{
-                            ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY, OVERFLOW
-                    },
-                    ExtendedWatchEventModifier.FILE_TREE);
+            path.register(watchService, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY, OVERFLOW);
             Thread thread = new Thread(this::pollingThread, "NotificationWatcher");
             thread.setDaemon(true);
             thread.start();
-
 
             File[] files = path.toFile().listFiles();
             if (files != null) {

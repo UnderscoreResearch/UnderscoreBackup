@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.util.ArrayList;
@@ -14,7 +15,6 @@ import org.takes.Response;
 import org.takes.Take;
 import org.takes.misc.Href;
 import org.takes.rq.RqHref;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.inject.ProvisionException;
@@ -24,7 +24,7 @@ import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 
 @Slf4j
-public class ActivityGet extends JsonWrap {
+public class ActivityGet extends BaseWrap {
 
     private static final ObjectWriter WRITER = MAPPER
             .writerFor(StatusResponse.class);
@@ -52,7 +52,7 @@ public class ActivityGet extends JsonWrap {
                 } else {
                     statusLines = new ArrayList<>();
                 }
-                return new RsText(WRITER.writeValueAsString(new StatusResponse(statusLines)));
+                return encryptResponse(req, WRITER.writeValueAsString(new StatusResponse(statusLines)));
             } catch (Throwable exc) {
                 log.error("Failed to fetch current activity", exc);
             }

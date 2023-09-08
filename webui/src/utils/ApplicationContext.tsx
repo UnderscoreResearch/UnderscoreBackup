@@ -7,8 +7,10 @@ import {
     getEncryptionKey,
     getState,
     listActiveShares,
+    needPrivateKeyPassword,
     postConfiguration,
-    rebuildAvailable
+    rebuildAvailable,
+    submitPrivateKeyPassword
 } from "../api";
 import React, {Dispatch, SetStateAction, useEffect} from "react";
 
@@ -24,6 +26,7 @@ export interface ApplicationState {
     initialLoad: boolean,
     originalConfiguration: BackupConfiguration,
     currentConfiguration: BackupConfiguration,
+    needAuthentication: boolean,
     password?: string,
     validatedPassword: boolean,
     setupComplete: boolean,
@@ -63,6 +66,7 @@ function defaultEmptyConfig(): BackupConfiguration {
 const defaultConfig: ApplicationState = {
     rebuildAvailable: false,
     hasKey: false,
+    needAuthentication: false,
     initialLoad: true,
     originalConfiguration: defaultEmptyConfig(),
     currentConfiguration: defaultEmptyConfig(),
@@ -85,6 +89,18 @@ function generateApplicationContext(): ApplicationContext {
         let newState = {} as ApplicationState;
         newState.initialLoad = false;
         newState.backendState = await getState();
+        if (await needPrivateKeyPassword(true)) {
+            if (password) {
+                await submitPrivateKeyPassword(password);
+                newState.backendState = await getState();
+            }
+            if (await needPrivateKeyPassword(true)) {
+                newState.needAuthentication = true;
+                return newState;
+            }
+        }
+
+        newState.needAuthentication = false;
         const newConfig = await getConfiguration();
         if (newConfig !== undefined) {
             let newRebuildAvailable = false;

@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
@@ -12,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
 import org.takes.Request;
-import org.takes.rq.RqPrint;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Strings;
@@ -29,7 +29,7 @@ public class PrivateKeyRequest {
     private String password;
 
     public static String decodePrivateKeyRequest(Request req) throws IOException {
-        String request = new RqPrint(req).printBody();
+        String request = decodeRequestBody(req);
         PrivateKeyRequest ret = READER.readValue(request);
         if (Strings.isNullOrEmpty(ret.getPassword())) {
             throw new HttpException(

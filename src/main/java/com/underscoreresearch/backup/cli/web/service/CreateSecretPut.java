@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
@@ -13,19 +14,18 @@ import lombok.NoArgsConstructor;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.SecretRequest;
 
-public class CreateSecretPut extends JsonWrap {
+public class CreateSecretPut extends BaseWrap {
     private static final ObjectReader READER = MAPPER.readerFor(CreateSecretPutRequest.class);
 
     public CreateSecretPut() {
@@ -52,7 +52,7 @@ public class CreateSecretPut extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String config = new RqPrint(req).printBody();
+            String config = decodeRequestBody(req);
             CreateSecretPutRequest request = READER.readValue(config);
             try {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);

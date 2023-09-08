@@ -27,6 +27,9 @@ function generateActivityContext(): ActivityContext {
 
     async function update() {
         const activity = await getActivity(false);
+        if (activity === null) { // Auth not ready
+            return;
+        }
         let newState: ActivityState
         if (activity === undefined) {
             newState = {

@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
@@ -23,13 +24,12 @@ import org.takes.http.BkSafe;
 import org.takes.http.FtBasic;
 import org.takes.rq.RqRequestLine;
 import org.takes.rs.RsRedirect;
-import org.takes.rs.RsText;
 import org.takes.tk.TkWrap;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 @Slf4j
-public class AuthEndpointGet extends JsonWrap {
+public class AuthEndpointGet extends BaseWrap {
 
     private static final ObjectWriter WRITER = MAPPER.writerFor(EndpointResponse.class);
 
@@ -65,7 +65,7 @@ public class AuthEndpointGet extends JsonWrap {
                 synchronized (AuthEndpointGet.class) {
                     if (existingAddress != null) {
                         lastRequested = Instant.now();
-                        return new RsText(WRITER.writeValueAsString(new EndpointResponse(existingAddress)));
+                        return encryptResponse(req, WRITER.writeValueAsString(new EndpointResponse(existingAddress)));
                     }
 
                     int port = 12321;
@@ -118,7 +118,7 @@ public class AuthEndpointGet extends JsonWrap {
                     lastRequested = Instant.now();
                     existingAddress = String.format("http://localhost:%d/auth-redirect", port);
                 }
-                return new RsText(WRITER.writeValueAsString(new EndpointResponse(existingAddress)));
+                return encryptResponse(req, WRITER.writeValueAsString(new EndpointResponse(existingAddress)));
             } catch (Exception exc) {
                 log.error("Failed to get auth endpoint", exc);
             }

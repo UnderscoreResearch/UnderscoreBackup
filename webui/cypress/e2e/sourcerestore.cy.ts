@@ -1,5 +1,3 @@
-const integrationDirectory = Cypress.env('TEST_ROOT')
-    .replaceAll("\\", "\\\\");
 const integrationData = Cypress.env('TEST_DATA')
     .replaceAll("\\", "\\\\");
 const backupLocation = Cypress.env('TEST_BACKUP')
@@ -10,6 +8,9 @@ const configInterface = Cypress.env("CONFIG_INTERFACE")
 
 it('sourcerestore', function () {
     cy.visit(configInterface);
+
+    cy.get('#uiPassword').type('KqNK4bFj8ZTc');
+    cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
 
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageSettings > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();

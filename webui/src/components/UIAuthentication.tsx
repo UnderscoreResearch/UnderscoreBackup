@@ -1,4 +1,4 @@
-import {Alert, Checkbox, FormControlLabel, Grid, Paper, TextField} from "@mui/material";
+import {Alert, Checkbox, FormControlLabel, Grid, Paper} from "@mui/material";
 import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWithText";
 import * as React from "react";
 import {BackupManifest} from "../api";
@@ -15,7 +15,7 @@ interface UIAuthenticationState {
 
 export default function UIAuthentication(props: UIAuthenticationProps) {
     const [state, setState] = React.useState({
-        enabled: !!(props.manifest.configUser && props.manifest.configPassword),
+        enabled: !!props.manifest.authenticationRequired,
         manifest: props.manifest
     } as UIAuthenticationState);
 
@@ -23,13 +23,17 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
         setState(newState);
 
         if (newState.enabled) {
-            props.onChange(newState.manifest);
+            const newManifest = {
+                ...newState.manifest
+            };
+            newManifest.authenticationRequired = true;
+
+            props.onChange(newManifest);
         } else {
             const newManifest = {
                 ...newState.manifest
             };
-            delete newManifest.configUser;
-            delete newManifest.configPassword;
+            delete newManifest.authenticationRequired;
 
             props.onChange(newManifest);
         }
@@ -41,6 +45,8 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
                 <DividerWithText>Interface authentication</DividerWithText>
             </Grid>
             <Grid item xs={12}>
+                <Alert severity="info">Require knowledge of the private key password to access the
+                    administration interface.<br/><br/><b>This is recommended when running as a service or root user</b>.</Alert>
                 <FormControlLabel control={<Checkbox
                     checked={state.enabled}
                     id={"uiAuthentication"}
@@ -49,37 +55,6 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
                         enabled: e.target.checked
                     })}
                 />} label="Require authentication for user interface"/>
-                <Alert severity="warning">The interface password is stored in clear text.
-                    Do not use the same password for the interface as for the backup private key!</Alert>
-            </Grid>
-            <Grid item xs={6}>
-                <TextField label="Username" variant="outlined"
-                           fullWidth={true}
-                           id={"uiAuthenticationUser"}
-                           value={state.manifest.configUser ? state.manifest.configUser : ""}
-                           disabled={!state.enabled}
-                           onChange={(e) => updateState({
-                               ...state,
-                               manifest: {
-                                   ...state.manifest,
-                                   configUser: e.target.value ? e.target.value : undefined
-                               }
-                           })}/>
-            </Grid>
-            <Grid item xs={6}>
-                <TextField label="Password" variant="outlined"
-                           fullWidth={true}
-                           id={"uiAuthenticationPassword"}
-                           type={"password"}
-                           disabled={!state.enabled}
-                           value={state.manifest.configPassword ? state.manifest.configPassword : ""}
-                           onChange={(e) => updateState({
-                               ...state,
-                               manifest: {
-                                   ...state.manifest,
-                                   configPassword: e.target.value ? e.target.value : undefined
-                               }
-                           })}/>
             </Grid>
         </Grid>
     </Paper>;

@@ -20,8 +20,12 @@ it('backup', function () {
     cy.get('#passwordFirst').type('bYisMYVs9Qdw');
     cy.get('#passwordSecond').clear();
     cy.get('#passwordSecond').type('bYisMYVs9Qdw');
+    cy.get('#uiAuthentication').click();
     cy.get('#next').should("be.visible").and('not.be.disabled').click();
     cy.get('#exit').should("be.visible").and('not.be.disabled').click();
+    cy.get("#loading").should('not.be.visible');
+    cy.get('#uiPassword').type('bYisMYVs9Qdw');
+    cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get('#pageSettings > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('#showConfiguration').click();
     cy.get('#configurationTextField')
@@ -38,7 +42,8 @@ it('backup', function () {
             '    }\n' +
             '  },\n' +
             '  "manifest": {\n' +
-            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true, "maximumUnsyncedSeconds": 1\n' +
+            '    "destination": "d0", "pauseOnBattery": false, "hideNotifications": true, ' +
+            '    "authenticationRequired": true, "maximumUnsyncedSeconds": 1\n' +
             '  },\n' +
             '  "properties": { "largeBlockAssignment.maximumSize": "262144" }\n' +
             '}', {force: true, parseSpecialCharSequences: false})

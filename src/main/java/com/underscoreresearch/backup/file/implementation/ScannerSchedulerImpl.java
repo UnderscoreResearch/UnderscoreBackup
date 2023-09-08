@@ -197,7 +197,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         backupStatsLogger.setUploadRunning(true);
         try {
             fileChangeWatcher.start();
-        } catch (IOException e) {
+        } catch (IOException | UnsupportedOperationException e) {
             log.warn("Failed to start watching for filesystem changes", e);
         }
         while (!shutdown) {

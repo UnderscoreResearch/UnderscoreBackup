@@ -1,6 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.JsonWrap.messageJson;
+import static com.underscoreresearch.backup.cli.web.BaseWrap.messageJson;
 
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;

@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import lombok.Builder;
@@ -12,7 +13,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.logging.log4j.util.Strings;
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -22,7 +22,7 @@ import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
-public class KeyChangePost extends JsonWrap {
+public class KeyChangePost extends BaseWrap {
     private static final ObjectReader READER = MAPPER
             .readerFor(KeyChangeRequest.class);
 
@@ -49,7 +49,7 @@ public class KeyChangePost extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            KeyChangeRequest request = READER.readValue(new RqPrint(req).printBody());
+            KeyChangeRequest request = READER.readValue(decodeRequestBody(req));
 
             if (Strings.isEmpty(request.getPassword())) {
                 return messageJson(400, "Missing password to change password");

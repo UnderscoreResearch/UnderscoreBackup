@@ -351,6 +351,8 @@ public class CommandLineModule extends AbstractModule {
                     programData = "C:\\ProgramData";
                 }
                 return Paths.get(programData, "UnderscoreBackup").toString();
+            } else {
+                return DEFAULT_LOCAL_PATH;
             }
         }
         return manifestLocation;

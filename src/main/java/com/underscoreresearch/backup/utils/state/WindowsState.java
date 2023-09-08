@@ -9,6 +9,8 @@ import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
+import com.underscoreresearch.backup.file.changepoller.WindowsFileChangePoller;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 
 @Slf4j
@@ -60,5 +62,10 @@ public class WindowsState extends MachineState {
         } catch (IOException | InterruptedException e) {
             log.warn("Can't change process to low priority", e);
         }
+    }
+
+    @Override
+    public FileChangePoller createPoller() throws IOException {
+        return new WindowsFileChangePoller();
     }
 }

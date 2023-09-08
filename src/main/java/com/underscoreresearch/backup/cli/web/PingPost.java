@@ -13,7 +13,7 @@ import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
-public class PingPost extends JsonWrap {
+public class PingPost extends BaseWrap {
     public PingPost() {
         super(new Implementation());
     }

@@ -1,18 +1,9 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
-
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,15 +22,16 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import com.sun.nio.file.ExtendedWatchEventModifier;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class FileChangeWatcherImpl implements FileChangeWatcher {
@@ -52,16 +44,19 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
     private final Path manifestDirectory;
     private final Lock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
-    private WatchService watchService;
+    private final MachineState machineState;
+    private FileChangePoller poller;
     private Thread thread;
     private ExecutorService executorService;
     private BlockingQueue<Runnable> executionQueue;
 
     public FileChangeWatcherImpl(BackupConfiguration configuration, MetadataRepository repository,
-                                 ContinuousBackup continuousBackup, String manifestDirectory) {
+                                 ContinuousBackup continuousBackup, String manifestDirectory,
+                                 MachineState machineState) {
         this.repository = repository;
         this.manifestDirectory = FileSystems.getDefault().getPath(manifestDirectory);
         this.continuousBackup = continuousBackup;
+        this.machineState = machineState;
 
         whenBySet = new HashMap<>();
         sets = getContinuousSets(configuration, whenBySet);
@@ -89,19 +84,17 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
             return;
         lock.lock();
         try {
-            if (watchService != null)
+            if (poller != null)
                 throw new IllegalStateException("Already started");
-            watchService = FileSystems.getDefault().newWatchService();
+            poller = machineState.createPoller();
 
+            List<Path> paths = new ArrayList<>();
             for (BackupSet set : sets) {
                 for (BackupSetRoot root : set.getRoots()) {
-                    Path path = FileSystems.getDefault().getPath(root.getPath());
-                    path.register(watchService, new WatchEvent.Kind[]{
-                                    ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY, OVERFLOW
-                            },
-                            ExtendedWatchEventModifier.FILE_TREE);
+                    paths.add(FileSystems.getDefault().getPath(root.getPath()));
                 }
             }
+            poller.registerPaths(paths);
 
             if (thread == null) {
                 thread = new Thread(new PollingThread(), "FileChangeWatcher");
@@ -122,10 +115,10 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
     public void stop() throws IOException {
         lock.lock();
         try {
-            if (watchService == null)
+            if (poller == null)
                 return;
-            watchService.close();
-            watchService = null;
+            poller.close();
+            poller = null;
 
             while (thread != null) {
                 try {
@@ -144,7 +137,7 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
 
     @Override
     public boolean active() {
-        return !sets.isEmpty();
+        return !sets.isEmpty() && poller != null;
     }
 
     private class PollingThread implements Runnable {
@@ -154,36 +147,24 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
         public void run() {
             lock.lock();
             try {
-                while (watchService != null) {
+                while (poller != null) {
                     List<Path> paths = new ArrayList<>();
                     try {
-                        WatchService currentWatchService = watchService;
+                        FileChangePoller currentPoller = poller;
                         lock.unlock();
                         try {
-                            WatchKey key = currentWatchService.take();
-                            if (key != null) {
-                                Path watchedPath = (Path) key.watchable();
-                                for (WatchEvent<?> event : key.pollEvents()) {
-                                    if (event.kind().equals(OVERFLOW)) {
-                                        if (!overflowing.get()) {
-                                            log.warn("Overflow detected, some files may not be backed up");
-                                            overflowing.set(true);
-                                        }
-                                        continue;
-                                    }
-                                    Path path = watchedPath.resolve((Path) event.context());
-                                    paths.add(path);
-                                }
-                                key.reset();
-                            }
+                            paths.addAll(currentPoller.fetchPaths());
                         } finally {
                             lock.lock();
                         }
-                    } catch (ClosedWatchServiceException e) {
-                        // Ignored, happens when closing the watch service is closed.
-                        paths.clear();
-                    } catch (InterruptedException e) {
+                    } catch (FileChangePoller.OverflowException e) {
+                        if (!overflowing.get()) {
+                            log.warn("Overflow detected, some files may not be backed up");
+                            overflowing.set(true);
+                        }
+                    } catch (IOException e) {
                         log.warn("Error while watching for file changes", e);
+                        return;
                     }
                     while (executionQueue.remainingCapacity() < THREAD_POOL_SIZE) {
                         try {
@@ -195,6 +176,11 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                     executorService.submit(() -> processPaths(paths));
                 }
             } finally {
+                try {
+                    poller.close();
+                } catch (IOException e) {
+                    log.error("Failed to close file change monitor", e);
+                }
                 thread = null;
                 condition.signalAll();
                 lock.unlock();

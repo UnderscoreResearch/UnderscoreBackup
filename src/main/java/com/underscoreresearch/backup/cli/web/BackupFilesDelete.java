@@ -16,7 +16,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupFile;
 
-public class BackupFilesDelete extends JsonWrap {
+public class BackupFilesDelete extends BaseWrap {
     public BackupFilesDelete(String base) {
         super(new Implementation(base));
     }

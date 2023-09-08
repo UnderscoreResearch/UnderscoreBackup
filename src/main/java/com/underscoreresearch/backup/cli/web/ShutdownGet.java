@@ -6,7 +6,7 @@ import org.takes.Request;
 import org.takes.Response;
 
 @Slf4j
-public class ShutdownGet extends JsonWrap {
+public class ShutdownGet extends BaseWrap {
     public ShutdownGet() {
         super(new Implementation());
     }

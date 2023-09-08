@@ -60,7 +60,7 @@ import com.underscoreresearch.backup.service.api.model.ShareResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
 @Slf4j
-public class SourceSelectPost extends JsonWrap {
+public class SourceSelectPost extends BaseWrap {
     public SourceSelectPost(String base) {
         super(new Implementation(base));
     }

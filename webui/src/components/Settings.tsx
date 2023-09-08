@@ -186,6 +186,7 @@ export default function Settings() {
             } else if (state.password !== state.passwordConfirm) {
                 DisplayMessage("Password does not match");
             } else if (await changeEncryptionKey(state.oldPassword, state.password)) {
+                await appContext.update(state.password);
                 setState((oldState) => {
                     return {
                         ...oldState,

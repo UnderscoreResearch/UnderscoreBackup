@@ -11,7 +11,7 @@ import org.takes.rq.RqHeaders;
 import org.takes.rs.RsWithHeaders;
 
 @Slf4j
-public class PingGet extends JsonWrap {
+public class PingGet extends BaseWrap {
     public PingGet() {
         super(new Implementation());
     }

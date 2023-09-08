@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.LOG_FILE;
@@ -27,14 +29,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rq.RqPrint;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -43,7 +43,7 @@ import com.underscoreresearch.backup.model.BackupActivatedShare;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
-public class SupportBundlePost extends JsonWrap {
+public class SupportBundlePost extends BaseWrap {
 
     private static final ObjectReader READER = MAPPER.readerFor(GenerateSupportBundleRequest.class);
     private static final ObjectWriter WRITER = MAPPER.writerFor(GenerateSupportBundleResponse.class);
@@ -179,7 +179,7 @@ public class SupportBundlePost extends JsonWrap {
 
         @Override
         public Response actualAct(Request req) throws Exception {
-            GenerateSupportBundleRequest request = READER.readValue(new RqPrint(req).printBody());
+            GenerateSupportBundleRequest request = READER.readValue(decodeRequestBody(req));
 
             Path path = Files.createTempDirectory("supportBundle");
             File f = File.createTempFile("supportBundle", ".zip", path.toFile());
@@ -192,7 +192,7 @@ public class SupportBundlePost extends JsonWrap {
 
             UIHandler.openFolder(f.getParentFile());
 
-            return new RsText(WRITER.writeValueAsString(new GenerateSupportBundleResponse(f.getAbsolutePath())));
+            return encryptResponse(req, WRITER.writeValueAsString(new GenerateSupportBundleResponse(f.getAbsolutePath())));
         }
 
         @Override

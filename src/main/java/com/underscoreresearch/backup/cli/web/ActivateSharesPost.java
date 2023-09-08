@@ -15,7 +15,7 @@ import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
 @Slf4j
-public class ActivateSharesPost extends JsonWrap {
+public class ActivateSharesPost extends BaseWrap {
     public ActivateSharesPost() {
         super(new Implementation());
     }
@@ -48,8 +48,8 @@ public class ActivateSharesPost extends JsonWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
+            String password = PrivateKeyRequest.decodePrivateKeyRequest(req);
             try {
-                String password = PrivateKeyRequest.decodePrivateKeyRequest(req);
                 if (!PrivateKeyRequest.validatePassword(password)) {
                     return messageJson(403, "Invalid password provided");
                 }

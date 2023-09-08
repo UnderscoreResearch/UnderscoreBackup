@@ -894,9 +894,9 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
     @Override
     public void shutdown() throws IOException {
-        synchronized (getLock()) {
-            super.shutdown();
+        super.shutdown();
 
+        synchronized (getLock()) {
             if (activeShares != null) {
                 for (ShareManifestManager others : activeShares.values())
                     others.shutdown();

@@ -12,7 +12,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
-public class BackupPauseGet extends JsonWrap {
+public class BackupPauseGet extends BaseWrap {
     public BackupPauseGet() {
         super(new Implementation());
     }

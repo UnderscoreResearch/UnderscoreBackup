@@ -1,9 +1,9 @@
 package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.cli.web.AuthPost.performAuthenticatedRequest;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,14 +18,7 @@ public class ShutdownCommand extends SimpleCommand {
         try {
             String configurationUrl = getConfigurationUrl();
 
-            String shutdownUrl = configurationUrl + "api/shutdown";
-            URL url = new URL(shutdownUrl);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.connect();
-            if (connection.getResponseCode() != 200) {
-                log.error("Failed to shut down process: {}", connection.getResponseCode());
-                System.exit(2);
-            }
+            performAuthenticatedRequest(configurationUrl, "GET", "api/shutdown", null);
 
             // Wait for 10 seconds for the process to shut down 100ms at a time.
             for (int i = 0; i < 100; i++) {
@@ -46,6 +39,9 @@ public class ShutdownCommand extends SimpleCommand {
         } catch (ConfigureCommand.ConfigurationUrlException exc) {
             log.warn(exc.getMessage());
             System.exit(0);
+        } catch (IOException exc) {
+            log.warn("Failed to shut down process: {}", exc.getMessage());
+            System.exit(1);
         } catch (Exception exc) {
             log.error("Encountered issue reading configuration URL", exc);
             System.exit(1);

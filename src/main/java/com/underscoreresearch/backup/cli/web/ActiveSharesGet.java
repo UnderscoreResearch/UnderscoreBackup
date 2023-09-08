@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.util.ArrayList;
@@ -13,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.Take;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -21,7 +21,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ShareManifestManager;
 
 @Slf4j
-public class ActiveSharesGet extends JsonWrap {
+public class ActiveSharesGet extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(Shares.class);
 
     public ActiveSharesGet() {
@@ -46,9 +46,9 @@ public class ActiveSharesGet extends JsonWrap {
                             !shareManager.getActivatedShare().isUpdatedEncryption());
                     Shares shares = new Shares(activatedShares.keySet().stream().sorted().toList(),
                             needEncryption);
-                    return new RsText(WRITER.writeValueAsString(shares));
+                    return encryptResponse(req, WRITER.writeValueAsString(shares));
                 } else {
-                    return new RsText(WRITER.writeValueAsString(new Shares(new ArrayList<>(), false)));
+                    return encryptResponse(req, WRITER.writeValueAsString(new Shares(new ArrayList<>(), false)));
                 }
             } catch (Throwable exc) {
                 log.error("Failed to get active shares", exc);

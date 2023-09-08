@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
@@ -14,7 +15,6 @@ import org.takes.Request;
 import org.takes.Response;
 import org.takes.misc.Href;
 import org.takes.rq.RqHref;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -28,7 +28,7 @@ import com.underscoreresearch.backup.manifest.implementation.BackupSearchAccessI
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 
-public class SearchBackupFilesGet extends JsonWrap {
+public class SearchBackupFilesGet extends BaseWrap {
     private static final long MAX_HITS = 1000;
     private static final ObjectWriter WRITER = MAPPER.writerFor(new TypeReference<List<ExternalBackupFile>>() {
     });
@@ -99,10 +99,10 @@ public class SearchBackupFilesGet extends JsonWrap {
 
         @Override
         public Response actualAct(Request req) throws Exception {
-            return new RsText(WRITER.writeValueAsString(
+            return encryptResponse(req, WRITER.writeValueAsString(
                     getRequestFiles(req)
                             .stream()
-                            .map(t -> new ExternalBackupFile(t))
+                            .map(ExternalBackupFile::new)
                             .collect(Collectors.toList())));
         }
 

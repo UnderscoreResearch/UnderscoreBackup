@@ -434,48 +434,49 @@ export default function FileTreeView(props: SetTreeViewProps) {
 
     async function loadPath(path: string) {
         let items = await props.fileFetcher(path);
-
-        setState((oldState) => {
-            let newItems = [...oldState.items];
-            let index = oldState.items.findIndex(item => item.path === path);
-            if (index >= 0) {
-                const newItem = {
-                    ...oldState.items[index],
-                    loading: false,
-                    expanded: true
-                };
-                if (items !== undefined) {
-                    const treeItems: TreeItem[] = items.map(item => {
-                        let hasChildren = item.path.endsWith("/");
-                        let path = item.path.length > 1 && hasChildren ? item.path.substring(0, item.path.length - 1) : item.path;
-                        let expand = false;
-                        if (hasChildren) {
-                            expand = shouldExpand(state.roots, path);
-                            if (expand)
-                                loadPath(path);
-                        }
-                        return {
-                            path: path,
-                            level: newItem.level + 1,
-                            name: pathName((item.path)),
-                            expanded: false,
-                            loading: expand,
-                            hasChildren: hasChildren,
-                            deleted: !!item.deleted,
-                            size: formatSize(item.length),
-                            added: formatLastChange(item.lastChanged)
-                        };
-                    });
-                    newItems.splice(index + 1, childCount(oldState.items, index), ...treeItems)
+        if (items !== null && items !== undefined) {
+            setState((oldState) => {
+                let newItems = [...oldState.items];
+                let index = oldState.items.findIndex(item => item.path === path);
+                if (index >= 0) {
+                    const newItem = {
+                        ...oldState.items[index],
+                        loading: false,
+                        expanded: true
+                    };
+                    if (items) {
+                        const treeItems: TreeItem[] = items.map(item => {
+                            let hasChildren = item.path.endsWith("/");
+                            let path = item.path.length > 1 && hasChildren ? item.path.substring(0, item.path.length - 1) : item.path;
+                            let expand = false;
+                            if (hasChildren) {
+                                expand = shouldExpand(state.roots, path);
+                                if (expand)
+                                    loadPath(path);
+                            }
+                            return {
+                                path: path,
+                                level: newItem.level + 1,
+                                name: pathName((item.path)),
+                                expanded: false,
+                                loading: expand,
+                                hasChildren: hasChildren,
+                                deleted: !!item.deleted,
+                                size: formatSize(item.length),
+                                added: formatLastChange(item.lastChanged)
+                            };
+                        });
+                        newItems.splice(index + 1, childCount(oldState.items, index), ...treeItems)
+                    }
+                    newItems[index] = newItem;
                 }
-                newItems[index] = newItem;
-            }
 
-            return {
-                ...oldState,
-                items: newItems
-            }
-        })
+                return {
+                    ...oldState,
+                    items: newItems
+                }
+            })
+        }
     }
 
     function Row(rowProps: {

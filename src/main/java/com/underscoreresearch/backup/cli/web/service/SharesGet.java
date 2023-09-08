@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web.service;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -12,17 +13,16 @@ import lombok.Data;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rs.RsText;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
-import com.underscoreresearch.backup.cli.web.JsonWrap;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 
-public class SharesGet extends JsonWrap {
+public class SharesGet extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(ListSharesResponse.class);
 
     public SharesGet() {
@@ -55,7 +55,7 @@ public class SharesGet extends JsonWrap {
                                 .anyMatch((privateKey) -> privateKey.getPublicKey().equals(key.getSharingPublicKey())))
                         .map(share -> new PublicShareResponse(share.getSourceId() + "." + share.getShareId(), share.getName()))
                         .collect(Collectors.toList()));
-                return new RsText(WRITER.writeValueAsString(ret));
+                return encryptResponse(req, WRITER.writeValueAsString(ret));
             } catch (IOException exc) {
                 return sendApiFailureOn(exc);
             }

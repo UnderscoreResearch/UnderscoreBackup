@@ -6,6 +6,7 @@ License:        GPL
 URL:            https://github.com/UnderscoreResearch/UnderscoreBackup
 AutoReq:        no
 Source0:        underscorebackup.tar.gz
+Requires:       fswatch >= 1.0.0
 
 %description
 Serverless backup solution with client side encryption.
@@ -21,7 +22,8 @@ cp -r . $RPM_BUILD_ROOT
 %files
 /etc/systemd/system/underscorebackup.service
 /opt/underscorebackup/*
-
+/usr/share/icons/hicolor/scalable/apps/underscorebackup.svg
+/usr/share/applications/underscorebackup.desktop
 %preun
 
 systemctl stop underscorebackup.service

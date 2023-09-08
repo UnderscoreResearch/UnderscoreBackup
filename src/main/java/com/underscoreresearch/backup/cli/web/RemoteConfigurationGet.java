@@ -1,12 +1,13 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+
 import java.nio.charset.StandardCharsets;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
-import org.takes.rs.RsText;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.io.IOProvider;
@@ -14,7 +15,7 @@ import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
-public class RemoteConfigurationGet extends JsonWrap {
+public class RemoteConfigurationGet extends BaseWrap {
 
     public RemoteConfigurationGet() {
         super(new Implementation());
@@ -28,9 +29,9 @@ public class RemoteConfigurationGet extends JsonWrap {
                 IOProvider provider = IOProviderFactory.getProvider(configuration.getDestinations()
                         .get(configuration.getManifest().getDestination()));
                 try {
-                    return new RsText(new String(provider.download("/configuration.json"), StandardCharsets.UTF_8));
+                    return encryptResponse(req, new String(provider.download("/configuration.json"), StandardCharsets.UTF_8));
                 } catch (Exception exc) {
-                    return JsonWrap.messageJson(400, "Couldn't fetch remote configuration");
+                    return messageJson(400, "Couldn't fetch remote configuration");
                 }
             } catch (Exception exc) {
                 log.error("Failed to read existing config", exc);
