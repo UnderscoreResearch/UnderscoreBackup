@@ -74,6 +74,7 @@ public class InteractiveCommand extends Command {
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         Thread thread = new Thread(() -> initializeManifest(started, manifestManager),
                 "InitializeManifest");
+        thread.setDaemon(true);
 
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
 

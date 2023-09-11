@@ -96,7 +96,7 @@ public class ChangePasswordCommand extends Command {
                     InstanceFactory.getInstance(AdditionalManifestManager.class),
                     InstanceFactory.getInstance(UploadScheduler.class));
 
-            changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class));
+            changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class), false);
             changePrivateKeyManifestManager.shutdown();
 
             System.out.println("Wrote public key to " + fileName);
@@ -133,7 +133,18 @@ public class ChangePasswordCommand extends Command {
         }
 
         if (commandLine.hasOption(FORCE)) {
-            generateNewPrivateKey(commandLine, getPassword(), firstTry);
+            MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+            try {
+                repository.open(true);
+                if (repository.isErrorsDetected()) {
+                    log.error("Detected corruption in local metadata repository need to repair before changing private key");
+                    return;
+                }
+
+                generateNewPrivateKey(commandLine, getPassword(), firstTry);
+            } finally {
+                repository.close();
+            }
         } else {
             String file = changePrivateKeyPassword(commandLine, getPassword(), firstTry);
 

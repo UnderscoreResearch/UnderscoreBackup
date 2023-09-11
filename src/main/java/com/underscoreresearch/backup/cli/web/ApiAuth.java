@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -140,7 +142,7 @@ public class ApiAuth {
                     configuration.getManifest().getAuthenticationRequired() != null &&
                     configuration.getManifest().getAuthenticationRequired()) {
                 try {
-                    InstanceFactory.getInstance(EncryptionKey.class);
+                    InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class);
                     needAuthentication = true;
                     return true;
                 } catch (Exception ignored) {
@@ -177,19 +179,23 @@ public class ApiAuth {
 
         public static String computeHash(String method, String path, String nonce, String sharedKey) {
             String auth = method + ":" + path + ":" + sharedKey + ":" + nonce;
+//            System.out.printf("auth: %s%n", auth);
             return Hash.hash64(auth.getBytes(StandardCharsets.UTF_8));
         }
 
         public boolean validateNonce(String nonce) {
             long nonceLong = Long.parseLong(nonce);
             if (lastNonce.isEmpty()) {
-                lastNonce.add(nonceLong);
                 return true;
             }
             if (nonceLong < lastNonce.first()) {
                 return false;
             }
-            if (!lastNonce.add(nonceLong)) {
+            return !lastNonce.contains(nonceLong);
+        }
+
+        public boolean recordNonce(String nonce) {
+            if (!lastNonce.add(Long.parseLong(nonce))) {
                 return false;
             }
             if (lastNonce.size() > MAX_SIZE) {

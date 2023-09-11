@@ -7,6 +7,8 @@ import java.util.stream.Stream;
 public interface CloseableStream<T> extends Closeable {
     Stream<T> stream();
 
+    void setReportErrorsAsNull(boolean reportErrorsAsNull);
+
     default void close() throws IOException {
     }
 }

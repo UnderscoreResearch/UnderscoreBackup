@@ -92,6 +92,11 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
             }
 
             @Override
+            public void setReportErrorsAsNull(boolean reportErrorsAsNull) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public void close() throws IOException {
                 closeableStream.close();
             }

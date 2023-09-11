@@ -42,9 +42,6 @@ export interface ListSharesResponse {
 export async function generateToken(code: string, codeVerifier: string, sourceName?: string): Promise<string | undefined> {
     const ret = await makeApiCall("service/token", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             code: code,
             codeVerifier: codeVerifier,
@@ -87,9 +84,6 @@ export async function listShares(): Promise<ListSharesResponse> {
 export async function createSource(name: string): Promise<SourceResponse> {
     return await makeApiCall("service/sources", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             name: name
         })
@@ -99,9 +93,6 @@ export async function createSource(name: string): Promise<SourceResponse> {
 export async function createSupportBundle(contents: SupportBundleRequest): Promise<string | undefined> {
     const ret = await makeApiCall("service/support", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify(contents)
     });
     if (ret && ret.location) {
@@ -113,9 +104,6 @@ export async function createSupportBundle(contents: SupportBundleRequest): Promi
 export async function updateSource(name: string, sourceId?: string, password?: string, force?: boolean): Promise<boolean> {
     return !!await makeApiCall("service/sources", {
         method: 'PUT',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             sourceId: sourceId,
             name: name,
@@ -138,9 +126,6 @@ export async function getBestRegion(): Promise<string | undefined> {
 export async function createSecret(password: string, region: string, email: string): Promise<AdditionalKeys | undefined> {
     return await makeApiCall("service/secrets", {
         method: 'PUT',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             email: email,
             region: region,
@@ -152,9 +137,6 @@ export async function createSecret(password: string, region: string, email: stri
 export async function deleteSecret(): Promise<AdditionalKeys | undefined> {
     return await makeApiCall("service/secrets", {
         method: 'DELETE',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({})
     });
 }
@@ -162,9 +144,6 @@ export async function deleteSecret(): Promise<AdditionalKeys | undefined> {
 export async function availableSecret(region: string, email: string): Promise<{ available: boolean } | undefined> {
     return await makeApiCall("service/secrets", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             region: region,
             email: email
@@ -178,9 +157,6 @@ export async function restoreSecret(region: string, sourceId: string, email: str
 } | undefined> {
     return await makeApiCall("service/secrets", {
         method: 'POST',
-        headers: {
-            'content-type': 'application/json;charset=UTF-8',
-        },
         body: JSON.stringify({
             email: email,
             sourceId: sourceId,

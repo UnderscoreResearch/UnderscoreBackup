@@ -44,9 +44,9 @@ public final class IOProviderFactory {
 
     public static void removeOldProviders() {
         for (Map.Entry<BackupDestination, IOProvider> entry : providers.entrySet()) {
-            if (entry.getValue() instanceof Closeable) {
+            if (entry.getValue() instanceof Closeable closeable) {
                 try {
-                    ((Closeable) entry.getValue()).close();
+                    closeable.close();
                 } catch (IOException e) {
                     log.error("Failed to close IO provider for {}", entry.getKey().getEndpointUri());
                 }
@@ -95,11 +95,11 @@ public final class IOProviderFactory {
 
     private static IOProvider readOnlyOnSource(IOProvider actualProvider) {
         if (InstanceFactory.getAdditionalSource() != null) {
-            if (actualProvider instanceof IOIndex) {
+            if (actualProvider instanceof IOIndex actualIndex) {
                 return new IOIndex() {
                     @Override
                     public List<String> availableKeys(String prefix) throws IOException {
-                        return ((IOIndex) actualProvider).availableKeys(prefix);
+                        return actualIndex.availableKeys(prefix);
                     }
 
                     @Override
@@ -124,7 +124,7 @@ public final class IOProviderFactory {
 
                     @Override
                     public List<String> availableLogs(String lastSyncedFile, boolean all) throws IOException {
-                        return ((IOIndex) actualProvider).availableLogs(lastSyncedFile, all);
+                        return actualIndex.availableLogs(lastSyncedFile, all);
                     }
                 };
             } else {

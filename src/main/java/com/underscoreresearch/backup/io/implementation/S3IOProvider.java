@@ -171,8 +171,8 @@ S3IOProvider implements IOIndex, Closeable {
                     return data;
                 }
             }, (exc) -> {
-                if (exc instanceof S3Exception)
-                    return !((S3Exception) exc).awsErrorDetails().errorCode().equals("NoSuchKey");
+                if (exc instanceof S3Exception s3Exception)
+                    return !s3Exception.awsErrorDetails().errorCode().equals("NoSuchKey");
                 return true;
             });
         } catch (Exception e) {

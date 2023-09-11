@@ -57,13 +57,16 @@ class ScannerSchedulerImplTest {
         ScannerSchedulerImpl scannerScheduler = new ScannerSchedulerImpl(configuration, repository, trimmer, scanner,
                 Mockito.mock(StateLogger.class), Mockito.mock(FileChangeWatcher.class), Mockito.mock(ContinuousBackup.class),
                 null, false);
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             try {
                 Thread.sleep(2500);
                 scannerScheduler.shutdown();
             } catch (InterruptedException e) {
             }
-        }).start();
+        });
+        thread.setDaemon(true);
+        thread.start();
+
         scannerScheduler.start();
         Mockito.verify(scanner, Mockito.times(2)).startScanning(set1);
         ArgumentCaptor<BackupDirectory> rootDir = ArgumentCaptor.forClass(BackupDirectory.class);

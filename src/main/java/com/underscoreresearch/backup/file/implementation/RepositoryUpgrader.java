@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
@@ -42,9 +43,11 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         this.updatedStorage = upgradedStorage;
     }
 
-    public void upgrade() throws IOException {
+    public boolean upgrade() throws IOException {
         updatedStorage.clear();
         updatedStorage.open(false);
+
+        AtomicBoolean additionalBlocksValid = new AtomicBoolean(true);
 
         try (CloseableLock ignored = storage.exclusiveLock()) {
             try (CloseableLock ignored2 = updatedStorage.exclusiveLock()) {
@@ -84,12 +87,17 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 }
 
                 try (CloseableStream<BackupBlockAdditional> blocks = storage.allAdditionalBlocks()) {
+                    blocks.setReportErrorsAsNull(true);
                     blocks.stream().forEach(block -> {
-                        try {
-                            currentStep.incrementAndGet();
-                            updatedStorage.addAdditionalBlock(block);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
+                        if (block != null) {
+                            try {
+                                currentStep.incrementAndGet();
+                                updatedStorage.addAdditionalBlock(block);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        } else {
+                            additionalBlocksValid.set(false);
                         }
                     });
                     log.info("Upgraded {} additional blocks", readableNumber(updatedStorage.getAdditionalBlockCount()));
@@ -154,6 +162,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         }
 
         log.info("Successfully completed metadata upgrade");
+        return additionalBlocksValid.get();
     }
 
     @Override

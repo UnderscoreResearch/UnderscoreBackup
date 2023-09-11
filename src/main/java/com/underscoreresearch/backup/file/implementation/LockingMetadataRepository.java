@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.SystemUtils;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -53,7 +54,6 @@ import com.underscoreresearch.backup.utils.AccessLock;
 @Slf4j
 public class LockingMetadataRepository implements MetadataRepository {
     public static final long MINIMUM_WAIT_UPDATE_MS = 2000;
-    public static final int LEGACY_MAPDB_STORAGE = 0;
     public static final int MAPDB_STORAGE = 1;
     public static final int LMDB_STORAGE = 2;
     public static final int LMDB_NON_MAPPING_STORAGE = 3;
@@ -160,7 +160,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     private void prepareOpen(boolean readOnly) throws IOException {
         readRepositoryInfo(readOnly);
 
-        storage = createStorage(repositoryInfo.version);
+        storage = createStorage(repositoryInfo.version, repositoryInfo.revision);
 
         if (!readOnly) {
             if (scheduledThreadPoolExecutor == null) {
@@ -174,14 +174,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
-    private MetadataRepositoryStorage createStorage(int version) {
+    private MetadataRepositoryStorage createStorage(int version, int revision) {
         return switch (version) {
-            case LEGACY_MAPDB_STORAGE ->
-                    new MapdbMetadataRepositoryStorage.Legacy(dataPath, repositoryInfo.alternateBlockTable);
-            case MAPDB_STORAGE -> new MapdbMetadataRepositoryStorage(dataPath, repositoryInfo.alternateBlockTable);
-            case LMDB_STORAGE -> new LmdbMetadataRepositoryStorage(dataPath, repositoryInfo.alternateBlockTable);
+            case MAPDB_STORAGE ->
+                    new MapdbMetadataRepositoryStorage(dataPath, revision, repositoryInfo.alternateBlockTable);
+            case LMDB_STORAGE ->
+                    new LmdbMetadataRepositoryStorage(dataPath, revision, repositoryInfo.alternateBlockTable);
             case LMDB_NON_MAPPING_STORAGE ->
-                    new LmdbMetadataRepositoryStorage.NonMemoryMapped(dataPath, repositoryInfo.alternateBlockTable);
+                    new LmdbMetadataRepositoryStorage.NonMemoryMapped(dataPath, revision, repositoryInfo.alternateBlockTable);
             default -> throw new IllegalArgumentException("Unsupported repository version");
         };
     }
@@ -212,15 +212,15 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     private void readRepositoryInfo(boolean readonly) throws IOException {
+        if (repositoryInfo != null && repositoryInfo.stopSaving)
+            return;
+
         File file = getPath(LockingMetadataRepository.INFO_STORE).toFile();
         if (file.exists()) {
             repositoryInfo = LockingMetadataRepository.REPOSITORY_INFO_READER.readValue(file);
         } else {
-            if (getPath("files.db").toFile().exists()) {
-                repositoryInfo = RepositoryInfo.builder().version(LEGACY_MAPDB_STORAGE).build();
-            } else {
-                repositoryInfo = RepositoryInfo.builder().version(defaultVersion).build();
-            }
+            repositoryInfo = RepositoryInfo.builder().version(defaultVersion).build();
+
             if (!readonly) {
                 saveRepositoryInfo();
             }
@@ -228,8 +228,10 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     private void saveRepositoryInfo() throws IOException {
-        File file = getPath(LockingMetadataRepository.INFO_STORE).toFile();
-        LockingMetadataRepository.REPOSITORY_INFO_WRITER.writeValue(file, repositoryInfo);
+        if (!repositoryInfo.stopSaving) {
+            File file = getPath(LockingMetadataRepository.INFO_STORE).toFile();
+            LockingMetadataRepository.REPOSITORY_INFO_WRITER.writeValue(file, repositoryInfo);
+        }
     }
 
     private void checkAccessRequest() {
@@ -739,17 +741,19 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     @Override
     public void upgradeStorage() throws IOException {
-        if (repositoryInfo.version != getDefaultVersion()) {
+        if (repositoryInfo.version != getDefaultVersion() &&
+                !repositoryInfo.errorsDetected && !repositoryInfo.stopSaving) {
             try (RepositoryLock ignored = new RepositoryLock()) {
                 try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository")) {
                     open(true);
 
                     int version = getDefaultVersion();
-                    MetadataRepositoryStorage upgradedStorage = createStorage(version);
+                    MetadataRepositoryStorage upgradedStorage = createStorage(version, 0);
 
                     new RepositoryUpgrader(storage, upgradedStorage).upgrade();
 
                     repositoryInfo.version = version;
+                    repositoryInfo.revision = 0;
                     saveRepositoryInfo();
 
                     storage.close();
@@ -758,6 +762,59 @@ public class LockingMetadataRepository implements MetadataRepository {
                 }
             }
         }
+    }
+
+    @Override
+    public MetadataRepositoryStorage createStorageRevision() throws IOException {
+        if (repositoryInfo == null) {
+            readRepositoryInfo(false);
+        }
+        repositoryInfo.stopSaving = true;
+        repositoryInfo.errorsDetected = false;
+        repositoryInfo.revision++;
+        MetadataRepositoryStorage ret = createStorage(repositoryInfo.version, repositoryInfo.revision);
+        ret.clear();
+        close();
+        storage = ret;
+        return ret;
+    }
+
+    @Override
+    public void cancelStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
+        close();
+        newStorage.clear();
+        repositoryInfo.stopSaving = false;
+
+        readRepositoryInfo(false);
+        storage = createStorage(repositoryInfo.version, repositoryInfo.revision);
+    }
+
+    @Override
+    public void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
+        try (RepositoryLock ignored = new RepositoryLock()) {
+            MetadataRepositoryStorage oldStorage = createStorage(repositoryInfo.version, repositoryInfo.revision - 1);
+            oldStorage.clear();
+
+            open(true);
+
+            repositoryInfo.stopSaving = false;
+            saveRepositoryInfo();
+        }
+    }
+
+    @Override
+    public boolean isErrorsDetected() {
+        return repositoryInfo != null && repositoryInfo.isErrorsDetected();
+    }
+
+    @Override
+    public void setErrorsDetected(boolean errorsDetected) throws IOException {
+        if (repositoryInfo != null) {
+            readRepositoryInfo(false);
+        }
+        assert repositoryInfo != null;
+        repositoryInfo.setErrorsDetected(errorsDetected);
+        saveRepositoryInfo();
     }
 
     @Override
@@ -776,7 +833,11 @@ public class LockingMetadataRepository implements MetadataRepository {
     @AllArgsConstructor
     private static class RepositoryInfo {
         private int version;
+        private int revision;
         private boolean alternateBlockTable;
+        private boolean errorsDetected;
+        @JsonIgnore
+        private boolean stopSaving;
         private String lastSyncedLogEntry;
         private Map<String, String> shareLastSyncedLogEntry;
 
@@ -810,6 +871,11 @@ public class LockingMetadataRepository implements MetadataRepository {
         @Override
         public Stream<T> stream() {
             return stream.stream();
+        }
+
+        @Override
+        public void setReportErrorsAsNull(boolean reportErrorsAsNull) {
+            stream.setReportErrorsAsNull(reportErrorsAsNull);
         }
 
         @Override

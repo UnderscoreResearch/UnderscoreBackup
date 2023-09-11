@@ -167,6 +167,8 @@ public class WebServer {
                                     )),
                                     new FkRegex(base + "/api/restore", new TkFork(
                                             new FkMethods("POST", new RestorePost()))),
+                                    new FkRegex(base + "/api/repair", new TkFork(
+                                            new FkMethods("POST", new RepairPost()))),
                                     new FkRegex(base + "/api/search-backup", new TkFork(
                                             new FkMethods("GET", new SearchBackupFilesGet(base))
                                     )),

@@ -1,11 +1,11 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.cli.web.ResetDelete.executeShielded;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_FILE_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG_LOCATION;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
@@ -23,8 +23,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang.SystemUtils;
 import org.takes.Request;
 import org.takes.Response;
@@ -39,7 +37,6 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupShare;
 
-@Slf4j
 public class ConfigurationPost extends BaseWrap {
 
     private static BackupConfiguration cachedValidDestinationConfig;

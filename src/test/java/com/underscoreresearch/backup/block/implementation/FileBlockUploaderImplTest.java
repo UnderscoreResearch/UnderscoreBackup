@@ -94,13 +94,16 @@ class FileBlockUploaderImplTest {
                 doneKey = key;
 
             if (delay) {
-                new Thread(() -> {
+                Thread thread = new Thread(() -> {
                     try {
                         Thread.sleep(10);
                     } catch (InterruptedException e) {
                     }
                     completion.completed(doneKey);
-                }).start();
+                });
+                thread.setDaemon(true);
+
+                thread.start();
             } else {
                 completion.completed(doneKey);
             }

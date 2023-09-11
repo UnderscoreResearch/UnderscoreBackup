@@ -115,6 +115,16 @@ public interface MetadataRepository {
 
     void upgradeStorage() throws IOException;
 
+    MetadataRepositoryStorage createStorageRevision() throws IOException;
+
+    void cancelStorageRevision(MetadataRepositoryStorage newStorage) throws IOException;
+
+    void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException;
+
+    boolean isErrorsDetected();
+
+    void setErrorsDetected(boolean errorsDetected) throws IOException;
+
     <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException;
 
     // Grant exclusive lock to the repository. All changes must happen on the granting thread.

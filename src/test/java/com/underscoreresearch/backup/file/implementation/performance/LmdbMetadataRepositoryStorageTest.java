@@ -13,7 +13,7 @@ public class LmdbMetadataRepositoryStorageTest extends MetadataRepositoryStorage
     @Override
     protected MetadataRepositoryStorage createStorageEngine(Path directory) {
         if (LockingMetadataRepository.getDefaultVersion() >= LockingMetadataRepository.LMDB_STORAGE) {
-            return new LmdbMetadataRepositoryStorage(directory.toString(), false);
+            return new LmdbMetadataRepositoryStorage(directory.toString(), 0, false);
         }
         return null;
     }

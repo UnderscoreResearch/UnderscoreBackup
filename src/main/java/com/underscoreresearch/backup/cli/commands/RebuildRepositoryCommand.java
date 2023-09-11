@@ -4,7 +4,6 @@ import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reload
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
@@ -68,19 +67,6 @@ public class RebuildRepositoryCommand extends Command {
         }
     }
 
-    private static void cleanDir(File tempDir) {
-        String[] entries = tempDir.list();
-        if (entries != null) {
-            for (String s : entries) {
-                File currentFile = new File(tempDir.getPath(), s);
-                if (currentFile.isDirectory()) {
-                    cleanDir(currentFile);
-                }
-                deleteFile(currentFile);
-            }
-        }
-    }
-
     public static void rebuildFromLog(String password, boolean async) {
         log.info("Rebuilding repository from logs");
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
@@ -88,7 +74,7 @@ public class RebuildRepositoryCommand extends Command {
             try {
                 repository.close();
                 String root = InstanceFactory.getInstance(REPOSITORY_DB_PATH);
-                cleanDir(new File(root));
+                IOUtils.deleteContents(new File(root));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -100,6 +86,8 @@ public class RebuildRepositoryCommand extends Command {
         if (async) {
             Thread thread = new Thread(() -> executeRebuildLog(manifestManager, logConsumer, repository, password),
                     "LogRebuild");
+            thread.setDaemon(true);
+
             InstanceFactory.addOrderedCleanupHook(() -> {
                 try {
                     manifestManager.shutdown();

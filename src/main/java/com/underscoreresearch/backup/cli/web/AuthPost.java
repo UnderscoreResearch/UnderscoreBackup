@@ -75,12 +75,18 @@ public class AuthPost extends BaseWrap {
             String authPath = getAuthPath(uri);
             String nonce = "1";
             String hash = ApiAuth.EndpointInfo.computeHash(method, authPath, nonce, Hash.encodeBytes(sharedKey));
-            String publicHash = ApiAuth.EndpointInfo.computeHash(method, authPath, nonce, InstanceFactory.getInstance(EncryptionKey.class).getPublicKey());
+            String authHeader = publicKey + " " + nonce + " " + hash;
+            try {
+                String publicHash = ApiAuth.EndpointInfo.computeHash(method, authPath, nonce, InstanceFactory.getInstance(EncryptionKey.class).getPublicKey());
+                authHeader += " " + publicHash;
+            } catch (Exception e) {
+                log.info("No public key found so assuming no UI authentication is needed");
+            }
 
             URL authedUrl = uri.toURL();
             HttpURLConnection authConnection = (HttpURLConnection) authedUrl.openConnection();
             authConnection.setRequestMethod(method);
-            authConnection.setRequestProperty(X_KEYEXCHANGE_HEADER, publicKey + " " + nonce + " " + hash + " " + publicHash);
+            authConnection.setRequestProperty(X_KEYEXCHANGE_HEADER, authHeader);
             authConnection.setDoInput(true);
             if (body != null) {
                 authConnection.setDoOutput(true);

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {activateShares, StatusLine} from "../api";
+import {activateShares, repairRepository, StatusLine} from "../api";
 import {
     Accordion,
     AccordionDetails,
@@ -43,12 +43,14 @@ const LAST_STATS: string[] = [
 
 const IMPORTANT_CODES = [
     "MEMORY_HIGH",
+    "REPOSITORY_ERROR_DETECTED",
     "SHARE_ACTIVATION_NEEDED",
     "BACKUP_DURATION",
     "RESTORE_DURATION",
     "TRIMMING_STEPS",
     "VALIDATE_STEPS",
     "REPLAY_LOG_PROCESSED_FILES",
+    "REPAIRING_REPOSITORY_PROCESSED_FILES",
     "DEACTIVATING_SHARES_PROCESSED_STEPS",
     "ACTIVATING_SHARES_PROCESSED_STEPS",
     "OPTIMIZING_LOG_PROCESSED_STEPS",
@@ -64,31 +66,26 @@ const IMPORTANT_CODES = [
     "PROCESSED_PATH"
 ];
 
-function ActivateSharesButton() {
-    const appContext = useApplication();
-    const activityContext = useActivity();
+interface ActionButtonProps {
+    action: (password: string) => void,
+    label: string,
+    color?: 'inherit' | 'primary' | 'secondary' | 'success' | 'error' | 'info' | 'warning'
+    dialogText: string
+}
+
+function ActionSharesButton(props: ActionButtonProps) {
     const [show, setShow] = React.useState<boolean>(false);
     const [password, setPassword] = React.useState<string>("");
 
-    async function activateSharesNow() {
-        setShow(false);
-        await appContext.busyOperation(async () => {
-            if (await activateShares(password)) {
-                await appContext.updateBackendState();
-            }
-            await activityContext.update();
-        });
-    }
-
     return <>
-        <Button variant="contained" onClick={() => {
+        <Button variant="contained" color={props.color} onClick={() => {
             setShow(true)
-        }}>Activate shares</Button>
+        }}>{props.label}</Button>
         <Dialog open={show} onClose={() => setShow(false)}>
             <DialogTitle>Enter Password</DialogTitle>
             <DialogContent>
                 <DialogContentText>
-                    You need to enter your backup password to activate shares.
+                    {props.dialogText}
                 </DialogContentText>
 
                 <Box
@@ -98,7 +95,7 @@ function ActivateSharesButton() {
                     }}
                     style={{marginTop: 4, marginLeft: "-8px", marginRight: "8px"}}
                 >
-                    <TextField label="New Password" variant="outlined"
+                    <TextField label="Password" variant="outlined"
                                fullWidth={true}
                                required={true}
                                value={password}
@@ -106,8 +103,10 @@ function ActivateSharesButton() {
                                id={"password"}
                                type="password"
                                onKeyDown={(e) => {
-                                   if (e.key === "Enter" && password.length)
-                                       activateSharesNow()
+                                   if (e.key === "Enter" && password.length) {
+                                       setShow(false);
+                                       props.action(password);
+                                   }
                                }}
                                onChange={(e) => setPassword(e.target.value)}/>
                 </Box>
@@ -115,10 +114,48 @@ function ActivateSharesButton() {
             <DialogActions>
                 <Button onClick={() => setShow(false)}>Cancel</Button>
                 <Button disabled={!password}
-                        onClick={() => activateSharesNow()} id={"activateShares"}>OK</Button>
+                        onClick={() => {
+                            setShow(false);
+                            props.action(password);
+                        }} id={"actionButton"}>OK</Button>
             </DialogActions>
         </Dialog>
     </>
+}
+
+function ActivateSharesButton() {
+    const appContext = useApplication();
+    const activityContext = useActivity();
+
+    async function activateSharesNow(password: string) {
+        await appContext.busyOperation(async () => {
+            if (await activateShares(password)) {
+                await appContext.updateBackendState();
+            }
+            await activityContext.update();
+        });
+    }
+
+    return <ActionSharesButton action={(password) => activateSharesNow(password)} label={"Activate shares"}
+                               dialogText={"You need to enter your backup password to activate shares."}/>
+}
+
+function RepairRepositoryButton() {
+    const appContext = useApplication();
+    const activityContext = useActivity();
+
+    async function repairRepositoryNow(password: string) {
+        await appContext.busyOperation(async () => {
+            if (await repairRepository(password)) {
+                await appContext.updateBackendState();
+            }
+            await activityContext.update();
+        });
+    }
+
+    return <ActionSharesButton action={(password) => repairRepositoryNow(password)}
+                               label={"Repair local repository"} color={"error"}
+                               dialogText={"You need to enter your backup password to repair your local repository."}/>
 }
 
 function importantProperties(row: StatusLine, details: boolean): StatusRowProps {
@@ -133,13 +170,17 @@ function importantProperties(row: StatusLine, details: boolean): StatusRowProps 
         case "SHARE_ACTIVATION_NEEDED":
             props.action = <ActivateSharesButton/>
             break;
+        case "REPOSITORY_ERROR_DETECTED":
+            props.action = <RepairRepositoryButton/>
+            break;
         case "PROCESSED_PATH":
             props.doubleLine = true;
             break;
         case "TRIMMING_STEPS":
         case "VALIDATE_STEPS":
         case "UPGRADE_PROCESSED_STEPS":
-        case "REPLAY_LOG_PROCESSED_STEPS":
+        case "REPLAY_LOG_PROCESSED_FILES":
+        case "REPAIRING_REPOSITORY_PROCESSED_FILES":
         case "DEACTIVATING_SHARES_PROCESSED_STEPS":
         case "ACTIVATING_SHARES_PROCESSED_STEPS":
         case "OPTIMIZING_LOG_PROCESSED_STEPS":

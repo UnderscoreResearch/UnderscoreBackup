@@ -102,8 +102,8 @@ public class ServiceManagerImpl implements ServiceManager {
     static <T> T callApi(BackupApi client, String region, ApiFunction<T> callable) throws ApiException {
         try {
             return RetryUtils.retry(RetryUtils.DEFAULT_RETRIES, RetryUtils.DEFAULT_BASE, () -> callable.call(client), (exc) -> {
-                if (exc instanceof ApiException) {
-                    int code = ((ApiException) exc).getCode();
+                if (exc instanceof ApiException apiException) {
+                    int code = apiException.getCode();
                     if (code >= 400 && code < 500) {
                         return code == 404 && callable.shouldRetryMissing(region);
                     }
@@ -141,8 +141,8 @@ public class ServiceManagerImpl implements ServiceManager {
         } catch (ApiException exc) {
             throw new IOException(exc);
         } catch (Exception exc) {
-            if (exc.getCause() instanceof IOException) {
-                throw (IOException) exc.getCause();
+            if (exc.getCause() instanceof IOException ioException) {
+                throw ioException;
             }
             throw new IOException(exc.getMessage(), exc.getCause());
         }
@@ -185,8 +185,8 @@ public class ServiceManagerImpl implements ServiceManager {
                     }
                 }).getActive();
             } catch (IOException exc) {
-                if (exc.getCause() instanceof ApiException) {
-                    switch (((ApiException) exc.getCause()).getCode()) {
+                if (exc.getCause() instanceof ApiException apiException) {
+                    switch (apiException.getCode()) {
                         case 401, 403 -> {
                             log.error("Invalid token, lost service authorization");
                             data.setToken(null);

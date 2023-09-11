@@ -119,8 +119,13 @@ export function calculateDisplayState(appContext: ApplicationContext,
                     ret.navigation.restore = false;
                 }
                 if (activityContext.activity
-                    .some(item => item.code.startsWith("REPLAY_" || item.code.startsWith("UPGRADE_")))) {
+                    .some(item => item.code.startsWith("REPLAY_") ||
+                        item.code.startsWith("UPGRADE_"))) {
                     busyStatus(ret, `Syncing Contents From ${appContext.selectedSourceName}`);
+                    ret.rebuildInProgress = true;
+                } else if (activityContext.activity
+                    .some(item => item.code.startsWith("REPAIRING_"))) {
+                    busyStatus(ret, `Repairing Local Repository For ${appContext.selectedSourceName}`);
                     ret.rebuildInProgress = true;
                 } else {
                     if (activityContext.activity.some(item => item.code.startsWith("RESTORE_"))) {
@@ -137,6 +142,9 @@ export function calculateDisplayState(appContext: ApplicationContext,
                     ret.restoreInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("REPLAY_"))) {
                     busyStatus(ret, "Replaying From Backup");
+                    ret.rebuildInProgress = true;
+                } else if (activityContext.activity.some(item => item.code.startsWith("REPAIRING_"))) {
+                    busyStatus(ret, "Repairing Local Metadata Repository");
                     ret.rebuildInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("UPGRADE_"))) {
                     busyStatus(ret, "Upgrading Repository Storage");

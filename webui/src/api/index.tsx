@@ -1,10 +1,10 @@
 import {DisplayMessage} from "../App";
 import {generateKeyPair, sharedKey} from "curve25519-js";
 import base64url from "base64url";
-import {sha256} from 'js-sha256';
 import argon2 from "./argon2";
 import {base32} from "rfc4648";
 import aesjs from "aes-js";
+import crypto from "crypto";
 
 // Bunch of API interfaces.
 
@@ -236,7 +236,7 @@ function determineBasePath(): string {
 const baseApi = determineBaseApi();
 const basePrefix = determineBasePath();
 
-const exchangeKeyPair = generateKeyPair(crypto.getRandomValues(new Uint8Array(32)));
+const exchangeKeyPair = generateKeyPair(crypto.randomBytes(32));
 const publicKey = base64url.encode(Buffer.from(exchangeKeyPair.public)).replace("=", "");
 let apiSharedKey: string | undefined = undefined;
 let apiSharedKeyBytes: Uint8Array | undefined = undefined;
@@ -246,7 +246,7 @@ let encryptionPublicKey: string | undefined = undefined;
 let authAwaits: (() => void)[] = [];
 let nonce = 1;
 
-export async function fecthAuth() {
+export async function fetchAuth() {
     const response = await fetch(baseApi + "auth", {
         method: 'POST',
         headers: {
@@ -287,11 +287,12 @@ export async function fecthAuth() {
 }
 
 function postAwaits() {
-    authAwaits.forEach((awaiter) => awaiter());
+    const oldAwait = authAwaits;
     authAwaits = [];
+    oldAwait.forEach((awaiter) => awaiter());
 }
 
-fecthAuth().then(() => {
+fetchAuth().then(() => {
     postAwaits();
 });
 
@@ -358,8 +359,9 @@ export async function needPrivateKeyPassword(wait: boolean): Promise<boolean> {
 
 function createSignedHash(method: string, api: string, sharedKey: string, currentNonce: number) {
     const auth = method + ":" + basePrefix + api + ":" + sharedKey + ":" + currentNonce;
-    const digest = sha256(Buffer.from(auth));
-    return base64url(Buffer.from(digest, 'hex')).replace("=", "");
+    const digest = crypto.createHash('sha256').update(Buffer.from(auth, 'utf-8')).digest();
+    const encoded = base64url(digest).replace("=", "");
+    return encoded;
 }
 
 function generateAuthHeader(method: string, api: string) {
@@ -382,7 +384,7 @@ function decryptData(data: ArrayBuffer) {
 }
 
 function encryptData(data: string) {
-    const iv = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.randomBytes(16);
     var aesCbc = new aesjs.ModeOfOperation.cbc(apiSharedKeyBytes as Uint8Array, iv);
     const encrypted = aesCbc.encrypt(aesjs.padding.pkcs7.pad(Buffer.from(data, 'utf8')));
     return Buffer.concat([iv, encrypted]);
@@ -418,7 +420,7 @@ export async function performFetch(api: string, init?: RequestInit, silentError?
                 reportError("Invalid password");
             } else if (apiSharedKey) {
                 apiSharedKey = undefined;
-                fecthAuth().then(() => {
+                fetchAuth().then(() => {
                     postAwaits();
                 });
             }
@@ -682,6 +684,15 @@ export async function listActiveShares(): Promise<ActiveShares | undefined> {
 
 export async function activateShares(password: string): Promise<AdditionalKeys | undefined> {
     return await makeApiCall("shares", {
+        method: 'POST',
+        body: JSON.stringify({
+            "password": password
+        })
+    });
+}
+
+export async function repairRepository(password: string): Promise<AdditionalKeys | undefined> {
+    return await makeApiCall("repair", {
         method: 'POST',
         body: JSON.stringify({
             "password": password

@@ -41,6 +41,7 @@ import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
@@ -327,6 +328,31 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public void upgradeStorage() throws IOException {
         repository.upgradeStorage();
+    }
+
+    @Override
+    public MetadataRepositoryStorage createStorageRevision() throws IOException {
+        return repository.createStorageRevision();
+    }
+
+    @Override
+    public void cancelStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
+        repository.cancelStorageRevision(newStorage);
+    }
+
+    @Override
+    public void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
+        repository.installStorageRevision(newStorage);
+    }
+
+    @Override
+    public boolean isErrorsDetected() {
+        return repository.isErrorsDetected();
+    }
+
+    @Override
+    public void setErrorsDetected(boolean errorsDetected) throws IOException {
+        repository.setErrorsDetected(errorsDetected);
     }
 
     @Override

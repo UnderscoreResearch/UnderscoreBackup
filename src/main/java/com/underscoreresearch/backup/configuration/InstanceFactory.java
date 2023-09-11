@@ -41,7 +41,24 @@ public abstract class InstanceFactory {
     private static String additionalSource;
 
     static {
-        Runtime.getRuntime().addShutdownHook(new Thread(InstanceFactory::executeOrderedCleanupHook));
+        Thread thread = new Thread(() -> {
+            executeOrderedCleanupHook();
+            System.out.close();
+            System.err.close();
+
+            Thread watchdogThread = new Thread(() -> {
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException ignored) {
+                }
+                log.error("Failed to shut down gracefully, exiting forcefully");
+                Runtime.getRuntime().halt(1);
+            }, "ShutdownWatchdog");
+            watchdogThread.setDaemon(true);
+            watchdogThread.start();
+        }, "ShutdownHook");
+        thread.setDaemon(true);
+        Runtime.getRuntime().addShutdownHook(thread);
     }
 
     public static Reflections getReflections() {

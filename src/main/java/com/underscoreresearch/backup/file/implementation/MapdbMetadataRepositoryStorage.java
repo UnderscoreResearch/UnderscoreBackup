@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
+import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_ADDITIONAL_READER;
@@ -38,6 +39,7 @@ import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.mapdb.BTreeMap;
@@ -91,6 +93,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private static final String UPDATED_FILES_STORE = "updatedfiles.db";
     private static final String UPDATED_PENDING_FILES_STORE = "updatedpendingfiles.db";
     private final String dataPath;
+    private final int revision;
     private DB blockDb;
     private DB blockTmpDb;
     private DB fileDb;
@@ -117,14 +120,21 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private boolean readOnly;
     private boolean alternateBlockTable;
 
-    public MapdbMetadataRepositoryStorage(String dataPath, boolean alternateBlockTable) {
-        this.dataPath = dataPath;
+    public MapdbMetadataRepositoryStorage(String dataPath, int revision, boolean alternateBlockTable) {
+        if (revision == 0) {
+            this.dataPath = dataPath;
+            this.revision = revision;
+        } else {
+            this.dataPath = Paths.get(dataPath, String.format("v2-%d", revision)).toString();
+            this.revision = revision;
+            IOUtils.createDirectory(new File(this.dataPath), true);
+        }
         this.alternateBlockTable = alternateBlockTable;
     }
 
     private static TreeOrSink openTreeMap(DB db, DB.TreeMapMaker<Object[], byte[]> maker) {
         maker.counterEnable();
-        if (db.nameCatalogLoad().size() == 0) {
+        if (db.nameCatalogLoad().isEmpty()) {
             return new TreeOrSink(maker.createFromSink());
         }
         return new TreeOrSink(maker.createOrOpen());
@@ -366,8 +376,9 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 }
                 return null;
             }
-        }).filter(Objects::nonNull);
-        return () -> stream;
+        });
+
+        return new MapdbCloseableStream<>(stream);
     }
 
     @Override
@@ -388,9 +399,9 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 }
                 return null;
             }
-        }).filter(Objects::nonNull);
+        });
 
-        return () -> stream;
+        return new MapdbCloseableStream<>(stream);
     }
 
     @Override
@@ -411,9 +422,9 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 }
                 return null;
             }
-        }).filter(Objects::nonNull);
+        });
 
-        return () -> stream;
+        return new MapdbCloseableStream<>(stream);
     }
 
     @Override
@@ -442,9 +453,9 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 }
                 return null;
             }
-        }).filter(Objects::nonNull);
+        });
 
-        return () -> stream;
+        return new MapdbCloseableStream<>(stream);
     }
 
     @Override
@@ -470,9 +481,9 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 }
                 return null;
             }
-        }).filter(Objects::nonNull);
+        });
 
-        return () -> stream;
+        return new MapdbCloseableStream<>(stream);
     }
 
     @Override
@@ -873,32 +884,37 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     public void clear() throws IOException {
         File parent = new File(dataPath);
-        String[] allFiles = new String[]{
-                FILE_STORE,
-                BLOCK_STORE,
-                BLOCK_ALT_STORE,
-                PARTS_STORE,
-                DIRECTORY_STORE,
-                ACTIVE_PATH_STORE,
-                PENDING_SET_STORE,
-                PARTIAL_FILE_STORE,
-                ADDITIONAL_BLOCK_STORE,
-                UPDATED_FILES_STORE,
-                UPDATED_PENDING_FILES_STORE
-        };
+        if (revision == 0) {
+            String[] allFiles = new String[]{
+                    FILE_STORE,
+                    BLOCK_STORE,
+                    BLOCK_ALT_STORE,
+                    PARTS_STORE,
+                    DIRECTORY_STORE,
+                    ACTIVE_PATH_STORE,
+                    PENDING_SET_STORE,
+                    PARTIAL_FILE_STORE,
+                    ADDITIONAL_BLOCK_STORE,
+                    UPDATED_FILES_STORE,
+                    UPDATED_PENDING_FILES_STORE
+            };
 
-        File[] files = parent.listFiles((file, name) -> {
-            for (String startName : allFiles) {
-                if (name.startsWith(startName)) {
-                    return true;
+            File[] files = parent.listFiles((file, name) -> {
+                for (String startName : allFiles) {
+                    if (name.startsWith(startName)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            if (files != null) {
+                for (File file : files) {
+                    IOUtils.deleteFile(file);
                 }
             }
-            return false;
-        });
-        if (files != null) {
-            for (File file : files) {
-                IOUtils.deleteFile(file);
-            }
+        } else {
+            deleteContents(parent);
+            IOUtils.deleteFile(parent);
         }
     }
 
@@ -998,17 +1014,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         Stream<BackupUpdatedFile> stream = map.keySet().stream()
                 .map(keys -> new BackupUpdatedFile((String) keys[1], (Long) keys[0]));
 
-        return () -> stream;
-    }
-
-    public static class Legacy extends MapdbMetadataRepositoryStorage {
-        public Legacy(String dataPath, boolean alternateBlockTable) {
-            super(dataPath, alternateBlockTable);
-        }
-
-        @Override
-        protected <T> void hashSetup(DB.HashMapMaker<String, T> maker) {
-        }
+        return new MapdbCloseableStream<>(stream);
     }
 
     public static class TreeOrSink implements Closeable {
@@ -1028,11 +1034,10 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         private static int compareKeys(Object[] key1, Object[] key2) {
             for (int i = 0; i < key1.length; i++) {
                 Object k1 = key1[i];
-
                 // Its either comparable or a byte array.
 
-                if (k1 instanceof byte[]) {
-                    byte[] b1 = (byte[]) key1[i];
+                if (k1 instanceof byte[] byteArray1) {
+                    byte[] b1 = byteArray1;
                     byte[] b2 = (byte[]) key2[i];
 
                     for (int j = 0; i < Math.min(b1.length, b2.length); i++) {
@@ -1142,6 +1147,24 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 closeSink();
             }
             return tree.size();
+        }
+    }
+
+    private static class MapdbCloseableStream<T> implements CloseableStream<T> {
+        private final Stream<T> stream;
+        @Setter
+        private boolean reportErrorsAsNull;
+
+        private MapdbCloseableStream(Stream<T> stream) {
+            this.stream = stream;
+        }
+
+
+        @Override
+        public Stream<T> stream() {
+            if (reportErrorsAsNull)
+                return stream;
+            return stream.filter(Objects::nonNull);
         }
     }
 

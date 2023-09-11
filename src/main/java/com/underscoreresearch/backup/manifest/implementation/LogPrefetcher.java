@@ -120,10 +120,10 @@ public class LogPrefetcher {
 
     private void throwError() throws IOException {
         Exception e = error.get();
-        if (e instanceof IOException)
-            throw (IOException) e;
-        if (e instanceof RuntimeException)
-            throw (RuntimeException) e;
+        if (e instanceof IOException ioException)
+            throw ioException;
+        if (e instanceof RuntimeException runtimeException)
+            throw runtimeException;
         if (e != null)
             throw new RuntimeException(e);
     }

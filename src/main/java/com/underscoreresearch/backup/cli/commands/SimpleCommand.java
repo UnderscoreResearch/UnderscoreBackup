@@ -6,10 +6,14 @@ import org.apache.commons.cli.ParseException;
 import com.underscoreresearch.backup.cli.Command;
 
 public abstract class SimpleCommand extends Command {
-    public void executeCommand(CommandLine commandLine) throws Exception {
+    public static void validateNoFiles(CommandLine commandLine) throws ParseException {
         if (commandLine.getArgList().size() > 1) {
             throw new ParseException("Too many arguments for command");
         }
+    }
+
+    public void executeCommand(CommandLine commandLine) throws Exception {
+        validateNoFiles(commandLine);
         executeCommand();
     }
 

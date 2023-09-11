@@ -14,14 +14,17 @@ public class ShutdownGet extends BaseWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            new Thread(() -> {
+            Thread thread = new Thread(() -> {
                 try {
                     Thread.sleep(50);
                 } catch (InterruptedException e) {
                     log.error("Interrupted while waiting for shutdown", e);
                 }
                 System.exit(0);
-            }, "Shutdown thread").start();
+            }, "Shutdown thread");
+            thread.setDaemon(true);
+            thread.start();
+
             return messageJson(200, "Shutting down");
         }
 

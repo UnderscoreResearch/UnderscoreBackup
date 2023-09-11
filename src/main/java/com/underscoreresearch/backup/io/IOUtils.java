@@ -146,4 +146,19 @@ public final class IOUtils {
         }
     }
 
+    public static void deleteContents(File file) {
+        if (file.isDirectory()) {
+            File[] files = file.listFiles();
+            if (files != null) {
+                for (File child : files) {
+                    if (!child.getName().startsWith(".")) {
+                        if (child.isDirectory()) {
+                            deleteContents(child);
+                        }
+                        deleteFile(child);
+                    }
+                }
+            }
+        }
+    }
 }

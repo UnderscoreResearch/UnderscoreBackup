@@ -176,6 +176,25 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
+    public static void deleteNewLogFiles(String lastLogFile, IOIndex provider,
+                                         AtomicLong totalFiles, AtomicLong processedFiles) throws IOException {
+        List<String> files = provider.availableLogs(lastLogFile, true);
+        if (!files.isEmpty()) {
+            DeletionScheduler scheduler = new DeletionScheduler(10);
+            try {
+                totalFiles.addAndGet(files.size());
+                for (String file : files) {
+                    if (file.compareTo(lastLogFile) <= 0) {
+                        scheduler.delete(provider, file, processedFiles);
+                    }
+                }
+            } finally {
+                scheduler.waitForCompletion();
+                scheduler.shutdown();
+            }
+        }
+    }
+
     protected void uploadKeyData(EncryptionKey key) throws IOException {
         uploadConfigData(PUBLICKEY_FILENAME,
                 encryptionKeyForUpload(key),
@@ -604,7 +623,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
-    private static class DeletionScheduler extends SchedulerImpl {
+    protected static class DeletionScheduler extends SchedulerImpl {
         public DeletionScheduler(int maximumConcurrency) {
             super(maximumConcurrency);
         }

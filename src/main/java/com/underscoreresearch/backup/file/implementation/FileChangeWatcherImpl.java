@@ -98,11 +98,16 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
 
             if (thread == null) {
                 thread = new Thread(new PollingThread(), "FileChangeWatcher");
+                thread.setDaemon(true);
                 executionQueue = new LinkedBlockingQueue<>(QUEUE_SIZE);
                 executorService = new ThreadPoolExecutor(THREAD_POOL_SIZE, THREAD_POOL_SIZE,
                         0, TimeUnit.MILLISECONDS,
                         executionQueue,
-                        r -> new Thread(r, "FileChangeWatcherConsumer"));
+                        r -> {
+                            Thread executorThread = new Thread(r, "FileChangeWatcherConsumer");
+                            executorThread.setDaemon(true);
+                            return executorThread;
+                        });
 
                 thread.start();
             }
@@ -177,7 +182,9 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                 }
             } finally {
                 try {
-                    poller.close();
+                    if (poller != null) {
+                        poller.close();
+                    }
                 } catch (IOException e) {
                     log.error("Failed to close file change monitor", e);
                 }

@@ -283,7 +283,7 @@ begin
     begin
       PreviousMemoryUI := 'java-options=-Xmx32m';
     end
-    else if (PreviousMemoryUI = 'ja va-options=-Xmx32m') and ApplicationInstall() then
+    else if (PreviousMemoryUI = 'java-options=-Xmx32m') and ApplicationInstall() then
     begin
       PreviousMemoryUI := 'java-options=-Xmx256m';
     end;

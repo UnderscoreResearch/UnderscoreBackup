@@ -26,7 +26,7 @@ class FsChangePollerTest {
             i++;
         }
 
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             for (int i = 0; i < 1000; i++) {
                 byte[] data = ("test" + i + " 2").getBytes(StandardCharsets.UTF_8);
                 try {
@@ -37,7 +37,10 @@ class FsChangePollerTest {
                     throw new RuntimeException(e);
                 }
             }
-        }).start();
+        });
+        thread.setDaemon(true);
+        thread.start();
+
         TestWatcherChangePoller poller = new TestWatcherChangePoller(inputStream);
         while (!expected.isEmpty()) {
             List<Path> paths = poller.fetchPaths();

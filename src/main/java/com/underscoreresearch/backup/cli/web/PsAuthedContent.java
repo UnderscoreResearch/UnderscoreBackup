@@ -1,11 +1,15 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.Iterator;
 import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
@@ -26,6 +30,7 @@ import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 
+@Slf4j
 public class PsAuthedContent implements Pass {
     public static final String X_KEYEXCHANGE_HEADER = "x-keyexchange";
     public static final String ENCRYPTED_CONTENT_TYPE = "x-application/encrypted-json";
@@ -85,7 +90,7 @@ public class PsAuthedContent implements Pass {
         return unauthenticated(request);
     }
 
-    private boolean validateKeyExchange(Request request, String publicKey, String nonce, String hash, String publicKeyHash) throws IOException {
+    private synchronized boolean validateKeyExchange(Request request, String publicKey, String nonce, String hash, String publicKeyHash) throws IOException {
         ApiAuth.EndpointInfo endpointInfo = ApiAuth.getInstance().getEndpoint(publicKey);
         if (endpointInfo != null) {
             if (endpointInfo.validateNonce(nonce)) {
@@ -93,22 +98,41 @@ public class PsAuthedContent implements Pass {
                 URI uri = URI.create(new RqHref.Base(request).href().toString());
                 String path = getAuthPath(uri);
 
-                if (hash.equals(endpointInfo.computeHash(method, path, nonce, endpointInfo.getSharedKey()))) {
+                if (validateHash(hash, method, path, nonce, endpointInfo.getSharedKey())) {
+                    boolean success;
                     if (publicKeyHash != null) {
-                        EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
-                        if (publicKeyHash.equals(endpointInfo.computeHash(method, path, nonce, encryptionKey.getPublicKey()))) {
+                        EncryptionKey encryptionKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class);
+                        if (validateHash(publicKeyHash, method, path, nonce, encryptionKey.getPublicKey())) {
                             ApiAuth.getInstance().setEndpointAuthenticated(endpointInfo);
-                            return true;
+                            success = true;
                         } else {
-                            return false;
+//                            log.info("Invalid public key hash");
+                            success = false;
                         }
                     } else {
-                        return !ApiAuth.getInstance().needAuthentication();
+                        success = !ApiAuth.getInstance().needAuthentication();
                     }
+                    if (success) {
+                        if (!endpointInfo.recordNonce(nonce))
+                            return false;
+                    }
+                    return success;
+//                } else {
+//                    log.info("Invalid hash");
                 }
+//            } else {
+//                log.info("Invalid nonce");
             }
+//        } else {
+//            log.info("Missing endpoint info");
         }
         return false;
+    }
+
+    private boolean validateHash(String hash, String method, String path, String nonce, String sharedKey) {
+        String expectedHash = ApiAuth.EndpointInfo.computeHash(method, path, nonce, sharedKey);
+//        System.out.printf("%s == %s?%n", hash, expectedHash);
+        return expectedHash.equals(hash);
     }
 
     private Opt<Identity> unauthenticated(Request request) throws IOException {

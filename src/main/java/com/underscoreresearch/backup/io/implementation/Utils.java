@@ -40,7 +40,7 @@ public class Utils {
         List<String> files = new ArrayList<>();
         for (String day : days) {
             files.addAll(getListOfLogFiles(lastSyncedFile, index, day, false));
-            if (files.size() > 0 && !all) {
+            if (!files.isEmpty() && !all) {
                 break;
             }
         }

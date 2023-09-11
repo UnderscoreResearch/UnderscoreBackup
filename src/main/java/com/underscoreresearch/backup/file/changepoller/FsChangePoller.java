@@ -48,7 +48,7 @@ public class FsChangePoller implements FileChangePoller {
                 hasError = true;
                 log.warn("Error monitoring file changes: {}", errorOutput.readLine());
             }
-            while(errorOutput.ready()) {
+            while (errorOutput.ready()) {
                 errorOutput.readLine();
             }
         }

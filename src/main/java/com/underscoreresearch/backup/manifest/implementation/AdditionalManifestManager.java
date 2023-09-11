@@ -66,6 +66,12 @@ public class AdditionalManifestManager {
         }
     }
 
+    public void cancelOptimizeLog(String lastExistingLog, AtomicLong totalFiles, AtomicLong processedFiles) throws IOException {
+        for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
+            BaseManifestManagerImpl.deleteNewLogFiles(lastExistingLog, entry.getValue().getProvider(), totalFiles, processedFiles);
+        }
+    }
+
     public void uploadConfigurationData(String filename, byte[] data, byte[] unencryptedData,
                                         Encryptor encryptor, EncryptionKey encryptionKey,
                                         Runnable success) {

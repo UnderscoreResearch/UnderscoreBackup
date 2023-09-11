@@ -10,6 +10,7 @@ import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -86,6 +87,31 @@ public class NullRepository implements MetadataRepository {
 
     @Override
     public void upgradeStorage() {
+    }
+
+    @Override
+    public MetadataRepositoryStorage createStorageRevision() throws IOException {
+        return null;
+    }
+
+    @Override
+    public void cancelStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
+
+    }
+
+    @Override
+    public void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
+
+    }
+
+    @Override
+    public boolean isErrorsDetected() {
+        return false;
+    }
+
+    @Override
+    public void setErrorsDetected(boolean errorsDetected) throws IOException {
+
     }
 
     @Override

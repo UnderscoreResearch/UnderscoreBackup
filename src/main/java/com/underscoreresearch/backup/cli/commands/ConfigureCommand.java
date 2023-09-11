@@ -7,15 +7,14 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.SystemUtils;
 
 import com.underscoreresearch.backup.cli.CommandPlugin;
+import com.underscoreresearch.backup.cli.web.AuthPost;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @CommandPlugin(value = "configure", description = "Open configuration interface",
@@ -41,15 +40,11 @@ public class ConfigureCommand extends SimpleCommand {
         try {
             String configurationUrl = getConfigurationUrl();
 
-            String pingUrl = configurationUrl + "api/ping";
-            URL url = new URL(pingUrl);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("POST");
-            connection.connect();
-            if (connection.getResponseCode() != 200) {
-                log.error("Failed to reload configuration for running backup, restart manually");
-            } else {
+            try {
+                AuthPost.performAuthenticatedRequest(configurationUrl, "POST", "api/ping", null);
                 log.info("Reloaded configuration for background application");
+            } catch (IOException exc) {
+                log.error("Failed to reload configuration for running backup, restart manually");
             }
         } catch (ConfigurationUrlException ignored) {
         }

@@ -11,6 +11,6 @@ import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepository
 public class MapdbMetadataRepositoryStorageTest extends MetadataRepositoryStoragePerformance {
     @Override
     protected MetadataRepositoryStorage createStorageEngine(Path directory) {
-        return new MapdbMetadataRepositoryStorage(directory.toString(), false);
+        return new MapdbMetadataRepositoryStorage(directory.toString(), 0, false);
     }
 }

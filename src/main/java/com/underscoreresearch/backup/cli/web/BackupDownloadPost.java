@@ -72,7 +72,7 @@ public class BackupDownloadPost extends TkWrap {
                 scheduler.scheduleDownload(file, tempfile.getAbsolutePath(), password);
                 scheduler.waitForCompletion();
                 tempfile.deleteOnExit();
-                new Thread(() -> {
+                Thread thread = new Thread(() -> {
                     try {
                         InstanceFactory.reloadConfiguration(
                                 InstanceFactory.getAdditionalSource(),
@@ -81,7 +81,9 @@ public class BackupDownloadPost extends TkWrap {
                     } catch (Exception e) {
                         log.error("Failed to restart backup", e);
                     }
-                }, "PostBackupDownloadGet").start();
+                }, "PostBackupDownloadGet");
+                thread.setDaemon(true);
+                thread.start();
 
                 return new RsWithType(new RsWithBody(new FileInputStream(tempfile)), "application/octet-stream");
             } catch (Exception exc) {

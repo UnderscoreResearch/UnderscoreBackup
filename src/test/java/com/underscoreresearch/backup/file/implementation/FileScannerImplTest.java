@@ -151,7 +151,7 @@ class FileScannerImplTest {
             assertThat(backupSet, Is.is(set));
 
             if (delayedBackup) {
-                new Thread(() -> {
+                Thread thread = new Thread(() -> {
                     try {
                         Thread.sleep((int) (Math.random() * 500));
                     } catch (InterruptedException e) {
@@ -159,7 +159,9 @@ class FileScannerImplTest {
                     }
 
                     backupFileSubmit(file, completionPromise);
-                }).start();
+                });
+                thread.setDaemon(true);
+                thread.start();
             } else
                 backupFileSubmit(file, completionPromise);
         }

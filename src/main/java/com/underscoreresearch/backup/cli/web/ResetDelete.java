@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_FILE_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
@@ -28,22 +29,6 @@ public class ResetDelete extends BaseWrap {
             task.run();
         } catch (Exception e) {
             debug(() -> log.debug("Error resetting", e));
-        }
-    }
-
-    public static void deleteContents(File file) {
-        if (file.isDirectory()) {
-            File[] files = file.listFiles();
-            if (files != null) {
-                for (File child : files) {
-                    if (!child.getName().startsWith(".")) {
-                        if (child.isDirectory()) {
-                            deleteContents(child);
-                        }
-                        deleteFile(child);
-                    }
-                }
-            }
         }
     }
 

@@ -109,13 +109,16 @@ class AssignmentTests {
                 uploadedData.put(blockHash, unencryptedData.getData());
             }
 
-            new Thread(() -> {
+            Thread thread = new Thread(() -> {
                 try {
                     Thread.sleep((long) (Math.random() * 20));
                 } catch (InterruptedException e) {
                 }
                 completionFuture.completed(true);
-            }).start();
+            });
+            thread.setDaemon(true);
+            thread.start();
+
             return null;
         }).when(uploader).uploadBlock(any(), any(), any(), any(), any());
 

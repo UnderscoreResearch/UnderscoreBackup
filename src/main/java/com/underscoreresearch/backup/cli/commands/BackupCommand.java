@@ -66,6 +66,7 @@ public class BackupCommand extends SimpleCommand {
 
         if (asynchronous) {
             Thread thread = new Thread(() -> executeScheduler(started, scheduler, manifestManager), "ScannerScheduler");
+            thread.setDaemon(true);
             thread.start();
             while (!started.get() && thread.isAlive()) {
                 Thread.sleep(1);

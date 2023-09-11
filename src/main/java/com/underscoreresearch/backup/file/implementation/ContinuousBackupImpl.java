@@ -99,6 +99,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
             shutdown = retry = pause = false;
             pendingFiles.clear();
             thread = new Thread(new ScanThread(), "ContinuousBackup");
+            thread.setDaemon(true);
             thread.start();
         }
         lock.unlock();
@@ -388,8 +389,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                 } else {
                     condition.await();
                 }
-            } catch (InterruptedException e) {
-                log.warn("Interrupted while waiting for next file", e);
+            } catch (InterruptedException ignored) {
             }
         }
     }

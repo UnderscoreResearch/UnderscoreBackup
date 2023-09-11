@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
@@ -52,13 +53,22 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
         if (!Strings.isNullOrEmpty(getSource())) {
             ret.add(new StatusLine(getClass(), "SOURCE", "Browsing source", null, InstanceFactory.getAdditionalSourceName()));
         }
+        if (getLogConsumer() instanceof MetadataRepository repository) {
+            if (repository.isErrorsDetected()) {
+                ret.add(new StatusLine(getClass(), "REPOSITORY_ERROR_DETECTED", "Detected corruption in local metadata repository",
+                        null, InstanceFactory.getAdditionalSourceName()));
+            }
+        }
         synchronized (getOperationLock()) {
             if (getOperation() != null) {
                 String code = getOperation().toUpperCase().replace(" ", "_");
                 if (getProcessedFiles() != null && getTotalFiles() != null) {
                     ret.add(new StatusLine(getClass(), code + "_PROCESSED_FILES", getOperation() + " processed files",
                             getProcessedFiles().get(), getTotalFiles().get(),
-                            readableNumber(getProcessedFiles().get()) + " / " + readableNumber(getTotalFiles().get())));
+                            readableNumber(getProcessedFiles().get()) + " / " + readableNumber(getTotalFiles().get())
+                                    + (getTotalOperations() == null ? "" :
+                                    readableEta(getProcessedFiles().get(), getTotalFiles().get(),
+                                            getOperationDuration().elapsed()))));
                 }
                 if (getProcessedOperations() != null) {
                     if (getTotalOperations() != null) {

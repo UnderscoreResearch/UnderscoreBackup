@@ -32,7 +32,7 @@ public class ActivateSharesPost extends BaseWrap {
                 InstanceFactory.reloadConfiguration(InteractiveCommand::startBackupIfAvailable);
             }
         }, name);
-
+        thread.setDaemon(true);
         thread.start();
 
         // Wait for thread to start before we return the call

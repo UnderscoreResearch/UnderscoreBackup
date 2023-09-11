@@ -13,7 +13,7 @@ public class NonMappedMetadataRepositoryStorageTest extends MetadataRepositorySt
     @Override
     protected MetadataRepositoryStorage createStorageEngine(Path directory) {
         if (LockingMetadataRepository.getDefaultVersion() >= LockingMetadataRepository.LMDB_NON_MAPPING_STORAGE) {
-            return new LmdbMetadataRepositoryStorage.NonMemoryMapped(directory.toString(), false);
+            return new LmdbMetadataRepositoryStorage.NonMemoryMapped(directory.toString(), 0, false);
         }
         return null;
     }

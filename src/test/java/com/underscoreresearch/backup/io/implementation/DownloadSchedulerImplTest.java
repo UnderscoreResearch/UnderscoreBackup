@@ -46,12 +46,14 @@ public class DownloadSchedulerImplTest {
         DelayedFiledownloader downloader = Mockito.spy(new DelayedFiledownloader());
         DownloadScheduler scheduler = new DownloadSchedulerImpl(10, downloader);
 
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             for (int i = 0; i < 100; i++) {
                 int val = i;
                 scheduler.scheduleDownload(new BackupFile(), val + "", "pwd");
             }
-        }).start();
+        });
+        thread.setDaemon(true);
+        thread.start();
 
         try {
             Thread.sleep(10);

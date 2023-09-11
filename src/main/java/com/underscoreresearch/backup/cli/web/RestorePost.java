@@ -92,7 +92,7 @@ public class RestorePost extends BaseWrap {
             }
 
             InstanceFactory.reloadConfigurationWithSource();
-            new Thread(() -> {
+            Thread thread = new Thread(() -> {
                 AtomicBoolean restart = new AtomicBoolean(true);
                 try {
                     MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
@@ -146,7 +146,9 @@ public class RestorePost extends BaseWrap {
                             InstanceFactory.getAdditionalSourceName(),
                             InteractiveCommand::startBackupIfAvailable);
                 }
-            }, "RestorePost").start();
+            }, "RestorePost");
+            thread.setDaemon(true);
+            thread.start();
 
             return messageJson(200, "Ok");
         }

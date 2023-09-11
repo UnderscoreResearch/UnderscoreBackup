@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.cli.web.ResetDelete.deleteContents;
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
@@ -57,6 +57,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
@@ -152,8 +153,9 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private Thread exclusiveThread;
     private Stopwatch sharedTransactionAge;
 
-    public LmdbMetadataRepositoryStorage(String dataPath, boolean alternateBlockTable) {
-        this(Paths.get(dataPath, STORAGE_ROOT).toFile(), alternateBlockTable);
+    public LmdbMetadataRepositoryStorage(String dataPath, int revision, boolean alternateBlockTable) {
+        this(Paths.get(dataPath, revision == 0 ? STORAGE_ROOT : String.format("%s-%d", STORAGE_ROOT, revision))
+                .toFile(), alternateBlockTable);
     }
 
     protected LmdbMetadataRepositoryStorage(File root, boolean alternateBlockTable) {
@@ -344,8 +346,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     buffer.flip();
                     return buffer;
                 } catch (JsonMappingException exc) {
-                    if (exc.getCause() instanceof BufferOverflowException) {
-                        throw (BufferOverflowException) exc.getCause();
+                    if (exc.getCause() instanceof BufferOverflowException bufferOverflowException) {
+                        throw bufferOverflowException;
                     }
                     throw exc;
                 }
@@ -432,10 +434,10 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     private static void throwException(Throwable exc) throws IOException {
         if (exc != null) {
-            if (exc instanceof IOException)
-                throw (IOException) exc;
-            if (exc instanceof RuntimeException)
-                throw (RuntimeException) exc;
+            if (exc instanceof IOException ioException)
+                throw ioException;
+            if (exc instanceof RuntimeException runtimeException)
+                throw runtimeException;
             throw new RuntimeException(exc);
         }
     }
@@ -482,12 +484,17 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 Spliterators.spliteratorUnknownSize(
                         iterator,
                         Spliterator.ORDERED),
-                false).filter(Objects::nonNull);
+                false);
 
         return new CloseableStream<>() {
+            @Setter
+            private boolean reportErrorsAsNull;
+
             @Override
             public Stream<T> stream() {
-                return stream;
+                if (reportErrorsAsNull)
+                    return stream;
+                return stream.filter(Objects::nonNull);
             }
 
             @Override
@@ -1621,9 +1628,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     public static class NonMemoryMapped extends LmdbMetadataRepositoryStorage {
         private static final long MAP_SIZE = 512L * 1024 * 1024 * 1024;
+        private static final String STORAGE_ROOT = "v3";
 
-        public NonMemoryMapped(String dataPath, boolean alternateBlockTable) {
-            super(Paths.get(dataPath, "v3").toFile(), alternateBlockTable);
+        public NonMemoryMapped(String dataPath, int revision, boolean alternateBlockTable) {
+            super(Paths.get(dataPath, revision == 0 ? STORAGE_ROOT : String.format("%s-%d", STORAGE_ROOT, revision))
+                    .toFile(), alternateBlockTable);
         }
 
         @Override
