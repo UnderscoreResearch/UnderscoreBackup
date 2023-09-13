@@ -66,7 +66,7 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
                     ret.add(new StatusLine(getClass(), code + "_PROCESSED_FILES", getOperation() + " processed files",
                             getProcessedFiles().get(), getTotalFiles().get(),
                             readableNumber(getProcessedFiles().get()) + " / " + readableNumber(getTotalFiles().get())
-                                    + (getTotalOperations() == null ? "" :
+                                    + (getTotalOperations() != null ? "" :
                                     readableEta(getProcessedFiles().get(), getTotalFiles().get(),
                                             getOperationDuration().elapsed()))));
                 }

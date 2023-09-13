@@ -89,7 +89,7 @@ import com.underscoreresearch.backup.utils.AccessLock;
 public class OptimizingManifestManager extends BaseManifestManagerImpl implements ManifestManager {
     public final static String CONFIGURATION_FILENAME = "configuration.json";
     private static final String UPLOAD_PENDING = "Upload pending";
-    private static final long EVENTUAL_CONSISTENCY_TIMEOUT_MS = 10 * 1000;
+    private static final long EVENTUAL_CONSISTENCY_TIMEOUT_MS = 20 * 1000;
 
     @Getter(AccessLevel.PROTECTED)
     private final String source;
@@ -646,6 +646,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                         getConfiguration().getManifest().getOptimizeSchedule());
                 completeUploads();
 
+                log.info("Deleting old log files before {}", lastLogFile);
+
                 deleteLogFiles(lastLogFile);
                 additionalManifestManager.finishOptimizeLog(lastLogFile, totalFiles, processedFiles);
                 existingRepository.setErrorsDetected(false);
@@ -656,7 +658,9 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
                 log.error("Encountered invalid entry, aborting optimization. Consider repairing local repository");
 
-                awaitEventualConsistency();
+                awaitEventualConsistency(EVENTUAL_CONSISTENCY_TIMEOUT_MS);
+
+                log.info("Deleting log optimized log files after {} and keeping old log file", lastLogFile);
 
                 totalFiles = new AtomicLong();
                 processedFiles = new AtomicLong();
@@ -695,15 +699,19 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
     protected void awaitEventualConsistency() {
         if (operationDuration != null) {
-            long milliseconds = operationDuration.elapsed(TimeUnit.MILLISECONDS) - EVENTUAL_CONSISTENCY_TIMEOUT_MS;
+            long milliseconds = EVENTUAL_CONSISTENCY_TIMEOUT_MS - operationDuration.elapsed(TimeUnit.MILLISECONDS);
             if (milliseconds > 0) {
-                try {
-                    log.info("Waiting {} seconds for log file eventual consistency", milliseconds / 1000);
-                    Thread.sleep(milliseconds);
-                } catch (InterruptedException e) {
-                    log.warn("Failed to wait for eventual consistency", e);
-                }
+                awaitEventualConsistency(milliseconds);
             }
+        }
+    }
+
+    protected void awaitEventualConsistency(long milliseconds) {
+        try {
+            log.info("Waiting {} seconds for log file eventual consistency", milliseconds / 1000);
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            log.warn("Failed to wait for eventual consistency", e);
         }
     }
 

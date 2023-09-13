@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.Closeable;
@@ -936,6 +937,19 @@ public class LockingMetadataRepository implements MetadataRepository {
         @Override
         public boolean requested() {
             return false;
+        }
+    }
+
+    public static void closeAllRepositories() {
+        synchronized (LockingMetadataRepository.openRepositories) {
+            for (Map.Entry<String, LockingMetadataRepository> entry : openRepositories.entrySet()) {
+                debug(() -> log.debug("Closing unclosed repository {}", entry.getKey()));
+                try {
+                    entry.getValue().close();
+                } catch (IOException e) {
+                    log.info("Failed to close repository", e);
+                }
+            }
         }
     }
 }

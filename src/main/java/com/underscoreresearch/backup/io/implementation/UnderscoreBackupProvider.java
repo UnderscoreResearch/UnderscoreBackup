@@ -143,7 +143,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         FileListResponse response = callRetry((api) -> api.listLogFiles(getSourceId(), lastSyncedFile, shareId));
 
         // Almost all backups will be less than one page, so we can optimize for that case
-        if (Boolean.TRUE.equals(response.getCompleted())) {
+        if ((!all || Boolean.TRUE.equals(response.getCompleted())) && !response.getFiles().isEmpty()) {
             return response.getFiles();
         }
 
@@ -257,11 +257,13 @@ public class UnderscoreBackupProvider implements IOIndex {
 
         if (IDENTITY_MANIFEST_LOCATION.equals(key)) {
             String identityKey = String.format("%s/%s", getSourceId(), region);
-            debug(() -> log.debug("Identity cache check {} {} until {}", region, getSourceId(), cachedIdentityTimeout));
-            synchronized (this) {
-                if (identityKey.equals(cachedIdentityKey) && Instant.now().isBefore(cachedIdentityTimeout)) {
-                    debug(() -> log.debug("Downloading cached " + useKey));
-                    return cachedIdentity;
+            if (cachedIdentityTimeout != null) {
+                debug(() -> log.debug("Identity cache check {} {} until {}", region, getSourceId(), cachedIdentityTimeout));
+                synchronized (this) {
+                    if (identityKey.equals(cachedIdentityKey) && Instant.now().isBefore(cachedIdentityTimeout)) {
+                        debug(() -> log.debug("Downloading cached " + useKey));
+                        return cachedIdentity;
+                    }
                 }
             }
         }

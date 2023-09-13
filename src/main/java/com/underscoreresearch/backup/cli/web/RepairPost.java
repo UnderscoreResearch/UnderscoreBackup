@@ -55,19 +55,21 @@ public class RepairPost extends BaseWrap {
                 } catch (IOException e) {
                     log.error("Failed to shut down log replay", e);
                 }
-                try {
-                    thread.join(1000);
-                    if (!thread.isAlive())
-                        return;
-                } catch (InterruptedException ignored) {
-                }
-                log.info("Waiting for rebuild to get to a checkpoint");
-                do {
+                if (manifestManager.isBusy()) {
                     try {
-                        thread.join();
+                        thread.join(1000);
+                        if (!thread.isAlive())
+                            return;
                     } catch (InterruptedException ignored) {
                     }
-                } while (thread.isAlive());
+                    log.info("Waiting for rebuild to get to a checkpoint");
+                    do {
+                        try {
+                            thread.join();
+                        } catch (InterruptedException ignored) {
+                        }
+                    } while (thread.isAlive());
+                }
             });
 
             thread.start();
@@ -78,12 +80,12 @@ public class RepairPost extends BaseWrap {
                     log.error("Failed to wait", e);
                 }
             }
+            started.set(true);
             if (!thread.isAlive()) {
                 InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
                         InstanceFactory.getAdditionalSourceName(),
                         InteractiveCommand::startBackupIfAvailable);
             }
-            started.set(true);
         } else {
             executeRepair(manifestManager, logConsumer, repository, password);
         }

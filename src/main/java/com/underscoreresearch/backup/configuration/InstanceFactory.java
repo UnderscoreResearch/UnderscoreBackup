@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import com.underscoreresearch.backup.file.implementation.LockingMetadataRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,6 +44,9 @@ public abstract class InstanceFactory {
     static {
         Thread thread = new Thread(() -> {
             executeOrderedCleanupHook();
+
+            LockingMetadataRepository.closeAllRepositories();
+
             System.out.close();
             System.err.close();
 
@@ -56,7 +60,9 @@ public abstract class InstanceFactory {
             }, "ShutdownWatchdog");
             watchdogThread.setDaemon(true);
             watchdogThread.start();
+
         }, "ShutdownHook");
+
         thread.setDaemon(true);
         Runtime.getRuntime().addShutdownHook(thread);
     }

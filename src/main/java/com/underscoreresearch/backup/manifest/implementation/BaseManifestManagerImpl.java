@@ -184,9 +184,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             try {
                 totalFiles.addAndGet(files.size());
                 for (String file : files) {
-                    if (file.compareTo(lastLogFile) <= 0) {
-                        scheduler.delete(provider, file, processedFiles);
-                    }
+                    scheduler.delete(provider, file, processedFiles);
                 }
             } finally {
                 scheduler.waitForCompletion();

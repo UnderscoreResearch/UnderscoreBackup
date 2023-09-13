@@ -415,10 +415,10 @@ export async function performFetch(api: string, init?: RequestInit, silentError?
     const response = await fetch(baseApi + api, useInit);
     if (!response.ok) {
         if (response.status === 401) {
-            if (keySalt) {
+            if (encryptionPublicKey) {
                 encryptionPublicKey = undefined;
                 reportError("Invalid password");
-            } else if (apiSharedKey) {
+            } else if (apiSharedKey && !keySalt) {
                 apiSharedKey = undefined;
                 fetchAuth().then(() => {
                     postAwaits();

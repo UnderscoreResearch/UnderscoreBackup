@@ -5,6 +5,7 @@ plugins {
     id 'application'
     id 'distribution'
     id 'org.beryx.runtime' version '1.13.0'
+    id 'com.github.ben-manes.versions' version '0.48.0'
 }
 
 application {
@@ -18,7 +19,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.3.0.1'
+version '2.3.0.2'
 def releaseType = 'rc'
 
 def archiveName = 'underscorebackup'
@@ -75,6 +76,7 @@ runtime {
                'jdk.management',
                'jdk.compiler',
                'java.instrument',
+               'jdk.jdwp.agent',
                'jdk.crypto.ec']
     jpackage {
         appVersion = "${rootProject.version}"
@@ -160,9 +162,9 @@ dependencies {
             'com.dropbox.core:dropbox-core-sdk:5.4.5',
             'com.fasterxml.jackson.core:jackson-databind:2.15.2',
             'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.2',
-            'com.google.guava:guava:32.0.0-jre',
+            'com.google.guava:guava:32.1.2-jre',
             'com.google.inject:guice:7.0.0',
-            'com.hierynomus:smbj:0.12.1',
+            'com.hierynomus:smbj:0.12.2',
             'com.joestelmach:natty:0.13',
             'io.methvin:directory-watcher:0.18.0',
             'commons-cli:commons-cli:1.5.0',
@@ -171,25 +173,25 @@ dependencies {
             'io.swagger:swagger-annotations:1.6.11',
             'jakarta.annotation:jakarta.annotation-api:2.1.1',
             'javax.xml.bind:jaxb-api:2.3.1',
-            'org.apache.commons:commons-lang3:3.12.0',
+            'org.apache.commons:commons-lang3:3.13.0',
             'commons-net:commons-net:3.9.0',
             'org.apache.logging.log4j:log4j-api:2.20.0',
             'org.apache.logging.log4j:log4j-core:2.20.0',
             'org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0',
-            'org.mapdb:mapdb:3.0.9',
+            'org.mapdb:mapdb:3.0.10',
             'org.lmdbjava:lmdbjava:0.8.3',
             'org.openapitools:jackson-databind-nullable:0.2.6',
             'org.projectlombok:lombok:1.18.28',
             'org.reflections:reflections:0.10.2',
-            'org.slf4j:slf4j-api:2.0.7',
+            'org.slf4j:slf4j-api:2.0.9',
             'org.takes:takes:1.24.4',
-            'software.amazon.awssdk:s3control:2.20.103'
+            'software.amazon.awssdk:s3control:2.20.144'
     )
 
     testImplementation(
             'org.hamcrest:hamcrest:2.2',
             'org.junit.jupiter:junit-jupiter:5.9.3',
-            'org.mockito:mockito-junit-jupiter:5.4.0'
+            'org.mockito:mockito-junit-jupiter:5.5.0'
     )
 
     testRuntimeOnly(
