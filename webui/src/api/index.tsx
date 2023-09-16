@@ -357,11 +357,14 @@ export async function needPrivateKeyPassword(wait: boolean): Promise<boolean> {
     return !completedAuth || (!!keySalt && !encryptionPublicKey);
 }
 
+function calculateSHA256(data: Buffer) {
+    const digest = crypto.createHash('sha256').update(data).digest();
+    return base64url(digest).replace("=", "");
+}
+
 function createSignedHash(method: string, api: string, sharedKey: string, currentNonce: number) {
     const auth = method + ":" + basePrefix + api + ":" + sharedKey + ":" + currentNonce;
-    const digest = crypto.createHash('sha256').update(Buffer.from(auth, 'utf-8')).digest();
-    const encoded = base64url(digest).replace("=", "");
-    return encoded;
+    return calculateSHA256(Buffer.from(auth, 'utf-8'));
 }
 
 function generateAuthHeader(method: string, api: string) {
@@ -375,19 +378,28 @@ function generateAuthHeader(method: string, api: string) {
     }
 }
 
-function decryptData(data: ArrayBuffer) {
+function decryptData(data: ArrayBuffer, expectedHash: string) {
     const iv = new Uint8Array(data.slice(0, 16));
     const encrypted = new Uint8Array(data.slice(16));
 
     var aesCbc = new aesjs.ModeOfOperation.cbc(apiSharedKeyBytes as Uint8Array, iv);
-    return aesjs.padding.pkcs7.strip(aesCbc.decrypt(encrypted));
+    const ret = aesjs.padding.pkcs7.strip(aesCbc.decrypt(encrypted));
+    const hash = calculateSHA256(Buffer.from(ret))
+    if (expectedHash !== hash) {
+        throw new Error("Invalid response hash");
+    }
+    return ret;
 }
 
 function encryptData(data: string) {
     const iv = crypto.randomBytes(16);
+    const byteData = Buffer.from(data, 'utf8');
     var aesCbc = new aesjs.ModeOfOperation.cbc(apiSharedKeyBytes as Uint8Array, iv);
-    const encrypted = aesCbc.encrypt(aesjs.padding.pkcs7.pad(Buffer.from(data, 'utf8')));
-    return Buffer.concat([iv, encrypted]);
+    const encrypted = aesCbc.encrypt(aesjs.padding.pkcs7.pad(byteData));
+    return {
+        data: Buffer.concat([iv, encrypted]),
+        hash: calculateSHA256(byteData),
+    };
 }
 
 export async function performFetch(api: string, init?: RequestInit, silentError?: boolean) {
@@ -409,7 +421,12 @@ export async function performFetch(api: string, init?: RequestInit, silentError?
     };
 
     if (useInit.body) {
-        useInit.body = encryptData(useInit.body as string);
+        const data = encryptData(useInit.body as string);
+        useInit.body = data.data;
+        useInit.headers = {
+            ...useInit.headers,
+            "x-payload-hash": data.hash
+        }
     }
 
     const response = await fetch(baseApi + api, useInit);
@@ -464,16 +481,23 @@ export async function makeApiCall(api: string, init?: RequestInit, silentError?:
 
         if (response.headers.get("Content-Type") === "x-application/encrypted-json") {
             const data = await response.arrayBuffer();
-            const decryptedData = decryptData(data);
+            const decryptedData = decryptData(data, response.headers.get("x-payload-hash") as string);
             return JSON.parse(Buffer.from(decryptedData).toString('utf8'));
         }
-        return await response.json();
+
+        // Only purely informational messages are allowed to be passed in clear text.
+        const data = await response.json();
+        if (!data.message || Object.keys(data).length > 1) {
+            reportError(new Error("Expected encrypted payload"));
+        } else {
+            return data;
+        }
     } catch (error) {
         if (!silentError) {
             reportError(error);
         }
-        return undefined;
     }
+    return undefined;
 }
 
 // Below are the actual API call methods.
@@ -582,9 +606,11 @@ export function downloadBackupFile(file: string, added: number, password: string
     request.setRequestHeader('content-type', 'x-application/encrypted-json');
     request.setRequestHeader('x-keyexchange', generateAuthHeader("POST",
         "backup-download/" + encodeURIComponent(file) + "/" + encodeURIComponent(added.toString())));
-    request.send(encryptData(JSON.stringify({
+    const data = encryptData(JSON.stringify({
         "password": password
-    })));
+    }));
+    request.setRequestHeader("x-payload-hash", data.hash);
+    request.send(data.data);
 
     request.onreadystatechange = function () {
         if (this.readyState == 4 && this.status == 200) {

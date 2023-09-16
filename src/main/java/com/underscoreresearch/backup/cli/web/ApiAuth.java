@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -46,7 +48,7 @@ public class ApiAuth {
         return INSTANCE;
     }
 
-    public byte[] encryptData(byte[] sharedKey, String data) throws IOException {
+    public EncryptedData encryptData(byte[] sharedKey, String data) throws IOException {
         byte[] byteData = data.getBytes(StandardCharsets.UTF_8);
         byte[] iv = new byte[IV_SIZE];
         RANDOM.nextBytes(iv);
@@ -63,24 +65,28 @@ public class ApiAuth {
 
             System.arraycopy(iv, 0, ret, 0, IV_SIZE);
 
-            return ret;
+            return new EncryptedData(Hash.hash64(byteData), ret);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | ShortBufferException |
                  IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e) {
             throw new IOException(e);
         }
     }
 
-    public byte[] encryptData(EndpointInfo info, String data) throws IOException {
+    public EncryptedData encryptData(EndpointInfo info, String data) throws IOException {
         return encryptData(info.getSharedKeyBytes(), data);
     }
 
-    public String decryptData(byte[] sharedKey, byte[] data) throws IOException {
+    public String decryptData(byte[] sharedKey, byte[] data, String expectedHash) throws IOException {
         try {
             SecretKeySpec secretKeySpec = new SecretKeySpec(sharedKey, "AES");
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
             cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(data, 0, IV_SIZE));
 
             byte[] ret = cipher.doFinal(data, IV_SIZE, data.length - IV_SIZE);
+
+            String hash = Hash.hash64(ret);
+            if (!hash.equals(expectedHash))
+                throw new IOException("Invalid hash for encrypted payload");
 
             return new String(ret, StandardCharsets.UTF_8);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
@@ -89,8 +95,8 @@ public class ApiAuth {
         }
     }
 
-    public String decryptData(EndpointInfo info, byte[] data) throws IOException {
-        return decryptData(info.getSharedKeyBytes(), data);
+    public String decryptData(EndpointInfo info, byte[] data, String hash) throws IOException {
+        return decryptData(info.getSharedKeyBytes(), data, hash);
     }
 
     public String registerEndpoint(String foreignKey) {
@@ -211,5 +217,12 @@ public class ApiAuth {
             }
             return lastAccess.compareTo(o.lastAccess);
         }
+    }
+
+    @Data
+    @AllArgsConstructor
+    public class EncryptedData {
+        private String hash;
+        private byte[] data;
     }
 }

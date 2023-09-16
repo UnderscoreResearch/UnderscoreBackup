@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.ui;
 
+import static com.underscoreresearch.backup.cli.ui.AwtUIManager.STARTED_IN_BACKGROUND_MESSAGE;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
 import java.io.File;
@@ -15,6 +16,11 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
 public class FileUIManager implements UIManager {
+
+    public FileUIManager() {
+        displayInfoMessage(STARTED_IN_BACKGROUND_MESSAGE);
+    }
+
     @Override
     public void displayErrorMessage(String message) {
         writeNotification("error", message);

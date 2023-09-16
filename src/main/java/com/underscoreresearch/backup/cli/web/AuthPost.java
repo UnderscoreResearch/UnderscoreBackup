@@ -1,9 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.ENCRYPTED_CONTENT_TYPE;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.X_KEYEXCHANGE_HEADER;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.getAuthPath;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.*;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
@@ -20,6 +17,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
 import org.takes.Response;
+import org.takes.rq.RqHeaders;
+import org.takes.rq.RqPrint;
+import org.takes.rq.RqWithBody;
 import org.takes.rs.RsText;
 import org.takes.rs.RsWithStatus;
 
@@ -91,8 +91,10 @@ public class AuthPost extends BaseWrap {
             if (body != null) {
                 authConnection.setDoOutput(true);
                 authConnection.setRequestProperty("Content-Type", ENCRYPTED_CONTENT_TYPE);
+                ApiAuth.EncryptedData data = ApiAuth.getInstance().encryptData(sharedKey, body);
+                authConnection.setRequestProperty(X_PAYLOAD_HASH_HEADER, data.getHash());
                 try (OutputStream outputStream = authConnection.getOutputStream()) {
-                    outputStream.write(ApiAuth.getInstance().encryptData(sharedKey, body));
+                    outputStream.write(data.getData());
                 }
             }
 
@@ -105,7 +107,8 @@ public class AuthPost extends BaseWrap {
                 if (inputStream.read(encryptedData) != encryptedData.length)
                     throw new IOException("Failed to read " + path);
                 if (authConnection.getHeaderField("Content-Type").equals(ENCRYPTED_CONTENT_TYPE))
-                    return ApiAuth.getInstance().decryptData(sharedKey, encryptedData);
+                    return ApiAuth.getInstance().decryptData(sharedKey, encryptedData,
+                            authConnection.getHeaderField(X_PAYLOAD_HASH_HEADER));
                 return new String(encryptedData, StandardCharsets.UTF_8);
             }
         }
@@ -126,7 +129,7 @@ public class AuthPost extends BaseWrap {
     private static class Implementation extends BaseImplementation {
         @Override
         public Response actualAct(Request req) throws Exception {
-            String body = decodeRequestBody(req);
+            String body = new RqPrint(req).printBody();
             try {
                 AuthRequest authRequest = REQUEST_READER.readValue(body);
 

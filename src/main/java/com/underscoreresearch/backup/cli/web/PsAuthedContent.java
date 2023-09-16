@@ -24,6 +24,7 @@ import org.takes.rq.RqMethod;
 import org.takes.rq.RqPrint;
 import org.takes.rs.RsEmpty;
 import org.takes.rs.RsText;
+import org.takes.rs.RsWithHeader;
 import org.takes.rs.RsWithType;
 
 import com.google.common.base.Strings;
@@ -33,6 +34,8 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 @Slf4j
 public class PsAuthedContent implements Pass {
     public static final String X_KEYEXCHANGE_HEADER = "x-keyexchange";
+    public static final String X_PAYLOAD_HASH_HEADER = "x-payload-hash";
+
     public static final String ENCRYPTED_CONTENT_TYPE = "x-application/encrypted-json";
 
     public static String getAuthPath(URI uri) {
@@ -41,20 +44,29 @@ public class PsAuthedContent implements Pass {
 
     public static Response encryptResponse(Request request, String data) throws Exception {
         ApiAuth.EndpointInfo info = endpointInfoOrUnauthed(request);
-        byte[] encryptedData = ApiAuth.getInstance().encryptData(info, data);
-        return new RsWithType(new RsText(encryptedData), ENCRYPTED_CONTENT_TYPE);
+        ApiAuth.EncryptedData encryptedData = ApiAuth.getInstance().encryptData(info, data);
+        return new RsWithType(new RsWithHeader(new RsText(encryptedData.getData()),
+                X_PAYLOAD_HASH_HEADER, encryptedData.getHash()), ENCRYPTED_CONTENT_TYPE);
     }
 
     public static String decodeRequestBody(Request request) throws IOException {
-        List<String> data = new RqHeaders.Base(request).header("Content-Type");
-        if (data.contains(ENCRYPTED_CONTENT_TYPE)) {
+        RqHeaders.Base headers = new RqHeaders.Base(request);
+        List<String> contentType = headers.header("Content-Type");
+        if (contentType.contains(ENCRYPTED_CONTENT_TYPE)) {
             ApiAuth.EndpointInfo info = endpointInfoOrUnauthed(request);
             try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
                 new RqPrint(request).printBody(stream);
-                return ApiAuth.getInstance().decryptData(info, stream.toByteArray());
+                byte[] data = stream.toByteArray();
+                if (data.length > 0) {
+                    List<String> hashHeaders = headers.header(X_PAYLOAD_HASH_HEADER);
+                    if (hashHeaders.size() != 1)
+                        throw new IOException("Missing hash header for encrypted content");
+                    return ApiAuth.getInstance().decryptData(info, data, hashHeaders.get(0));
+                }
+                return "";
             }
         } else {
-            return new RqPrint(request).printBody();
+            throw new IOException("Expected encrypted request payload");
         }
     }
 

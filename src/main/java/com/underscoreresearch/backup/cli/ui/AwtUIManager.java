@@ -19,6 +19,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class AwtUIManager implements UIManager {
+    public static final String STARTED_IN_BACKGROUND_MESSAGE = "Started in the background";
     private TrayIcon trayIcon;
 
     public AwtUIManager() {
@@ -76,7 +77,11 @@ public class AwtUIManager implements UIManager {
             return;
         }
 
-        displayInfoMessage("Started in the background");
+        displayStartedMessage();
+    }
+
+    protected void displayStartedMessage() {
+        displayInfoMessage(STARTED_IN_BACKGROUND_MESSAGE);
     }
 
     protected void launchConfig() {

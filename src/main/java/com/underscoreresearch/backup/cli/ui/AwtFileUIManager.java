@@ -28,7 +28,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
 public class AwtFileUIManager extends AwtUIManager {
-
+    private static final long MAXIMUM_AGE_MS = 10 * 1000;
     private final WatchService watchService;
 
     public AwtFileUIManager() {
@@ -53,6 +53,10 @@ public class AwtFileUIManager extends AwtUIManager {
         }
     }
 
+    @Override
+    protected void displayStartedMessage() {
+    }
+
     private void pollingThread() {
         while (true) {
             try {
@@ -72,7 +76,7 @@ public class AwtFileUIManager extends AwtUIManager {
     }
 
     private synchronized void processFile(File file) {
-        if (file.exists()) {
+        if (file.exists() && System.currentTimeMillis() - file.lastModified() < MAXIMUM_AGE_MS) {
             try {
                 String message;
                 try (FileReader reader = new FileReader(file)) {

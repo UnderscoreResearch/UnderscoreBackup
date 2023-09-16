@@ -76,6 +76,15 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         if (ret == null) {
             return allowMissing ? BackupFile.builder().path(root + path).build() : null;
         }
+
+        if (ret.getDeleted() != null) {
+            if (timestamp != null && ret.getDeleted() > timestamp) {
+                ret.setDeleted(null);
+            } else if (!includeDeleted) {
+                return allowMissing ? BackupFile.builder().path(root + path).build() : null;
+            }
+        }
+
         return ret;
     }
 
@@ -103,7 +112,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
             foundPaths = new FoundPath(path, null, new TreeMap<>());
         }
 
-        if (normalizedRoot.equals(ROOT) && foundPaths.getFiles().size() == 0) {
+        if (normalizedRoot.equals(ROOT) && foundPaths.getFiles().isEmpty()) {
             foundPaths = FoundPath.fromDirectory(getPaths(""));
             if (foundPaths != null) {
                 List<BackupFile> files = new ArrayList<>();
@@ -125,7 +134,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
 
         foundPaths = addRootPaths(foundPaths, normalizedRoot);
 
-        if (foundPaths.getFiles().size() > 0) {
+        if (!foundPaths.getFiles().isEmpty()) {
             List<BackupFile> files = new ArrayList<>();
             for (Map.Entry<String, Boolean> dirPath : foundPaths.getFiles().entrySet()) {
                 BackupFile file = createFile(normalizedRoot, dirPath.getKey(), !dirPath.getValue());
