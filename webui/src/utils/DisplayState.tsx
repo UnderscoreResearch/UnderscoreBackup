@@ -207,5 +207,12 @@ export function calculateDisplayState(appContext: ApplicationContext,
         }
     }
 
+    if (ret.processing) {
+        if (activityContext.activity.some(item => item.code.startsWith("PAUSED"))) {
+            ret.processing = false;
+            ret.statusTitle = "Paused";
+        }
+    }
+
     return ret;
 }

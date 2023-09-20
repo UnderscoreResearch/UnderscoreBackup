@@ -5,28 +5,29 @@ import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
 import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
 import static com.underscoreresearch.backup.utils.LogUtil.readableDuration;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.mapdb.BTreeMap;
-import org.mapdb.DB;
-import org.mapdb.DBMaker;
-import org.mapdb.Serializer;
-import org.mapdb.serializer.SerializerArrayTuple;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Stopwatch;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.MapSerializer;
+import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
@@ -37,21 +38,27 @@ import com.underscoreresearch.backup.utils.StatusLine;
 
 @Slf4j
 public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatusLogger, DownloadScheduler {
+    private static final ObjectReader SCHEDULED_DOWNLOAD_READER = MAPPER.readerFor(ScheduledDownload.class);
+    private static final ObjectWriter SCHEDULED_DOWNLOAD_WRITER = MAPPER.writerFor(ScheduledDownload.class);
+
     private final FileDownloader fileDownloader;
     private final AtomicLong totalSize = new AtomicLong();
     private final AtomicLong totalCount = new AtomicLong();
     private final AtomicLong failedCount = new AtomicLong();
     private final AtomicLong pendingOutstanding = new AtomicLong();
+    private final AtomicLong index = new AtomicLong(0);
+    private final MetadataRepository repository;
     private BackupFile lastProcessed;
     private Stopwatch duration;
-    private DB fileDb;
-    private BTreeMap<Object[], String> fileMap;
+    private CloseableMap<ScheduledDownloadKey, ScheduledDownload> fileMap;
     private String pendingPassword;
 
     public DownloadSchedulerImpl(int maximumConcurrency,
+                                 MetadataRepository repository,
                                  FileDownloader fileDownloader) {
         super(maximumConcurrency);
         this.fileDownloader = fileDownloader;
+        this.repository = repository;
 
         StateLogger.addLogger(this);
     }
@@ -61,36 +68,60 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         if (duration == null)
             duration = Stopwatch.createStarted();
 
-        if (file.getLocations() != null && file.getLocations().size() > 0
+        if (file.getLocations() != null && !file.getLocations().isEmpty()
                 && file.getLocations().get(0).getParts().size() == 1) {
             initializeMap();
 
-            try {
-                pendingOutstanding.incrementAndGet();
-                fileMap.put(new Object[]{file.getLocations().get(0).getParts().get(0).getBlockHash(), BACKUP_FILE_WRITER.writeValueAsString(file)},
-                        destination);
-                pendingPassword = password;
-            } catch (JsonProcessingException e) {
-                log.error("Failed to temporarily serialize backup file", e);
-            }
+            pendingOutstanding.incrementAndGet();
+            fileMap.put(new ScheduledDownloadKey(file.getLocations().get(0).getParts().get(0).getBlockHash(), index.incrementAndGet()),
+                    new ScheduledDownload(file, destination));
+            pendingPassword = password;
         } else {
             internalSchedule(file, destination, password);
         }
     }
 
     private synchronized void initializeMap() {
-        if (fileDb == null) {
+        if (fileMap == null) {
             try {
                 File file = File.createTempFile("underscorebackup-restore", ".db");
                 IOUtils.deleteFile(file);
-                fileDb = DBMaker
-                        .fileDB(file)
-                        .fileDeleteAfterClose()
-                        .fileMmapEnableIfSupported()
-                        .make();
-                fileMap = fileDb.treeMap("PENDING_RESTORE")
-                        .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
-                        .valueSerializer(Serializer.STRING).createOrOpen();
+                fileMap = repository.temporaryMap(new MapSerializer<ScheduledDownloadKey, ScheduledDownload>() {
+                    @Override
+                    public byte[] encodeKey(ScheduledDownloadKey scheduledDownloadKey) {
+                        byte[] blockHash = scheduledDownloadKey.getBlockHash().getBytes(StandardCharsets.UTF_8);
+                        ByteBuffer buffer = ByteBuffer.allocate(blockHash.length + Long.BYTES);
+                        buffer.put(blockHash);
+                        buffer.putLong(scheduledDownloadKey.index);
+                        return buffer.array();
+                    }
+
+                    @Override
+                    public byte[] encodeValue(ScheduledDownload scheduledDownload) {
+                        try {
+                            return SCHEDULED_DOWNLOAD_WRITER.writeValueAsBytes(scheduledDownload);
+                        } catch (JsonProcessingException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    @Override
+                    public ScheduledDownload decodeValue(byte[] data) {
+                        try {
+                            return SCHEDULED_DOWNLOAD_READER.readValue(data);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    @Override
+                    public ScheduledDownloadKey decodeKey(byte[] data) {
+                        ByteBuffer buffer = ByteBuffer.wrap(data);
+                        String block = new String(buffer.slice(0, data.length - Long.BYTES).array(),
+                                StandardCharsets.UTF_8);
+                        return new ScheduledDownloadKey(block, buffer.getLong(data.length - Long.BYTES));
+                    }
+                });
             } catch (IOException e) {
                 throw new RuntimeException("Failed to initialize restoring", e);
             }
@@ -100,28 +131,25 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
     @Override
     public void waitForCompletion() {
         if (fileMap != null) {
-            for (Map.Entry<Object[], String> entry : fileMap.entrySet()) {
+            fileMap.readOnlyEntryStream().forEach(entry -> {
                 if (InstanceFactory.isShutdown()) {
-                    break;
+                    return;
                 }
-                try {
-                    pendingOutstanding.decrementAndGet();
-                    BackupFile file = BACKUP_FILE_READER.readValue((String) entry.getKey()[1]);
-                    String destination = entry.getValue();
-                    internalSchedule(file, destination, pendingPassword);
-                } catch (JsonProcessingException e) {
-                    log.error("Failed to deserialize backup file", e);
-                }
-            }
+                pendingOutstanding.decrementAndGet();
+                ScheduledDownload download = entry.getValue();
+                String destination = download.getDestination();
+                internalSchedule(download.getFile(), destination, pendingPassword);
+            });
 
-            BTreeMap<Object[], String> closingFileMap = fileMap;
-            DB closingDb = fileDb;
+            CloseableMap<ScheduledDownloadKey, ScheduledDownload> closingFileMap = fileMap;
 
             fileMap = null;
-            fileDb = null;
 
-            closingFileMap.close();
-            closingDb.close();
+            try {
+                closingFileMap.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
             pendingPassword = null;
         }
@@ -177,5 +205,29 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
             ret.add(new StatusLine(getClass(), "RESTORED_OBJECTS_PENDING", "Pending files to restore", count));
         }
         return ret;
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class ScheduledDownloadKey {
+        private String blockHash;
+        private Long index;
+
+        public ScheduledDownloadKey(String blockHash, Long index) {
+            this.blockHash = blockHash;
+            this.index = index;
+        }
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class ScheduledDownload {
+        private BackupFile file;
+        private String destination;
+
+        public ScheduledDownload(BackupFile file, String destination) {
+            this.file = file;
+            this.destination = destination;
+        }
     }
 }

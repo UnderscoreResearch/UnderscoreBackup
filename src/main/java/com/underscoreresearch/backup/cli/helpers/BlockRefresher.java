@@ -86,6 +86,11 @@ public class BlockRefresher extends SchedulerImpl {
                 public Boolean decodeValue(byte[] data) {
                     return data[0] != 0;
                 }
+
+                @Override
+                public String decodeKey(byte[] data) {
+                    return new String(data, StandardCharsets.UTF_8);
+                }
             });
             refreshedBlocks.set(0);
             uploadedSize.set(0);

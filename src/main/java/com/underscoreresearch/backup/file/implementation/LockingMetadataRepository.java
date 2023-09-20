@@ -107,6 +107,19 @@ public class LockingMetadataRepository implements MetadataRepository {
         return MAPDB_STORAGE;
     }
 
+    public static void closeAllRepositories() {
+        synchronized (LockingMetadataRepository.openRepositories) {
+            for (Map.Entry<String, LockingMetadataRepository> entry : openRepositories.entrySet()) {
+                debug(() -> log.debug("Closing unclosed repository {}", entry.getKey()));
+                try {
+                    entry.getValue().close();
+                } catch (IOException e) {
+                    log.info("Failed to close repository", e);
+                }
+            }
+        }
+    }
+
     private Path getPath(String file) {
         return Paths.get(dataPath, file);
     }
@@ -331,7 +344,6 @@ public class LockingMetadataRepository implements MetadataRepository {
         repositoryInfo.setLastSyncedLogFile(share, entry);
         saveRepositoryInfo();
     }
-
 
     @Override
     public CloseableLock acquireUpdateLock() {
@@ -937,19 +949,6 @@ public class LockingMetadataRepository implements MetadataRepository {
         @Override
         public boolean requested() {
             return false;
-        }
-    }
-
-    public static void closeAllRepositories() {
-        synchronized (LockingMetadataRepository.openRepositories) {
-            for (Map.Entry<String, LockingMetadataRepository> entry : openRepositories.entrySet()) {
-                debug(() -> log.debug("Closing unclosed repository {}", entry.getKey()));
-                try {
-                    entry.getValue().close();
-                } catch (IOException e) {
-                    log.info("Failed to close repository", e);
-                }
-            }
         }
     }
 }

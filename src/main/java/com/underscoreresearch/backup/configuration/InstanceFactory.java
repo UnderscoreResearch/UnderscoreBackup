@@ -10,7 +10,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import com.underscoreresearch.backup.file.implementation.LockingMetadataRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,6 +23,7 @@ import com.google.inject.ProvisionException;
 import com.google.inject.name.Names;
 import com.underscoreresearch.backup.cli.ConfigurationValidator;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.implementation.LockingMetadataRepository;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j

@@ -475,7 +475,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public void addBlock(BackupBlock block) throws IOException {
-        if (block.getStorage() != null && block.getStorage().size() > 0
+        if (block.getStorage() != null && !block.getStorage().isEmpty()
                 && block.getStorage().get(0).hasAdditionalStorageProperties()) {
             Map<String, BackupBlockAdditional> additionalBlocks = new HashMap<>();
             for (BackupBlockStorage storage : block.getStorage()) {
@@ -569,7 +569,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                             if (share.getContents().includeForShare(PathNormalizer.combinePaths(parent, file)))
                                 newContents.add(file);
                         }
-                        if (newContents.size() > 0) {
+                        if (!newContents.isEmpty()) {
                             writeLogEntry(entry.getValue(), "dir", directory.toBuilder().files(newContents).build());
                         }
                     }

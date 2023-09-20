@@ -40,8 +40,9 @@ public class RestoreModule extends AbstractModule {
     @Singleton
     @Provides
     public DownloadSchedulerImpl downloadSchedulerImpl(@Named(DOWNLOAD_THREADS) int threads,
+                                                       MetadataRepository repository,
                                                        FileDownloader fileDownloader) {
-        return new DownloadSchedulerImpl(threads, fileDownloader);
+        return new DownloadSchedulerImpl(threads, repository, fileDownloader);
     }
 
     @Singleton

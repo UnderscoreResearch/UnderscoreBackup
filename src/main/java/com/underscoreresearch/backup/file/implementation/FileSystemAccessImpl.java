@@ -36,7 +36,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
 
         TreeSet<BackupFile> files = new TreeSet<>();
 
-        if (SystemUtils.IS_OS_WINDOWS && path.length() == 0) {
+        if (SystemUtils.IS_OS_WINDOWS && path.isEmpty()) {
             for (File file : File.listRoots()) {
                 files.add(BackupFile.builder()
                         .path(normalizePath(file.getPath()))
@@ -54,7 +54,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                         File file = new File(parent, fileName);
                         try {
                             Path filePath = file.toPath();
-                            if (!Files.isSymbolicLink(filePath)) {
+                            if (!isSymbolicLink(filePath)) {
                                 if (file.isDirectory()) {
                                     if (Files.isReadable(filePath)) {
                                         files.add(BackupFile.builder()
@@ -94,6 +94,10 @@ public class FileSystemAccessImpl implements FileSystemAccess {
             }
         }
         return files;
+    }
+
+    protected boolean isSymbolicLink(Path filePath) {
+        return Files.isSymbolicLink(filePath);
     }
 
     @Override

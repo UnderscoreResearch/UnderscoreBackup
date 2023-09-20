@@ -6,4 +6,6 @@ public interface MapSerializer<K, V> {
     byte[] encodeValue(V v);
 
     V decodeValue(byte[] data);
+
+    K decodeKey(byte[] data);
 }

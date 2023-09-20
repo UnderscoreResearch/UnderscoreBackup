@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.lang3.SystemUtils;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -60,6 +61,7 @@ import com.underscoreresearch.backup.file.implementation.LockingMetadataReposito
 import com.underscoreresearch.backup.file.implementation.PermissionFileSystemAccess;
 import com.underscoreresearch.backup.file.implementation.PosixPermissionManager;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
+import com.underscoreresearch.backup.file.implementation.WindowsFileSystemAccess;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
@@ -416,6 +418,12 @@ public class BackupModule extends AbstractModule {
                 }
             }
         });
+        if (SystemUtils.IS_OS_WINDOWS) {
+            if (permissionManager.get() == null) {
+                throw new UnsupportedOperationException("Windows file system access requires ACL support.");
+            }
+            return new WindowsFileSystemAccess(permissionManager.get());
+        }
         if (permissionManager.get() == null) {
             log.warn("Permissions are not supported on this file system.");
             return new FileSystemAccessImpl();

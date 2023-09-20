@@ -35,6 +35,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Set;
@@ -117,7 +118,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static final String ADDITIONAL_BLOCK_STORE = "additionalblocks";
     private static final String UPDATED_FILES_STORE = "updatedfiles";
     private static final String UPDATED_PENDING_FILES_STORE = "updatedpendingfiles";
-    private static final double ASSUMED_OVERHEAD = 1.2;
+    private static final double ASSUMED_OVERHEAD = 1.6;
     private static final int MAX_KEY_SIZE = 511;
     private static final long SMALL_MAP_SIZE = 64L * 1024 * 1024;
     private static final long LARGE_MAP_SIZE = 512L * 1024 * 1024;
@@ -533,7 +534,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
-    public void open(boolean readOnly) {
+    public void open(boolean readOnly) throws IOException {
         this.readOnly = readOnly;
         if (db == null) {
             db = createDb(readOnly);
@@ -551,6 +552,50 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         updatedFilesMap = openCreateMap(db, UPDATED_FILES_STORE);
 
         createExecutor();
+
+        if (!readOnly) {
+            migrateTimestampPaths(fileMap, FILE_STORE);
+            migrateTimestampPaths(directoryMap, DIRECTORY_STORE);
+        }
+    }
+
+    /**
+     * This method deals with a problem where the original encoding of path timestamps clashed with the root path
+     * when doing ranged queries. The problem only exists for extremely long files so a repository should not have
+     * too many of them hopefully. This method does a single pass to find all the problematic paths and stores them
+     * into a new keyspace that does not clash. It only has to run once for files and directories to re-encode any
+     * problematic entries.
+     */
+    private void migrateTimestampPaths(Dbi<ByteBuffer> map, String name) throws IOException {
+        synchronizeDbAccess(() -> {
+            internalCommit();
+            Dbi<ByteBuffer> metadata = openCreateMap(db, "metadata");
+            Txn<ByteBuffer> txn = getWriteTransaction();
+            try {
+                if (metadata.get(txn, encodeString(name)) == null) {
+                    try (CursorIterable<ByteBuffer> ci = map.iterate(txn,
+                            prefixRangeReverse(encodePathTimestamp("", null)))) {
+                        for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
+                            if (missingPath(kv.key())) {
+                                if (kv.key().limit() == 42) {
+                                    ByteBuffer newKey = ByteBuffer.allocateDirect(43).put((byte) 0).put((byte) 255);
+                                    newKey.put(kv.key().slice(1, 41));
+                                    newKey.flip();
+                                    map.put(txn, newKey, kv.val());
+                                    map.delete(txn, kv.key());
+                                } else if (kv.key().limit() != 43) {
+                                    log.error("Unexpected key size for empty record: {}", kv.key().limit());
+                                }
+                            }
+                        }
+                    }
+                    metadata.put(txn, encodeString(name), ByteBuffer.allocateDirect(1).put((byte) 0).flip());
+                    internalCommit();
+                }
+            } finally {
+                metadata.close();
+            }
+        });
     }
 
     private void createExecutor() {
@@ -696,20 +741,28 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         }
     }
 
-    private ByteBuffer encodePathTimestamp(String path, Long timestamp) {
+    private ByteBuffer encodePathTimestampBytes(String path, ByteBuffer timestampBytes) {
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(MAX_KEY_SIZE);
         byte[] pathData = path.getBytes(StandardCharsets.UTF_8);
         if (pathData.length > MAX_PATH_LENGTH) {
             byteBuffer.put((byte) 0);
+            byteBuffer.put((byte) 255);
             pathData = Hashing.sha256().hashBytes(pathData).asBytes();
         }
         byteBuffer.put(pathData);
         byteBuffer.put((byte) 0);
-        if (timestamp != null) {
-            byteBuffer.putLong(timestamp);
+        if (timestampBytes != null) {
+            byteBuffer.put(timestampBytes);
         }
         byteBuffer.flip();
         return byteBuffer;
+    }
+
+    private ByteBuffer encodePathTimestamp(String path, Long timestamp) {
+        if (timestamp != null) {
+            return encodePathTimestampBytes(path, encodeLong(timestamp));
+        }
+        return encodePathTimestampBytes(path, null);
     }
 
     private Txn<ByteBuffer> getReadTransaction() {
@@ -732,7 +785,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         return synchronizeDbAccess(() -> {
             List<ExternalBackupFile> files = null;
             Txn<ByteBuffer> txn = getReadTransaction();
-            try (CursorIterable<ByteBuffer> ci = fileMap.iterate(txn, prefixRange(encodePathTimestamp(path, null)))) {
+            try (CursorIterable<ByteBuffer> ci = fileMap.iterate(txn,
+                    createPathRange(path, null, true))) {
                 for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
                     if (files == null)
                         files = new ArrayList<>();
@@ -925,30 +979,24 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
     @Override
     public BackupFile file(String path, Long timestamp) throws IOException {
-        if (timestamp == null) {
-            return synchronizeDbAccess(() -> lastFileInternal(getReadTransaction(), path));
-        }
-        return synchronizeDbAccess(() -> {
-            Txn<ByteBuffer> txn = getReadTransaction();
-            try (CursorIterable<ByteBuffer> ci = fileMap.iterate(txn,
-                    KeyRange.closedBackward(encodePathTimestamp(path, timestamp), encodePathTimestamp(path, 0L)))) {
-                for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
-                    return decodeFile(kv);
-                }
-            }
-            return null;
-        });
+        return synchronizeDbAccess(() -> fileInternal(getReadTransaction(), path, timestamp));
     }
 
-    @Nullable
-    private BackupFile lastFileInternal(Txn<ByteBuffer> txn, String path) throws IOException {
+    private BackupFile fileInternal(Txn<ByteBuffer> txn, String path, Long timestamp) throws IOException {
         try (CursorIterable<ByteBuffer> ci = fileMap.iterate(txn,
-                prefixRangeReverse(encodePathTimestamp(path, null)))) {
+                createPathRange(path, timestamp, false))) {
             for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
                 return decodeFile(kv);
             }
         }
         return null;
+    }
+
+    private ByteBuffer timestampRangeBuffer(Long timestamp) {
+        if (timestamp != null) {
+            return encodeLong(timestamp);
+        }
+        return ByteBuffer.allocateDirect(1).put((byte) 0xff).flip();
     }
 
     @Override
@@ -967,10 +1015,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
         return synchronizeDbAccess(() -> {
             CursorIterable<ByteBuffer> ci;
-            if (timestamp == null)
-                ci = directoryMap.iterate(getReadTransaction(), prefixRangeReverse(encodePathTimestamp(path, null)));
-            else
-                ci = directoryMap.iterate(getReadTransaction(), KeyRange.closedBackward(encodePathTimestamp(path, timestamp), encodePathTimestamp(path, null)));
+            ci = directoryMap.iterate(getReadTransaction(), createPathRange(path, timestamp, false));
 
             BackupDirectory directory = null;
             for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
@@ -986,10 +1031,23 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         });
     }
 
+    private KeyRange<ByteBuffer> createPathRange(String path, Long timestamp, boolean ascending) {
+        ByteBuffer upper = encodePathTimestampBytes(path, timestampRangeBuffer(timestamp));
+        ByteBuffer lower = encodePathTimestamp(path, 0L);
+        if (ascending) {
+            if (timestamp != null)
+                return KeyRange.closed(lower, upper);
+            return KeyRange.closedOpen(lower, upper);
+        }
+        if (timestamp != null)
+            return KeyRange.closedBackward(upper, lower);
+        return KeyRange.openClosedBackward(upper, lower);
+    }
+
     private BackupDirectory lastDirectoryInternal(String path) throws IOException {
         Txn<ByteBuffer> txn = getReadTransaction();
         try (CursorIterable<ByteBuffer> ci = directoryMap.iterate(txn,
-                prefixRangeReverse(encodePathTimestamp(path, null)))) {
+                createPathRange(path, null, false))) {
             for (final CursorIterable.KeyVal<ByteBuffer> kv : ci) {
                 return decodeDirectory(kv);
             }
@@ -1327,7 +1385,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                         if (partialFile != null) {
                             lastExisting = partialFile.getFile().getLastChanged();
                         } else {
-                            BackupFile existingFile = lastFileInternal(txn, file.getPath());
+                            BackupFile existingFile = fileInternal(txn, file.getPath(), null);
                             if (existingFile != null) {
                                 lastExisting = existingFile.getLastChanged();
                             }
@@ -1408,7 +1466,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         }
     }
 
-    protected void checkExpand() {
+    protected void checkExpand() throws IOException {
         if ((++updateCount) % CHECK_EXPAND_FREQUENCY == 0) {
             long usedSize = getTotalUsedEstimatedSize();
 
@@ -1522,7 +1580,9 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
         @Override
         public void close() {
-            txn.close();
+            if (txn != null) {
+                txn.close();
+            }
             map.close();
             db.close();
 
@@ -1612,6 +1672,51 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             byte[] bytes = new byte[byteBuffer.limit()];
             byteBuffer.get(bytes);
             return serializer.decodeValue(bytes);
+        }
+
+        private K decodeKey(ByteBuffer byteBuffer) {
+            if (byteBuffer == null) {
+                return null;
+            }
+
+            byte[] bytes = new byte[byteBuffer.limit()];
+            byteBuffer.get(bytes);
+            return serializer.decodeKey(bytes);
+        }
+
+        @Override
+        public Stream<Map.Entry<K, V>> readOnlyEntryStream() {
+            Iterator<Map.Entry<K, V>> iterator = new TemporaryIterator();
+            return StreamSupport.stream(
+                    Spliterators.spliteratorUnknownSize(
+                            iterator,
+                            Spliterator.ORDERED),
+                    false);
+        }
+
+        private class TemporaryIterator implements Iterator<Map.Entry<K, V>> {
+            private final Iterator<CursorIterable.KeyVal<ByteBuffer>> iterator;
+            private final CursorIterable<ByteBuffer> iterable;
+
+            public TemporaryIterator() {
+                iterable = map.iterate(txn, KeyRange.all());
+                iterator = iterable.iterator();
+            }
+
+            @Override
+            public boolean hasNext() {
+                boolean ret = iterator.hasNext();
+                if (!ret) {
+                    iterable.close();
+                }
+                return ret;
+            }
+
+            @Override
+            public Map.Entry<K, V> next() {
+                CursorIterable.KeyVal<ByteBuffer> entry = iterator.next();
+                return Map.entry(decodeKey(entry.key()), decodeValue(entry.val()));
+            }
         }
     }
 

@@ -20,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.utils.PausedStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 
 @Slf4j
 public final class IOUtils {
@@ -79,16 +81,17 @@ public final class IOUtils {
     }
 
     public static <T> T waitForInternet(Callable<T> callable) throws Exception {
-        boolean clearFlag = false;
-        try (Closeable ignore = UIHandler.registerTask("Waiting for internet to continue")) {
-            for (int i = 0; true; i++) {
-                try {
-                    if (InstanceFactory.isShutdown()) {
-                        throw new InterruptedException("Shutting down");
-                    }
-                    return callable.call();
-                } catch (Exception exc) {
-                    if (!IOUtils.hasInternet()) {
+        for (int i = 0; true; i++) {
+            try {
+                if (InstanceFactory.isShutdown()) {
+                    throw new InterruptedException("Shutting down");
+                }
+                return callable.call();
+            } catch (Exception exc) {
+                if (!IOUtils.hasInternet()) {
+                    boolean clearFlag = false;
+                    try (Closeable ignore = UIHandler.registerTask("Waiting for internet to continue")) {
+                        StateLogger.addLogger(PausedStatusLogger.INSTANCE);
                         do {
                             if (i == 0) {
                                 clearFlag = true;
@@ -106,18 +109,19 @@ public final class IOUtils {
                             }
                             i++;
                         } while (!IOUtils.hasInternet());
-                    } else {
-                        throw exc;
+                    } finally {
+                        StateLogger.removeLogger(PausedStatusLogger.INSTANCE);
+                        if (clearFlag) {
+                            synchronized (waitingForInternetMessage) {
+                                if (waitingForInternetMessage.get()) {
+                                    log.info("Internet access restored");
+                                    waitingForInternetMessage.set(false);
+                                }
+                            }
+                        }
                     }
-                }
-            }
-        } finally {
-            if (clearFlag) {
-                synchronized (waitingForInternetMessage) {
-                    if (waitingForInternetMessage.get()) {
-                        log.info("Internet access restored");
-                        waitingForInternetMessage.set(false);
-                    }
+                } else {
+                    throw exc;
                 }
             }
         }

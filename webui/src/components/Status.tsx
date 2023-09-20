@@ -213,6 +213,9 @@ export default function Status(props: StatusProps) {
             scheduledItems.push(item);
             return false;
         }
+        if (item.code === "PAUSED") {
+            return false;
+        }
         return !(item.code.startsWith("DOWNLOADED_ACTIVE") || item.code.startsWith("UPLOADED_ACTIVE"))
     });
     importantItems.sort((a, b) => IMPORTANT_CODES.indexOf(a.code) - IMPORTANT_CODES.indexOf(b.code));

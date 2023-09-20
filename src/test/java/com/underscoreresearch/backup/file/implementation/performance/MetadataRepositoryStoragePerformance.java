@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.file.implementation.performance;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupFile;
@@ -46,15 +49,7 @@ public abstract class MetadataRepositoryStoragePerformance {
     private List<BackupFilePart> locations;
 
     public static void deleteDir(File tempDir) {
-        String[] entries = tempDir.list();
-        if (entries != null)
-            for (String s : entries) {
-                File currentFile = new File(tempDir.getPath(), s);
-                if (currentFile.isDirectory()) {
-                    deleteDir(currentFile);
-                }
-                currentFile.delete();
-            }
+        IOUtils.deleteContents(tempDir);
         tempDir.delete();
     }
 
@@ -203,6 +198,11 @@ public abstract class MetadataRepositoryStoragePerformance {
                     public String decodeValue(byte[] data) {
                         return new String(data, StandardCharsets.UTF_8);
                     }
+
+                    @Override
+                    public String decodeKey(byte[] data) {
+                        return new String(data, StandardCharsets.UTF_8);
+                    }
                 })) {
                     Stopwatch watch = Stopwatch.createStarted();
                     for (int i = 0; i < SIZE; i++) {
@@ -219,6 +219,14 @@ public abstract class MetadataRepositoryStoragePerformance {
                         assertNotNull(map.get(hash(i)));
                     }
                     System.out.printf("%s: Random read %s%s temporary map: %.3f%n",
+                            getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+
+                    watch.reset();
+                    watch.start();
+
+                    assertThat(map.readOnlyEntryStream().count(), Matchers.equalTo((long) SIZE));
+
+                    System.out.printf("%s: Iterate %s%s temporary map: %.3f%n",
                             getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
                 }
             }

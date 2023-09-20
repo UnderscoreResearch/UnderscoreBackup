@@ -75,7 +75,7 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
                             filesPerPath.set(null);
                         }
                         currentPath.set(file.getPath());
-                        if (ret != null && ret.size() > 0) {
+                        if (ret != null && !ret.isEmpty()) {
                             return ret;
                         }
                     }

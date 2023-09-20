@@ -1232,5 +1232,11 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             }
             return null;
         }
+
+        @Override
+        public Stream<Map.Entry<K, V>> readOnlyEntryStream() {
+            return map.ascendingMap().entrySet().stream().map((entry) -> Map.entry(serializer.decodeKey((byte[]) entry.getKey()[0]),
+                    serializer.decodeValue(entry.getValue())));
+        }
     }
 }

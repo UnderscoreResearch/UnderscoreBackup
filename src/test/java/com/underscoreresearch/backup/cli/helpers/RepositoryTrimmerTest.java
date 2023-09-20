@@ -38,6 +38,7 @@ import com.underscoreresearch.backup.file.implementation.LockingMetadataReposito
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -170,6 +171,7 @@ class RepositoryTrimmerTest {
         addFile("/test1/def/test2", 0);
         addFile("/test1/def/test3", 0);
         addFile("/test2/test4", 0);
+        addFile("/test1/orphaned/file", 0);
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("")
@@ -355,6 +357,7 @@ class RepositoryTrimmerTest {
                             "/test1/abc/test2", 1,
                             "/test1/def/test2", 13,
                             "/test1/def/test3", 13,
+                            "/test1/orphaned/file", 13,
                             "/test2/test4", 26)));
 
             result = closeStream(repository.allDirectories(false), stream -> stream
@@ -368,7 +371,7 @@ class RepositoryTrimmerTest {
                             "/test2/", 1)));
 
             Set<String> setResult = closeStream(repository.allBlocks(),
-                    stream -> stream.map(t -> t.getHash()).collect(Collectors.toSet()));
+                    stream -> stream.map(BackupBlock::getHash).collect(Collectors.toSet()));
             assertThat(setResult,
                     Is.is(ImmutableSet.of("a", "b", "c", "d", "e")));
         }
@@ -391,7 +394,9 @@ class RepositoryTrimmerTest {
                             "/test1/abc/test2", 1,
                             "/test1/def/test2", 13,
                             "/test1/def/test3", 13,
-                            "/test2/test4", 26)));
+                            "/test1/orphaned/file", 13,
+                            "/test2/test4", 26
+                    )));
 
             result = closeStream(repository.allDirectories(false), stream -> stream
                     .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
@@ -428,11 +433,7 @@ class RepositoryTrimmerTest {
     @AfterEach
     public void teardown() throws IOException {
         repository.close();
-        String[] entries = tempDir.list();
-        for (String s : entries) {
-            File currentFile = new File(tempDir.getPath(), s);
-            currentFile.delete();
-        }
+        IOUtils.deleteContents(tempDir);
         tempDir.delete();
     }
 }

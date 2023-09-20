@@ -18,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,10 +52,10 @@ import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 
-abstract class LockingMetadataRepositoryTest {
+public abstract class LockingMetadataRepositoryTest {
     private static final String PATH = PATH_SEPARATOR + "test" + PATH_SEPARATOR + "path" +
             PATH_SEPARATOR + "test" + PATH_SEPARATOR + "path";
-    private static final String LARGE_PATH = PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
+    public static final String LARGE_PATH = PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
             PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
             PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
             PATH + PATH + PATH + PATH + PATH + PATH + PATH + PATH +
@@ -631,10 +633,25 @@ abstract class LockingMetadataRepositoryTest {
             public Long decodeValue(byte[] data) {
                 return ByteBuffer.wrap(data).getLong();
             }
+
+            @Override
+            public String decodeKey(byte[] data) {
+                return new String(data, StandardCharsets.UTF_8);
+            }
         })) {
             map.put("a", 1L);
             map.put("b", 2L);
             map.put("c", 3L);
+
+
+            Map<String, Long> answer = new HashMap<>();
+            answer.put("a", 1L);
+            answer.put("b", 2L);
+            answer.put("c", 3L);
+
+            map.readOnlyEntryStream().forEach(entry -> assertThat(answer.remove(entry.getKey()), Is.is(entry.getValue())));
+            assertThat(answer.size(), Is.is(0));
+
             assertThat(map.get("c"), Is.is(3L));
             assertTrue(map.containsKey("c"));
             assertTrue(map.delete("c"));

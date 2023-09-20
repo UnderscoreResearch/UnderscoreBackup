@@ -14,6 +14,8 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
 import com.underscoreresearch.backup.file.changepoller.FsChangePoller;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.utils.PausedStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -60,16 +62,21 @@ public class MachineState {
                             log.info("Pausing until CPU usage goes down");
                     }
                 }
-                do {
-                    try {
-                        Thread.sleep(MINIMUM_WAIT.toMillis());
-                    } catch (InterruptedException e) {
-                        log.warn("Failed to wait", e);
-                    }
-                    if (InstanceFactory.isShutdown()) {
-                        return;
-                    }
-                } while (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > getMaxCpuUsage());
+                StateLogger.addLogger(PausedStatusLogger.INSTANCE);
+                try {
+                    do {
+                        try {
+                            Thread.sleep(MINIMUM_WAIT.toMillis());
+                        } catch (InterruptedException e) {
+                            log.warn("Failed to wait", e);
+                        }
+                        if (InstanceFactory.isShutdown()) {
+                            return;
+                        }
+                    } while (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > getMaxCpuUsage());
+                } finally {
+                    StateLogger.removeLogger(PausedStatusLogger.INSTANCE);
+                }
 
                 synchronized (this) {
                     if (loggedOnBattery) {

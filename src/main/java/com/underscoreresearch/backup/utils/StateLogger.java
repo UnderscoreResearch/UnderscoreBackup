@@ -155,7 +155,7 @@ public class StateLogger implements StatusLogger {
 
     private void initialize() {
         synchronized (this) {
-            if (loggers == null || loggers.size() == 0) {
+            if (loggers == null || loggers.isEmpty()) {
                 if (InstanceFactory.hasConfiguration(false)) {
                     loggers = InstanceFactory
                             .getReflections()

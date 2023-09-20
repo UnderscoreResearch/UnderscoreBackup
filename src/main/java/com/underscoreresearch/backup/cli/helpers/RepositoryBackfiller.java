@@ -85,6 +85,11 @@ public class RepositoryBackfiller {
                 public Long decodeValue(byte[] data) {
                     return ByteBuffer.wrap(data).getLong();
                 }
+
+                @Override
+                public String decodeKey(byte[] data) {
+                    return new String(data, StandardCharsets.UTF_8);
+                }
             })) {
                 BackfillDownloader backfillDownloader = new BackfillDownloader(knownSizes);
 
