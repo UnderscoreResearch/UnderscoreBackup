@@ -33,7 +33,12 @@ Source: "..\\build\\installerimage\\underscorebackup.exe"; DestDir: "{app}"; Fla
 Source: "..\\build\\installerimage\\underscorebackup-gui.exe"; DestDir: "{app}"; Flags: ignoreversion; \\
     BeforeInstall: TaskKill('underscorebackup-gui.exe')
 Source: "..\\build\\installerimage\\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\\build\\installerimage\\app\\*"; DestDir: "{app}\\app"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\\build\\installerimage\\app\\underscorebackup.cfg"; DestDir: "{app}\\app"; \\
+    Flags: ignoreversion; AfterInstall: UpdateMainCfg
+Source: "..\\build\\installerimage\\app\\underscorebackup-gui.cfg"; DestDir: "{app}\\app"; \\
+    Flags: ignoreversion; AfterInstall: UpdateUICfg
+Source: "..\\build\\installerimage\\app\\*.xml"; DestDir: "{app}\\app"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\\build\\installerimage\\app\\*.jar"; DestDir: "{app}\\app"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\\build\\installerimage\\runtime\\*"; DestDir: "{app}\\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "nssm.exe"; DestDir: "{app}"; Flags: ignoreversion;
 
@@ -117,8 +122,35 @@ begin
   TaskKill('underscorebackup-gui.exe');
 end;
 
+function ExtractMemory(file: string) : string;
+var
+  config : TArrayOfString;
+  i : Integer;
+  line : string;
+begin
+  if FileExists(file) then
+  begin
+    if LoadStringsFromFile(file, config) then
+    begin
+      for i := 0 to GetArrayLength(config) - 1 do
+      begin
+        line := config[i];
+        if Pos('java-options=-Xmx', line) = 1 then
+        begin
+          Result := line;
+          exit;
+        end;
+      end;
+    end;
+  end;
+  Result := '';
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
+  PreviousMemory := ExtractMemory(ExpandConstant('{app}\\app\\underscorebackup.cfg'));
+  PreviousMemoryUI := ExtractMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'));
+
   ShutdownApp();
   Result := '';
 end;
@@ -190,31 +222,7 @@ begin
   end;
 end;
 
-function ExtractMemory(file: string) : string;
-var
-  config : TArrayOfString;
-  i : Integer;
-  line : string;
-begin
-  if FileExists(file) then
-  begin
-    if LoadStringsFromFile(file, config) then
-    begin
-      for i := 0 to GetArrayLength(config) - 1 do
-      begin
-        line := config[i];
-        if Pos('java-options=-Xmx', line) = 1 then
-        begin
-          Result := line;
-          exit;
-        end;
-      end;
-    end;
-  end;
-  Result := '';
-end;
-
-procedure ReplaceMemory(file: string; newLine: string; service: boolean);
+procedure ReplaceMemory(file: string; newLine: string; service: boolean; debug: boolean);
 var
   config : TArrayOfString;
   i : Integer;
@@ -239,8 +247,27 @@ begin
           end;
         end;
       end;
-      SaveStringsToFile(file, config, False);
+
+      if debug then
+      begin
+        SetArrayLength(config, GetArrayLength(config) + 1);
+        config[GetArrayLength(config) - 1] := 'java-options=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=54321';
+      end;
+
+      if not SaveStringsToFile(file, config, False) then
+      begin
+         MsgBox('Failed to save contents of ' + file, mbError, MB_OK);
+      end;
+      Log('Adjusted ' + file);
+    end
+    else
+    begin
+      MsgBox('Failed to read contents of ' + file, mbError, MB_OK);
     end;
+  end
+  else
+  begin
+    MsgBox('Failed to find file ' + file, mbError, MB_OK);
   end;
 end;
 
@@ -263,22 +290,18 @@ begin
   end;
 end;
 
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  ResultCode: integer;
+procedure UpdateMainCfg();
 begin
-  if CurStep = ssInstall then
-  begin
-    PreviousMemory := ExtractMemory(ExpandConstant('{app}\\app\\underscorebackup.cfg'));
-    PreviousMemoryUI := ExtractMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'));
-  end
-  else if CurStep = ssPostInstall then
-  begin
-    if PreviousMemory <> '' then
+    if PreviousMemory = '' then
     begin
-      ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup.cfg'), PreviousMemory, false);
+      PreviousMemoryUI := 'java-options=-Xmx256m';
     end;
 
+    ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup.cfg'), PreviousMemory, false, false);
+end;
+
+procedure UpdateUICfg();
+begin
     if (PreviousMemoryUI = '') and ServiceInstall() then
     begin
       PreviousMemoryUI := 'java-options=-Xmx32m';
@@ -286,13 +309,21 @@ begin
     else if (PreviousMemoryUI = 'java-options=-Xmx32m') and ApplicationInstall() then
     begin
       PreviousMemoryUI := 'java-options=-Xmx256m';
-    end;
-
-    if PreviousMemoryUI <> '' then
+    end
+    else
     begin
-      ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'), PreviousMemoryUI, ServiceInstall());
+      PreviousMemoryUI := 'java-options=-Xmx32m';
     end;
 
+    ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'), PreviousMemoryUI, ServiceInstall(), false);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: integer;
+begin
+  if CurStep = ssPostInstall then
+  begin
     if ServiceInstall() then
     begin
       RunNssm(ExpandConstant('install UnderscoreBackup "{app}\\underscorebackup.exe"'));

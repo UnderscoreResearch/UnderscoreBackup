@@ -93,26 +93,33 @@ export default function MainApp() {
     const displayState = calculateDisplayState(appContext, activityContext, validConfig, reactLocation);
     const navigation = <NavigationMenu  {...displayState.navigation}/>
 
+    async function setInteractiveBackup(start : boolean) {
+        appContext.setState((oldState) => ({
+            ...oldState,
+            currentConfiguration: {
+                ...oldState.currentConfiguration,
+                manifest: {
+                    ...oldState.currentConfiguration.manifest,
+                    interactiveBackup: start
+                }
+            }
+        }));
+        await appContext.applyChanges();
+    }
+
     function changeBackup(start: boolean) {
-        if (start && appContext.currentConfiguration.manifest.interactiveBackup) {
+        if (start && (appContext.interactiveEnabled() || !appContext.hasScheduledSets())) {
             appContext.busyOperation(async () => {
+                if (!appContext.interactiveEnabled()) {
+                    await setInteractiveBackup(start);
+                }
                 await restartSets();
                 await appContext.updateBackendState();
                 await activityContext.update();
             });
         } else {
             appContext.busyOperation(async () => {
-                appContext.setState((oldState) => ({
-                    ...oldState,
-                    currentConfiguration: {
-                        ...oldState.currentConfiguration,
-                        manifest: {
-                            ...oldState.currentConfiguration.manifest,
-                            interactiveBackup: start
-                        }
-                    }
-                }));
-                await appContext.applyChanges();
+                await setInteractiveBackup(start);
                 await appContext.updateBackendState();
                 await activityContext.update();
             });
@@ -265,6 +272,8 @@ export default function MainApp() {
                 action: () => appContext.busyOperation(exitSourceBusy)
             }
         } else if (!acceptButton && validConfig) {
+            const disabled = !validConfig || !displayState.backupCanStart;
+
             if (displayState.backupInProgress) {
                 acceptButton = {
                     title: "Stop Backup",
@@ -272,13 +281,17 @@ export default function MainApp() {
                     disabled: false,
                     action: () => changeBackup(false)
                 };
+
+                if (appContext.interactiveEnabled() && displayState.backupCanStart) {
+                    cancelButton = {
+                        title: "Backup Now",
+                        color: "primary",
+                        disabled: disabled,
+                        action: () => changeBackup(true)
+                    };
+                }
             } else {
-                const disabled = !validConfig || !displayState.backupCanStart;
-
-                if (appContext.currentConfiguration && appContext.currentConfiguration &&
-                    appContext.currentConfiguration.manifest &&
-                    appContext.currentConfiguration.manifest.interactiveBackup) {
-
+                if (appContext.interactiveEnabled()) {
                     cancelButton = {
                         title: "Backup Now",
                         color: "primary",
@@ -286,9 +299,9 @@ export default function MainApp() {
                         action: () => changeBackup(true)
                     };
 
-                    if (activityContext.activity.filter((item) => item.code.startsWith("SCHEDULED_BACKUP_")).length > 0) {
+                    if (appContext.hasScheduledSets()) {
                         acceptButton = {
-                            title: "Stop Schedule",
+                            title: "Pause Schedule",
                             color: "error",
                             disabled: false,
                             action: () => changeBackup(false)
@@ -296,7 +309,7 @@ export default function MainApp() {
                     }
                 } else {
                     acceptButton = {
-                        title: "Start Backup",
+                        title: appContext.hasScheduledSets() ? "Continue Backup" :  "Backup Now",
                         disabled: disabled,
                         action: () => changeBackup(true)
                     }

@@ -389,8 +389,8 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public ContinuousBackupImpl continuousBackup(MetadataRepository repository, FileConsumer fileConsumer,
-                                                 BackupConfiguration backupConfiguration) {
-        return new ContinuousBackupImpl(repository, fileConsumer, backupConfiguration);
+                                                 BackupConfiguration backupConfiguration, MachineState machineState) {
+        return new ContinuousBackupImpl(repository, fileConsumer, machineState, backupConfiguration);
     }
 
     @Singleton

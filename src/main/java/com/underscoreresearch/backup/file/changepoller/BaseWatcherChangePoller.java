@@ -47,6 +47,7 @@ public abstract class BaseWatcherChangePoller implements FileChangePoller {
             for (WatchEvent<?> event : key.pollEvents()) {
                 if (event.kind().equals(OVERFLOW)) {
                     overflow.set(true);
+                    continue;
                 }
                 Path path = watchedPath.resolve((Path) event.context());
                 paths.add(path);

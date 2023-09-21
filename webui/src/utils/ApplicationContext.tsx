@@ -44,6 +44,8 @@ export interface ApplicationContext extends ApplicationState {
 
     update: (password: string) => Promise<void>,
     applyChanges: (callback?: (oldState: ApplicationState, newState: ApplicationState) => Promise<void>) => Promise<boolean>,
+    hasScheduledSets: () => boolean,
+    interactiveEnabled: () => boolean,
     updateBackendState: (validatedPassword?: boolean) => Promise<void>,
     setState: Dispatch<SetStateAction<ApplicationState>>,
     state: ApplicationState
@@ -219,6 +221,16 @@ function generateApplicationContext(): ApplicationContext {
         }
     }
 
+    function hasScheduledSets() {
+        return !!(state.originalConfiguration && state.originalConfiguration.sets
+            && state.originalConfiguration.sets.find((item) => item.schedule));
+    }
+
+    function interactiveEnabled() {
+        return !!(state.originalConfiguration && state.originalConfiguration.manifest
+            && state.originalConfiguration.manifest.interactiveBackup);
+    }
+
     return {
         ...state,
         isBusy: () => busy || operationBusy,
@@ -228,6 +240,8 @@ function generateApplicationContext(): ApplicationContext {
         updateBackendState: updateBackendState,
         setState: setState,
         applyChanges: applyChanges,
+        hasScheduledSets: hasScheduledSets,
+        interactiveEnabled: interactiveEnabled,
         state: state
     }
 }

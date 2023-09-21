@@ -105,7 +105,7 @@ public class StateLogger implements StatusLogger {
             log.debug("Current CPU usage {}", state.getCpuUsage());
         });
 
-        printLogStatus((type) -> type != Type.LOG, (a) -> debug(() -> log.debug(a)));
+        debug(() -> printLogStatus((type) -> type != Type.LOG, log::debug));
     }
 
     public void logInfo() {

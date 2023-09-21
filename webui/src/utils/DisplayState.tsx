@@ -100,6 +100,7 @@ export function calculateDisplayState(appContext: ApplicationContext,
         ret.statusTitle = "Validating Repository";
     } else if (activityContext.activity.some(item => item.code.startsWith("CONTINUOUS_"))) {
         ret.statusTitle = "Listening For Changes";
+        ret.backupCanStart = true;
     } else {
         ret.backupInProgress = false;
 
@@ -154,9 +155,10 @@ export function calculateDisplayState(appContext: ApplicationContext,
                 } else {
                     ret.backupCanStart = true;
                     ret.processing = false;
-                    if (appContext.currentConfiguration && appContext.currentConfiguration.manifest &&
-                        appContext.currentConfiguration.manifest.interactiveBackup)
+                    if (appContext.interactiveEnabled())
                         ret.statusTitle = "Idle";
+                    else if (appContext.hasScheduledSets())
+                        ret.statusTitle = "Schedule Paused";
                     else
                         ret.statusTitle = "Stopped";
                 }

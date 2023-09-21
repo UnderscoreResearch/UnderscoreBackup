@@ -38,6 +38,7 @@ import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogger {
@@ -47,6 +48,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
     private final Condition condition = lock.newCondition();
     private final MetadataRepository repository;
     private final FileConsumer fileConsumer;
+    private final MachineState machineState;
     private final List<BackupSet> sets;
     private final AtomicLong processedFiles = new AtomicLong(0);
     private final AtomicLong processedSize = new AtomicLong(0);
@@ -58,9 +60,10 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
     private boolean pause;
 
     public ContinuousBackupImpl(MetadataRepository repository, FileConsumer fileConsumer,
-                                BackupConfiguration configuration) {
+                                MachineState machineState, BackupConfiguration configuration) {
         this.repository = repository;
         this.fileConsumer = fileConsumer;
+        this.machineState = machineState;
         this.sets = FileChangeWatcherImpl.getContinuousSets(configuration, null);
     }
 
@@ -318,6 +321,8 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
 
                     try {
                         lock.unlock();
+
+                        machineState.waitForRunCheck();
 
                         currentFiles.forEach(file -> {
                             try {

@@ -47,7 +47,7 @@ it('sourcerestore', function () {
     cy.get("#submitConfigChange").click();
     cy.get('#acceptButton').contains("Save").should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#acceptButton').contains("Start Backup").should("be.visible").and('not.be.disabled');
+    cy.get('#acceptButton').contains("Backup Now").should("be.visible").and('not.be.disabled');
 
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click()
     cy.get("#restoreSource").click();

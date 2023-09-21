@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
@@ -15,15 +17,15 @@ public abstract class BaseImplementation implements Take {
     @Override
     public Response act(Request req) throws Exception {
         Href href = new RqHref.Base(req).href();
-        RqMethod.Base method = new RqMethod.Base(req);
+        String method = new RqMethod.Base(req).method();
         try {
-            log.debug("{} {}", method.method(), href);
+            debug(() -> log.debug("{} {}", method, href));
             return actualAct(req);
         } catch (HttpException httpException) {
-            log.debug("{} {}: {}", method.method(), href, httpException.code());
+            debug(() -> log.debug("{} {}: {}", method, href, httpException.code()));
             throw httpException;
         } catch (Throwable exc) {
-            log.error("{} {}: 500", method.method(), href, exc);
+            log.error("{} {}: 500", method, href, exc);
             throw exc;
         }
     }

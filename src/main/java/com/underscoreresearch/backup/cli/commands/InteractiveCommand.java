@@ -204,7 +204,9 @@ public class InteractiveCommand extends Command {
                 try (RandomAccessFile file = new RandomAccessFile(path.toString(), "rw")) {
                     file.getChannel().lock().close();
                 }
-            } catch (IOException ignored) {
+                log.info("Shutting down because of lock file");
+            } catch (IOException exc) {
+                log.warn("Shutting down because of lock file error", exc);
             }
             InstanceFactory.shutdown();
             InstanceFactory.waitForShutdown();

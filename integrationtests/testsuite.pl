@@ -510,7 +510,7 @@ sub executeCypressTest {
 }
 
 my $DELAY = 11;
-my $MAX_RETRY = 3;
+my $MAX_RETRY = 1;
 my @completionTimestamp;
 my $pid;
 
@@ -834,3 +834,6 @@ print "Test changing password\n";
 &prepareTestPath();
 &generateData(6, 1);
 &executeUnderscoreBackupStdin($SECOND_PASSWORD, "restore", "/", "=");
+
+print "Completed final test execution\n";
+exit(0);
