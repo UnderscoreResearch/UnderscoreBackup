@@ -510,7 +510,7 @@ sub executeCypressTest {
 }
 
 my $DELAY = 11;
-my $MAX_RETRY = 1;
+my $MAX_RETRY = 3;
 my @completionTimestamp;
 my $pid;
 

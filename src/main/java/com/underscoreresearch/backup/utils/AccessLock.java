@@ -7,9 +7,12 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.FileLockInterruptionException;
+import java.nio.channels.OverlappingFileLockException;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class AccessLock implements Closeable {
     @Getter
     private final String filename;
@@ -41,7 +44,10 @@ public class AccessLock implements Closeable {
                     release();
                 } catch (ClosedChannelException e) {
                     ensureOpenFile();
-                } catch (FileLockInterruptionException e) {
+                } catch (OverlappingFileLockException e) {
+                    log.error("Overlapping file lock", e);
+                    return false;
+                } catch (FileLockInterruptionException ignored) {
                 }
             }
         }

@@ -30,7 +30,7 @@ public class MachineState {
     private double lastCpuUsage;
 
     protected double getMaxCpuUsage() {
-        return 1;
+        return 0.2;
     }
 
     public boolean getOnBattery() {
@@ -44,7 +44,7 @@ public class MachineState {
             double cpuLoad = osBean.getCpuLoad();
             double processLoad = osBean.getProcessCpuLoad();
 
-            return Math.max(cpuLoad - processLoad, 0) * osBean.getAvailableProcessors();
+            return Math.max(cpuLoad - processLoad, 0);
         } catch (IllegalArgumentException ignored) {
         }
         return Double.NaN;

@@ -20,11 +20,6 @@ public class OsxState extends MachineState {
     }
 
     @Override
-    protected double getMaxCpuUsage() {
-        return 2.0;
-    }
-
-    @Override
     public boolean getOnBattery() {
         try {
             Process proc = Runtime.getRuntime().exec("pmset -g ac");

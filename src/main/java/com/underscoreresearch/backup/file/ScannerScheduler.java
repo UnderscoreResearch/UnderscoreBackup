@@ -5,7 +5,5 @@ public interface ScannerScheduler {
 
     void shutdown();
 
-    boolean isRunning();
-
     void waitForCompletion();
 }

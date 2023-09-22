@@ -96,11 +96,11 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         pendingPaths = stripExcludedPendingPaths(backupSet, originalActivePaths);
 
         boolean needStorageValidation = BackupSetDestinations.needStorageValidation(
-                manifestLocation, backupSet, originalActivePaths.size() == 0);
+                manifestLocation, backupSet, originalActivePaths.isEmpty());
         if (needStorageValidation)
             log.info("Enabled storage validation for set {}", backupSet.getId());
 
-        if (pendingPaths.size() > 0) {
+        if (!pendingPaths.isEmpty()) {
             debug(() -> log.debug("Resuming paths from {}", pendingPaths.keySet().stream().map(PathNormalizer::physicalPath)
                     .collect(Collectors.joining("; "))));
         }
@@ -125,7 +125,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         }
 
         debug(() -> log.debug("File scanner shutting down"));
-        while (processedPendingPaths().size() > 0 && !shutdown) {
+        while (!processedPendingPaths().isEmpty() && !shutdown) {
             try {
                 debug(() -> log.debug("Waiting for active paths: " + formatPathList(processedPendingPaths()
                         .keySet())));
@@ -136,14 +136,14 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         }
 
         if (!shutdown) {
-            while (pendingPaths.size() > 0) {
+            while (!pendingPaths.isEmpty()) {
                 String path = pendingPaths.lastKey();
                 log.info("Closing remaining active path: " + path);
                 updateActivePath(backupSet, path, true);
             }
 
             TreeMap<String, BackupActivePath> remainingPaths = repository.getActivePaths(backupSet.getId());
-            if (remainingPaths.size() > 0) {
+            if (!remainingPaths.isEmpty()) {
                 log.error("Completed with following active paths: " + formatPathList(remainingPaths.keySet()));
                 for (Map.Entry<String, BackupActivePath> entry : remainingPaths.entrySet()) {
                     repository.popActivePath(backupSet.getId(), entry.getKey());
@@ -364,7 +364,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                                 destinations.remove(storage.getDestination());
                             }
 
-                            if (destinations.size() > 0) {
+                            if (!destinations.isEmpty()) {
                                 log.warn("Missing destinations for existing {}", PathNormalizer.physicalPath(existingFile.getPath()));
                                 return true;
                             }
@@ -426,7 +426,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     repository.popActivePath(set.getId(), currentPath);
                     Set<String> includedPaths = pending.includedPaths();
                     if (currentPath.endsWith(PATH_SEPARATOR)) {
-                        if (includedPaths.size() > 0 || repository.directory(currentPath, null, false) != null) {
+                        if (!includedPaths.isEmpty() || repository.directory(currentPath, null, false) != null) {
                             repository.addDirectory(new BackupDirectory(currentPath,
                                     Instant.now().toEpochMilli(),
                                     Sets.newTreeSet(includedPaths)));
@@ -442,7 +442,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     BackupActivePath parentActive = pendingPaths.get(parent);
                     if (parentActive != null) {
                         if (parentActive.unprocessedFile(currentPath)) {
-                            parentActive.getFile(currentPath).setStatus(pending.includedPaths().size() > 0
+                            parentActive.getFile(currentPath).setStatus(!pending.includedPaths().isEmpty()
                                     ? BackupActiveStatus.INCLUDED : BackupActiveStatus.EXCLUDED);
                             updateActivePath(set, parent, false);
                         }

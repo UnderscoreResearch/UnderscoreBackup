@@ -302,17 +302,20 @@ end;
 
 procedure UpdateUICfg();
 begin
-    if (PreviousMemoryUI = '') and ServiceInstall() then
+    if PreviousMemoryUI = '' then
     begin
-      PreviousMemoryUI := 'java-options=-Xmx32m';
+      if ServiceInstall() then
+      begin
+        PreviousMemoryUI := 'java-options=-Xmx32m';
+      end
+      else
+      begin
+        PreviousMemoryUI := 'java-options=-Xmx256m';
+      end;
     end
     else if (PreviousMemoryUI = 'java-options=-Xmx32m') and ApplicationInstall() then
     begin
       PreviousMemoryUI := 'java-options=-Xmx256m';
-    end
-    else
-    begin
-      PreviousMemoryUI := 'java-options=-Xmx32m';
     end;
 
     ReplaceMemory(ExpandConstant('{app}\\app\\underscorebackup-gui.cfg'), PreviousMemoryUI, ServiceInstall(), false);

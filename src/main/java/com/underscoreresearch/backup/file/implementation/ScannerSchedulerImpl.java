@@ -74,7 +74,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     private final boolean checkVersion;
     private boolean shutdown;
     private boolean scheduledRestart;
-    @Getter
     private boolean running;
 
     public ScannerSchedulerImpl(BackupConfiguration configuration,
@@ -274,7 +273,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                     try {
                         continuousBackup.start();
                         System.gc();
-                        running = false;
                         backupStatsLogger.setUploadRunning(false);
                         condition.await();
                         continuousBackup.shutdown();
@@ -288,7 +286,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 } catch (InterruptedException e) {
                     log.error("Failed to wait", e);
                 }
-                running = true;
                 backupStatsLogger.setUploadRunning(true);
             }
         }
@@ -300,8 +297,8 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         running = false;
         backupStatsLogger.setUploadRunning(false);
         condition.signal();
-        lock.unlock();
         stateLogger.reset();
+        lock.unlock();
 
         checkNewVersion();
     }
@@ -321,7 +318,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     }
 
     private void checkNewVersion() {
-        if (checkVersion) {
+        if (checkVersion && !shutdown) {
             if (configuration.getManifest().getVersionCheck() == null || configuration.getManifest().getVersionCheck()) {
                 ReleaseResponse version = InstanceFactory.getInstance(ServiceManager.class).checkVersion();
                 if (version != null) {
@@ -546,7 +543,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
             if (!shutdown) {
                 throw new IllegalStateException();
             }
-            while (isRunning()) {
+            while (running) {
                 try {
                     condition.await();
                 } catch (InterruptedException e) {
