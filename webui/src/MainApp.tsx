@@ -93,7 +93,7 @@ export default function MainApp() {
     const displayState = calculateDisplayState(appContext, activityContext, validConfig, reactLocation);
     const navigation = <NavigationMenu  {...displayState.navigation}/>
 
-    async function setInteractiveBackup(start : boolean) {
+    async function setInteractiveBackup(start: boolean) {
         appContext.setState((oldState) => ({
             ...oldState,
             currentConfiguration: {
@@ -309,7 +309,7 @@ export default function MainApp() {
                     }
                 } else {
                     acceptButton = {
-                        title: appContext.hasScheduledSets() ? "Continue Backup" :  "Backup Now",
+                        title: appContext.hasScheduledSets() ? "Continue Backup" : "Backup Now",
                         disabled: disabled,
                         action: () => changeBackup(true)
                     }

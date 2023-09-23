@@ -159,15 +159,18 @@ public class StateGet extends BaseWrap {
                 if (SystemUtils.IS_OS_WINDOWS || SystemUtils.IS_OS_MAC_OSX) {
                     exclusions.add("/OfficeFileCache/");
                 }
-                if (!SystemUtils.IS_OS_WINDOWS) {
-                    exclusions.add("/lost\\+found/");
-                    exclusions.add("/.config/google-chrome/");
-                    exclusions.add("/.mozilla/firefox/");
-                } else {
+                if (SystemUtils.IS_OS_WINDOWS) {
                     exclusions.add("/Google/Chrome/");
                     exclusions.add("/Microsoft/Edge/");
                     exclusions.add("/Microsoft/OneDrive/");
                     exclusions.add("/Mozilla/Firefox/");
+                } else if (SystemUtils.IS_OS_MAC_OSX) {
+                    exclusions.add("/lost\\+found/");
+                    exclusions.add("/Library/Caches/");
+                } else {
+                    exclusions.add("/lost\\+found/");
+                    exclusions.add("/.config/google-chrome/");
+                    exclusions.add("/.mozilla/firefox/");
                 }
 
                 BackupSetRoot root = BackupSetRoot.builder().filters(filters).build();

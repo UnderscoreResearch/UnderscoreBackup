@@ -247,7 +247,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     
     func determineUrl() {
         if (url == nil) {
-            let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscorebackup/configuration.url")
+            let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscoreBackup/configuration.url")
             do {
                 let contents = try String(contentsOf: file, encoding: .utf8);
                 url = URL(string: contents.trimmingCharacters(in: .whitespacesAndNewlines));
@@ -273,7 +273,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             task.resume()
         }
 
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscorebackup/notifications");
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscoreBackup/notifications");
         var path = homeDir.appendingPathComponent("notification");
         do {
             let contents = try String(contentsOf: path, encoding: .utf8);

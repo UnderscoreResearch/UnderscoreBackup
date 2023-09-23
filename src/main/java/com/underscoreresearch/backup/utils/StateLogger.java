@@ -185,11 +185,13 @@ public class StateLogger implements StatusLogger {
                     readableSize(lastHeapUsage.get()) + " / " + readableSize(lastHeapUsageMax.get()) + " (" +
                             lastHeapUsage.get() * 100 / lastHeapUsageMax.get() + "%)"));
             ret.add(new StatusLine(getClass(), "HEAP_AFTER_GC", "Heap memory usage after GC", lastMemoryAfterGCUse.get(),
+                    100L,
                     lastMemoryAfterGCUse.get() + "%"));
             ret.add(new StatusLine(getClass(), "HEAP_FULL_GC", "Old generation GC count", lastGCCollectionCount.get()));
         }
         if (lastMemoryAfterGCUse.get() > 90) {
             ret.add(new StatusLine(getClass(), "MEMORY_HIGH", "Memory usage high", lastMemoryAfterGCUse.get(),
+                    100L,
                     lastMemoryAfterGCUse.get() + "%"));
         }
         return ret;

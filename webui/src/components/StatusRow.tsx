@@ -107,7 +107,8 @@ export function StatusRow(props: StatusRowProps) {
         {
             hasProgress &&
             <TableRow>
-                <TableCell component="th" scope="row" colSpan={2}>
+                <TableCell component="th" scope="row" colSpan={2}
+                           style={{backgroundColor: background}}>
                     <LinearProgress variant="determinate" value={progress}/>
                 </TableCell>
             </TableRow>

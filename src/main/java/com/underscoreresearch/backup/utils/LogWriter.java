@@ -3,7 +3,7 @@ package com.underscoreresearch.backup.utils;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.LOG_FILE;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,6 +15,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
@@ -48,6 +50,7 @@ public class LogWriter extends AbstractAppender {
     long creationDate;
     private FileOutputStream stream;
     private boolean initialized;
+    private List<Runnable> unPostedLogs = new ArrayList<>();
 
     protected LogWriter(String name, Filter filter, Layout<String> layout) {
         super(name, filter, layout, true, Property.EMPTY_ARRAY);
@@ -139,7 +142,8 @@ public class LogWriter extends AbstractAppender {
         }
 
         if (initError != null) {
-            log.warn("Encountered issue initializing log", initError);
+            Exception exc = initError;
+            unPostedLogs.add(() -> log.warn("Encountered issue initializing log", exc));
         }
     }
 
@@ -147,7 +151,7 @@ public class LogWriter extends AbstractAppender {
         return creationDate + MAXIMUM_FILE_AGE < System.currentTimeMillis();
     }
 
-    private void rotateLogs() {
+    private synchronized void rotateLogs() {
         String baseFileName;
         try {
             baseFileName = InstanceFactory.getInstance(LOG_FILE);
@@ -164,7 +168,7 @@ public class LogWriter extends AbstractAppender {
             if (file.exists()) {
                 deleteFile(new File(nextFileName));
                 if (!file.renameTo(new File(nextFileName))) {
-                    log.error("Failed to rename log file {} to {}", fileName, nextFileName);
+                    unPostedLogs.add(() -> log.error("Failed to rename log file {} to {}", fileName, nextFileName));
                     return;
                 }
             }
@@ -182,21 +186,28 @@ public class LogWriter extends AbstractAppender {
                 gzip.write("".getBytes());
             }
         } catch (IOException e) {
-            log.error("Failed to write to compress log", e);
+            unPostedLogs.add(() -> log.error("Failed to write to compress log", e));
         }
 
         try {
             setOwnerOnlyPermissions(new File(baseFileName + ".1.gz"));
         } catch (IOException e) {
-            log.error("Failed to set compressed log file read only");
+            unPostedLogs.add(() -> log.error("Failed to set compressed log file read only"));
         }
 
-        File file = new File(baseFileName);
-        deleteFile(file);
+        deleteFile(new File(baseFileName));
+    }
+
+    private void deleteFile(File file) {
+        try {
+            deleteFileException(file);
+        } catch (IOException e) {
+            unPostedLogs.add(() -> log.warn(e.getMessage()));
+        }
     }
 
     @Override
-    public void append(LogEvent event) {
+    public synchronized void append(LogEvent event) {
         setup();
 
         if (stream != null) {
@@ -207,6 +218,22 @@ public class LogWriter extends AbstractAppender {
                 System.err.println("Failed to write to log");
                 e.printStackTrace(System.err);
             }
+
+            if (!unPostedLogs.isEmpty()) {
+                List<Runnable> postingLogs = unPostedLogs;
+                unPostedLogs = new ArrayList<>();
+
+                Thread thread = new Thread(() -> {
+                    for (Runnable runnable : postingLogs) {
+                        runnable.run();
+                    }
+                }, "LogWriterError");
+                thread.setDaemon(true);
+                thread.start();
+            }
+        } else {
+            unPostedLogs.clear();
+            System.err.println("Failed to initialize log file");
         }
     }
 }

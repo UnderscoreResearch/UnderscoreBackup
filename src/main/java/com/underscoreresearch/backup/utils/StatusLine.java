@@ -73,6 +73,7 @@ public class StatusLine {
 
     @Override
     public String toString() {
-        return message + ": " + getValueString();
+        String value = getValueString();
+        return message + (value != null ? ": " + getValueString() : "");
     }
 }

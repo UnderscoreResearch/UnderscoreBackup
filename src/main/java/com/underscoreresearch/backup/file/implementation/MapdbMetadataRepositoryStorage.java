@@ -295,23 +295,15 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     @Override
     public List<ExternalBackupFile> file(String path) throws IOException {
-        List<BackupFile> ret = internalFile(path);
-        if (ret != null) {
-            return ret.stream().map(ExternalBackupFile::new).collect(Collectors.toList());
-        }
-        return null;
-    }
-
-    private List<BackupFile> internalFile(String path) throws IOException {
-        Map<Object[], byte[]> query =
+        NavigableMap<Object[], byte[]> query =
                 fileMap.prefixSubMap(new Object[]{path});
-        List<BackupFile> files = null;
+        List<ExternalBackupFile> files = null;
         for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
             if (entry != null) {
                 if (files == null) {
                     files = new ArrayList<>();
                 }
-                files.add(decodeFile(entry));
+                files.add(new ExternalBackupFile(decodeFile(entry)));
             }
         }
         return files;
@@ -528,28 +520,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     @Override
     public BackupFile file(String path, Long timestamp) throws IOException {
-        if (timestamp == null)
-            return lastFileInternal(path);
-
-        List<BackupFile> files = internalFile(path);
-        if (files != null) {
-            for (int i = files.size() - 1; i >= 0; i--) {
-                if (files.get(i).getAdded() <= timestamp)
-                    return files.get(i);
-            }
-        }
-        return null;
-    }
-
-    private BackupFile lastFileInternal(String path) throws IOException {
         NavigableMap<Object[], byte[]> query =
                 fileMap.prefixSubMap(new Object[]{path});
-        if (query.size() > 0) {
-            Map.Entry<Object[], byte[]> entry = query.lastEntry();
+        for (Map.Entry<Object[], byte[]> entry : query.descendingMap().entrySet()) {
             if (entry != null) {
-                return decodeFile(entry);
-            } else {
-                log.warn("Got empty last entry from query for {}", path);
+                if (timestamp == null || ((Long)entry.getKey()[1]) <= timestamp)
+                    return decodeFile(entry);
             }
         }
         return null;
@@ -576,22 +552,6 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         }
     }
 
-    private List<BackupDirectory> directory(String path) throws IOException {
-        Map<Object[], byte[]> query =
-                directoryMap.prefixSubMap(new Object[]{path});
-        List<BackupDirectory> directories = null;
-        for (Map.Entry<Object[], byte[]> entry : query.entrySet()) {
-            if (entry != null) {
-                if (directories == null) {
-                    directories = new ArrayList<>();
-                }
-
-                directories.add(decodeDirectory(entry));
-            }
-        }
-        return directories;
-    }
-
     private BackupDirectory decodeDirectory(Map.Entry<Object[], byte[]> entry) throws IOException {
         try {
             return new BackupDirectory((String) entry.getKey()[0],
@@ -604,36 +564,25 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     @Override
     public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
-        if (timestamp == null && !accumulative) {
-            NavigableMap<Object[], byte[]> query =
-                    directoryMap.prefixSubMap(new Object[]{path});
-            if (query.size() > 0) {
-                Map.Entry<Object[], byte[]> entry = query.lastEntry();
-                if (entry != null) {
-                    return decodeDirectory(entry);
-                } else {
-                    log.warn("Got empty last entry from query for {}", path);
-                }
-            }
-        } else {
-            List<BackupDirectory> dirs = directory(path);
-            BackupDirectory ret = null;
-            if (dirs != null)
-                for (int i = dirs.size() - 1; i >= 0; i--) {
-                    if (timestamp == null || dirs.get(i).getAdded() <= timestamp) {
-                        if (!accumulative) {
-                            return dirs.get(i);
-                        }
-                        if (ret == null) {
-                            ret = dirs.get(i);
-                        } else {
-                            ret.getFiles().addAll(dirs.get(i).getFiles());
-                        }
+        NavigableMap<Object[], byte[]> query =
+                directoryMap.prefixSubMap(new Object[]{path});
+        BackupDirectory ret = null;
+        for (Map.Entry<Object[], byte[]> entry : query.descendingMap().entrySet()) {
+            if (entry != null) {
+                if (timestamp == null || ((Long) entry.getKey()[1]) <= timestamp) {
+                    BackupDirectory cd = decodeDirectory(entry);
+                    if (!accumulative) {
+                        return cd;
+                    }
+                    if (ret == null) {
+                        ret = cd;
+                    } else {
+                        ret.getFiles().addAll(cd.getFiles());
                     }
                 }
-            return ret;
+            }
         }
-        return null;
+        return ret;
     }
 
     @Override
@@ -976,7 +925,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 if (partialFile != null) {
                     lastExisting = partialFile.getFile().getLastChanged();
                 } else {
-                    BackupFile existingFile = lastFileInternal(file.getPath());
+                    BackupFile existingFile = file(file.getPath(), null);
                     if (existingFile != null) {
                         lastExisting = existingFile.getLastChanged();
                     }
@@ -1036,8 +985,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 Object k1 = key1[i];
                 // Its either comparable or a byte array.
 
-                if (k1 instanceof byte[] byteArray1) {
-                    byte[] b1 = byteArray1;
+                if (k1 instanceof byte[] b1) {
                     byte[] b2 = (byte[]) key2[i];
 
                     for (int j = 0; i < Math.min(b1.length, b2.length); i++) {
