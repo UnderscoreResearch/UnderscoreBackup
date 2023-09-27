@@ -3,7 +3,6 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.ENCRYPTED_CONTENT_TYPE;
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.X_KEYEXCHANGE_HEADER;
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.X_PAYLOAD_HASH_HEADER;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.getAuthPath;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
@@ -26,6 +25,7 @@ import org.takes.rs.RsWithStatus;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Hash;
@@ -38,6 +38,10 @@ public class AuthPost extends BaseWrap {
 
     public AuthPost() {
         super(new Implementation());
+    }
+
+    public static String getAuthPath(URI uri) {
+        return uri.getRawPath() + (Strings.isNullOrEmpty(uri.getRawQuery()) ? "" : "?" + uri.getRawQuery());
     }
 
     public static String performAuthenticatedRequest(String configurationUrl, String method, String path, String body) throws IOException {

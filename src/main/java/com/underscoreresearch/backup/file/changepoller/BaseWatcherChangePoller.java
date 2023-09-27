@@ -29,7 +29,7 @@ public abstract class BaseWatcherChangePoller implements FileChangePoller {
     public abstract void registerPaths(List<Path> paths) throws IOException;
 
     @Override
-    public List<Path> fetchPaths() throws OverflowException {
+    public List<String> fetchPaths() throws OverflowException {
         if (overflow.get()) {
             overflow.set(false);
             throw new OverflowException();
@@ -41,16 +41,16 @@ public abstract class BaseWatcherChangePoller implements FileChangePoller {
         } catch (InterruptedException | ClosedWatchServiceException e) {
             return new ArrayList<>();
         }
-        List<Path> paths = new ArrayList<>();
+        List<String> paths = new ArrayList<>();
         if (key != null) {
             Path watchedPath = getEventPath(key.watchable());
             for (WatchEvent<?> event : key.pollEvents()) {
                 if (event.kind().equals(OVERFLOW)) {
                     overflow.set(true);
-                    continue;
+                    break;
                 }
                 Path path = watchedPath.resolve((Path) event.context());
-                paths.add(path);
+                paths.add(path.toAbsolutePath().toString());
             }
             key.reset();
         }

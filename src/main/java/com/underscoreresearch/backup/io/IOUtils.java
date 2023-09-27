@@ -18,10 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.extern.slf4j.Slf4j;
 
-import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.utils.PausedStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
 
 @Slf4j
 public final class IOUtils {
@@ -90,8 +88,7 @@ public final class IOUtils {
             } catch (Exception exc) {
                 if (!IOUtils.hasInternet()) {
                     boolean clearFlag = false;
-                    try (Closeable ignore = UIHandler.registerTask("Waiting for internet to continue")) {
-                        StateLogger.addLogger(PausedStatusLogger.INSTANCE);
+                    try (Closeable ignore = PausedStatusLogger.startPause("Waiting for internet to continue")) {
                         do {
                             if (i == 0) {
                                 clearFlag = true;
@@ -110,7 +107,6 @@ public final class IOUtils {
                             i++;
                         } while (!IOUtils.hasInternet());
                     } finally {
-                        StateLogger.removeLogger(PausedStatusLogger.INSTANCE);
                         if (clearFlag) {
                             synchronized (waitingForInternetMessage) {
                                 if (waitingForInternetMessage.get()) {
@@ -162,6 +158,20 @@ public final class IOUtils {
                         deleteFile(child);
                     }
                 }
+            }
+        }
+    }
+
+    public static void clearTempFiles() {
+        File file = new File(System.getProperty("java.io.tmpdir"));
+        File[] files = file.listFiles(pathname -> pathname.getName().toLowerCase().startsWith("underscorebackup"));
+        if (files != null) {
+            for (File child : files) {
+                log.warn("Deleting stale temp file {}", child);
+                if (child.isDirectory()) {
+                    deleteContents(child);
+                }
+                deleteFile(child);
             }
         }
     }

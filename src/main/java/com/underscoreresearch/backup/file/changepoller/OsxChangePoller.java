@@ -10,20 +10,12 @@ import java.nio.file.Path;
 import java.nio.file.Watchable;
 import java.util.List;
 
-import io.methvin.watcher.hashing.FileHasher;
 import io.methvin.watchservice.MacOSXListeningWatchService;
 import io.methvin.watchservice.WatchablePath;
 
 public class OsxChangePoller extends BaseWatcherChangePoller {
-    private static final MacOSXListeningWatchService.Config WATCH_SERVICE_CONFIG = new MacOSXListeningWatchService.Config() {
-        @Override
-        public FileHasher fileHasher() {
-            return null;
-        }
-    };
-
     public OsxChangePoller() throws IOException {
-        super(new MacOSXListeningWatchService(WATCH_SERVICE_CONFIG));
+        super(new MacOSXListeningWatchService());
     }
 
     @Override

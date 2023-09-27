@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,7 +41,7 @@ public class FsChangePoller implements FileChangePoller {
     }
 
     @Override
-    public List<Path> fetchPaths() throws IOException, OverflowException {
+    public List<String> fetchPaths() throws IOException, OverflowException {
         if (errorOutput != null && errorOutput.ready()) {
             if (!hasError) {
                 hasError = true;
@@ -80,7 +79,7 @@ public class FsChangePoller implements FileChangePoller {
         System.arraycopy(buffer, lastStart, buffer, 0, bufferPos - lastStart);
         bufferPos -= lastStart;
 
-        return paths.stream().map(Path::of).collect(Collectors.toList());
+        return new ArrayList<>(paths);
     }
 
     @Override

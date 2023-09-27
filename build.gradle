@@ -19,7 +19,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.3.0.8'
+version '2.3.0.9'
 def releaseType = ''
 
 def archiveName = 'underscorebackup'
@@ -166,15 +166,15 @@ dependencies {
             'com.google.inject:guice:7.0.0',
             'com.hierynomus:smbj:0.12.2',
             'com.joestelmach:natty:0.13',
-            'io.methvin:directory-watcher:0.18.0',
             'commons-cli:commons-cli:1.5.0',
             'commons-codec:commons-codec:1.16.0',
+            'commons-net:commons-net:3.9.0',
             'de.mkammerer:argon2-jvm:2.11',
             'io.swagger:swagger-annotations:1.6.11',
             'jakarta.annotation:jakarta.annotation-api:2.1.1',
             'javax.xml.bind:jaxb-api:2.3.1',
+            'net.java.dev.jna:jna:5.13.0',
             'org.apache.commons:commons-lang3:3.13.0',
-            'commons-net:commons-net:3.9.0',
             'org.apache.logging.log4j:log4j-api:2.20.0',
             'org.apache.logging.log4j:log4j-core:2.20.0',
             'org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0',

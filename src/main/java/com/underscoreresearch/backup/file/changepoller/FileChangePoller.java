@@ -7,7 +7,7 @@ import java.util.List;
 public interface FileChangePoller {
     void registerPaths(List<Path> paths) throws IOException;
 
-    List<Path> fetchPaths() throws IOException, OverflowException;
+    List<String> fetchPaths() throws IOException, OverflowException;
 
     void close() throws IOException;
 

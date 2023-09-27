@@ -263,10 +263,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         determineUrl();
         
         if let url = url {
-            let task = URLSession.shared.dataTask(with: url.deletingLastPathComponent()) { data, response, error in
+            let task = URLSession.shared.dataTask(with: url) { data, response, error in
                 if error != nil {
                     DispatchQueue.main.async {
-                        NSApp.terminate(self);
+                        self.url = nil;
+                        self.statusItem?.button?.toolTip = "Background service is not running";
                     }
                 }
             }

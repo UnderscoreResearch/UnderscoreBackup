@@ -153,12 +153,12 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
             lock.lock();
             try {
                 while (poller != null) {
-                    List<Path> paths = new ArrayList<>();
+                    List<String> paths;
                     try {
                         FileChangePoller currentPoller = poller;
                         lock.unlock();
                         try {
-                            paths.addAll(currentPoller.fetchPaths());
+                            paths = currentPoller.fetchPaths();
                         } finally {
                             lock.lock();
                         }
@@ -167,6 +167,7 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                             log.warn("Overflow detected, some files may not be backed up");
                             overflowing.set(true);
                         }
+                        continue;
                     } catch (IOException e) {
                         log.warn("Error while watching for file changes", e);
                         return;
@@ -178,6 +179,7 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                             log.warn("Error while waiting for execution queue to free up", e);
                         }
                     }
+
                     executorService.submit(() -> processPaths(paths));
                 }
             } finally {
@@ -194,11 +196,12 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
             }
         }
 
-        private void processPaths(List<Path> paths) {
+        private void processPaths(List<String> paths) {
             boolean anyChanged = false;
-            for (Path path : paths) {
+            for (String pathStr : paths) {
+                Path path = Path.of(pathStr);
                 if (!path.startsWith(manifestDirectory)) {
-                    String filePath = PathNormalizer.normalizePath(path.toString());
+                    String filePath = PathNormalizer.normalizePath(pathStr);
                     for (BackupSet set : sets) {
                         if (set.includeFile(filePath)) {
                             File file = path.toFile();

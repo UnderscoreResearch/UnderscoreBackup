@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
+import static com.underscoreresearch.backup.io.IOUtils.clearTempFiles;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -556,6 +557,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         if (!readOnly) {
             migrateTimestampPaths(fileMap, FILE_STORE);
             migrateTimestampPaths(directoryMap, DIRECTORY_STORE);
+
+            clearTempFiles();
         }
     }
 

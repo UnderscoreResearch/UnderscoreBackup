@@ -1,12 +1,27 @@
 package com.underscoreresearch.backup.utils;
 
+import java.io.Closeable;
 import java.util.List;
 
+import com.underscoreresearch.backup.cli.ui.UIHandler;
+
 public class PausedStatusLogger implements ManualStatusLogger {
-    public static final PausedStatusLogger INSTANCE = new PausedStatusLogger();
-    private static final List<StatusLine> FIXED_LINE = List.of(
-            new StatusLine(PausedStatusLogger.class, "PAUSED", "Paused")
-    );
+    private final List<StatusLine> lines;
+
+    public PausedStatusLogger(String reason) {
+        lines = List.of(new StatusLine(PausedStatusLogger.class, "PAUSED", reason));
+    }
+
+    public static Closeable startPause(String reason) {
+        PausedStatusLogger instance = new PausedStatusLogger(reason);
+        StateLogger.addLogger(instance);
+        Closeable closeable = UIHandler.registerTask(reason);
+
+        return () -> {
+            closeable.close();
+            StateLogger.removeLogger(instance);
+        };
+    }
 
     @Override
     public void resetStatus() {
@@ -15,6 +30,6 @@ public class PausedStatusLogger implements ManualStatusLogger {
 
     @Override
     public List<StatusLine> status() {
-        return FIXED_LINE;
+        return lines;
     }
 }

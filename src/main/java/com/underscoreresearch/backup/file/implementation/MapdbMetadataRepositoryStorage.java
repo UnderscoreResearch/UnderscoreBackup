@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
+import static com.underscoreresearch.backup.io.IOUtils.clearTempFiles;
 import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVE_PATH_WRITER;
@@ -224,6 +225,10 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         pendingSetMap = openHashMap(pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         partialFileMap = openHashMap(partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         updatedFilesMap = openHashMap(updatedFilesDb.hashMap(UPDATED_FILES_STORE, Serializer.STRING, Serializer.LONG));
+
+        if (!readOnly) {
+            clearTempFiles();
+        }
     }
 
     private HTreeMap<String, byte[]> getBlockTmpMap() {
@@ -524,7 +529,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 fileMap.prefixSubMap(new Object[]{path});
         for (Map.Entry<Object[], byte[]> entry : query.descendingMap().entrySet()) {
             if (entry != null) {
-                if (timestamp == null || ((Long)entry.getKey()[1]) <= timestamp)
+                if (timestamp == null || ((Long) entry.getKey()[1]) <= timestamp)
                     return decodeFile(entry);
             }
         }

@@ -43,9 +43,9 @@ class FsChangePollerTest {
 
         TestWatcherChangePoller poller = new TestWatcherChangePoller(inputStream);
         while (!expected.isEmpty()) {
-            List<Path> paths = poller.fetchPaths();
-            for (Path path : paths) {
-                assertTrue(expected.remove(path.toString()));
+            List<String> paths = poller.fetchPaths();
+            for (String path : paths) {
+                assertTrue(expected.remove(path));
             }
         }
     }

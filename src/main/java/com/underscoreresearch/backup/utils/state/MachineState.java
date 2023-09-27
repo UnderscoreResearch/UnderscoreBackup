@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.utils.state;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
@@ -15,7 +16,6 @@ import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
 import com.underscoreresearch.backup.file.changepoller.FsChangePoller;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 import com.underscoreresearch.backup.utils.PausedStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -53,17 +53,19 @@ public class MachineState {
     public void waitForRunCheck() {
         if (pauseOnBattery) {
             if (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > getMaxCpuUsage()) {
+                String reason;
                 synchronized (this) {
+                    if (occasionallyGetOnBattery())
+                        reason = "Pausing until power is restored";
+                    else
+                        reason = "Pausing until CPU usage goes down";
+
                     if (!loggedOnBattery) {
                         loggedOnBattery = true;
-                        if (occasionallyGetOnBattery())
-                            log.info("Pausing until power is restored");
-                        else
-                            log.info("Pausing until CPU usage goes down");
+                        log.info(reason);
                     }
                 }
-                StateLogger.addLogger(PausedStatusLogger.INSTANCE);
-                try {
+                try (Closeable ignored = PausedStatusLogger.startPause(reason)) {
                     do {
                         try {
                             Thread.sleep(MINIMUM_WAIT.toMillis());
@@ -74,8 +76,8 @@ public class MachineState {
                             return;
                         }
                     } while (occasionallyGetOnBattery() || occasionallyGetCpuUsage() > getMaxCpuUsage());
-                } finally {
-                    StateLogger.removeLogger(PausedStatusLogger.INSTANCE);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
 
                 synchronized (this) {

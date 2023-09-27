@@ -5,7 +5,6 @@ import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.util.Iterator;
 import java.util.List;
 
@@ -22,12 +21,12 @@ import org.takes.rq.RqHeaders;
 import org.takes.rq.RqHref;
 import org.takes.rq.RqMethod;
 import org.takes.rq.RqPrint;
+import org.takes.rq.RqRequestLine;
 import org.takes.rs.RsEmpty;
 import org.takes.rs.RsText;
 import org.takes.rs.RsWithHeader;
 import org.takes.rs.RsWithType;
 
-import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 
@@ -37,10 +36,6 @@ public class PsAuthedContent implements Pass {
     public static final String X_PAYLOAD_HASH_HEADER = "x-payload-hash";
 
     public static final String ENCRYPTED_CONTENT_TYPE = "x-application/encrypted-json";
-
-    public static String getAuthPath(URI uri) {
-        return uri.getRawPath() + (Strings.isNullOrEmpty(uri.getRawQuery()) ? "" : "?" + uri.getRawQuery());
-    }
 
     public static Response encryptResponse(Request request, String data) throws Exception {
         ApiAuth.EndpointInfo info = endpointInfoOrUnauthed(request);
@@ -107,8 +102,7 @@ public class PsAuthedContent implements Pass {
         if (endpointInfo != null) {
             if (endpointInfo.validateNonce(nonce)) {
                 String method = new RqMethod.Base(request).method();
-                URI uri = URI.create(new RqHref.Base(request).href().toString());
-                String path = getAuthPath(uri);
+                String path = new RqRequestLine.Base(request).uri();
 
                 if (validateHash(hash, method, path, nonce, endpointInfo.getSharedKey())) {
                     boolean success;
