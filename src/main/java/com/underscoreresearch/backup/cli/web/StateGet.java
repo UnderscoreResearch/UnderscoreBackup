@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.cli.web.PingGet.getSiteUrl;
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
@@ -104,11 +105,29 @@ public class StateGet extends BaseWrap {
         @Override
         public Response actualAct(Request req) throws Exception {
             try {
-                String physicalHome = System.getProperty("user.home");
-                String defaultRestore = Paths.get(
-                        physicalHome,
-                        "Restore").toString();
-                String home = PathNormalizer.normalizePath(physicalHome);
+                String homeRoot;
+                String defaultRestore;
+                if (InstanceFactory.getInstance(SERVICE_MODE, Boolean.class)) {
+                    if (SystemUtils.IS_OS_WINDOWS) {
+                        homeRoot = "C:\\Users";
+                        defaultRestore = "C:\\Restore";
+                    } else if (SystemUtils.IS_OS_MAC_OSX) {
+                        homeRoot = "/Users";
+                        defaultRestore = "/Restore";
+                    } else {
+                        homeRoot = "/home";
+                        String rootHome = System.getProperty("user.home");
+                        defaultRestore = Paths.get(
+                                rootHome,
+                                "Restore").toString();
+                    }
+                } else {
+                    homeRoot = System.getProperty("user.home");
+                    defaultRestore = Paths.get(
+                            homeRoot,
+                            "Restore").toString();
+                }
+                String home = PathNormalizer.normalizePath(homeRoot);
                 if (!home.endsWith(PATH_SEPARATOR)) {
                     home += PATH_SEPARATOR;
                 }
