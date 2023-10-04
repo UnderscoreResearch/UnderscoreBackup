@@ -25,8 +25,6 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.SystemUtils;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -35,6 +33,7 @@ import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -58,6 +57,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public static final int MAPDB_STORAGE = 1;
     public static final int LMDB_STORAGE = 2;
     public static final int LMDB_NON_MAPPING_STORAGE = 3;
+    public static final int MAPDB_STORAGE_VERSIONED = 4;
     private static final ObjectReader REPOSITORY_INFO_READER
             = MAPPER.readerFor(RepositoryInfo.class);
     private static final ObjectWriter REPOSITORY_INFO_WRITER
@@ -92,19 +92,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     public static int getDefaultVersion() {
-        // OSX support on aarch64 is coming soon to lmdb (It is in the dev repository but not yet released
-        // as a stable build) but for now we will have to stay on MapDB for this platform.
-        if (SystemUtils.IS_OS_LINUX) {
-            return LMDB_NON_MAPPING_STORAGE;
-        }
-
-        // On Windows it LMDB doesn't support sparse files so we have to handle the growing of the max map size
-        // ourselves.
-        if (SystemUtils.IS_OS_WINDOWS) {
-            return LMDB_STORAGE;
-        }
-
-        return MAPDB_STORAGE;
+        return MAPDB_STORAGE_VERSIONED;
     }
 
     public static void closeAllRepositories() {
@@ -190,8 +178,8 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     private MetadataRepositoryStorage createStorage(int version, int revision) {
         return switch (version) {
-            case MAPDB_STORAGE ->
-                    new MapdbMetadataRepositoryStorage(dataPath, revision, repositoryInfo.alternateBlockTable);
+            case MAPDB_STORAGE, MAPDB_STORAGE_VERSIONED ->
+                    new MapdbMetadataRepositoryStorage(dataPath, version, revision, repositoryInfo.alternateBlockTable);
             case LMDB_STORAGE ->
                     new LmdbMetadataRepositoryStorage(dataPath, revision, repositoryInfo.alternateBlockTable);
             case LMDB_NON_MAPPING_STORAGE ->
@@ -754,7 +742,7 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     @Override
     public void upgradeStorage() throws IOException {
-        if (repositoryInfo.version != getDefaultVersion() &&
+        if (shouldUpgrade() &&
                 !repositoryInfo.errorsDetected && !repositoryInfo.stopSaving) {
             try (RepositoryLock ignored = new RepositoryLock()) {
                 try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository")) {
@@ -763,18 +751,35 @@ public class LockingMetadataRepository implements MetadataRepository {
                     int version = getDefaultVersion();
                     MetadataRepositoryStorage upgradedStorage = createStorage(version, 0);
 
-                    new RepositoryUpgrader(storage, upgradedStorage).upgrade();
+                    try {
+                        new RepositoryUpgrader(storage, upgradedStorage).upgrade();
 
-                    repositoryInfo.version = version;
-                    repositoryInfo.revision = 0;
+                        repositoryInfo.version = version;
+                        repositoryInfo.revision = 0;
+
+                        storage.close();
+                        storage.clear();
+                        storage = upgradedStorage;
+                    } catch (RepositoryUpgrader.RepositoryErrorException exc) {
+                        log.error("Detected repository errors during upgrade", exc);
+                        repositoryInfo.errorsDetected = true;
+                    }
                     saveRepositoryInfo();
-
-                    storage.close();
-                    storage.clear();
-                    storage = upgradedStorage;
                 }
             }
         }
+    }
+
+    private boolean shouldUpgrade() {
+        if (repositoryInfo.version != getDefaultVersion()) {
+            // Special case where we don't need to force an upgrade because they are the same except
+            // for the location.
+            if (repositoryInfo.version == MAPDB_STORAGE) {
+                return false;
+            }
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -840,6 +845,11 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException {
         return storage.temporaryMap(serializer);
+    }
+
+    @Override
+    public <K, V> CloseableSortedMap<K, V> temporarySortedMap(MapSerializer<K, V> serializer) throws IOException {
+        return storage.temporarySortedMap(serializer);
     }
 
     @Override

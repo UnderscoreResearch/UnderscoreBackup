@@ -338,8 +338,8 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     }
 
     private boolean trimFilesAndDirectories(CloseableMap<String, Boolean> usedBlockMap,
-                                         boolean filesOnly, boolean hasActivePaths,
-                                         Statistics statistics)
+                                            boolean filesOnly, boolean hasActivePaths,
+                                            Statistics statistics)
             throws IOException {
         log.info("Trimming files and directories");
 

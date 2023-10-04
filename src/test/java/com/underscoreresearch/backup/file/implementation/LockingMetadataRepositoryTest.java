@@ -35,6 +35,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -617,6 +618,46 @@ public abstract class LockingMetadataRepositoryTest {
             return;
         }
         try (CloseableMap<String, Long> map = repository.temporaryMap(new MapSerializer<String, Long>() {
+            @Override
+            public byte[] encodeKey(String s) {
+                return s.getBytes(StandardCharsets.UTF_8);
+            }
+
+            @Override
+            public byte[] encodeValue(Long val) {
+                ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+                buffer.putLong(val);
+                return buffer.array();
+            }
+
+            @Override
+            public Long decodeValue(byte[] data) {
+                return ByteBuffer.wrap(data).getLong();
+            }
+
+            @Override
+            public String decodeKey(byte[] data) {
+                return new String(data, StandardCharsets.UTF_8);
+            }
+        })) {
+            map.put("a", 1L);
+            map.put("b", 2L);
+            map.put("c", 3L);
+
+            assertThat(map.get("c"), Is.is(3L));
+            assertTrue(map.containsKey("c"));
+            assertTrue(map.delete("c"));
+            assertFalse(map.delete("c"));
+            assertNull(map.get("c"));
+        }
+    }
+
+    @Test
+    public void testTemporarySortedMap() throws IOException {
+        if (repository == null) {
+            return;
+        }
+        try (CloseableSortedMap<String, Long> map = repository.temporarySortedMap(new MapSerializer<String, Long>() {
             @Override
             public byte[] encodeKey(String s) {
                 return s.getBytes(StandardCharsets.UTF_8);

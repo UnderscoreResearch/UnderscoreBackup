@@ -26,6 +26,7 @@ import com.google.common.base.Stopwatch;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
@@ -50,7 +51,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
     private final MetadataRepository repository;
     private BackupFile lastProcessed;
     private Stopwatch duration;
-    private CloseableMap<ScheduledDownloadKey, ScheduledDownload> fileMap;
+    private CloseableSortedMap<ScheduledDownloadKey, ScheduledDownload> fileMap;
     private String pendingPassword;
 
     public DownloadSchedulerImpl(int maximumConcurrency,
@@ -86,7 +87,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
             try {
                 File file = File.createTempFile("underscorebackup-restore", ".db");
                 IOUtils.deleteFile(file);
-                fileMap = repository.temporaryMap(new MapSerializer<ScheduledDownloadKey, ScheduledDownload>() {
+                fileMap = repository.temporarySortedMap(new MapSerializer<ScheduledDownloadKey, ScheduledDownload>() {
                     @Override
                     public byte[] encodeKey(ScheduledDownloadKey scheduledDownloadKey) {
                         byte[] blockHash = scheduledDownloadKey.getBlockHash().getBytes(StandardCharsets.UTF_8);

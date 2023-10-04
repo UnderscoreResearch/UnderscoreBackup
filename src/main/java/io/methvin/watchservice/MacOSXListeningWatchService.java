@@ -65,6 +65,7 @@ public class MacOSXListeningWatchService extends AbstractWatchService {
         this.latency = config.latency();
         this.queueSize = config.queueSize();
     }
+
     public MacOSXListeningWatchService() {
         this(new Config() {
         });

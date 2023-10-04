@@ -40,9 +40,12 @@ import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
@@ -57,6 +60,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
@@ -95,6 +99,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private static final String UPDATED_PENDING_FILES_STORE = "updatedpendingfiles.db";
     private final String dataPath;
     private final int revision;
+    private final int version;
     private DB blockDb;
     private DB blockTmpDb;
     private DB fileDb;
@@ -121,16 +126,25 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private boolean readOnly;
     private boolean alternateBlockTable;
 
-    public MapdbMetadataRepositoryStorage(String dataPath, int revision, boolean alternateBlockTable) {
-        if (revision == 0) {
+    public MapdbMetadataRepositoryStorage(String dataPath, int version, int revision, boolean alternateBlockTable) {
+        if (nonVersionedPath(version, revision)) {
             this.dataPath = dataPath;
             this.revision = revision;
+            this.version = version;
         } else {
-            this.dataPath = Paths.get(dataPath, String.format("v2-%d", revision)).toString();
+            if (revision > 0) {
+                this.dataPath = Paths.get(dataPath, String.format("v%d-%d", version, revision)).toString();
+            } else {
+                this.dataPath = Paths.get(dataPath, String.format("v%d", version)).toString();
+            }
             this.revision = revision;
-            IOUtils.createDirectory(new File(this.dataPath), true);
+            this.version = version;
         }
         this.alternateBlockTable = alternateBlockTable;
+    }
+
+    private static boolean nonVersionedPath(int version, int revision) {
+        return revision == 0 && version <= 1;
     }
 
     private static TreeOrSink openTreeMap(DB db, DB.TreeMapMaker<Object[], byte[]> maker) {
@@ -139,6 +153,18 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             return new TreeOrSink(maker.createFromSink());
         }
         return new TreeOrSink(maker.createOrOpen());
+    }
+
+    private static DBMaker.Maker createDbMaker(String blockStore) {
+        DBMaker.Maker maker = DBMaker
+                .fileDB(blockStore)
+                .fileMmapPreclearDisable()
+                .transactionEnable();
+        if (SystemUtils.IS_OS_WINDOWS)
+            maker.fileChannelEnable();
+        else
+            maker.fileMmapEnableIfSupported();
+        return maker;
     }
 
     @Override
@@ -167,6 +193,11 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     @Override
     public <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException {
         return new TemporaryMapdbMap<>(serializer);
+    }
+
+    @Override
+    public <K, V> CloseableSortedMap<K, V> temporarySortedMap(MapSerializer<K, V> serializer) throws IOException {
+        return new TemporaryMapdbSortedMap<>(serializer);
     }
 
     @Override
@@ -252,11 +283,10 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     }
 
     private DB createDb(boolean readOnly, String blockStore) {
-        DBMaker.Maker maker = DBMaker
-                .fileDB(getPath(blockStore).toString())
-                .fileMmapEnableIfSupported()
-                .fileMmapPreclearDisable()
-                .transactionEnable();
+        IOUtils.createDirectory(new File(this.dataPath), true);
+
+        DBMaker.Maker maker = createDbMaker(getPath(blockStore).toString());
+
         if (readOnly)
             maker.readOnly();
         return maker.make();
@@ -838,7 +868,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     public void clear() throws IOException {
         File parent = new File(dataPath);
-        if (revision == 0) {
+        if (nonVersionedPath(version, revision)) {
             String[] allFiles = new String[]{
                     FILE_STORE,
                     BLOCK_STORE,
@@ -1121,46 +1151,27 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         }
     }
 
-    private static class TemporaryMapdbMap<K, V> implements CloseableMap<K, V> {
+    private static abstract class TemporaryBaseMap<K, V> implements CloseableMap<K, V> {
+        @Getter(AccessLevel.PROTECTED)
         private final MapSerializer<K, V> serializer;
-        private final File root;
+        @Getter(AccessLevel.PROTECTED)
         private final DB db;
-        private final TreeOrSink map;
         private int writeCount;
 
-        public TemporaryMapdbMap(MapSerializer<K, V> serializer) throws IOException {
+        public TemporaryBaseMap(MapSerializer<K, V> serializer) throws IOException {
             this.serializer = serializer;
 
-            root = File.createTempFile("underscorebackup", ".db");
+            File root = File.createTempFile("underscorebackup", ".db");
             IOUtils.deleteFile(root);
 
-            DBMaker.Maker maker = DBMaker
-                    .fileDB(root)
-                    .fileMmapEnableIfSupported()
-                    .fileMmapPreclearDisable()
-                    .transactionEnable();
+            DBMaker.Maker maker = createDbMaker(root.toString());
+            maker.fileDeleteAfterClose();
             db = maker.make();
-
-            map = openTreeMap(db, db.treeMap("map")
-                    .keySerializer(new SerializerArrayTuple(Serializer.BYTE_ARRAY))
-                    .valueSerializer(Serializer.BYTE_ARRAY));
         }
 
         @Override
         public void close() {
-            map.close();
             db.close();
-
-            IOUtils.deleteFile(root);
-        }
-
-        @Override
-        public synchronized void put(K k, V v) {
-            byte[] kb = serializer.encodeKey(k);
-            byte[] vb = serializer.encodeValue(v);
-
-            increaseWrite();
-            map.put(new Object[]{kb}, vb);
         }
 
         private void increaseWrite() {
@@ -1172,24 +1183,106 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         }
 
         @Override
+        public synchronized void put(K k, V v) {
+            byte[] kb = serializer.encodeKey(k);
+            byte[] vb = serializer.encodeValue(v);
+
+            increaseWrite();
+            internalPut(kb, vb);
+        }
+
+        @Override
         public boolean delete(K k) {
             increaseWrite();
-            return map.remove(new Object[]{serializer.encodeKey(k)}) != null;
+            return internalDelete(serializer.encodeKey(k));
         }
 
         @Override
         public V get(K k) {
-            byte[] ret = map.get(new Object[]{serializer.encodeKey(k)});
+            byte[] ret = internalGet(serializer.encodeKey(k));
             if (ret != null) {
                 return serializer.decodeValue(ret);
             }
             return null;
         }
 
+        protected abstract void internalPut(byte[] kb, byte[] vb);
+
+        protected abstract boolean internalDelete(byte[] bytes);
+
+        protected abstract byte[] internalGet(byte[] bytes);
+    }
+
+    private static class TemporaryMapdbMap<K, V> extends TemporaryBaseMap<K, V> {
+        HTreeMap<byte[], byte[]> map;
+
+        public TemporaryMapdbMap(MapSerializer<K, V> serializer) throws IOException {
+            super(serializer);
+
+            map = getDb().hashMap("map", Serializer.BYTE_ARRAY, Serializer.BYTE_ARRAY)
+                    .layout(16, 64, 4).create();
+        }
+
+        @Override
+        public void close() {
+            map.close();
+
+            super.close();
+        }
+
+        @Override
+        protected void internalPut(byte[] kb, byte[] vb) {
+            map.put(kb, vb);
+        }
+
+        @Override
+        protected boolean internalDelete(byte[] bytes) {
+            return map.remove(bytes) != null;
+        }
+
+        @Override
+        protected byte[] internalGet(byte[] bytes) {
+            return map.get(bytes);
+        }
+    }
+
+    private static class TemporaryMapdbSortedMap<K, V> extends TemporaryBaseMap<K, V> implements CloseableSortedMap<K, V> {
+        private final TreeOrSink map;
+
+        public TemporaryMapdbSortedMap(MapSerializer<K, V> serializer) throws IOException {
+            super(serializer);
+
+            map = openTreeMap(getDb(), getDb().treeMap("map")
+                    .keySerializer(new SerializerArrayTuple(Serializer.BYTE_ARRAY))
+                    .valueSerializer(Serializer.BYTE_ARRAY));
+        }
+
+        @Override
+        public void close() {
+            map.close();
+
+            super.close();
+        }
+
+        @Override
+        protected void internalPut(byte[] kb, byte[] vb) {
+            map.put(new Object[]{kb}, vb);
+        }
+
+        @Override
+        protected boolean internalDelete(byte[] bytes) {
+            return map.remove(new Object[]{bytes}) != null;
+        }
+
+        @Override
+        protected byte[] internalGet(byte[] bytes) {
+            return map.get(new Object[]{bytes});
+        }
+
         @Override
         public Stream<Map.Entry<K, V>> readOnlyEntryStream() {
-            return map.ascendingMap().entrySet().stream().map((entry) -> Map.entry(serializer.decodeKey((byte[]) entry.getKey()[0]),
-                    serializer.decodeValue(entry.getValue())));
+            return map.ascendingMap().entrySet().stream().map((entry) -> Map.entry(getSerializer().decodeKey((byte[]) entry.getKey()[0]),
+                    getSerializer().decodeValue(entry.getValue())));
         }
     }
 }

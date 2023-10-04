@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.file.implementation.performance;
 
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -29,6 +30,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
@@ -51,6 +53,31 @@ public abstract class MetadataRepositoryStoragePerformance {
     public static void deleteDir(File tempDir) {
         IOUtils.deleteContents(tempDir);
         tempDir.delete();
+    }
+
+    public static long calcDirSize(File tempDir) {
+        long total = 0;
+        if (tempDir.isDirectory()) {
+            File[] files = tempDir.listFiles();
+            if (files != null) {
+                for (File child : files) {
+                    if (!child.getName().startsWith(".")) {
+                        if (child.isDirectory()) {
+                            total += calcDirSize(child);
+                        } else {
+                            total += child.length();
+                        }
+                    }
+                }
+            }
+        }
+        total += tempDir.length();
+        return total;
+    }
+
+    public void printDirSize() {
+        System.out.printf("%s: Total size of repository is %s", getClass().getSimpleName(), readableSize(calcDirSize(directory.toFile())));
+        System.out.println();
     }
 
     @BeforeEach
@@ -98,6 +125,7 @@ public abstract class MetadataRepositoryStoragePerformance {
                 System.out.printf("%s: Random read %s%s blocks: %.3f%n",
                         getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
             }
+            printDirSize();
         }
     }
 
@@ -128,6 +156,7 @@ public abstract class MetadataRepositoryStoragePerformance {
                 System.out.printf("%s: Random read %s%s files: %.3f%n",
                         getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
             }
+            printDirSize();
         }
     }
 
@@ -177,6 +206,7 @@ public abstract class MetadataRepositoryStoragePerformance {
                 System.out.printf("%s: Stream read %s%s files: %.3f%n",
                         getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
             }
+            printDirSize();
         }
     }
 
@@ -220,13 +250,58 @@ public abstract class MetadataRepositoryStoragePerformance {
                     }
                     System.out.printf("%s: Random read %s%s temporary map: %.3f%n",
                             getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+                }
+            }
+        }
+    }
+
+    public void temporarySortedTable(boolean large) throws IOException {
+        if (storage != null) {
+            try (CloseableLock ignored = storage.exclusiveLock()) {
+                try (CloseableSortedMap<String, String> map = storage.temporarySortedMap(new MapSerializer<String, String>() {
+                    @Override
+                    public byte[] encodeKey(String s) {
+                        return s.getBytes(StandardCharsets.UTF_8);
+                    }
+
+                    @Override
+                    public byte[] encodeValue(String s) {
+                        return s.getBytes(StandardCharsets.UTF_8);
+                    }
+
+                    @Override
+                    public String decodeValue(byte[] data) {
+                        return new String(data, StandardCharsets.UTF_8);
+                    }
+
+                    @Override
+                    public String decodeKey(byte[] data) {
+                        return new String(data, StandardCharsets.UTF_8);
+                    }
+                })) {
+                    Stopwatch watch = Stopwatch.createStarted();
+                    for (int i = 0; i < SIZE; i++) {
+                        map.put(hash(i), createTempPayload(large, i));
+                    }
+                    storage.commit();
+                    System.out.printf("%s: Created %s%s sorted temporary map: %.3f%n",
+                            getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
+                    Random random = new Random();
+                    watch.reset();
+                    watch.start();
+                    for (int i = 0; i < SIZE; i++) {
+                        int val = Math.abs(random.nextInt()) % SIZE;
+                        assertNotNull(map.get(hash(i)));
+                    }
+                    System.out.printf("%s: Random read %s%s sorted temporary map: %.3f%n",
+                            getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
 
                     watch.reset();
                     watch.start();
 
                     assertThat(map.readOnlyEntryStream().count(), Matchers.equalTo((long) SIZE));
 
-                    System.out.printf("%s: Iterate %s%s temporary map: %.3f%n",
+                    System.out.printf("%s: Iterate %s%s sorted temporary map: %.3f%n",
                             getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);
                 }
             }
@@ -288,6 +363,11 @@ public abstract class MetadataRepositoryStoragePerformance {
     }
 
     @Test
+    public void largeSortedTemporaryTablePerformance() throws IOException {
+        temporarySortedTable(true);
+    }
+
+    @Test
     public void smallBlockPerformance() throws IOException {
         blockPerformance(false);
     }
@@ -305,5 +385,10 @@ public abstract class MetadataRepositoryStoragePerformance {
     @Test
     public void smallTemporaryTablePerformance() throws IOException {
         temporaryTable(false);
+    }
+
+    @Test
+    public void smallSortedTemporaryTablePerformance() throws IOException {
+        temporarySortedTable(false);
     }
 }

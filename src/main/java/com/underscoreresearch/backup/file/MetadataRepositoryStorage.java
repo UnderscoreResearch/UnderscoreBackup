@@ -115,6 +115,8 @@ public interface MetadataRepositoryStorage {
 
     <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException;
 
+    <K, V> CloseableSortedMap<K, V> temporarySortedMap(MapSerializer<K, V> serializer) throws IOException;
+
     boolean needExclusiveCommitLock();
 
     CloseableLock exclusiveLock() throws IOException;

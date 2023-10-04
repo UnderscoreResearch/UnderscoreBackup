@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
@@ -43,11 +42,9 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         this.updatedStorage = upgradedStorage;
     }
 
-    public boolean upgrade() throws IOException {
+    public void upgrade() throws IOException, RepositoryErrorException {
         updatedStorage.clear();
         updatedStorage.open(false);
-
-        AtomicBoolean additionalBlocksValid = new AtomicBoolean(true);
 
         try (CloseableLock ignored = storage.exclusiveLock()) {
             try (CloseableLock ignored2 = updatedStorage.exclusiveLock()) {
@@ -75,7 +72,11 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 }
 
                 try (CloseableStream<BackupBlock> blocks = storage.allBlocks()) {
+                    blocks.setReportErrorsAsNull(true);
                     blocks.stream().forEach(block -> {
+                        if (block == null) {
+                            throw new RuntimeRepositoryErrorException("Invalid block");
+                        }
                         try {
                             currentStep.incrementAndGet();
                             updatedStorage.addBlock(block);
@@ -89,22 +90,25 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 try (CloseableStream<BackupBlockAdditional> blocks = storage.allAdditionalBlocks()) {
                     blocks.setReportErrorsAsNull(true);
                     blocks.stream().forEach(block -> {
-                        if (block != null) {
-                            try {
-                                currentStep.incrementAndGet();
-                                updatedStorage.addAdditionalBlock(block);
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        } else {
-                            additionalBlocksValid.set(false);
+                        if (block == null) {
+                            throw new RuntimeRepositoryErrorException("Invalid additional block");
+                        }
+                        try {
+                            currentStep.incrementAndGet();
+                            updatedStorage.addAdditionalBlock(block);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
                         }
                     });
                     log.info("Upgraded {} additional blocks", readableNumber(updatedStorage.getAdditionalBlockCount()));
                 }
 
                 try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
+                    files.setReportErrorsAsNull(true);
                     files.stream().forEach(file -> {
+                        if (file == null) {
+                            throw new RuntimeRepositoryErrorException("Invalid file");
+                        }
                         try {
                             currentStep.incrementAndGet();
                             updatedStorage.addFile(file);
@@ -116,7 +120,11 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 }
 
                 try (CloseableStream<BackupFilePart> parts = storage.allFileParts()) {
+                    parts.setReportErrorsAsNull(true);
                     parts.stream().forEach(part -> {
+                        if (part == null) {
+                            throw new RuntimeRepositoryErrorException("Invalid file part");
+                        }
                         try {
                             currentStep.incrementAndGet();
                             updatedStorage.addFilePart(part);
@@ -128,7 +136,11 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 }
 
                 try (CloseableStream<BackupDirectory> dirs = storage.allDirectories(true)) {
+                    dirs.setReportErrorsAsNull(true);
                     dirs.stream().forEach(dir -> {
+                        if (dir == null) {
+                            throw new RuntimeRepositoryErrorException("Invalid directory");
+                        }
                         try {
                             currentStep.incrementAndGet();
                             updatedStorage.addDirectory(dir);
@@ -141,7 +153,11 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 }
 
                 try (CloseableStream<BackupUpdatedFile> files = storage.getUpdatedFiles()) {
+                    files.setReportErrorsAsNull(true);
                     files.stream().forEach(file -> {
+                        if (file == null) {
+                            throw new RuntimeRepositoryErrorException("Invalid updated file");
+                        }
                         try {
                             currentStep.incrementAndGet();
                             updatedStorage.addUpdatedFile(file, -1);
@@ -152,6 +168,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                     log.info("Upgraded {} updated files", readableNumber(updatedStorage.getUpdatedFileCount()));
                 }
             }
+        } catch (RuntimeRepositoryErrorException e) {
+            throw new RepositoryErrorException(e.getMessage());
         } catch (RuntimeException e) {
             throw new IOException(String.format("Failed to upgrade after %s/%s steps",
                     readableNumber(currentStep.get()), readableNumber(totalSteps.get())), e);
@@ -162,7 +180,6 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         }
 
         log.info("Successfully completed metadata upgrade");
-        return additionalBlocksValid.get();
     }
 
     @Override
@@ -188,5 +205,17 @@ public class RepositoryUpgrader implements ManualStatusLogger {
             );
         }
         return new ArrayList<>();
+    }
+
+    private static class RuntimeRepositoryErrorException extends RuntimeException {
+        public RuntimeRepositoryErrorException(String message) {
+            super(message);
+        }
+    }
+
+    public static class RepositoryErrorException extends Exception {
+        public RepositoryErrorException(String message) {
+            super(message);
+        }
     }
 }

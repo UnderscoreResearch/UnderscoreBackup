@@ -86,6 +86,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
@@ -1527,6 +1528,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
+    public <K, V> CloseableSortedMap<K, V> temporarySortedMap(MapSerializer<K, V> serializer) throws IOException {
+        return new TemporaryLmdbMap<>(this, serializer);
+    }
+
+    @Override
     public boolean needExclusiveCommitLock() {
         return true;
     }
@@ -1559,7 +1565,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         private Long timestamp;
     }
 
-    private static class TemporaryLmdbMap<K, V> implements CloseableMap<K, V> {
+    private static class TemporaryLmdbMap<K, V> implements CloseableSortedMap<K, V> {
         private final MapSerializer<K, V> serializer;
         private final Env<ByteBuffer> db;
         private final File root;

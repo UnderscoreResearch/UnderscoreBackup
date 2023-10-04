@@ -232,8 +232,10 @@ public class LogWriter extends AbstractAppender {
                 thread.start();
             }
         } else {
-            unPostedLogs.clear();
-            System.err.println("Failed to initialize log file");
+            if (!unPostedLogs.isEmpty()) {
+                unPostedLogs.clear();
+                System.err.println("Failed to initialize log file");
+            }
         }
     }
 }
