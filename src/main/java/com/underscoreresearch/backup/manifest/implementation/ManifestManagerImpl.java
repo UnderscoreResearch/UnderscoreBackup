@@ -53,12 +53,6 @@ public class ManifestManagerImpl extends OptimizingManifestManager implements St
         if (!Strings.isNullOrEmpty(getSource())) {
             ret.add(new StatusLine(getClass(), "SOURCE", "Browsing source", null, InstanceFactory.getAdditionalSourceName()));
         }
-        if (getLogConsumer() instanceof MetadataRepository repository) {
-            if (repository.isErrorsDetected()) {
-                ret.add(new StatusLine(getClass(), "REPOSITORY_ERROR_DETECTED", "Detected corruption in local metadata repository",
-                        null, InstanceFactory.getAdditionalSourceName()));
-            }
-        }
         synchronized (getOperationLock()) {
             if (getOperation() != null) {
                 String code = getOperation().toUpperCase().replace(" ", "_");

@@ -817,6 +817,13 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     @Override
     public boolean isErrorsDetected() {
+        if (repositoryInfo == null) {
+            try {
+                readRepositoryInfo(true);
+            } catch (IOException e) {
+                return false;
+            }
+        }
         return repositoryInfo != null && repositoryInfo.isErrorsDetected();
     }
 

@@ -123,7 +123,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                     if (!recoveryMode) {
                         String lastFile = MAPPER.readValue(json, String.class);
                         if (!lastFile.equals(repository.lastSyncedLogFile(null))) {
-                            log.error("Expected previous log file to be {} but got {}, could mean either missing data or backup tampering", lastFile,
+                            log.warn("Expected previous log file to be {} but got {}, could mean either missing data or backup tampering", lastFile,
                                     repository.lastSyncedLogFile(null));
                         } else {
                             debug(() -> log.debug("Validated previous log file {}", lastFile));

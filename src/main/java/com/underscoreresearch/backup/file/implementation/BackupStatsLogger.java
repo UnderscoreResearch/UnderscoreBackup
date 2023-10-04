@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
@@ -102,11 +103,18 @@ public class BackupStatsLogger implements StatusLogger {
 
     @Override
     public List<StatusLine> status() {
+        List<StatusLine> ret = new ArrayList<>();
+
+        if (InstanceFactory.getInstance(MetadataRepository.class).isErrorsDetected()) {
+            ret.add(new StatusLine(getClass(), "REPOSITORY_ERROR_DETECTED", "Detected corruption in local metadata repository",
+                    null, InstanceFactory.getAdditionalSourceName()));
+        }
+
         if (downloadRunning || uploadRunning || !Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource())) {
-            return new ArrayList<>();
+            return ret;
         }
         synchronized (scheduledTimes) {
-            List<StatusLine> ret = scheduledTimes
+            ret.addAll(scheduledTimes
                     .entrySet()
                     .stream()
                     .map(item ->
@@ -115,7 +123,7 @@ public class BackupStatsLogger implements StatusLogger {
                                             indexOfSet(item.getKey()), item.getKey()),
                                     item.getValue().getTime(),
                                     formatTimestamp(item.getValue().getTime())))
-                    .collect(Collectors.toList());
+                    .toList());
 
             if (statistics != null) {
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILES",

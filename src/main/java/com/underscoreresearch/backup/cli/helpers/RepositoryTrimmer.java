@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -202,6 +203,10 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
                 boolean hasActivePaths = trimActivePaths();
                 filesOnly |= hasActivePaths;
+                if (!filesOnly && metadataRepository.isErrorsDetected()) {
+                    log.warn("Repository contains errors, will only trim files");
+                    filesOnly = true;
+                }
 
                 try (CloseableLock ignored = metadataRepository.acquireLock()) {
                     if (filesOnly) {
@@ -214,7 +219,11 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     stopwatch.start();
                     lastHeartbeat = Duration.ZERO;
 
-                    trimFilesAndDirectories(usedBlockMap, filesOnly, hasActivePaths, statistics);
+                    if (!trimFilesAndDirectories(usedBlockMap, filesOnly, hasActivePaths, statistics)) {
+                        log.warn("Found error in repository, will only trim files");
+                        metadataRepository.setErrorsDetected(true);
+                        filesOnly = true;
+                    }
                     trimBlocks(usedBlockMap, filesOnly, statistics);
 
                     if (!filesOnly)
@@ -328,7 +337,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         }
     }
 
-    private void trimFilesAndDirectories(CloseableMap<String, Boolean> usedBlockMap,
+    private boolean trimFilesAndDirectories(CloseableMap<String, Boolean> usedBlockMap,
                                          boolean filesOnly, boolean hasActivePaths,
                                          Statistics statistics)
             throws IOException {
@@ -338,9 +347,15 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         NavigableSet<String> deletedPaths = hasActivePaths ? null : new TreeSet<>();
 
         AtomicReference<String> lastParent = new AtomicReference<>(null);
+        AtomicBoolean foundError = new AtomicBoolean(false);
 
         try (CloseableStream<BackupFile> files = metadataRepository.allFiles(false)) {
+            files.setReportErrorsAsNull(true);
             files.stream().forEachOrdered((file) -> {
+                if (file == null) {
+                    foundError.set(true);
+                    return;
+                }
                 if (InstanceFactory.isShutdown())
                     throw new InterruptedException();
 
@@ -376,7 +391,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             processFiles(fileVersions, usedBlockMap, deletedPaths, filesOnly, statistics);
         }
 
-        if (deletedPaths != null) {
+        if (deletedPaths != null && !foundError.get()) {
             processDeletedPaths(deletedPaths, null, statistics);
         }
 
@@ -386,6 +401,8 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         log.info("Removed {} directory versions and {} entire directories from repository",
                 readableNumber(statistics.getDeletedDirectoryVersions()),
                 readableNumber(statistics.getDeletedDirectories()));
+
+        return !foundError.get();
     }
 
     private void processDeletedPaths(final NavigableSet<String> deletedPaths, final String parent,
