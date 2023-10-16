@@ -1,8 +1,11 @@
 package com.underscoreresearch.backup.utils.state;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -15,6 +18,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
 import com.underscoreresearch.backup.file.changepoller.FsChangePoller;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.PausedStatusLogger;
 
 @Slf4j
@@ -119,9 +123,41 @@ public class MachineState {
         return lastValue;
     }
 
+    public boolean supportsAutomaticUpgrade() {
+        return false;
+    }
+
+    public void upgrade(ReleaseResponse response) throws IOException {
+        throw new UnsupportedOperationException("Automatic upgrade not supported on this platform");
+    }
+
     public FileChangePoller createPoller() throws IOException {
         if (FsChangePoller.isSupported())
             return new FsChangePoller();
         throw new UnsupportedOperationException("Not supported on this platform");
+    }
+
+    protected void executeUpdateProcess(String[] cmd) throws IOException {
+        log.info("Upgrading with command: {}", String.join(" ", cmd));
+        Process process = Runtime.getRuntime().exec(cmd);
+        new Thread(() -> {
+            try {
+                log.info("Update process exited with exit code {}", process.waitFor());
+            } catch (InterruptedException ignored) {
+            }
+        }, "UpgradeExit").start();
+        new Thread(() -> printOutput("error output", process.getErrorStream()), "UpdateError").start();
+        new Thread(() -> printOutput("output", process.getInputStream()), "UpdateOutput").start();
+    }
+
+    private void printOutput(String name, InputStream errorStream) {
+        ByteArrayOutputStream data = new ByteArrayOutputStream();
+        try {
+            errorStream.transferTo(data);
+        } catch (IOException ignored) {
+        }
+        String output = data.toString(StandardCharsets.UTF_8);
+        if (!output.isBlank())
+            log.warn("Update process {}:\n{}", name, output);
     }
 }

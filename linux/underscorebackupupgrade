@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -f /var/cache/underscorebackup/upgradedversion.deb ]
+then
+  dpkg -i /var/cache/underscorebackup/upgradedversion.deb
+  rm /var/cache/underscorebackup/upgradedversion.deb
+elif [  -f /var/cache/underscorebackup/upgradedversion.rpm ]
+then
+  rpm -U /var/cache/underscorebackup/upgradedversion.rpm
+  rm /var/cache/underscorebackup/upgradedversion.rpm
+fi

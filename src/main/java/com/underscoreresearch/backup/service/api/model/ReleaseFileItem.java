@@ -35,7 +35,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
   ReleaseFileItem.JSON_PROPERTY_NAME,
   ReleaseFileItem.JSON_PROPERTY_SIZE,
-  ReleaseFileItem.JSON_PROPERTY_URL
+  ReleaseFileItem.JSON_PROPERTY_URL,
+  ReleaseFileItem.JSON_PROPERTY_SECURE_URL
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ReleaseFileItem {
@@ -47,6 +48,9 @@ public class ReleaseFileItem {
 
   public static final String JSON_PROPERTY_URL = "url";
   private String url;
+
+  public static final String JSON_PROPERTY_SECURE_URL = "secureUrl";
+  private String secureUrl;
 
   public ReleaseFileItem() { 
   }
@@ -126,6 +130,31 @@ public class ReleaseFileItem {
   }
 
 
+  public ReleaseFileItem secureUrl(String secureUrl) {
+    this.secureUrl = secureUrl;
+    return this;
+  }
+
+   /**
+   * Non-public URL to download release using token if needed.
+   * @return secureUrl
+  **/
+  @jakarta.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_SECURE_URL)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getSecureUrl() {
+    return secureUrl;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_SECURE_URL)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setSecureUrl(String secureUrl) {
+    this.secureUrl = secureUrl;
+  }
+
+
   /**
    * Return true if this ReleaseFileItem object is equal to o.
    */
@@ -140,12 +169,13 @@ public class ReleaseFileItem {
     ReleaseFileItem releaseFileItem = (ReleaseFileItem) o;
     return Objects.equals(this.name, releaseFileItem.name) &&
         Objects.equals(this.size, releaseFileItem.size) &&
-        Objects.equals(this.url, releaseFileItem.url);
+        Objects.equals(this.url, releaseFileItem.url) &&
+        Objects.equals(this.secureUrl, releaseFileItem.secureUrl);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, size, url);
+    return Objects.hash(name, size, url, secureUrl);
   }
 
   @Override
@@ -155,6 +185,7 @@ public class ReleaseFileItem {
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    size: ").append(toIndentedString(size)).append("\n");
     sb.append("    url: ").append(toIndentedString(url)).append("\n");
+    sb.append("    secureUrl: ").append(toIndentedString(secureUrl)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -215,6 +246,11 @@ public class ReleaseFileItem {
     // add `url` to the URL query string
     if (getUrl() != null) {
       joiner.add(String.format("%surl%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getUrl()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `secureUrl` to the URL query string
+    if (getSecureUrl() != null) {
+      joiner.add(String.format("%ssecureUrl%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSecureUrl()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
     return joiner.toString();

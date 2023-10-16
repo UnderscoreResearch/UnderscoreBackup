@@ -28,7 +28,7 @@ public class ShutdownCommand extends SimpleCommand {
                     log.error("Interrupted while waiting for shutdown", exc);
                 }
                 try {
-                    getConfigurationUrl();
+                    ConfigureCommand.validateConfigurationUrl(configurationUrl);
                 } catch (ConfigureCommand.ConfigurationUrlException exc) {
                     // When the config file disappears the shutdown should be done.
                     System.exit(0);

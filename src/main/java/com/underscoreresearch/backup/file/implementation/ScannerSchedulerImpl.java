@@ -50,6 +50,7 @@ import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class ScannerSchedulerImpl implements ScannerScheduler {
@@ -323,6 +324,17 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 if (version != null) {
                     UIHandler.displayInfoMessage(String.format("New version %s available:\n\n%s",
                             version.getVersion(), version.getName()));
+                    if (configuration.getManifest().getAutomaticUpgrade() == null || configuration.getManifest().getAutomaticUpgrade()) {
+                        MachineState state = InstanceFactory.getInstance(MachineState.class);
+                        if (state.supportsAutomaticUpgrade()) {
+                            try {
+                                log.info("Upgrading to version {}", version.getVersion());
+                                state.upgrade(version);
+                            } catch (IOException e) {
+                                log.warn("Failed to upgrade to version {}", version.getVersion(), e);
+                            }
+                        }
+                    }
                 }
             }
         }

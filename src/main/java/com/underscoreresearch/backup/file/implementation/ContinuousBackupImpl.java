@@ -8,6 +8,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
@@ -155,7 +156,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         } else if (file.isFile()) {
             BackupFile existingFile = repository.file(file.getPath(), null);
             if (existingFile == null
-                    || (existingFile.getLastChanged() != file.lastModified() || existingFile.getLength() != file.length())) {
+                    || (existingFile.getLastChanged() != Files.getLastModifiedTime(file.toPath()).toMillis() || existingFile.getLength() != file.length())) {
                 log.info("Backing up {}", PathNormalizer.physicalPath(updatedFile.getPath()));
                 uploadFile(set, file, updatedFile);
             }
@@ -185,7 +186,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                 .path(updatedFile.getPath())
                 .length(file.length())
                 .added(System.currentTimeMillis())
-                .lastChanged(file.lastModified())
+                .lastChanged(Files.getLastModifiedTime(file.toPath()).toMillis())
                 .build();
         BackupPartialFile partialFile = new BackupPartialFile(backupFile);
         repository.savePartialFile(partialFile);

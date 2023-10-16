@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web.service;
 
 import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.validateConfigurationUrl;
 import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
@@ -158,6 +159,7 @@ public class SourcesPut extends BaseWrap {
         String configurationUrl;
         try {
             configurationUrl = getConfigurationUrl();
+            validateConfigurationUrl(configurationUrl);
         } catch (IOException exc) {
             configurationUrl = null;
         }

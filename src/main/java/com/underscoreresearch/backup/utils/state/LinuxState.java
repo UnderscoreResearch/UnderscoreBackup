@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.utils.state;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -9,7 +11,10 @@ import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 
 @Slf4j
 public class LinuxState extends MachineState {
@@ -40,6 +45,36 @@ public class LinuxState extends MachineState {
         else
             ret = files.stream().filter(file -> file.getName().endsWith(".rpm")).findAny();
         return ret.orElse(null);
+    }
+
+    @Override
+    public boolean supportsAutomaticUpgrade() {
+        return InstanceFactory.getInstance(SERVICE_MODE, Boolean.class);
+    }
+
+    @Override
+    public void upgrade(ReleaseResponse response) throws IOException {
+        ReleaseFileItem download = getDistribution(response.getFiles());
+
+        if (download != null) {
+
+            File tempFile;
+            if (download.getName().endsWith(".deb")) {
+                tempFile = File.createTempFile("underscorebackup", ".deb");
+
+                ServiceManagerImpl.downloadRelease(response, download, tempFile);
+
+                executeUpdateProcess(new String[]{"mv", tempFile.toString(), "/var/cache/underscorebackup/upgradedversion.deb"});
+            } else {
+                tempFile = File.createTempFile("underscorebackup", ".rpm");
+
+                ServiceManagerImpl.downloadRelease(response, download, tempFile);
+
+                executeUpdateProcess(new String[]{"mv", tempFile.toString(), "/var/cache/underscorebackup/upgradedversion.rpm"});
+            }
+
+            log.info("Upgrade staged from cron job update");
+        }
     }
 
     @Override

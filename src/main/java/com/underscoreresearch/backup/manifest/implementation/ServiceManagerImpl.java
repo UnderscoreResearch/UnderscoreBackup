@@ -5,12 +5,18 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.MANI
 import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -40,6 +46,7 @@ import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.service.api.BackupApi;
@@ -50,6 +57,7 @@ import com.underscoreresearch.backup.service.api.model.GenerateTokenRequest;
 import com.underscoreresearch.backup.service.api.model.GetSubscriptionResponse;
 import com.underscoreresearch.backup.service.api.model.ListSharingKeysRequest;
 import com.underscoreresearch.backup.service.api.model.ListSharingKeysResponse;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.service.api.model.ScopedTokenResponse;
 import com.underscoreresearch.backup.service.api.model.SharePrivateKeys;
@@ -133,6 +141,30 @@ public class ServiceManagerImpl implements ServiceManager {
             }
         }
         return null;
+    }
+
+    public static void downloadRelease(ReleaseResponse release, ReleaseFileItem item, File destination)
+            throws IOException {
+        HttpURLConnection connection;
+        log.info("Downloading {} to {} ({})", item.getName(), destination, readableSize(item.getSize().longValue()));
+        if (item.getSecureUrl() != null && release.getToken() != null) {
+            URL url = new URL(item.getSecureUrl());
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestProperty("Accept", "application/octet-stream");
+            connection.setRequestProperty("Authorization", "Bearer " + release.getToken());
+        } else {
+            URL url = new URL(item.getUrl());
+            connection = (HttpURLConnection) url.openConnection();
+        }
+        connection.setConnectTimeout(10000);
+        connection.setInstanceFollowRedirects(true);
+        connection.setDoOutput(true);
+
+        try (OutputStream outputStream = new FileOutputStream(destination)) {
+            try (InputStream stream = connection.getInputStream()) {
+                IOUtils.copyStream(stream, outputStream);
+            }
+        }
     }
 
     public <T> T call(String region, ApiFunction<T> callable) throws IOException {
@@ -238,7 +270,7 @@ public class ServiceManagerImpl implements ServiceManager {
             if (!release.getVersion().equals(lastVersion)) {
                 data.setLastRelease(release);
                 saveFile();
-                if (!newerVersion(VersionCommand.getVersion(), release.getVersion())) {
+                if (newerVersion(VersionCommand.getVersion(), release.getVersion())) {
                     return release;
                 }
             }
@@ -476,5 +508,4 @@ public class ServiceManagerImpl implements ServiceManager {
         private String sourceId;
         private String sourceName;
     }
-
 }

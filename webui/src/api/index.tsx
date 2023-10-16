@@ -73,6 +73,7 @@ export interface BackupManifest {
     trimSchedule?: string,
     scheduleRandomize?: BackupTimespan,
     versionCheck?: boolean,
+    automaticUpgrade?: boolean,
     authenticationRequired?: boolean,
     interactiveBackup?: boolean,
     initialSetup?: boolean,

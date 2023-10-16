@@ -18,7 +18,7 @@ import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupFile;
 
 class FileSystemAccessImplTest {
-    private FileSystemAccessImpl access = new FileSystemAccessImpl();
+    private final FileSystemAccessImpl access = new FileSystemAccessImpl();
     private File tempDir;
     private byte[] data;
 
@@ -56,7 +56,7 @@ class FileSystemAccessImplTest {
 
         access.completeFile(new BackupFile(), normalizedRoot + "f1", data.length / 2);
         BackupFile expectedFile = BackupFile.builder().path(normalizedRoot + "f1")
-                .lastChanged(new File(tempDir, "f1").lastModified()).length((long) data.length / 2).build();
+                .lastChanged(Files.getLastModifiedTime(new File(tempDir, "f1").toPath()).toMillis()).length((long) data.length / 2).build();
         assertThat(expectedFile.isDirectory(), Is.is(false));
 
         access.completeFile(new BackupFile(), normalizedRoot + "f1", data.length / 2);

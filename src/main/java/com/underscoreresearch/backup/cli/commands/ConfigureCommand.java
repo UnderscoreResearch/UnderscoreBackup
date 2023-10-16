@@ -1,19 +1,22 @@
 package com.underscoreresearch.backup.cli.commands;
 
+import static com.underscoreresearch.backup.cli.commands.InteractiveCommand.suppressedOpen;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.URL_LOCATION;
 
-import java.awt.*;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.SocketException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.SystemUtils;
-
 import com.underscoreresearch.backup.cli.CommandPlugin;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.cli.web.AuthPost;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 
@@ -36,6 +39,23 @@ public class ConfigureCommand extends SimpleCommand {
         }
     }
 
+    public static void validateConfigurationUrl(String configurationUrl) throws ConfigurationUrlException {
+        try {
+            URL url = new URL(configurationUrl + "api/ping");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(3000);
+            if (connection.getResponseCode() != 200) {
+                throw new IOException("Got response code " + connection.getResponseCode());
+            }
+        } catch (SocketException exc) {
+            log.info("Failed pinging daemon");
+            throw new ConfigurationUrlException("Daemon does not appear to be running");
+        } catch (Exception exc) {
+            log.info("Failed pinging daemon", exc);
+            throw new ConfigurationUrlException("Failed to ping daemon");
+        }
+    }
+
     public static void reloadIfRunning() throws IOException {
         try {
             String configurationUrl = getConfigurationUrl();
@@ -55,22 +75,24 @@ public class ConfigureCommand extends SimpleCommand {
         try {
             String url = getConfigurationUrl();
 
+            validateConfigurationUrl(url);
+
             System.err.println("Configuration URL is available at:");
             System.err.println();
             System.out.println(url);
 
-            try {
-                if (SystemUtils.IS_OS_MAC_OSX) {
-                    Runtime.getRuntime().exec(new String[]{"open", url.trim()});
-                } else {
-                    Desktop.getDesktop().browse(new URI(url.trim()));
+            if (!suppressedOpen()) {
+                try {
+                    UIHandler.setup();
+                    ;
+                    UIHandler.openUri(new URI(url.trim()));
+                } catch (URISyntaxException ignored) {
                 }
-            } catch (IOException | UnsupportedOperationException ignored) {
             }
         } catch (ConfigurationUrlException exc) {
             log.error(exc.getMessage());
             System.exit(1);
-        } catch (Exception exc) {
+        } catch (UnsupportedOperationException exc) {
             log.error("Encountered issue reading configuration URL", exc);
             System.exit(1);
         }

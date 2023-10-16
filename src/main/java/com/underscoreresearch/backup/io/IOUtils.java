@@ -9,8 +9,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.Callable;
@@ -27,6 +29,7 @@ public final class IOUtils {
     private static final Duration INTERNET_SUCCESS_CACHE = Duration.ofSeconds(2);
     private static final int DEFAULT_BUFFER_SIZE = 8192;
     private static final AtomicBoolean waitingForInternetMessage = new AtomicBoolean();
+    private static final long HOUR_IN_MILLIS = Duration.ofHours(1).toMillis();
     private static Instant internetSuccessfulUntil = null;
 
     public static byte[] readAllBytes(InputStream stream) throws IOException {
@@ -59,8 +62,10 @@ public final class IOUtils {
 
             for (int i = 0; true; i++) {
                 try {
-                    URL url = new URL("https://www.example.com");
-                    URLConnection connection = url.openConnection();
+                    URL url = new URL("http://www.example.com");
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("HEAD");
+                    connection.setConnectTimeout(10000);
                     connection.connect();
                     break;
                 } catch (Exception exc) {
@@ -167,12 +172,44 @@ public final class IOUtils {
         File[] files = file.listFiles(pathname -> pathname.getName().toLowerCase().startsWith("underscorebackup"));
         if (files != null) {
             for (File child : files) {
-                log.warn("Deleting stale temp file {}", child);
-                if (child.isDirectory()) {
-                    deleteContents(child);
-                }
-                deleteFile(child);
+                clearTempFiles(child);
             }
+        }
+    }
+
+    private static boolean clearTempFiles(File parent) {
+        if (parent.isDirectory()) {
+            boolean allChildren = true;
+            File[] files = parent.listFiles();
+            if (files != null) {
+                for (File child : files) {
+                    if (!child.getName().startsWith(".")) {
+                        allChildren &= clearTempFiles(child);
+                    }
+                }
+            }
+            if (allChildren) {
+                log.info("Deleting stale temp file {}", parent);
+                deleteFile(parent);
+            }
+            return allChildren;
+        } else {
+            try {
+                BasicFileAttributes attr = Files.readAttributes(parent.toPath(), BasicFileAttributes.class);
+                // On Windows modified time is not necessarily updated until the file is closed so at least go with
+                // creation time.
+                long modifiedTime = Math.max(attr.creationTime().toMillis(), attr.lastModifiedTime().toMillis());
+
+                if (modifiedTime < System.currentTimeMillis() - HOUR_IN_MILLIS) {
+                    log.info("Deleting stale temp file {}", parent);
+                    deleteFile(parent);
+                    return true;
+                }
+            } catch (IOException exc) {
+                log.warn("Failed to get last modified time for {}", parent, exc);
+            }
+            debug(() -> log.debug("Skipping temp file {}", parent));
+            return false;
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.ui;
 
 import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.validateConfigurationUrl;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.NOTIFICATION_LOCATION;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -16,6 +17,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URI;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
@@ -76,42 +78,48 @@ public class AwtFileUIManager extends AwtUIManager {
     }
 
     private synchronized void processFile(File file) {
-        if (file.exists() && System.currentTimeMillis() - file.lastModified() < MAXIMUM_AGE_MS) {
-            try {
-                String message;
-                try (FileReader reader = new FileReader(file)) {
-                    StringWriter writer = new StringWriter();
-                    reader.transferTo(writer);
-                    message = writer.toString();
-                }
-                deleteFile(file);
-
-                switch (file.getName()) {
-                    case "error" -> displayErrorMessage(message);
-                    case "info" -> displayInfoMessage(message);
-                    case "open" -> {
-                        if (message.contains("://")) {
-                            openUri(URI.create(message));
-                        } else {
-                            openFolder(new File(message));
-                        }
+        try {
+            if (file.exists() && System.currentTimeMillis() - Files.getLastModifiedTime(file.toPath()).toMillis() < MAXIMUM_AGE_MS) {
+                try {
+                    String message;
+                    try (FileReader reader = new FileReader(file)) {
+                        StringWriter writer = new StringWriter();
+                        reader.transferTo(writer);
+                        message = writer.toString();
                     }
-                    case "tooltip" -> setTooltip(message);
-                    default -> log.warn("Unknown notification file: {}", file);
-                }
+                    deleteFile(file);
 
-            } catch (FileNotFoundException e) {
-                debug(() -> log.debug("Notification file {} disappeared before read", file));
-            } catch (IOException e) {
-                log.warn("Failed to read notification file {}", file, e);
+                    switch (file.getName()) {
+                        case "error" -> displayErrorMessage(message);
+                        case "info" -> displayInfoMessage(message);
+                        case "open" -> {
+                            if (message.contains("://")) {
+                                openUri(URI.create(message));
+                            } else {
+                                openFolder(new File(message));
+                            }
+                        }
+                        case "tooltip" -> setTooltip(message);
+                        default -> log.warn("Unknown notification file: {}", file);
+                    }
+
+                } catch (FileNotFoundException e) {
+                    debug(() -> log.debug("Notification file {} disappeared before read", file));
+                } catch (IOException e) {
+                    log.warn("Failed to read notification file {}", file, e);
+                }
             }
+        } catch (IOException e) {
+            log.warn("Failed to get last modified time for {}", file.getAbsolutePath(), e);
         }
     }
 
     @Override
     protected void launchConfig() {
         try {
-            openUri(URI.create(getConfigurationUrl()));
+            String url = getConfigurationUrl();
+            validateConfigurationUrl(url);
+            openUri(URI.create(url));
         } catch (ConfigureCommand.ConfigurationUrlException exc) {
             displayErrorMessage(exc.getMessage());
         } catch (IOException e) {

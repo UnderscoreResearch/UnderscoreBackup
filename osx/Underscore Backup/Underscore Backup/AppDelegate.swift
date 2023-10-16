@@ -20,6 +20,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     @IBOutlet weak var pauseItem: NSMenuItem?
     @IBOutlet weak var autostartItem: NSMenuItem?
     
+    var readUrl: URL?
     var url: URL?
     var agentUrl: URL?
 
@@ -52,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             agentUrl = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/LaunchAgents/com.underscoreresearch.UnderscoreBackup.plist");
 
             statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-            statusItem?.menu = menu;
+            statusItem?.menu = menu
             
             let itemImage = NSImage(named: "trayicon")
             itemImage?.isTemplate = true
@@ -64,8 +65,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
     
     func createLock() -> Bool {
-        let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscorebackup/notifications/lock");
-        let path = url.path;
+        let lockUrl = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscoreBackup/notifications/lock");
+        let path = lockUrl.path;
 
         let fd = open(path, O_WRONLY|O_CREAT, 0o600)
 
@@ -85,7 +86,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             return true;
         }
         
-        return true;
+        let alert = NSAlert()
+
+        alert.messageText = "Can't lock file"
+        alert.informativeText = "Could not lock file " + path + " (" + String(errno) + ")"
+        alert.addButton(withTitle: "OK")
+        alert.alertStyle = .critical
+
+        alert.runModal()
+        return false;
     }
     
     func architecture() -> String {
@@ -246,12 +255,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
     
     func determineUrl() {
-        if (url == nil) {
+        if (readUrl == nil) {
             let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscoreBackup/configuration.url")
             do {
                 let contents = try String(contentsOf: file, encoding: .utf8);
-                url = URL(string: contents.trimmingCharacters(in: .whitespacesAndNewlines));
-                if (url != nil) {
+                readUrl = URL(string: contents.trimmingCharacters(in: .whitespacesAndNewlines));
+                if (readUrl != nil) {
                     registerIfNeeded()
                 }
             } catch {
@@ -262,12 +271,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     @objc func fireTimer() {
         determineUrl();
         
-        if let url = url {
+        if let url = readUrl {
             let task = URLSession.shared.dataTask(with: url) { data, response, error in
                 if error != nil {
                     DispatchQueue.main.async {
-                        self.url = nil;
+                        self.readUrl = nil;
                         self.statusItem?.button?.toolTip = "Background service is not running";
+                    }
+                } else {
+                    if self.url != self.readUrl {
+                        DispatchQueue.main.async {
+                            self.url = self.readUrl;
+                        }
                     }
                 }
             }

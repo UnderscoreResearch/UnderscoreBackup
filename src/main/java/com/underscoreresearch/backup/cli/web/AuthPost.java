@@ -48,6 +48,7 @@ public class AuthPost extends BaseWrap {
         byte[] privateKey = X25519.generatePrivateKey();
         URL url = new URL(configurationUrl + "api/auth");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setConnectTimeout(3000);
         connection.setRequestMethod("POST");
         connection.setDoOutput(true);
         connection.setDoInput(true);
@@ -90,6 +91,7 @@ public class AuthPost extends BaseWrap {
 
             URL authedUrl = uri.toURL();
             HttpURLConnection authConnection = (HttpURLConnection) authedUrl.openConnection();
+            authConnection.setConnectTimeout(3000);
             authConnection.setRequestMethod(method);
             authConnection.setRequestProperty(X_KEYEXCHANGE_HEADER, authHeader);
             authConnection.setDoInput(true);

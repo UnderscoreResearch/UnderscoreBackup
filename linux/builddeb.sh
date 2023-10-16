@@ -9,10 +9,12 @@ mkdir -p build/installerimage/opt/underscorebackup
 mkdir -p build/installerimage/usr/share/applications
 mkdir -p build/installerimage/usr/share/icons/hicolor/scalable/apps
 mkdir -p build/installerimage/etc/systemd/system
+mkdir -p build/installerimage/etc/cron.daily
 mkdir -p build/installerimage/DEBIAN
 mv build/jpackage/underscorebackup/* build/installerimage/opt/underscorebackup
 cp README.md build/installerimage/opt/underscorebackup
-cp scripts/underscorebackup.service build/installerimage/etc/systemd/system/underscorebackup.service
+cp linux/underscorebackup.service build/installerimage/etc/systemd/system/underscorebackup.service
+cp linux/underscorebackupupgrade build/installerimage/etc/cron.daily
 cp linux/underscorebackup.desktop build/installerimage/usr/share/applications/
 cp linux/underscorebackup.svg build/installerimage/usr/share/icons/hicolor/scalable/apps/
 

@@ -24,17 +24,34 @@ cp -r . $RPM_BUILD_ROOT
 /opt/underscorebackup/*
 /usr/share/icons/hicolor/scalable/apps/underscorebackup.svg
 /usr/share/applications/underscorebackup.desktop
+/etc/cron.daily/underscorebackupupgrade
 %preun
 
-systemctl stop underscorebackup.service
-systemctl disable underscorebackup.service
-
-if grep -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg 2>&1 > /dev/null
+if [ "$1" = "0" ]
 then
-  grep -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg > /etc/underscorebackup/javaoptions.cfg
+    systemctl stop underscorebackup.service
+    systemctl disable underscorebackup.service
+
+    if grep -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg 2>&1 > /dev/null
+    then
+      grep -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg > /etc/underscorebackup/javaoptions.cfg
+    fi
 fi
 
-%post
+%pre
+
+if [ "$1" = "2" ]
+then
+    systemctl stop underscorebackup.service
+    systemctl disable underscorebackup.service
+
+    if grep -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg 2>&1 > /dev/null
+    then
+      grep -E "^java-options=" /opt/underscorebackup/lib/app/underscorebackup.cfg > /etc/underscorebackup/javaoptions.cfg
+    fi
+fi
+
+%posttrans
 
 JAVA_OPTIONS=/etc/underscorebackup/javaoptions.cfg
 APP_CONFIG=/opt/underscorebackup/lib/app/underscorebackup.cfg
@@ -57,13 +74,15 @@ systemctl daemon-reload
 systemctl start underscorebackup.service
 systemctl enable underscorebackup.service
 
+export UNDERSCORE_SUPPRESS_OPEN=TRUE
+
 for a in 1 2 3 4 5 6 7 8 9 10
 do
-  if [ -f /var/cache/underscorebackup/configuration.url ]
+  sleep 1
+  if /opt/underscorebackup/bin/underscorebackup configure > /dev/null 2>&1
   then
     break
   fi
-  sleep 1
 done
 
 if [ -f /var/cache/underscorebackup/configuration.url ]

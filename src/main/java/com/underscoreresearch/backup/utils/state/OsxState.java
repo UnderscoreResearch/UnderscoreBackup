@@ -1,6 +1,8 @@
 package com.underscoreresearch.backup.utils.state;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -11,7 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
 import com.underscoreresearch.backup.file.changepoller.OsxChangePoller;
+import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 
 @Slf4j
 public class OsxState extends MachineState {
@@ -41,12 +45,7 @@ public class OsxState extends MachineState {
 
     @Override
     public ReleaseFileItem getDistribution(List<ReleaseFileItem> files) {
-        Optional<ReleaseFileItem> ret;
-        if ("aarch64".equals(System.getProperty("os.arch"))) {
-            ret = files.stream().filter(file -> file.getName().endsWith(".arm64.pkg")).findAny();
-        } else {
-            ret = files.stream().filter(file -> file.getName().endsWith(".x86_64.pkg")).findAny();
-        }
+        Optional<ReleaseFileItem> ret = files.stream().filter(file -> file.getName().endsWith(".dmg")).findAny();
         return ret.orElse(null);
     }
 
@@ -60,6 +59,60 @@ public class OsxState extends MachineState {
             }
         } catch (IOException | InterruptedException e) {
             log.warn("Can't change process to low priority", e);
+        }
+    }
+
+    @Override
+    public boolean supportsAutomaticUpgrade() {
+        return true;
+    }
+
+    @Override
+    public void upgrade(ReleaseResponse response) throws IOException {
+        ReleaseFileItem download = getDistribution(response.getFiles());
+
+        if (download != null) {
+            File tempFile = File.createTempFile("underscorebackup", ".dmg");
+            ServiceManagerImpl.downloadRelease(response, download, tempFile);
+
+            File tempFile2 = File.createTempFile("underscorebackup", ".sh");
+            // This is a little helper script that will mount the dmg file and then install the new version.
+            try (FileWriter writer = new FileWriter(tempFile2)) {
+                writer.write("#!/bin/sh\n" +
+                        "\n" +
+                        "nohup perl << EOF > \"" + tempFile2 + ".log\" 2>&1\n" +
+                        "my \\$file = \"" + tempFile + "\";\n" +
+                        "\n" +
+                        "my \\$mount = \\`hdiutil attach \"\\$file\" | grep \"/Volumes\"\\`;\n" +
+                        "\n" +
+                        "if (\\$mount =~ /(\\\\/Volumes\\\\/.*)/) {\n" +
+                        "    my \\$mountpoint = \\$1;\n" +
+                        "    chomp(\\$mountpoint);\n" +
+                        "\n" +
+                        "    my \\$existingProcess = \\`ps auxww | grep \"/Applications/Underscore Backup.app/Contents/MacOS/Underscore Backup\" | grep -v grep\\`;\n" +
+                        "    if (\\$existingProcess =~ /^\\\\S+\\\\s+(\\\\d+)/) {\n" +
+                        "      kill(\"TERM\",\\$1);\n" +
+                        "      sleep(10);\n" +
+                        "    }\n" +
+                        "    system(\"rm -rf \\\\\"/Applications/Underscore Backup.app\\\"\") && die \\$?;\n" +
+                        "    system(\"rsync -a \\\\\"\\$mountpoint\\\"/*.app  /Applications/\") && die \\$?;\n" +
+                        "\n" +
+                        "    system(\"hdiutil detach \\\\\"\\$mountpoint\\\\\"\") && die \\$?;\n" +
+                        "\n" +
+                        "    if (!fork && !fork) {\n" +
+                        "        exec \"\\\\\"/Applications/Underscore Backup.app/Contents/MacOS/Underscore Backup\\\\\"\" || die \\$?;\n" +
+                        "    }\n" +
+                        "} else {\n" +
+                        "    die \"Failed to mount \\$file\";\n" +
+                        "}\n" +
+                        "EOF\n");
+            }
+
+            if (!tempFile2.setExecutable(true)) {
+                throw new IOException("Failed to make installer executable");
+            }
+
+            executeUpdateProcess(new String[]{tempFile2.toString()});
         }
     }
 

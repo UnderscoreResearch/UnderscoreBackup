@@ -23,7 +23,9 @@ public class LoggingTake implements Take {
         Href href = new RqHref.Base(req).href();
         String method = new RqMethod.Base(req).method();
         try {
-            debug(() -> log.debug("{} {}", method, href));
+            if (!href.path().endsWith("/api/activity")) {
+                debug(() -> log.debug("{} {}", method, href));
+            }
             return take.act(req);
         } catch (HttpException httpException) {
             debug(() -> log.debug("{} {}: {}", method, href, httpException.code()));

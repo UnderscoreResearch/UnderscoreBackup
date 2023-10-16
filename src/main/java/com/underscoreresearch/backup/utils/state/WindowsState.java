@@ -1,6 +1,9 @@
 package com.underscoreresearch.backup.utils.state;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
+
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -9,9 +12,12 @@ import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
 import com.underscoreresearch.backup.file.changepoller.WindowsFileChangePoller;
+import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 
 @Slf4j
 public class WindowsState extends MachineState {
@@ -56,6 +62,24 @@ public class WindowsState extends MachineState {
             }
         } catch (IOException | InterruptedException e) {
             log.warn("Can't change process to low priority", e);
+        }
+    }
+
+    @Override
+    public boolean supportsAutomaticUpgrade() {
+        return InstanceFactory.getInstance(SERVICE_MODE, Boolean.class);
+    }
+
+    @Override
+    public void upgrade(ReleaseResponse response) throws IOException {
+        ReleaseFileItem download = getDistribution(response.getFiles());
+        if (download != null) {
+            File tempFile = File.createTempFile("underscorebackup", ".exe");
+
+            ServiceManagerImpl.downloadRelease(response, download, tempFile);
+
+            executeUpdateProcess(new String[]{"cmd", "/c", "start", "\"Underscore Backup Installer\"", "/b", tempFile.toString(),
+                    "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/LOG=\"" + tempFile + ".log\""});
         }
     }
 

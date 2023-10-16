@@ -39,6 +39,7 @@ import org.takes.rq.RqMethod;
 import org.takes.tk.TkWithType;
 
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.cli.commands.ConfigureCommand;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.cli.web.service.BestRegionGet;
 import com.underscoreresearch.backup.cli.web.service.CreateSecretPut;
@@ -96,17 +97,35 @@ public class WebServer {
 
                 base = "/fixed";
             } else {
-                SecureRandom random = new SecureRandom();
-
                 try {
-                    socket = new ServerSocket(0, 10, address);
-                } catch (IOException e) {
-                    throw new RuntimeException("Can't find local host address", e);
-                }
+                    URI existingConfig = URI.create(ConfigureCommand.getConfigurationUrl());
 
-                byte[] bytes = new byte[32];
-                random.nextBytes(bytes);
-                base = "/" + Hash.encodeBytes(bytes);
+                    base = existingConfig.getPath();
+                    if (base.endsWith("/"))
+                        base = base.substring(0, base.length() - 1);
+
+                    if (base.equals("/fixed"))
+                        throw new IOException("Don't bind to fixed");
+
+                    try {
+                        socket = new ServerSocket(existingConfig.getPort(), 10, address);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Can't find local host address", e);
+                    }
+
+                } catch (Exception exc) {
+                    SecureRandom random = new SecureRandom();
+
+                    try {
+                        socket = new ServerSocket(0, 10, address);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Can't find local host address", e);
+                    }
+
+                    byte[] bytes = new byte[32];
+                    random.nextBytes(bytes);
+                    base = "/" + Hash.encodeBytes(bytes);
+                }
             }
 
             Take serviceTake = new TkForward(
@@ -267,7 +286,6 @@ public class WebServer {
             try {
                 File urlFile = new File(InstanceFactory.getInstance(CommandLineModule.URL_LOCATION));
                 createDirectory(urlFile.getParentFile(), false);
-                urlFile.deleteOnExit();
                 try (FileWriter writer = new FileWriter(urlFile, StandardCharsets.UTF_8)) {
                     writer.write(configUrl.toString());
                     writer.write("\n");

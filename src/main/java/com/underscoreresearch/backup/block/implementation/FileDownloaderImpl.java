@@ -6,6 +6,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -121,7 +122,7 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                                                         String message = String.format("File %s does not match locally at location %s",
                                                                 PathNormalizer.physicalPath(source.getPath()), offset + j);
 
-                                                        if (originalFile.lastModified() == source.getLastChanged())
+                                                        if (Files.getLastModifiedTime(originalFile.toPath()).toMillis() == source.getLastChanged())
                                                             throw new IOException(message);
 
                                                         log.warn(message);

@@ -73,6 +73,8 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                             }
                         } catch (InvalidPathException exc) {
                             log.warn("Skipping invalid path {}", file.getAbsolutePath(), exc);
+                        } catch (IOException e) {
+                            log.warn("Failed to get last modified time for {}", parent.getAbsolutePath(), e);
                         }
                     }
                 } else {
@@ -90,6 +92,8 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                     }
                 } catch (InvalidPathException exc) {
                     log.warn("Skipping invalid path {}", parent.getAbsolutePath(), exc);
+                } catch (IOException e) {
+                    log.warn("Failed to get last modified time for {}", parent.getAbsolutePath(), e);
                 }
             }
         }
@@ -105,11 +109,11 @@ public class FileSystemAccessImpl implements FileSystemAccess {
 
     }
 
-    protected BackupFile createBackupFile(String path, File file) {
+    protected BackupFile createBackupFile(String path, File file) throws IOException {
         return BackupFile.builder()
                 .path(path)
                 .length(file.length())
-                .lastChanged(file.lastModified())
+                .lastChanged(Files.getLastModifiedTime(file.toPath()).toMillis())
                 .build();
     }
 

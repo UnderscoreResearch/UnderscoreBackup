@@ -41,6 +41,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   ReleaseResponse.JSON_PROPERTY_VERSION,
   ReleaseResponse.JSON_PROPERTY_BODY,
   ReleaseResponse.JSON_PROPERTY_CHANGE_LOG,
+  ReleaseResponse.JSON_PROPERTY_TOKEN,
   ReleaseResponse.JSON_PROPERTY_FILES
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
@@ -59,6 +60,9 @@ public class ReleaseResponse {
 
   public static final String JSON_PROPERTY_CHANGE_LOG = "changeLog";
   private String changeLog;
+
+  public static final String JSON_PROPERTY_TOKEN = "token";
+  private String token;
 
   public static final String JSON_PROPERTY_FILES = "files";
   private List<ReleaseFileItem> files = new ArrayList<>();
@@ -191,6 +195,31 @@ public class ReleaseResponse {
   }
 
 
+  public ReleaseResponse token(String token) {
+    this.token = token;
+    return this;
+  }
+
+   /**
+   * Bearer token to use for downloading secure URL if present.
+   * @return token
+  **/
+  @jakarta.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_TOKEN)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getToken() {
+    return token;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_TOKEN)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setToken(String token) {
+    this.token = token;
+  }
+
+
   public ReleaseResponse files(List<ReleaseFileItem> files) {
     this.files = files;
     return this;
@@ -241,12 +270,13 @@ public class ReleaseResponse {
         Objects.equals(this.version, releaseResponse.version) &&
         Objects.equals(this.body, releaseResponse.body) &&
         Objects.equals(this.changeLog, releaseResponse.changeLog) &&
+        Objects.equals(this.token, releaseResponse.token) &&
         Objects.equals(this.files, releaseResponse.files);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(releaseDate, name, version, body, changeLog, files);
+    return Objects.hash(releaseDate, name, version, body, changeLog, token, files);
   }
 
   @Override
@@ -258,6 +288,7 @@ public class ReleaseResponse {
     sb.append("    version: ").append(toIndentedString(version)).append("\n");
     sb.append("    body: ").append(toIndentedString(body)).append("\n");
     sb.append("    changeLog: ").append(toIndentedString(changeLog)).append("\n");
+    sb.append("    token: ").append(toIndentedString(token)).append("\n");
     sb.append("    files: ").append(toIndentedString(files)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -329,6 +360,11 @@ public class ReleaseResponse {
     // add `changeLog` to the URL query string
     if (getChangeLog() != null) {
       joiner.add(String.format("%schangeLog%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getChangeLog()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `token` to the URL query string
+    if (getToken() != null) {
+      joiner.add(String.format("%stoken%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getToken()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
     // add `files` to the URL query string

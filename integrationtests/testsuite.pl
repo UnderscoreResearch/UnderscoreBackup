@@ -579,8 +579,8 @@ for (my $retry = 1; 1; $retry++) {
     print "Rebuild from other source\n";
 
     if (!&executeCypressTest("sourcerestore")) {
+        &killInteractive();
         if ($retry == $MAX_RETRY) {
-            &killInteractive();
             die "Failed to execute Cypress test";
         }
         print "Failed Cypress test retrying for the $retry time\n";
@@ -597,8 +597,8 @@ for (my $retry = 1; 1; $retry++) {
     chdir($root);
 
     if (!&executeCypressTest("sharerestore")) {
+        &killInteractive();
         if ($retry == $MAX_RETRY) {
-            &killInteractive();
             die "Failed to execute Cypress test";
         }
         print "Failed Cypress test retrying for the $retry time\n";

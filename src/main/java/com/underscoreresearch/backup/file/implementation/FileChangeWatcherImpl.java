@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.file.implementation;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -205,8 +206,8 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                     for (BackupSet set : sets) {
                         if (set.includeFile(filePath)) {
                             File file = path.toFile();
-                            final long when = file.exists() ? file.lastModified() : 0;
                             try {
+                                final long when = file.exists() ? Files.getLastModifiedTime(file.toPath()).toMillis() : 0;
                                 if (repository.addUpdatedFile(new BackupUpdatedFile(filePath, when),
                                         whenBySet.get(set.getId()))) {
                                     anyChanged = true;

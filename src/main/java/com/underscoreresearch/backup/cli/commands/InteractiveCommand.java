@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.validateConfigurationUrl;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEVELOPER_MODE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -10,8 +11,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -121,16 +120,16 @@ public class InteractiveCommand extends Command {
     private static boolean checkIfAlreadyRunning() {
         try {
             String url = getConfigurationUrl();
-            URL endpoint = new URL(url + "api/ping");
-            HttpURLConnection con = (HttpURLConnection) endpoint.openConnection();
-            con.setConnectTimeout(3000);
-            if (con.getResponseCode() == 200) {
-                log.info("Underscore Backup is already running, shutting down");
-                return true;
-            }
+            validateConfigurationUrl(url);
+            log.info("Underscore Backup is already running, shutting down");
+            return true;
         } catch (Exception ignored) {
         }
         return false;
+    }
+
+    public static boolean suppressedOpen() {
+        return "TRUE".equals(System.getenv("UNDERSCORE_SUPPRESS_OPEN"));
     }
 
     public void executeCommand(CommandLine commandLine) throws Exception {
@@ -184,7 +183,7 @@ public class InteractiveCommand extends Command {
                 throw new ParseException("No backup sets configured");
             }
         } catch (Exception exc) {
-            if (!commandLine.hasOption(DEVELOPER_MODE) && !"TRUE".equals(System.getenv("UNDERSCORE_SUPPRESS_OPEN"))) {
+            if (!commandLine.hasOption(DEVELOPER_MODE) && !suppressedOpen()) {
                 server.launchPage();
             }
         }

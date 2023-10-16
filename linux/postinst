@@ -21,13 +21,15 @@ systemctl daemon-reload
 systemctl start underscorebackup.service
 systemctl enable underscorebackup.service
 
+export UNDERSCORE_SUPPRESS_OPEN=TRUE
+
 for a in 1 2 3 4 5 6 7 8 9 10
 do
-  if [ -f /var/cache/underscorebackup/configuration.url ]
+  sleep 1
+  if /opt/underscorebackup/bin/underscorebackup configure > /dev/null 2>&1
   then
     break
   fi
-  sleep 1
 done
 
 if [ -f /var/cache/underscorebackup/configuration.url ]

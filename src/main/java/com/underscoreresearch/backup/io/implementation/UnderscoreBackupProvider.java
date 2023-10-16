@@ -205,6 +205,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                         }
                         URL url = new URL(response.getLocation());
                         HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                        httpCon.setConnectTimeout(10000);
                         httpCon.setDoOutput(true);
                         httpCon.setConnectTimeout(S3_UPLOAD_TIMEOUT);
                         httpCon.setReadTimeout(S3_UPLOAD_TIMEOUT);
@@ -279,6 +280,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                     }
                     URL url = new URL(response.getLocation());
                     HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                    httpCon.setConnectTimeout(10000);
                     httpCon.setDoInput(true);
                     byte[] data;
                     try (InputStream stream = httpCon.getInputStream()) {

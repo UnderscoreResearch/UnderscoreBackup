@@ -23,8 +23,11 @@ public class AwtUIManager implements UIManager {
     private TrayIcon trayIcon;
 
     public AwtUIManager() {
-        if (SystemTray.isSupported()) {
-            EventQueue.invokeLater(this::createAndShowGUI);
+        try {
+            if (SystemTray.isSupported()) {
+                EventQueue.invokeLater(this::createAndShowGUI);
+            }
+        } catch (AWTError | NoClassDefFoundError ignored) {
         }
     }
 

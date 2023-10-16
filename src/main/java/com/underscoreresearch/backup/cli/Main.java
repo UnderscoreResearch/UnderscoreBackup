@@ -125,7 +125,7 @@ public final class Main {
             System.exit(1);
 
             System.exit(0);
-        } catch (Exception exc) {
+        } catch (Throwable exc) {
             Throwable parseException = exc;
             if (parseException.getCause() instanceof ParseException) {
                 parseException = parseException.getCause();

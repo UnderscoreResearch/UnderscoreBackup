@@ -322,7 +322,22 @@ export default function Settings() {
                                 versionCheck: e.target.checked
                             }
                         })}
-                    />} label="Automatically check for new versions"/>
+                    />} label="Check for new versions"/>
+                </Grid>
+            </Grid>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <FormControlLabel style={{paddingLeft: "1em"}} control={<Checkbox
+                        checked={state.manifest.automaticUpgrade || state.manifest.automaticUpgrade === undefined}
+                        disabled={!state.manifest.versionCheck && state.manifest.versionCheck !== undefined}
+                        onChange={(e) => updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                automaticUpgrade: e.target.checked
+                            }
+                        })}
+                    />} label="Automatically install new versions if possible"/>
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
