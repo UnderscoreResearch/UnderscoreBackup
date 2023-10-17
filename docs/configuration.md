@@ -132,6 +132,7 @@ Contains information of how the backup repository is managed.
 * **pauseOnBattery** - Pause backups when running on battery. Defaults to on if not specified.
 * **hideNotifications** - Hide UI notifications except for errors. Defaults to off if not specified.
 * **versionCheck** - Controls whether to check for new versions online periodically. Defaults to on.
+* **automaticUpgrade** - Controls whether to automatically install a new version. Defaults to on.
 
 ### Global limits
 

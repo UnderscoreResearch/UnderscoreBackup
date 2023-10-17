@@ -295,7 +295,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     }
 
     public boolean replayLog(boolean claimIdentity, LogConsumer consumer, String password,
-                             String lastKnownExistingFile) throws IOException {
+                             String lastKnownExistingFile, boolean allowFailures) throws IOException {
         repositoryReady = false;
 
         MetadataRepository repository = (MetadataRepository) consumer;
@@ -345,10 +345,9 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             logPrefetcher.start();
             try (CloseableLock ignored = repository.exclusiveLock()) {
                 for (String file : files) {
-                    byte[] data = logPrefetcher.getLog(file);
-
                     try {
                         log.info("Processing log file {}", file);
+                        byte[] data = logPrefetcher.getLog(file);
                         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
                             try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
                                 processLogInputStream(consumer, gzipInputStream);
@@ -357,6 +356,10 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                         consumer.setLastSyncedLogFile(getShare(), file);
                     } catch (Exception exc) {
                         log.error("Failed to read log file " + file, exc);
+                        if (!allowFailures) {
+                            logPrefetcher.stop();
+                            return false;
+                        }
                     }
                     if (!Strings.isNullOrEmpty(source) && (isShutdown() || InstanceFactory.isShutdown())) {
                         logPrefetcher.stop();
@@ -396,7 +399,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
     @Override
     public void replayLog(LogConsumer consumer, String password) throws IOException {
-        replayLog(true, consumer, password, null);
+        replayLog(true, consumer, password, null, true);
     }
 
     protected void processLogInputStream(LogConsumer consumer, InputStream inputStream) throws IOException {
@@ -690,7 +693,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             String lastKnownFile = repository.lastSyncedLogFile(getShare());
             repository.setLastSyncedLogFile(getShare(), null);
 
-            if (replayLog(false, consumer, password, lastKnownFile)) {
+            if (replayLog(false, consumer, password, lastKnownFile, false)) {
                 repository.installStorageRevision(newStorage);
             } else {
                 repository.cancelStorageRevision(newStorage);

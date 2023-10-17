@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -207,13 +208,19 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                         if (set.includeFile(filePath)) {
                             File file = path.toFile();
                             try {
-                                final long when = file.exists() ? Files.getLastModifiedTime(file.toPath()).toMillis() : 0;
+                                long when;
+                                try {
+                                    when = file.exists() ? Files.getLastModifiedTime(file.toPath()).toMillis() : 0;
+                                } catch (NoSuchFileException e) {
+                                    // It's a race condition and I have seen it in the logs.
+                                    when = 0;
+                                }
                                 if (repository.addUpdatedFile(new BackupUpdatedFile(filePath, when),
                                         whenBySet.get(set.getId()))) {
                                     anyChanged = true;
                                 }
                             } catch (IOException e) {
-                                log.error("Error while processing file change for {}", path, e);
+                                log.warn("Failed processing file change for {}", path, e);
                             }
                         }
                     }

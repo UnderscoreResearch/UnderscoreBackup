@@ -246,7 +246,9 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
     protected byte[] downloadData(String file) throws IOException {
         byte[] data = getProvider().download(file);
-        rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
+        if (data != null) {
+            rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
+        }
         return data;
     }
 

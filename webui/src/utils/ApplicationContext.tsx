@@ -140,11 +140,11 @@ function generateApplicationContext(): ApplicationContext {
             }
 
             if (newState.selectedSource || (newState.hasKey &&
-                newState.backendState.repositoryReady &&
                 newState.originalConfiguration &&
                 newState.originalConfiguration.sets &&
                 newState.originalConfiguration.sets.length > 0 &&
                 newState.originalConfiguration.manifest &&
+                newState.originalConfiguration.manifest.destination &&
                 !newState.originalConfiguration.manifest.initialSetup)) {
                 newState.setupComplete = true;
             }

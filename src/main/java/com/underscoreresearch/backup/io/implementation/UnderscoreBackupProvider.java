@@ -43,8 +43,8 @@ public class UnderscoreBackupProvider implements IOIndex {
     public static final String UB_TYPE = "UB";
     private static final Duration IDENTITY_TIMEOUT = Duration.ofSeconds(30);
     private static final String TIMEOUT_MESSAGE = "Failed to transfer file in proscribed time";
-    private static final long START_TIMEOUT_MINUTES = 1;
-    private static final long MAX_TIMEOUT_MINUTES = 1;
+    private static final long START_TIMEOUT_SECONDS = 60;
+    private static final long MAX_TIMEOUT_SECONDS = 60;
     private static final int S3_UPLOAD_TIMEOUT = (int) Duration.ofSeconds(10).toMillis();
     private static final HashSet<String> verifiedSources = new HashSet<>();
     private static String cachedIdentityKey;
@@ -200,7 +200,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                 UploadUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
                 if (response.getLocation() != null) {
                     String ret = s3Retry(() -> {
-                        if (timer.elapsed(TimeUnit.MINUTES) > START_TIMEOUT_MINUTES) {
+                        if (timer.elapsed(TimeUnit.SECONDS) > START_TIMEOUT_SECONDS) {
                             return null;
                         }
                         URL url = new URL(response.getLocation());
@@ -221,7 +221,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                         }
                         return "success";
                     });
-                    if (ret == null || timer.elapsed(TimeUnit.MINUTES) > MAX_TIMEOUT_MINUTES) {
+                    if (ret == null || timer.elapsed(TimeUnit.SECONDS) > MAX_TIMEOUT_SECONDS) {
                         throw new IOException(TIMEOUT_MESSAGE);
                     }
                 }
@@ -275,22 +275,22 @@ public class UnderscoreBackupProvider implements IOIndex {
                 Stopwatch timer = Stopwatch.createStarted();
                 DownloadUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
                 byte[] ret = s3Retry(() -> {
-                    if (timer.elapsed(TimeUnit.MINUTES) > START_TIMEOUT_MINUTES) {
+                    if (timer.elapsed(TimeUnit.SECONDS) > START_TIMEOUT_SECONDS) {
                         return null;
                     }
                     URL url = new URL(response.getLocation());
                     HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
                     httpCon.setConnectTimeout(10000);
                     httpCon.setDoInput(true);
-                    byte[] data;
-                    try (InputStream stream = httpCon.getInputStream()) {
-                        data = IOUtils.readAllBytes(stream);
-                    }
                     if (httpCon.getResponseCode() == 403) {
                         return null;
                     }
                     if (httpCon.getResponseCode() != 200) {
                         throw new IOException("Failed to download data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                    }
+                    byte[] data;
+                    try (InputStream stream = httpCon.getInputStream()) {
+                        data = IOUtils.readAllBytes(stream);
                     }
                     return data;
                 });

@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.utils;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.cli.ParseException;
@@ -51,5 +52,16 @@ class RetryUtilsTest {
             }, (exc) -> (exc instanceof ParseException));
         });
         assertThat(integer.get(), Is.is(6));
+    }
+
+    @Test
+    public void testExceptionType() throws Exception {
+        Assertions.assertThrows(IOException.class, () -> RetryUtils.retry(() -> {
+            throw new IOException("Message");
+        }, (exc) -> {
+            assertThat(exc.getClass(), Is.is(IOException.class));
+            assertThat(exc.getMessage(), Is.is("Message"));
+            return false;
+        }));
     }
 }
