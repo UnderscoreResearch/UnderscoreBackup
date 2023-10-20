@@ -1,5 +1,6 @@
 import React, {useEffect} from "react";
 import {getActivity, listActiveShares, StatusLine} from "../api";
+import {useApplication} from "./ApplicationContext";
 
 interface ActivityState {
     loading: boolean,
@@ -23,6 +24,7 @@ const initialState: ActivityState = {
 let lastState: ActivityState = initialState;
 
 function generateActivityContext(): ActivityContext {
+    const appContext = useApplication();
     const [state, setState] = React.useState(initialState);
 
     async function update() {
@@ -50,6 +52,9 @@ function generateActivityContext(): ActivityContext {
             }
         }
         if (JSON.stringify(newState) !== JSON.stringify(lastState)) {
+            if (lastState && lastState.unresponsive && !newState.unresponsive) {
+                appContext.update(appContext.password ?? "");
+            }
             lastState = newState;
             setState(newState);
         }

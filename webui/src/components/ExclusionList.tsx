@@ -1,6 +1,8 @@
 import * as React from "react";
-import {TextField} from "@mui/material";
+import {Button, TextField} from "@mui/material";
 import {EditableList} from "./EditableList";
+import {ApplicationContextProvider, useApplication} from "../utils/ApplicationContext";
+import {useState} from "react";
 
 function createExclusionControl(item: string, itemUpdated: (item: string) => void): React.ReactElement {
     return <TextField variant="standard"
@@ -14,10 +16,23 @@ export default function ExclusionList(props: {
     exclusions: string[] | undefined,
     exclusionsChanged: (items: string[]) => void
 }) {
-    return EditableList<string>({
-        createItem: createExclusionControl,
-        items: (props.exclusions ? props.exclusions : []) as string[],
-        onItemChanged: props.exclusionsChanged,
-        createNewItem: () => ""
-    })
+    const appContext = useApplication();
+    const [resetCount, setResetCount] = useState(1);
+
+    function resetList() {
+        props.exclusionsChanged(appContext.backendState.defaultSet.exclusions as string[]);
+        setResetCount(resetCount + 1);
+    }
+
+    return <>
+        <EditableList createItem={createExclusionControl}
+                      items={(props.exclusions ? props.exclusions : []) as string[]}
+                      onItemChanged={props.exclusionsChanged} createNewItem={() => ""}
+                      stateReset={resetCount}
+                      additionalElement={<Button variant="contained" id="showConfiguration" onClick={resetList}>
+                          Revert to Default
+                      </Button>
+                      }
+        />
+    </>
 }

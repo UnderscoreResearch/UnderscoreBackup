@@ -438,7 +438,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 log.error("Failed to save log entry: " + type + ": " + jsonDefinition, exc);
 
                 try {
-                    flushRepositoryLogging();
+                    flushRepositoryLogging(false);
                 } catch (IOException exc2) {
                     log.error("Start new log file", exc2);
                     try {
@@ -453,7 +453,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
         if (flush) {
             try {
-                flushRepositoryLogging();
+                flushRepositoryLogging(false);
             } catch (IOException exc) {
                 log.error("Failed to flush log");
             }
@@ -471,7 +471,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         currentLogLength += data.length;
     }
 
-    protected void flushRepositoryLogging() throws IOException {
+    protected void flushRepositoryLogging(boolean wait) throws IOException {
         boolean performFlush = false;
         synchronized (lock) {
             if (!currentlyClosingLog.get()) {
@@ -494,7 +494,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                     currentlyClosingLog.set(false);
                 }
             }
-            waitUploadSubmissions();
+            if (wait)
+                waitUploadSubmissions();
         }
     }
 
@@ -613,7 +614,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
     public void shutdown() throws IOException {
         uploadScheduler.waitForCompletion();
-        flushRepositoryLogging();
+        flushRepositoryLogging(true);
 
         synchronized (lock) {
             completeUploads();

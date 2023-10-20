@@ -168,7 +168,7 @@ public class StateGet extends BaseWrap {
                         "(?i)/te?mp/",
                         "/node_modules/",
                         "/npm-cache/",
-                        "/\\.cache/",
+                        "(?i)/\\.?caches?/",
                         "/\\.npm/",
                         "/\\#[^\\/]*\\#/",
                         "/\\.gradle/",
@@ -186,7 +186,6 @@ public class StateGet extends BaseWrap {
                     exclusions.add("/\\$Recycle.Nin/");
                 } else if (SystemUtils.IS_OS_MAC_OSX) {
                     exclusions.add("/lost\\+found/");
-                    exclusions.add("/Library/Caches/");
                 } else {
                     exclusions.add("/lost\\+found/");
                     exclusions.add("/.config/google-chrome/");

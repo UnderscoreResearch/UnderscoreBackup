@@ -137,8 +137,10 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
 
     private void processFile(BackupUpdatedFile updatedFile) throws IOException {
         BackupSet set = findSet(updatedFile.getPath());
-        if (set == null)
+        if (set == null) {
+            repository.removeUpdatedFile(updatedFile);
             return;
+        }
 
         File file = new File(PathNormalizer.physicalPath(updatedFile.getPath()));
         if (!file.exists()) {

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {ReactElement} from "react";
+import {ReactElement, useEffect} from "react";
 import {Collapse, Fab} from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -16,7 +16,9 @@ export interface EditableListProps<Type> {
     allowDrop?: (item: Type) => boolean,
     allowReorder?: boolean,
     onItemChanged: (items: Type[]) => void,
-    createNewItem: () => Type
+    createNewItem: () => Type,
+    additionalElement?: React.ReactElement,
+    stateReset?: number
 }
 
 interface InternalItem<Type> {
@@ -31,15 +33,19 @@ export interface EditableListState<Type> {
 let counter = 1;
 
 export function EditableList<Type>(props: EditableListProps<Type>): React.ReactElement {
+    function createState(items: Type[]) {
+        return {
+            items: items.map((item) => {
+                return {
+                    key: (++counter) + "",
+                    item: item
+                } as InternalItem<Type>
+            })
+        } as EditableListState<Type>;
+    }
+
     const [state, setState] = React.useState(() => {
-            return {
-                items: props.items.map((item) => {
-                    return {
-                        key: (++counter) + "",
-                        item: item
-                    } as InternalItem<Type>
-                })
-            } as EditableListState<Type>;
+            return createState(props.items);
         }
     );
 
@@ -122,6 +128,7 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
                 <div style={{clear: "both", marginBottom: props.verticalSpacing ? props.verticalSpacing : "1em"}}/>
             </Collapse>
         }
+
         if (allowDrop || allowUp || allowDown) {
             return <Collapse key={item.key}>
                 <div style={{
@@ -144,6 +151,7 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
                                 <UpIcon/>
                             </IconButton>
                         }
+
                         <IconButton aria-label="delete" onClick={() => deleteItem(item.key)}>
                             <DeleteIcon/>
                         </IconButton>
@@ -171,12 +179,18 @@ export function EditableList<Type>(props: EditableListProps<Type>): React.ReactE
         props.onItemChanged(newItems.map(item => item.item));
     }
 
+    useEffect(() => {
+        setState(createState(props.items));
+    }, [props.stateReset]);
+
     return <div style={{width: "100%"}}>
         <TransitionGroup>
             {state.items.map((item) => createItem(item))}
         </TransitionGroup>
         <div style={{width: "100%", display: "flex"}}>
             <div style={{width: "100%"}}>
+                {props.additionalElement}
+
             </div>
             <div>
                 <Fab id="new-item" size={"small"} color={"primary"} onClick={() => addItem()}>

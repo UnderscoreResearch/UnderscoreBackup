@@ -387,7 +387,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             } else {
                 log.info("Optimizing repository metadata");
             }
-            flushRepositoryLogging();
+            flushRepositoryLogging(true);
             repositoryReady = true;
 
             return true;
@@ -542,7 +542,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
     @Override
     public void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer, boolean force) throws IOException {
         initialize(logConsumer, true);
-        flushRepositoryLogging();
+        flushRepositoryLogging(true);
         getUploadScheduler().waitForCompletion();
 
         if (!existingLogFiles().isEmpty()) {
@@ -644,7 +644,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 });
 
                 copyRepository.close();
-                flushRepositoryLogging();
+                flushRepositoryLogging(true);
 
                 awaitEventualConsistency();
 
@@ -659,7 +659,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 existingRepository.setErrorsDetected(false);
             } catch (InvalidEntryException exc) {
                 copyRepository.close();
-                flushRepositoryLogging();
+                flushRepositoryLogging(true);
                 completeUploads();
 
                 log.error("Encountered invalid entry, aborting optimization. Consider repairing local repository");

@@ -1142,7 +1142,6 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             this.stream = stream;
         }
 
-
         @Override
         public Stream<T> stream() {
             if (reportErrorsAsNull)

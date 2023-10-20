@@ -44,6 +44,7 @@ public class ConfigureCommand extends SimpleCommand {
             URL url = new URL(configurationUrl + "api/ping");
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setConnectTimeout(3000);
+            connection.setReadTimeout(3000);
             if (connection.getResponseCode() != 200) {
                 throw new IOException("Got response code " + connection.getResponseCode());
             }
