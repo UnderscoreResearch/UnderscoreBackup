@@ -203,7 +203,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
             }
 
             List<BackupFilePart> existingParts = repository.existingFilePart(partHash);
-            if (existingParts != null && existingParts.size() > 0) {
+            if (existingParts != null && !existingParts.isEmpty()) {
                 List<BackupLocation> locations = new ArrayList<>();
                 for (BackupFilePart part : existingParts) {
                     BackupBlock block = repository.block(part.getBlockHash());

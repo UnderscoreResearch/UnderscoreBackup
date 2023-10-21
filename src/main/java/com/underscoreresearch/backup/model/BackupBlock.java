@@ -49,7 +49,11 @@ public class BackupBlock {
         if (block.isSuperBlock()) {
             List<BackupBlock> blocks = new ArrayList<>();
             for (String hash : block.getHashes()) {
-                blocks.add(repository.block(hash));
+                BackupBlock childBlock = repository.block(hash);
+                if (childBlock == null) {
+                    throw new IOException("Block " + hash + " not found");
+                }
+                blocks.add(childBlock);
             }
             debug(() -> log.debug("Expanded super block {} to {} blocks", block.getHash(), readableNumber(blocks.size())));
             return blocks;
