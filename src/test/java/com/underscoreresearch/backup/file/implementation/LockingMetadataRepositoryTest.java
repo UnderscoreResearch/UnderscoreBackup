@@ -38,6 +38,7 @@ import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActiveFile;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -75,7 +76,7 @@ public abstract class LockingMetadataRepositoryTest {
         tempDir = Files.createTempDirectory("test").toFile();
         repository = createRepository(tempDir);
         if (repository != null) {
-            repository.open(false);
+            repository.open(RepositoryOpenMode.READ_WRITE);
 
             filePart = BackupFilePart.builder()
                     .blockHash(HASH).blockIndex(0).partHash(PART_HASH)
@@ -461,7 +462,7 @@ public abstract class LockingMetadataRepositoryTest {
         repository.close();
 
         repository = createRepository(tempDir);
-        repository.open(false);
+        repository.open(RepositoryOpenMode.READ_WRITE);
         assertThat(repository.getPendingSets(), Is.is(Sets.newHashSet(set0, set2, set3)));
     }
 
@@ -509,7 +510,7 @@ public abstract class LockingMetadataRepositoryTest {
         repository.close();
 
         repository = createRepository(tempDir);
-        repository.open(false);
+        repository.open(RepositoryOpenMode.READ_WRITE);
         repository.addTemporaryBlock(backupBlock);
         assertThat(repository.block(backupBlock.getHash()), Is.is(backupBlock));
     }

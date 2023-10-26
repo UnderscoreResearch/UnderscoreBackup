@@ -1,8 +1,8 @@
 import * as React from "react";
+import {useState} from "react";
 import {Button, TextField} from "@mui/material";
 import {EditableList} from "./EditableList";
-import {ApplicationContextProvider, useApplication} from "../utils/ApplicationContext";
-import {useState} from "react";
+import {useApplication} from "../utils/ApplicationContext";
 
 function createExclusionControl(item: string, itemUpdated: (item: string) => void): React.ReactElement {
     return <TextField variant="standard"

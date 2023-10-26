@@ -28,6 +28,7 @@ import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
@@ -78,7 +79,7 @@ public class ChangePasswordCommand extends Command {
 
         // Generate a new key in memory and then rewrite all the backup metadata with the new key.
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
-        repository.open(false);
+        repository.open(RepositoryOpenMode.READ_WRITE);
 
         try {
             File fileName = getDefaultEncryptionFileName(commandLine);
@@ -135,7 +136,7 @@ public class ChangePasswordCommand extends Command {
         if (commandLine.hasOption(FORCE)) {
             MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
             try {
-                repository.open(true);
+                repository.open(RepositoryOpenMode.READ_ONLY);
                 if (repository.isErrorsDetected()) {
                     log.error("Detected corruption in local metadata repository need to repair before changing private key");
                     return;

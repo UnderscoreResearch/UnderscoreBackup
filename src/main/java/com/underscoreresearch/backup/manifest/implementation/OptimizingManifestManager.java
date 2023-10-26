@@ -54,6 +54,7 @@ import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
@@ -657,6 +658,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
                 deleteLogFiles(lastLogFile);
                 additionalManifestManager.finishOptimizeLog(lastLogFile, totalFiles, processedFiles);
                 existingRepository.setErrorsDetected(false);
+                log.info("Completed optimizing log");
             } catch (InvalidEntryException exc) {
                 copyRepository.close();
                 flushRepositoryLogging(true);
@@ -675,6 +677,8 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
                 existingRepository.setLastSyncedLogFile(getShare(), lastLogFile);
                 existingRepository.setErrorsDetected(true);
+
+                log.info("Completed reverting optimizing log");
             }
         } finally {
             resetStatus();
@@ -688,7 +692,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
         MetadataRepository repository = (MetadataRepository) consumer;
 
         MetadataRepositoryStorage newStorage = repository.createStorageRevision();
-        repository.open(false);
+        repository.open(RepositoryOpenMode.READ_WRITE);
         try {
             String lastKnownFile = repository.lastSyncedLogFile(getShare());
             repository.setLastSyncedLogFile(getShare(), null);

@@ -35,6 +35,7 @@ import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
@@ -65,6 +66,7 @@ import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -97,9 +99,11 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private static final String ADDITIONAL_BLOCK_STORE = "additionalblocks.db";
     private static final String UPDATED_FILES_STORE = "updatedfiles.db";
     private static final String UPDATED_PENDING_FILES_STORE = "updatedpendingfiles.db";
+    private static final long MAX_WRITES = 50000;
     private final String dataPath;
     private final int revision;
     private final int version;
+    private final AtomicInteger writeCounter = new AtomicInteger();
     private DB blockDb;
     private DB blockTmpDb;
     private DB fileDb;
@@ -123,8 +127,8 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private HTreeMap<String, byte[]> pendingSetMap;
     private HTreeMap<String, byte[]> partialFileMap;
     private HTreeMap<String, Long> updatedFilesMap;
-    private boolean readOnly;
     private boolean alternateBlockTable;
+    private RepositoryOpenMode openMode;
 
     public MapdbMetadataRepositoryStorage(String dataPath, int version, int revision, boolean alternateBlockTable) {
         if (nonVersionedPath(version, revision)) {
@@ -158,8 +162,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private static DBMaker.Maker createDbMaker(String blockStore) {
         DBMaker.Maker maker = DBMaker
                 .fileDB(blockStore)
-                .fileMmapPreclearDisable()
-                .transactionEnable();
+                .fileMmapPreclearDisable();
         if (SystemUtils.IS_OS_WINDOWS)
             maker.fileChannelEnable();
         else
@@ -183,6 +186,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         if (blockTmpDb != null) {
             blockTmpDb.commit();
         }
+        writeCounter.set(0);
     }
 
     @Override
@@ -220,19 +224,20 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     }
 
     @Override
-    public void open(boolean readOnly) throws IOException {
-        this.readOnly = readOnly;
+    public void open(RepositoryOpenMode openMode) throws IOException {
+        this.openMode = openMode;
+        writeCounter.set(0);
 
-        blockDb = createDb(readOnly, alternateBlockTable ? BLOCK_ALT_STORE : BLOCK_STORE);
-        fileDb = createDb(readOnly, FILE_STORE);
-        directoryDb = createDb(readOnly, DIRECTORY_STORE);
-        partsDb = createDb(readOnly, PARTS_STORE);
-        activePathDb = createDb(readOnly, ACTIVE_PATH_STORE);
-        pendingSetDb = createDb(readOnly, PENDING_SET_STORE);
-        partialFileDb = createDb(readOnly, PARTIAL_FILE_STORE);
-        additionalBlockDb = createDb(readOnly, ADDITIONAL_BLOCK_STORE);
-        updatedFilesDb = createDb(readOnly, UPDATED_FILES_STORE);
-        updatedPendingFilesDb = createDb(readOnly, UPDATED_PENDING_FILES_STORE);
+        blockDb = createDb(openMode, alternateBlockTable ? BLOCK_ALT_STORE : BLOCK_STORE);
+        fileDb = createDb(openMode, FILE_STORE);
+        directoryDb = createDb(openMode, DIRECTORY_STORE);
+        partsDb = createDb(openMode, PARTS_STORE);
+        activePathDb = createDb(openMode, ACTIVE_PATH_STORE);
+        pendingSetDb = createDb(openMode, PENDING_SET_STORE);
+        partialFileDb = createDb(openMode, PARTIAL_FILE_STORE);
+        additionalBlockDb = createDb(openMode, ADDITIONAL_BLOCK_STORE);
+        updatedFilesDb = createDb(openMode, UPDATED_FILES_STORE);
+        updatedPendingFilesDb = createDb(openMode, UPDATED_PENDING_FILES_STORE);
 
         blockMap = openHashMap(blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         additionalBlockMap = openTreeMap(additionalBlockDb, additionalBlockDb.treeMap(ADDITIONAL_BLOCK_STORE)
@@ -257,7 +262,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         partialFileMap = openHashMap(partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         updatedFilesMap = openHashMap(updatedFilesDb.hashMap(UPDATED_FILES_STORE, Serializer.STRING, Serializer.LONG));
 
-        if (!readOnly) {
+        if (openMode != RepositoryOpenMode.READ_ONLY) {
             clearTempFiles();
         }
     }
@@ -265,7 +270,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private HTreeMap<String, byte[]> getBlockTmpMap() {
         if (blockTmpMap == null) {
             deleteAlternativeBlocksTable();
-            blockTmpDb = createDb(readOnly, alternateBlockTable ? BLOCK_STORE : BLOCK_ALT_STORE);
+            blockTmpDb = createDb(openMode, alternateBlockTable ? BLOCK_STORE : BLOCK_ALT_STORE);
             // Need to be BLOCK_STORE here, as we are copying from BLOCK_TMP_STORE to BLOCK_STORE eventually.
             blockTmpMap = openHashMap(blockTmpDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         }
@@ -282,12 +287,16 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         maker.layout(16, 64, 4);
     }
 
-    private DB createDb(boolean readOnly, String blockStore) {
+    private DB createDb(RepositoryOpenMode openMode, String blockStore) {
         IOUtils.createDirectory(new File(this.dataPath), true);
 
         DBMaker.Maker maker = createDbMaker(getPath(blockStore).toString());
 
-        if (readOnly)
+        if (openMode != RepositoryOpenMode.WITHOUT_TRANSACTION) {
+            maker.transactionEnable();
+        }
+
+        if (openMode == RepositoryOpenMode.READ_ONLY)
             maker.readOnly();
         return maker.make();
     }
@@ -373,7 +382,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     }
 
     private String invalidRepositoryLogEntry(String msg) {
-        if (readOnly)
+        if (openMode == RepositoryOpenMode.READ_ONLY)
             return msg + " (Read only repository)";
         return msg + " (Removing from repository)";
     }
@@ -392,7 +401,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return decodeFile(entry);
             } catch (IOException e) {
                 log.error(invalidRepositoryLogEntry("Invalid file {}:{}"), PathNormalizer.physicalPath((String) entry.getKey()[0]), entry.getKey()[1], e);
-                if (!readOnly) {
+                if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (fileMap.remove(entry.getKey()) == null) {
                             log.error("Delete indicated no entry was deleted");
@@ -415,7 +424,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return decodeBlock(entry.getKey(), entry.getValue());
             } catch (IOException e) {
                 log.error(invalidRepositoryLogEntry("Invalid block {}"), entry.getKey(), e);
-                if (!readOnly) {
+                if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (blockMap.remove(entry.getKey()) == null) {
                             log.error("Delete indicated no entry was deleted");
@@ -438,7 +447,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return decodePath(entry);
             } catch (IOException e) {
                 log.error(invalidRepositoryLogEntry("Invalid filePart {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
-                if (!readOnly) {
+                if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (partsMap.remove(entry.getKey()) == null) {
                             log.error("Delete indicated no entry was deleted");
@@ -469,7 +478,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                         decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
             } catch (IOException e) {
                 log.error(invalidRepositoryLogEntry("Invalid directory {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
-                if (!readOnly) {
+                if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (directoryMap.remove(entry.getKey()) == null) {
                             log.error("Delete indicated no entry was deleted");
@@ -497,7 +506,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return ret;
             } catch (IOException e) {
                 log.error(invalidRepositoryLogEntry("Invalid additional block {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
-                if (!readOnly) {
+                if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (additionalBlockMap.remove(entry.getKey()) == null) {
                             log.error("Delete indicated no entry was deleted");
@@ -516,6 +525,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     @Override
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
         pendingSetMap.put(scheduledTime.getSetId(), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
+        increaseWrite();
     }
 
     @Override
@@ -630,12 +640,14 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
         fileMap.put(new Object[]{file.getPath(), added},
                 encodeData(BACKUP_FILE_WRITER, strippedCopy(file)));
+        increaseWrite();
     }
 
     @Override
     public void addFilePart(BackupFilePart part) throws IOException {
         partsMap.put(new Object[]{part.getPartHash(), part.getBlockHash()},
                 encodeData(BACKUP_FILE_PART_WRITER, strippedCopy(part)));
+        increaseWrite();
     }
 
     private BackupFilePart strippedCopy(BackupFilePart part) {
@@ -655,11 +667,13 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     @Override
     public void addBlock(BackupBlock block) throws IOException {
         blockMap.put(block.getHash(), encodeData(BACKUP_BLOCK_WRITER, stripCopy(block)));
+        increaseWrite();
     }
 
     @Override
     public void addTemporaryBlock(BackupBlock block) throws IOException {
         getBlockTmpMap().put(block.getHash(), encodeData(BACKUP_BLOCK_WRITER, stripCopy(block)));
+        increaseWrite();
     }
 
     private Path getPath(String file) {
@@ -692,6 +706,12 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         deleteAlternativeBlocksTable();
     }
 
+    private void increaseWrite() {
+        if (writeCounter.incrementAndGet() > MAX_WRITES) {
+            commit();
+        }
+    }
+
     private BackupBlock stripCopy(BackupBlock block) {
         return BackupBlock.builder().storage(block.getStorage()).format(block.getFormat()).created(block.getCreated())
                 .hashes(block.getHashes()).offsets(block.getOffsets())
@@ -702,31 +722,49 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     public void addDirectory(BackupDirectory directory) throws IOException {
         directoryMap.put(new Object[]{directory.getPath(), directory.getAdded()},
                 encodeData(BACKUP_DIRECTORY_FILES_WRITER, directory.getFiles()));
+        increaseWrite();
     }
 
     @Override
     public boolean deleteBlock(BackupBlock block) throws IOException {
-        return blockMap.remove(block.getHash()) != null;
+        if (blockMap.remove(block.getHash()) != null) {
+            increaseWrite();
+            return true;
+        }
+        return false;
     }
 
     @Override
     public boolean deleteFile(BackupFile file) throws IOException {
-        return fileMap.remove(new Object[]{file.getPath(), file.getAdded()}) != null;
+        if (fileMap.remove(new Object[]{file.getPath(), file.getAdded()}) != null) {
+            increaseWrite();
+            return true;
+        }
+        return false;
     }
 
     @Override
     public boolean deleteFilePart(BackupFilePart part) throws IOException {
-        return partsMap.remove(new Object[]{part.getPartHash(), part.getBlockHash()}) != null;
+        if (partsMap.remove(new Object[]{part.getPartHash(), part.getBlockHash()}) != null) {
+            increaseWrite();
+            return true;
+        }
+        return false;
     }
 
     @Override
     public boolean deleteDirectory(String path, long timestamp) throws IOException {
-        return directoryMap.remove(new Object[]{path, timestamp}) != null;
+        if (directoryMap.remove(new Object[]{path, timestamp}) != null) {
+            increaseWrite();
+            return true;
+        }
+        return false;
     }
 
     @Override
     public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
         activePathMap.put(new Object[]{setId, path}, encodeData(BACKUP_ACTIVE_PATH_WRITER, pendingFiles));
+        increaseWrite();
     }
 
     private byte[] encodeData(ObjectWriter writer, Object obj) throws IOException {
@@ -767,17 +805,24 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     @Override
     public void popActivePath(String setId, String path) throws IOException {
-        activePathMap.remove(new Object[]{setId, path});
+        if (activePathMap.remove(new Object[]{setId, path}) != null) {
+            increaseWrite();
+        }
     }
 
     @Override
     public boolean deletePartialFile(BackupPartialFile file) {
-        return partialFileMap.remove(file.getFile().getPath()) != null;
+        if (partialFileMap.remove(file.getFile().getPath()) != null) {
+            increaseWrite();
+            return true;
+        }
+        return false;
     }
 
     @Override
     public void savePartialFile(BackupPartialFile file) throws IOException {
         partialFileMap.put(file.getFile().getPath(), encodeData(BACKUP_PARTIAL_FILE_WRITER, file));
+        increaseWrite();
     }
 
     @Override
@@ -910,6 +955,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     public void addAdditionalBlock(BackupBlockAdditional block) throws IOException {
         additionalBlockMap.put(new Object[]{block.getPublicKey(), block.getHash()},
                 encodeData(BACKUP_BLOCK_ADDITIONAL_WRITER, stripCopy(block)));
+        increaseWrite();
     }
 
     @Override
@@ -937,58 +983,64 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             for (Object[] key : query.keySet())
                 additionalBlockMap.remove(key);
         }
+        increaseWrite();
     }
 
     @Override
     public boolean addUpdatedFile(BackupUpdatedFile file, long howOften) throws IOException {
-        if (howOften < 0) {
-            updatedPendingFilesMap.put(new Object[]{file.getLastUpdated(), file.getPath()}, new byte[0]);
-            updatedFilesMap.put(file.getPath(), file.getLastUpdated());
-            return false;
-        }
-        Long updated = updatedFilesMap.get(file.getPath());
-        if (updated == null) {
-            long lastExisting = 0;
-            if (file.getPath().endsWith(PathNormalizer.PATH_SEPARATOR)) {
-                BackupDirectory dir = directory(file.getPath(), null, false);
-                if (dir != null) {
-                    lastExisting = dir.getAdded();
-                }
-            } else {
-                BackupPartialFile partialFile = getPartialFileInternal(new BackupPartialFile(
-                        BackupFile.builder().path(file.getPath()).build()));
-                if (partialFile != null) {
-                    lastExisting = partialFile.getFile().getLastChanged();
+        try {
+            if (howOften < 0) {
+                updatedPendingFilesMap.put(new Object[]{file.getLastUpdated(), file.getPath()}, new byte[0]);
+                updatedFilesMap.put(file.getPath(), file.getLastUpdated());
+                return false;
+            }
+            Long updated = updatedFilesMap.get(file.getPath());
+            if (updated == null) {
+                long lastExisting = 0;
+                if (file.getPath().endsWith(PathNormalizer.PATH_SEPARATOR)) {
+                    BackupDirectory dir = directory(file.getPath(), null, false);
+                    if (dir != null) {
+                        lastExisting = dir.getAdded();
+                    }
                 } else {
-                    BackupFile existingFile = file(file.getPath(), null);
-                    if (existingFile != null) {
-                        lastExisting = existingFile.getLastChanged();
+                    BackupPartialFile partialFile = getPartialFileInternal(new BackupPartialFile(
+                            BackupFile.builder().path(file.getPath()).build()));
+                    if (partialFile != null) {
+                        lastExisting = partialFile.getFile().getLastChanged();
+                    } else {
+                        BackupFile existingFile = file(file.getPath(), null);
+                        if (existingFile != null) {
+                            lastExisting = existingFile.getLastChanged();
+                        }
                     }
                 }
-            }
 
-            long when = System.currentTimeMillis();
-            if (lastExisting + howOften > when) {
-                when = lastExisting + howOften;
-            }
-            when += MINIMUM_WAIT_UPDATE_MS;
+                long when = System.currentTimeMillis();
+                if (lastExisting + howOften > when) {
+                    when = lastExisting + howOften;
+                }
+                when += MINIMUM_WAIT_UPDATE_MS;
 
-            updatedFilesMap.put(file.getPath(), when);
-            updatedPendingFilesMap.put(new Object[]{when, file.getPath()}, new byte[0]);
-            return true;
-        } else if (file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS > updated) {
-            updatedPendingFilesMap.remove(new Object[]{updated, file.getPath()});
-            updatedPendingFilesMap.put(new Object[]{file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS, file.getPath()}, new byte[0]);
-            updatedFilesMap.put(file.getPath(), file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS);
-            return true;
+                updatedFilesMap.put(file.getPath(), when);
+                updatedPendingFilesMap.put(new Object[]{when, file.getPath()}, new byte[0]);
+                return true;
+            } else if (file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS > updated) {
+                updatedPendingFilesMap.remove(new Object[]{updated, file.getPath()});
+                updatedPendingFilesMap.put(new Object[]{file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS, file.getPath()}, new byte[0]);
+                updatedFilesMap.put(file.getPath(), file.getLastUpdated() + MINIMUM_WAIT_UPDATE_MS);
+                return true;
+            }
+            return false;
+        } finally {
+            increaseWrite();
         }
-        return false;
     }
 
     @Override
     public void removeUpdatedFile(BackupUpdatedFile file) {
         updatedFilesMap.remove(file.getPath());
         updatedPendingFilesMap.remove(new Object[]{file.getLastUpdated(), file.getPath()});
+        increaseWrite();
     }
 
     @Override
@@ -1163,6 +1215,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             File root = File.createTempFile("underscorebackup", ".db");
             IOUtils.deleteFile(root);
 
+            // Don't need transaction here since if we crash we will never open the file again.
             DBMaker.Maker maker = createDbMaker(root.toString());
             maker.fileDeleteAfterClose();
             db = maker.make();

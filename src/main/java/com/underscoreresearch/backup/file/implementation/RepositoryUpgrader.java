@@ -17,6 +17,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockAdditional;
@@ -44,7 +45,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
 
     public void upgrade() throws IOException, RepositoryErrorException {
         updatedStorage.clear();
-        updatedStorage.open(false);
+        updatedStorage.open(RepositoryOpenMode.WITHOUT_TRANSACTION);
 
         try (CloseableLock ignored = storage.exclusiveLock()) {
             try (CloseableLock ignored2 = updatedStorage.exclusiveLock()) {

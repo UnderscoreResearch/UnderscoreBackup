@@ -41,6 +41,7 @@ import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.encryption.NoneEncryptor;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
@@ -281,7 +282,7 @@ class ManifestManagerImplTest {
         initializeFactory();
 
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
-        repository.open(false);
+        repository.open(RepositoryOpenMode.READ_WRITE);
         manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
                 InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey("test"));

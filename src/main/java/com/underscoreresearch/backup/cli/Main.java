@@ -23,6 +23,7 @@ import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.MachineState;
@@ -88,7 +89,9 @@ public final class Main {
                         }
                     }
 
-                    InstanceFactory.getInstance(MetadataRepository.class).open(commandDef.readonlyRepository());
+                    InstanceFactory.getInstance(MetadataRepository.class).open(
+                            commandDef.readonlyRepository() ? RepositoryOpenMode.READ_ONLY : RepositoryOpenMode.READ_WRITE
+                    );
                 }
 
                 if (commandDef.preferNice()) {

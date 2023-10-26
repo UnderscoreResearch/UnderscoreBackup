@@ -21,6 +21,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.file.implementation.LockingMetadataRepository;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.io.IOPlugin;
@@ -37,7 +38,7 @@ public class DownloadSchedulerImplTest {
     public void setup() throws IOException {
         tempDir = Files.createTempDirectory("test").toFile();
         repository = new LockingMetadataRepository(tempDir.getPath(), false);
-        repository.open(false);
+        repository.open(RepositoryOpenMode.READ_WRITE);
     }
 
     @AfterEach

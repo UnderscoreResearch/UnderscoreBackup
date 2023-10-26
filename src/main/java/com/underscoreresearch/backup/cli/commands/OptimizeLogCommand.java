@@ -13,6 +13,7 @@ import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
@@ -22,7 +23,7 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 public class OptimizeLogCommand extends Command {
 
     public static boolean validateRepository(CommandLine commandLine, MetadataRepository repository) throws IOException {
-        repository.open(true);
+        repository.open(RepositoryOpenMode.READ_ONLY);
         if (repository.isErrorsDetected()) {
             if (commandLine.hasOption(FORCE)) {
                 log.warn("Proceeding despite corruption in local metadata repository");

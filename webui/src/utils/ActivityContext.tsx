@@ -30,6 +30,9 @@ function generateActivityContext(): ActivityContext {
     async function update() {
         const activity = await getActivity(false);
         if (activity === null) { // Auth not ready
+            if (lastState && lastState.unresponsive) {
+                appContext.update(appContext.password ?? "");
+            }
             return;
         }
         let newState: ActivityState

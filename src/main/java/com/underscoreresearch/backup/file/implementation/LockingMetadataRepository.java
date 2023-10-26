@@ -38,6 +38,7 @@ import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -72,7 +73,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     private final Object explicitRequestLock = new Object();
     private final ReentrantLock updateLock = new ReentrantLock();
     private final ReentrantLock openLock = new ReentrantLock();
-    protected boolean readOnly;
+    protected RepositoryOpenMode openMode;
     protected ReentrantLock explicitLock = new ReentrantLock();
     private boolean open;
     private MetadataRepositoryStorage storage;
@@ -112,9 +113,9 @@ public class LockingMetadataRepository implements MetadataRepository {
         return Paths.get(dataPath, file);
     }
 
-    public void open(boolean readOnly) throws IOException {
+    public void open(RepositoryOpenMode openMode) throws IOException {
         try (RepositoryLock ignored = new OpenLock()) {
-            if (open && !readOnly && this.readOnly) {
+            if (open && openMode != this.openMode) {
                 close();
             }
             if (!open) {
@@ -125,9 +126,9 @@ public class LockingMetadataRepository implements MetadataRepository {
                     LockingMetadataRepository.openRepositories.put(dataPath, this);
                 }
                 open = true;
-                this.readOnly = readOnly;
+                this.openMode = openMode;
 
-                if (readOnly) {
+                if (openMode == RepositoryOpenMode.READ_ONLY) {
                     File requestFile = getPath(LockingMetadataRepository.REQUEST_LOCK_FILE).toFile();
                     fileLock = new AccessLock(getPath(LockingMetadataRepository.LOCK_FILE).toString());
 
@@ -147,10 +148,10 @@ public class LockingMetadataRepository implements MetadataRepository {
                     }
                 }
 
-                prepareOpen(readOnly);
+                prepareOpen(openMode);
 
                 try {
-                    openAllDataFiles(readOnly);
+                    openAllDataFiles(openMode);
                 } catch (Exception e) {
                     open = false;
                     throw e;
@@ -159,12 +160,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
-    private void prepareOpen(boolean readOnly) throws IOException {
-        readRepositoryInfo(readOnly);
+    private void prepareOpen(RepositoryOpenMode openMode) throws IOException {
+        readRepositoryInfo(openMode);
 
         storage = createStorage(repositoryInfo.version, repositoryInfo.revision);
 
-        if (!readOnly) {
+        if (openMode != RepositoryOpenMode.READ_ONLY) {
             if (scheduledThreadPoolExecutor == null) {
                 scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1,
                         new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
@@ -213,7 +214,7 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
-    private void readRepositoryInfo(boolean readonly) throws IOException {
+    private void readRepositoryInfo(RepositoryOpenMode openMode) throws IOException {
         if (repositoryInfo != null && repositoryInfo.stopSaving)
             return;
 
@@ -223,7 +224,7 @@ public class LockingMetadataRepository implements MetadataRepository {
         } else {
             repositoryInfo = RepositoryInfo.builder().version(defaultVersion).build();
 
-            if (!readonly) {
+            if (openMode != RepositoryOpenMode.READ_ONLY) {
                 saveRepositoryInfo();
             }
         }
@@ -257,7 +258,7 @@ public class LockingMetadataRepository implements MetadataRepository {
 
                 requestLock.lock(true);
                 requestLock.close();
-                open(readOnly);
+                open(openMode);
                 LockingMetadataRepository.log.info("Metadata access restored from other process");
             } else {
                 requestLock.close();
@@ -294,12 +295,12 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     private void ensureOpen() throws IOException {
         if (!open) {
-            open(readOnly);
+            open(openMode);
         }
     }
 
     public void clear() throws IOException {
-        if (readOnly) {
+        if (openMode == RepositoryOpenMode.READ_ONLY) {
             throw new IOException("Tried to clear read only repository");
         }
         try (UpdateLock ignored = new UpdateLock()) {
@@ -314,9 +315,9 @@ public class LockingMetadataRepository implements MetadataRepository {
 
                     storage.clear();
 
-                    prepareOpen(false);
+                    prepareOpen(openMode);
 
-                    openAllDataFiles(false);
+                    openAllDataFiles(openMode);
                 }
             }
         }
@@ -343,8 +344,8 @@ public class LockingMetadataRepository implements MetadataRepository {
         return new RepositoryLock();
     }
 
-    private void openAllDataFiles(boolean readOnly) throws IOException {
-        storage.open(readOnly);
+    private void openAllDataFiles(RepositoryOpenMode openMode) throws IOException {
+        storage.open(openMode);
     }
 
     private void closeAllDataFiles() throws IOException {
@@ -746,7 +747,7 @@ public class LockingMetadataRepository implements MetadataRepository {
                 !repositoryInfo.errorsDetected && !repositoryInfo.stopSaving) {
             try (RepositoryLock ignored = new RepositoryLock()) {
                 try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository")) {
-                    open(true);
+                    open(RepositoryOpenMode.READ_ONLY);
 
                     int version = getDefaultVersion();
                     MetadataRepositoryStorage upgradedStorage = createStorage(version, 0);
@@ -785,7 +786,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public MetadataRepositoryStorage createStorageRevision() throws IOException {
         if (repositoryInfo == null) {
-            readRepositoryInfo(false);
+            readRepositoryInfo(RepositoryOpenMode.WITHOUT_TRANSACTION);
         }
         repositoryInfo.stopSaving = true;
         repositoryInfo.errorsDetected = false;
@@ -803,7 +804,7 @@ public class LockingMetadataRepository implements MetadataRepository {
         newStorage.clear();
         repositoryInfo.stopSaving = false;
 
-        readRepositoryInfo(false);
+        readRepositoryInfo(RepositoryOpenMode.READ_WRITE);
         storage = createStorage(repositoryInfo.version, repositoryInfo.revision);
     }
 
@@ -813,7 +814,7 @@ public class LockingMetadataRepository implements MetadataRepository {
             MetadataRepositoryStorage oldStorage = createStorage(repositoryInfo.version, repositoryInfo.revision - 1);
             oldStorage.clear();
 
-            open(true);
+            open(RepositoryOpenMode.READ_ONLY);
 
             repositoryInfo.stopSaving = false;
             saveRepositoryInfo();
@@ -824,7 +825,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public boolean isErrorsDetected() {
         if (repositoryInfo == null) {
             try {
-                readRepositoryInfo(true);
+                readRepositoryInfo(RepositoryOpenMode.READ_ONLY);
             } catch (IOException e) {
                 return false;
             }
@@ -835,7 +836,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void setErrorsDetected(boolean errorsDetected) throws IOException {
         if (repositoryInfo != null) {
-            readRepositoryInfo(false);
+            readRepositoryInfo(RepositoryOpenMode.READ_WRITE);
         }
         assert repositoryInfo != null;
         repositoryInfo.setErrorsDetected(errorsDetected);

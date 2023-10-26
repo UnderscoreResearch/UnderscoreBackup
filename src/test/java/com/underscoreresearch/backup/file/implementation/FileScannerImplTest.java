@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.file.FileConsumer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupCompletion;
@@ -51,7 +52,7 @@ class FileScannerImplTest {
         tempDir = Files.createTempDirectory("test").toFile();
         repository = new LoggingMetadataRepository(new LockingMetadataRepository(tempDir.getPath(), false),
                 Mockito.mock(ManifestManager.class), false);
-        repository.open(false);
+        repository.open(RepositoryOpenMode.READ_WRITE);
 
         access = new FileSystemAccessImpl();
         String root = Paths.get("src").toAbsolutePath().toString();

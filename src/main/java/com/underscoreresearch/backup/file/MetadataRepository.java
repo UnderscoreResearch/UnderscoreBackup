@@ -63,7 +63,7 @@ public interface MetadataRepository {
 
     void flushLogging() throws IOException;
 
-    void open(boolean readOnly) throws IOException;
+    void open(RepositoryOpenMode openMode) throws IOException;
 
     void close() throws IOException;
 

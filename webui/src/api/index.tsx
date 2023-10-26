@@ -244,6 +244,7 @@ let apiSharedKeyBytes: Uint8Array | undefined = undefined;
 let keySalt: string | undefined = undefined;
 let keyData: string | undefined = undefined;
 let encryptionPublicKey: string | undefined = undefined;
+let hasSuccessfulAuth = false;
 let authAwaits: (() => void)[] = [];
 let nonce = 1;
 
@@ -433,17 +434,20 @@ export async function performFetch(api: string, init?: RequestInit, silentError?
     const response = await fetch(baseApi + api, useInit);
     if (!response.ok) {
         if (response.status === 401) {
+            apiSharedKey = undefined;
+            fetchAuth().then(() => {
+                postAwaits();
+            });
             if (encryptionPublicKey) {
                 encryptionPublicKey = undefined;
-                reportError("Invalid password");
-            } else if (apiSharedKey && !keySalt) {
-                apiSharedKey = undefined;
-                fetchAuth().then(() => {
-                    postAwaits();
-                });
+                if (!hasSuccessfulAuth)
+                    reportError("Invalid password");
             }
+            hasSuccessfulAuth = false;
             return null;
         }
+    } else {
+        hasSuccessfulAuth = true;
     }
 
     return response;

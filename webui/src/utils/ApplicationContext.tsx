@@ -156,11 +156,16 @@ function generateApplicationContext(): ApplicationContext {
         setBusy(true);
         try {
             const newBackendState = await getState();
-            setState((oldState) => ({
-                ...oldState,
-                backendState: newBackendState,
-                validatedPassword: validatedPassword !== undefined ? validatedPassword : oldState.validatedPassword
-            }));
+            setState((oldState) => {
+                if (oldState && oldState.backendState && oldState.backendState.version !== newBackendState.version) {
+                    window.location.reload();
+                }
+                return {
+                    ...oldState,
+                    backendState: newBackendState,
+                    validatedPassword: validatedPassword !== undefined ? validatedPassword : oldState.validatedPassword
+                }
+            });
         } finally {
             setBusy(false);
         }

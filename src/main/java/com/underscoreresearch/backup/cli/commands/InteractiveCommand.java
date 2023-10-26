@@ -33,6 +33,7 @@ import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -57,7 +58,7 @@ public class InteractiveCommand extends Command {
                     && configuration.getManifest().getInteractiveBackup() != null
                     && configuration.getManifest().getInteractiveBackup()) {
                 try {
-                    InstanceFactory.getInstance(MetadataRepository.class).open(false);
+                    InstanceFactory.getInstance(MetadataRepository.class).open(RepositoryOpenMode.READ_WRITE);
                     BackupCommand.executeBackup(true);
                 } catch (Exception exc) {
                     log.error("Failed to start backup", exc);

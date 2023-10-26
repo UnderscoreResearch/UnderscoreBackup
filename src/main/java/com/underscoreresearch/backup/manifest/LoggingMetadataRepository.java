@@ -44,6 +44,7 @@ import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
 import com.underscoreresearch.backup.model.BackupActiveFile;
@@ -682,8 +683,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
-    public void open(boolean readOnly) throws IOException {
-        repository.open(readOnly);
+    public void open(RepositoryOpenMode openMode) throws IOException {
+        repository.open(openMode);
     }
 
     @Override

@@ -184,12 +184,18 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
     }
 
     private void uploadFile(BackupSet set, File file, BackupUpdatedFile updatedFile) throws IOException {
-        BackupFile backupFile = BackupFile.builder()
-                .path(updatedFile.getPath())
-                .length(file.length())
-                .added(System.currentTimeMillis())
-                .lastChanged(Files.getLastModifiedTime(file.toPath()).toMillis())
-                .build();
+        BackupFile backupFile;
+        try {
+            backupFile = BackupFile.builder()
+                    .path(updatedFile.getPath())
+                    .length(file.length())
+                    .added(System.currentTimeMillis())
+                    .lastChanged(Files.getLastModifiedTime(file.toPath()).toMillis())
+                    .build();
+        } catch (IOException e) {
+            log.warn("Failed to get last modified time for file {}", file, e);
+            return;
+        }
         BackupPartialFile partialFile = new BackupPartialFile(backupFile);
         repository.savePartialFile(partialFile);
 

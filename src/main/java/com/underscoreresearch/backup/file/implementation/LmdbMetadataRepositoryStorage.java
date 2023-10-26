@@ -91,6 +91,7 @@ import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
@@ -536,8 +537,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     }
 
     @Override
-    public void open(boolean readOnly) throws IOException {
-        this.readOnly = readOnly;
+    public void open(RepositoryOpenMode openMode) throws IOException {
+        this.readOnly = openMode == RepositoryOpenMode.READ_ONLY;
         if (db == null) {
             db = createDb(readOnly);
         }
@@ -1480,7 +1481,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 mapSize += INCREASE_SPACE;
                 debug(() -> log.debug("Increasing repository size to {}", readableSize(mapSize)));
                 db.setMapSize(mapSize);
-                open(readOnly);
+                open(readOnly ? RepositoryOpenMode.READ_ONLY : RepositoryOpenMode.READ_WRITE);
             }
         }
 

@@ -34,6 +34,7 @@ import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
@@ -86,7 +87,7 @@ public abstract class MetadataRepositoryStoragePerformance {
             directory = Files.createTempDirectory("performancetest");
             storage = createStorageEngine(directory);
             if (storage != null) {
-                storage.open(false);
+                openEngine(storage);
                 List<String> listOfStrings = new ArrayList<>();
                 for (int i = 0; i < 40; i++) {
                     listOfStrings.add(hash(i));
@@ -98,6 +99,10 @@ public abstract class MetadataRepositoryStoragePerformance {
                         .collect(Collectors.toList());
             }
         }
+    }
+
+    protected void openEngine(MetadataRepositoryStorage storage) throws IOException {
+        storage.open(RepositoryOpenMode.READ_WRITE);
     }
 
     protected abstract MetadataRepositoryStorage createStorageEngine(Path directory);

@@ -17,7 +17,7 @@ import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 public interface MetadataRepositoryStorage {
-    void open(boolean readOnly) throws IOException;
+    void open(RepositoryOpenMode openMode) throws IOException;
 
     void close() throws IOException;
 

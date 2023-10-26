@@ -12,6 +12,7 @@ import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -234,7 +235,7 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
-    public void open(boolean readOnly) throws IOException {
+    public void open(RepositoryOpenMode openMode) throws IOException {
     }
 
     @Override

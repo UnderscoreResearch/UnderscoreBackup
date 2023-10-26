@@ -24,6 +24,7 @@ import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.IOUtils;
@@ -127,7 +128,7 @@ public class RebuildRepositoryCommand extends Command {
                                           MetadataRepository repository,
                                           String password) {
         try {
-            repository.open(false);
+            repository.open(RepositoryOpenMode.READ_WRITE);
             manifestManager.replayLog(logConsumer, password);
         } catch (IOException e) {
             throw new RuntimeException(e);

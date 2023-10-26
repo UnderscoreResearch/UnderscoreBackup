@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 
 @Slf4j
@@ -39,11 +40,11 @@ public class RestartSetsPost extends BaseWrap {
             try {
                 RestartSetRequest request = READER.readValue(body);
                 MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
-                repository.open(false);
+                repository.open(RepositoryOpenMode.READ_WRITE);
                 Set<String> sets;
                 if (request.sets == null) {
                     sets = repository.getPendingSets().stream().map(BackupPendingSet::getSetId)
-                            .filter(id -> !id.equals("") && !id.equals("=")).collect(Collectors.toSet());
+                            .filter(id -> !id.isEmpty() && !id.equals("=")).collect(Collectors.toSet());
                 } else {
                     sets = request.getSets();
                 }

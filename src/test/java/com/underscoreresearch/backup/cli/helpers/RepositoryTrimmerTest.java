@@ -34,6 +34,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.file.implementation.LockingMetadataRepository;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
@@ -73,7 +74,7 @@ class RepositoryTrimmerTest {
         manifestManager = Mockito.mock(ManifestManager.class);
         tempDir = Files.createTempDirectory("test").toFile();
         repository = Mockito.spy(new LoggingMetadataRepository(new LockingMetadataRepository(tempDir.getPath(), false), manifestManager, false));
-        repository.open(false);
+        repository.open(RepositoryOpenMode.READ_WRITE);
 
         backupConfiguration = new BackupConfiguration();
         set1 = new BackupSet();
