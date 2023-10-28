@@ -5,8 +5,8 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,18 +36,18 @@ import com.underscoreresearch.backup.cli.web.BaseWrap;
 
 @Slf4j
 public class BestRegionGet extends BaseWrap {
-    private static final Map<String, List<URL>> REGIONS;
+    private static final Map<String, List<URI>> REGIONS;
     private static final int ITERATIONS = 5;
     private static final ObjectWriter WRITER = MAPPER.writerFor(BestRegion.class);
 
     static {
         try {
             REGIONS = ImmutableMap.of(
-                    "us-west", Lists.newArrayList(new URL("https://s3.us-west-1.wasabisys.com"), new URL("https://s3.us-east-1.wasabisys.com")),
-                    "eu-central", Lists.newArrayList(new URL("https://s3.eu-central-2.wasabisys.com"), new URL("https://s3.eu-west-1.wasabisys.com")),
-                    "ap-southeast", Lists.newArrayList(new URL("https://s3.ap-southeast-1.wasabisys.com"), new URL("https://s3.ap-northeast-1.wasabisys.com"))
+                    "us-west", Lists.newArrayList(new URI("https://s3.us-west-1.wasabisys.com"), new URI("https://s3.us-east-1.wasabisys.com")),
+                    "eu-central", Lists.newArrayList(new URI("https://s3.eu-central-2.wasabisys.com"), new URI("https://s3.eu-west-1.wasabisys.com")),
+                    "ap-southeast", Lists.newArrayList(new URI("https://s3.ap-southeast-1.wasabisys.com"), new URI("https://s3.ap-northeast-1.wasabisys.com"))
             );
-        } catch (MalformedURLException e) {
+        } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
@@ -61,18 +61,18 @@ public class BestRegionGet extends BaseWrap {
                 new AtomicLong()))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         Map<String, AtomicInteger> successCount = REGIONS.keySet().stream().map(urls -> (Maps.immutableEntry(urls,
                 new AtomicInteger()))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        ExecutorService pool = Executors.newFixedThreadPool(ITERATIONS
-                * REGIONS.values().stream().map(List::size).reduce(0, Integer::sum));
-        try {
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(ITERATIONS
+                * REGIONS.values().stream().map(List::size).reduce(0, Integer::sum))) {
             List<Future<?>> futures = new ArrayList<>();
             for (int i = 0; i < ITERATIONS; i++) {
-                for (Map.Entry<String, List<URL>> entry : REGIONS.entrySet()) {
+                for (Map.Entry<String, List<URI>> entry : REGIONS.entrySet()) {
                     final String region = entry.getKey();
-                    for (URL endpoint : entry.getValue()) {
+                    for (URI endpoint : entry.getValue()) {
                         futures.add(pool.submit(() -> {
                             try {
                                 Stopwatch timer = Stopwatch.createStarted();
-                                HttpURLConnection con = (HttpURLConnection) endpoint.openConnection();
+                                HttpURLConnection con = (HttpURLConnection) endpoint.toURL().openConnection();
                                 con.setConnectTimeout(3000);
                                 con.setReadTimeout(3000);
                                 con.setRequestMethod("OPTIONS");
@@ -105,8 +105,6 @@ public class BestRegionGet extends BaseWrap {
                 }
             }
             return bestRegion;
-        } finally {
-            pool.shutdownNow();
         }
     }
 
@@ -118,7 +116,7 @@ public class BestRegionGet extends BaseWrap {
 
     private static class Implementation implements Take {
         @Override
-        public Response act(Request req) throws Exception {
+        public Response act(Request req) {
             try {
                 return encryptResponse(req, WRITER.writeValueAsString(new BestRegion(determineBestRegion())));
             } catch (Throwable exc) {

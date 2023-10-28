@@ -269,9 +269,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
 
     private String getApplicationUrl() {
         try {
-            String url = getConfigurationUrl();
-            validateConfigurationUrl(url);
-            return url;
+            return getConfigurationUrl();
         } catch (Exception exc) {
             return null;
         }

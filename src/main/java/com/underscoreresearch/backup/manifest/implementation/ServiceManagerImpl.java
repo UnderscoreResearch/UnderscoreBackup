@@ -16,6 +16,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
@@ -148,12 +150,22 @@ public class ServiceManagerImpl implements ServiceManager {
         HttpURLConnection connection;
         log.info("Downloading {} to {} ({})", item.getName(), destination, readableSize(item.getSize().longValue()));
         if (item.getSecureUrl() != null && release.getToken() != null) {
-            URL url = new URL(item.getSecureUrl());
+            URL url;
+            try {
+                url = new URI(item.getSecureUrl()).toURL();
+            } catch (URISyntaxException e) {
+                throw new IOException(e);
+            }
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestProperty("Accept", "application/octet-stream");
             connection.setRequestProperty("Authorization", "Bearer " + release.getToken());
         } else {
-            URL url = new URL(item.getUrl());
+            URL url;
+            try {
+                url = new URI(item.getUrl()).toURL();
+            } catch (URISyntaxException e) {
+                throw new IOException(e);
+            }
             connection = (HttpURLConnection) url.openConnection();
         }
         connection.setConnectTimeout(10000);

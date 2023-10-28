@@ -159,7 +159,6 @@ public class SourcesPut extends BaseWrap {
         String configurationUrl;
         try {
             configurationUrl = getConfigurationUrl();
-            validateConfigurationUrl(configurationUrl);
         } catch (IOException exc) {
             configurationUrl = null;
         }

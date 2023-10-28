@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
@@ -203,7 +204,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                         if (timer.elapsed(TimeUnit.SECONDS) > START_TIMEOUT_SECONDS) {
                             return null;
                         }
-                        URL url = new URL(response.getLocation());
+                        URL url = new URI(response.getLocation()).toURL();
                         HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
                         httpCon.setConnectTimeout(10000);
                         httpCon.setDoOutput(true);
@@ -278,7 +279,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                     if (timer.elapsed(TimeUnit.SECONDS) > START_TIMEOUT_SECONDS) {
                         return null;
                     }
-                    URL url = new URL(response.getLocation());
+                    URL url = new URI(response.getLocation()).toURL();
                     HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
                     httpCon.setConnectTimeout(10000);
                     httpCon.setDoInput(true);

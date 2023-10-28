@@ -65,14 +65,14 @@ public final class Main {
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
-                log.error("Uncaught exception from thread {} (Id {})", t.getName(), t.getId(), e);
+                log.error("Uncaught exception from thread {} (Id {})", t.getName(), t.threadId(), e);
             }
         });
 
         try {
             CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
 
-            if (commandLine.getArgList().size() == 0) {
+            if (commandLine.getArgList().isEmpty()) {
                 help();
                 System.exit(0);
             }

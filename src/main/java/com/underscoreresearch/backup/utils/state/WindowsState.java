@@ -29,7 +29,14 @@ public class WindowsState extends MachineState {
     public boolean getOnBattery() {
         try {
             Process proc = Runtime.getRuntime().exec(
-                    "WMIC /NameSpace:\"\\\\root\\WMI\" Path BatteryStatus Get PowerOnline");
+                    new String[] {
+                            "wmic",
+                            "/NameSpace:\"\\\\root\\WMI\"",
+                            "Path",
+                            "BatteryStatus",
+                            "Get",
+                            "PowerOnline"
+                    });
 
             try (BufferedReader stdInput = new BufferedReader(
                     new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
@@ -56,7 +63,9 @@ public class WindowsState extends MachineState {
     public void lowPriority() {
         try {
             Process process = Runtime.getRuntime()
-                    .exec(String.format("wmic process where processid=%d CALL setpriority \"idle\"", ProcessHandle.current().pid()));
+                    .exec(new String[]{
+                            "wmic", "process", "where", String.format("processid=%d", ProcessHandle.current().pid()), "CALL", "setpriority", "idle"
+                    });
             if (process.waitFor() != 0) {
                 throw new IOException();
             }

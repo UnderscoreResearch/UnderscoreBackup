@@ -15,15 +15,16 @@ mkdir -p "build/installer/Underscore Backup.app/Contents/daemon"
 cp -r "osx/Underscore Backup.app" build/installer/
 
 echo "Downloading x64 Java JDK"
-if [ ! -d build/amazon-corretto-17.jdk ]
+if [ ! -d build/x86/amazon-corretto-21.jdk ]
 then
-  curl -L https://corretto.aws/downloads/latest/amazon-corretto-17-x64-macos-jdk.tar.gz -o build/amazon-corretto-17-x64-macos-jdk.tar.gz
-  (cd build && tar xzf amazon-corretto-17-x64-macos-jdk.tar.gz)
+  mkdir -p build/x86
+  curl -L https://corretto.aws/downloads/latest/amazon-corretto-21-x64-macos-jdk.tar.gz -o build/x86/amazon-corretto-21-x64-macos-jdk.tar.gz
+  (cd build/x86 && tar xzf amazon-corretto-21-x64-macos-jdk.tar.gz)
 fi
 
 export OLD_PATH=$PATH
 export OLD_JAVA_HOME=$JAVA_HOME
-export JAVA_HOME=`pwd`/build/amazon-corretto-17.jdk/Contents/Home
+export JAVA_HOME=`pwd`/build/x86/amazon-corretto-21.jdk/Contents/Home
 export PATH=$JAVA_HOME/bin:$PATH
 rm -rf build/image
 rm -rf build/runtime
@@ -44,9 +45,9 @@ cp -r build/image "build/installer/Underscore Backup.app/Contents/daemon/$ARCHIT
 
   for lib in *
   do
-    if diff -q "$lib" "../../x86_64/lib/$lib"
+    if diff -rq "$lib" "../../x86_64/lib/$lib"
     then
-      rm "$lib"
+      rm -rf "$lib"
       ln -s "../../x86_64/lib/$lib"
     fi
   done

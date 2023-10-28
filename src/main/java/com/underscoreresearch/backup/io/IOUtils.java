@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -62,7 +63,7 @@ public final class IOUtils {
 
             for (int i = 0; true; i++) {
                 try {
-                    URL url = new URL("http://www.example.com");
+                    URL url = new URI("http://www.example.com").toURL();
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("HEAD");
                     connection.setConnectTimeout(10000);

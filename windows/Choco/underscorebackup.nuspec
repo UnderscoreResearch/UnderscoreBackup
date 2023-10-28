@@ -5,7 +5,7 @@
     <!-- version should MATCH as closely as possible with the underlying software -->
     <!-- Is the version a prerelease of a version? https://docs.nuget.org/create/versioning#creating-prerelease-packages -->
     <!-- Note that unstable versions like 0.0.1 can be considered a released version, but it's possible that one can release a 0.0.1-beta before you release a 0.0.1 version. If the version number is final, that is considered a released version and not a prerelease. -->
-    <version>2.2.0.1rc</version>
+    <version>TBD</version>
     <packageSourceUrl>https://github.com/UnderscoreResearch/UnderscoreBackup/tree/master/windows/Choco</packageSourceUrl>
     <owners>Underscore Research LLC</owners>
 
@@ -35,7 +35,7 @@
 
 * Designed from the ground up to manage very large backup sets with multiple TB of data and millions of file in a single repository.
 
-* Multi-platform support based on Java 17. Linux, Windows and MacOS are supported platforms, but should run anywhere Java 17 is supported.
+* Multi-platform support based on Java 21. Linux, Windows and MacOS are supported platforms, but should run anywhere Java 21 is supported.
 
 * Low resource requirements, runs efficiently with 256MB of heap memory even if the backup sets have millions of files and terabytes of data.
 

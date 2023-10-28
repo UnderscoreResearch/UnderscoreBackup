@@ -41,7 +41,7 @@ public class ConfigureCommand extends SimpleCommand {
 
     public static void validateConfigurationUrl(String configurationUrl) throws ConfigurationUrlException {
         try {
-            URL url = new URL(configurationUrl + "api/ping");
+            URL url = new URI(configurationUrl + "api/ping").toURL();
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setConnectTimeout(3000);
             connection.setReadTimeout(3000);

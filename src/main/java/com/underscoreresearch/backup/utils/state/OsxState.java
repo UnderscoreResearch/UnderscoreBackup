@@ -26,7 +26,9 @@ public class OsxState extends MachineState {
     @Override
     public boolean getOnBattery() {
         try {
-            Process proc = Runtime.getRuntime().exec("pmset -g ac");
+            Process proc = Runtime.getRuntime().exec(new String[] {
+                    "pmset", "-g", "ac"
+            });
 
             try (BufferedReader stdInput = new BufferedReader(
                     new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
@@ -53,7 +55,9 @@ public class OsxState extends MachineState {
     public void lowPriority() {
         try {
             Process process = Runtime.getRuntime()
-                    .exec(String.format("renice +10 -p %s", ProcessHandle.current().pid()));
+                    .exec(new String[] {
+                            "renice", "+10", "-p", Long.toString(ProcessHandle.current().pid())
+                    });
             if (process.waitFor() != 0) {
                 throw new IOException();
             }

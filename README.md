@@ -18,8 +18,8 @@ Serverless backup solution with client side encryption with the following featur
 * Designed from the ground up to manage very large backup sets with multiple TB of data and millions of files in a
   single repository.
 
-* Multi-platform support based on Java 17. Linux, Windows, and MacOS are officially supported but should run anywhere
-  Java 17 is supported.
+* Multi-platform support based on Java 21. Linux, Windows, and MacOS are officially supported but should run anywhere
+  Java 21 is supported.
 
 * Low resource requirements, runs efficiently with 256MB of heap memory even if the backup sets have millions of files
   and terabytes of data.

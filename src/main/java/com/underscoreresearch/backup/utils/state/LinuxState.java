@@ -81,7 +81,9 @@ public class LinuxState extends MachineState {
     public void lowPriority() {
         try {
             Process process = Runtime.getRuntime()
-                    .exec(String.format("renice +10 -p %s", ProcessHandle.current().pid()));
+                    .exec(new String[] {
+                            "renice", "+10", "-p", Long.toString(ProcessHandle.current().pid())
+                    });
             if (process.waitFor() != 0) {
                 throw new IOException();
             }

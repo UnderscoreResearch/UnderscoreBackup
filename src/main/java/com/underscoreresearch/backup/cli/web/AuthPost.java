@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -46,7 +47,12 @@ public class AuthPost extends BaseWrap {
 
     public static String performAuthenticatedRequest(String configurationUrl, String method, String path, String body) throws IOException {
         byte[] privateKey = X25519.generatePrivateKey();
-        URL url = new URL(configurationUrl + "api/auth");
+        URL url;
+        try {
+            url = new URI(configurationUrl + "api/auth").toURL();
+        } catch (URISyntaxException e) {
+            throw new IOException(e);
+        }
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setConnectTimeout(3000);
         connection.setRequestMethod("POST");
