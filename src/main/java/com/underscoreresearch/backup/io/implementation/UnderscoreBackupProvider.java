@@ -21,6 +21,8 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.takes.HttpException;
+
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -83,7 +85,12 @@ public class UnderscoreBackupProvider implements IOIndex {
 
     public static <T> T s3Retry(Callable<T> callable) throws IOException {
         try {
-            return retry(callable, null);
+            return retry(callable, (exc) -> {
+                if (exc instanceof HttpException httpException) {
+                    return httpException.code() != 404;
+                }
+                return true;
+            });
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
@@ -287,7 +294,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                         return null;
                     }
                     if (httpCon.getResponseCode() != 200) {
-                        throw new IOException("Failed to download data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                        throw new HttpException(httpCon.getResponseCode(), "Failed to download data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
                     }
                     byte[] data;
                     try (InputStream stream = httpCon.getInputStream()) {

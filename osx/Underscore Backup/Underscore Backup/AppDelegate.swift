@@ -65,7 +65,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
     
     func createLock() -> Bool {
-        let lockUrl = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscoreBackup/notifications/lock");
+        let notificationsDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".underscoreBackup/notifications");
+        do {
+            if !FileManager.default.fileExists(atPath: notificationsDir.path) {
+                try FileManager.default.createDirectory(atPath: notificationsDir.path, withIntermediateDirectories: true, attributes: nil)
+            }
+        } catch {
+            let alert = NSAlert()
+
+            alert.messageText = "Failed to create notifications path"
+            alert.informativeText = "Failed to create notifications path"
+            alert.addButton(withTitle: "OK")
+            alert.alertStyle = .critical
+
+            alert.runModal()
+
+            return false;
+        }
+        
+        let lockUrl = notificationsDir.appendingPathComponent("lock");
         let path = lockUrl.path;
 
         let fd = open(path, O_WRONLY|O_CREAT, 0o600)

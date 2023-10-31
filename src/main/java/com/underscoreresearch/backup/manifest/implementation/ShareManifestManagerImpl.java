@@ -164,7 +164,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
 
     @Override
     public void updateEncryptionKeys(EncryptionKey.PrivateKey privateKey) throws IOException {
-        if (getServiceManager().getToken() != null && getServiceManager().getSourceId() != null) {
+        if (getServiceManager().getToken() != null && getServiceManager().getSourceId() != null && activatedShare.getShare().getTargetEmail() != null) {
             activatedShare.setUpdatedEncryption(getServiceManager().updateShareEncryption(privateKey,
                     getPublicKey().getPublicKey(),
                     activatedShare.getShare()));

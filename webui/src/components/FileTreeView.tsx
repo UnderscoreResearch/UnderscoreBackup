@@ -56,6 +56,7 @@ interface TreeItem {
 interface SetTreeViewState {
     items: TreeItem[],
     roots: BackupSetRoot[],
+    includedPaths: string[],
     stateValue?: any
 }
 
@@ -222,8 +223,48 @@ function childCount(items: TreeItem[], index: number) {
     return length;
 }
 
+function expandIncludedFilters(path: string, filters: BackupFilter[] | undefined) {
+    if (path.endsWith("/"))
+        path = path.substring(0, path.length - 1);
+
+    const ret : string[] = [];
+    if (filters) {
+        filters.forEach(filter => {
+            if (filter.type === "INCLUDE") {
+                filter.paths.forEach(filterPath => {
+                    ret.push(path + "/" + filterPath);
+                });
+            }
+            if (filter.children) {
+                filter.paths.forEach(filterPath => {
+                    if (filterPath.endsWith("/"))
+                        filterPath = filterPath.substring(0, filterPath.length - 1);
+
+                    const childPaths = expandIncludedFilters(path + "/" + filterPath, filter.children);
+                    ret.push(...childPaths);
+                });
+            }
+        });
+    }
+    return ret;
+}
+
+function expandIncludedRoots(roots: BackupSetRoot[]): string[] {
+    const ret: string[] = [];
+    roots.forEach(root => {
+        ret.push(root.path);
+        const childPaths = expandIncludedFilters(root.path, root.filters);
+        ret.push(...childPaths);
+    });
+
+    return ret;
+}
+
 export default function FileTreeView(props: SetTreeViewProps) {
     function defaultState() {
+        const roots = normalizeRoots(props.roots, props.backendState);
+        const includedPaths = expandIncludedRoots(roots);
+
         return {
             items: [{
                 path: "/",
@@ -235,7 +276,8 @@ export default function FileTreeView(props: SetTreeViewProps) {
                 size: "",
                 added: ""
             }],
-            roots: normalizeRoots(props.roots, props.backendState),
+            roots: roots,
+            includedPaths: includedPaths,
             stateValue: props.stateValue
         }
     }
@@ -445,7 +487,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
                         expanded: true
                     };
                     if (items) {
-                        const treeItems: TreeItem[] = items.map(item => {
+                        let treeItems: TreeItem[] = items.map(item => {
                             let hasChildren = item.path.endsWith("/");
                             let path = item.path.length > 1 && hasChildren ? item.path.substring(0, item.path.length - 1) : item.path;
                             let expand = false;
@@ -466,6 +508,49 @@ export default function FileTreeView(props: SetTreeViewProps) {
                                 added: formatLastChange(item.lastChanged)
                             };
                         });
+
+                        if (!path.endsWith("/")) {
+                            path += "/";
+                        }
+
+                        let anyAdded = false;
+                        oldState.includedPaths.filter(p => p.startsWith(path)).map(includedPath => {
+                            if (includedPath.endsWith("/"))
+                                includedPath = includedPath.substring(0, includedPath.length - 1);
+
+                            const ind = includedPath.indexOf("/", path.length + 1);
+                            if (ind >= 0) {
+                                return {
+                                    currentPath: includedPath.substring(0, ind),
+                                    fullPath: includedPath
+                                };
+                            }
+                            return {
+                                currentPath: includedPath,
+                                fullPath: includedPath
+                            };
+                        }).filter(includedPath => treeItems.find(item => item.path === includedPath.currentPath) === undefined).forEach(includedPath => {
+                            const expand = includedPath.fullPath !== includedPath.currentPath;
+                            if (expand)
+                                loadPath(includedPath.currentPath);
+
+                            treeItems.push({
+                                path: includedPath.currentPath,
+                                level: newItem.level + 1,
+                                name: pathName(includedPath.currentPath),
+                                expanded: false,
+                                loading: expand,
+                                hasChildren: expand,
+                                deleted: true,
+                                size: "",
+                                added: ""
+                            });
+                            anyAdded = true
+                        });
+
+                        if (anyAdded)
+                            treeItems = treeItems.sort((a, b) => +(a.path>b.path)||-(b.path>a.path));
+
                         newItems.splice(index + 1, childCount(oldState.items, index), ...treeItems)
                     }
                     newItems[index] = newItem;

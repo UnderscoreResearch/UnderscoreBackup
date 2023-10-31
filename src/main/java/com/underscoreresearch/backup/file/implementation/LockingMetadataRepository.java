@@ -129,6 +129,7 @@ public class LockingMetadataRepository implements MetadataRepository {
                 this.openMode = openMode;
 
                 if (openMode == RepositoryOpenMode.READ_ONLY) {
+                    log.info("Opened repository in read only mode");
                     File requestFile = getPath(LockingMetadataRepository.REQUEST_LOCK_FILE).toFile();
                     fileLock = new AccessLock(getPath(LockingMetadataRepository.LOCK_FILE).toString());
 
@@ -293,9 +294,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
-    private void ensureOpen() throws IOException {
+    private void ensureOpen(boolean readOnly) throws IOException {
         if (!open) {
             open(openMode);
+        }
+        if (!readOnly && openMode == RepositoryOpenMode.READ_ONLY) {
+            throw new IOException("Tried to write to read only repository");
         }
     }
 
@@ -355,7 +359,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public List<ExternalBackupFile> file(String path) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.file(path);
         }
@@ -364,7 +368,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public List<BackupFilePart> existingFilePart(String partHash) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.existingFilePart(partHash);
         }
@@ -380,7 +384,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     private CloseableLock acquireStreamLock() throws IOException {
         CloseableLock lock = acquireLock();
         try {
-            ensureOpen();
+            ensureOpen(true);
         } catch (IOException exc) {
             lock.close();
             throw exc;
@@ -418,7 +422,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
         if (!replayOnly)
             try (RepositoryLock ignored = new RepositoryLock()) {
-                ensureOpen();
+                ensureOpen(false);
 
                 storage.addPendingSets(scheduledTime);
             }
@@ -428,7 +432,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void deletePendingSets(String setId) throws IOException {
         if (!replayOnly)
             try (RepositoryLock ignored = new RepositoryLock()) {
-                ensureOpen();
+                ensureOpen(false);
 
                 storage.deletePendingSets(setId);
             }
@@ -437,7 +441,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public Set<BackupPendingSet> getPendingSets() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.getPendingSets();
         }
@@ -446,7 +450,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public BackupFile file(String path, Long timestamp) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.file(path, timestamp);
         }
@@ -455,7 +459,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public BackupBlock block(String hash) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.block(hash);
         }
@@ -464,7 +468,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.directory(path, timestamp, accumulative);
         }
@@ -473,7 +477,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void addFile(BackupFile file) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             storage.addFile(file);
 
@@ -492,7 +496,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void addBlock(BackupBlock block) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             storage.addBlock(block);
         }
@@ -501,7 +505,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void addTemporaryBlock(BackupBlock block) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             storage.addTemporaryBlock(block);
         }
@@ -510,7 +514,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void installTemporaryBlocks() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             repositoryInfo.alternateBlockTable = !repositoryInfo.alternateBlockTable;
             saveRepositoryInfo();
@@ -522,7 +526,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             storage.addDirectory(directory);
         }
@@ -531,7 +535,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public boolean deleteBlock(BackupBlock block) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             return storage.deleteBlock(block);
         }
@@ -540,7 +544,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public boolean deleteFile(BackupFile file) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             return storage.deleteFile(file);
         }
@@ -550,7 +554,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public boolean deleteFilePart(BackupFilePart part) throws IOException {
         if (!replayOnly) {
             try (RepositoryLock ignored = new RepositoryLock()) {
-                ensureOpen();
+                ensureOpen(false);
 
                 return storage.deleteFilePart(part);
             }
@@ -561,7 +565,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public boolean deleteDirectory(String path, long timestamp) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             return storage.deleteDirectory(path, timestamp);
         }
@@ -571,7 +575,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
         if (!replayOnly) {
             try (RepositoryLock ignored = new RepositoryLock()) {
-                ensureOpen();
+                ensureOpen(false);
 
                 storage.pushActivePath(setId, path, pendingFiles);
             }
@@ -581,7 +585,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public boolean hasActivePath(String setId, String path) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.hasActivePath(setId, path);
         }
@@ -591,7 +595,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void popActivePath(String setId, String path) throws IOException {
         if (!replayOnly) {
             try (RepositoryLock ignored = new RepositoryLock()) {
-                ensureOpen();
+                ensureOpen(false);
 
                 storage.popActivePath(setId, path);
             }
@@ -602,7 +606,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public boolean deletePartialFile(BackupPartialFile file) throws IOException {
         if (!replayOnly) {
             try (RepositoryLock ignored = new RepositoryLock()) {
-                ensureOpen();
+                ensureOpen(false);
 
                 return storage.deletePartialFile(file);
             }
@@ -615,7 +619,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void savePartialFile(BackupPartialFile file) throws IOException {
         if (!replayOnly) {
             try (RepositoryLock ignored = new RepositoryLock()) {
-                ensureOpen();
+                ensureOpen(false);
 
                 storage.savePartialFile(file);
             }
@@ -625,7 +629,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void clearPartialFiles() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             storage.clearPartialFiles();
         }
@@ -634,7 +638,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.getPartialFile(file);
         }
@@ -643,7 +647,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.getActivePaths(setId);
         }
@@ -656,7 +660,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public long getBlockCount() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.getBlockCount();
         }
@@ -665,7 +669,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public long getFileCount() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.getFileCount();
         }
@@ -674,7 +678,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public long getDirectoryCount() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.getDirectoryCount();
         }
@@ -683,7 +687,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public long getPartCount() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.getPartCount();
         }
@@ -692,7 +696,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void addAdditionalBlock(BackupBlockAdditional block) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             storage.addAdditionalBlock(block);
         }
@@ -701,7 +705,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public BackupBlockAdditional additionalBlock(String publicKey, String blockHash) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(true);
 
             return storage.additionalBlock(publicKey, blockHash);
         }
@@ -710,7 +714,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             storage.deleteAdditionalBlock(publicKey, blockHash);
         }
@@ -719,7 +723,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public boolean addUpdatedFile(BackupUpdatedFile file, long howOften) throws IOException {
         try (CloseableLock ignored = acquireUpdateLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             return storage.addUpdatedFile(file, howOften);
         }
@@ -728,7 +732,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
         try (CloseableLock ignored = acquireUpdateLock()) {
-            ensureOpen();
+            ensureOpen(false);
 
             storage.removeUpdatedFile(file);
         }
@@ -747,25 +751,30 @@ public class LockingMetadataRepository implements MetadataRepository {
                 !repositoryInfo.errorsDetected && !repositoryInfo.stopSaving) {
             try (RepositoryLock ignored = new RepositoryLock()) {
                 try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository")) {
+                    RepositoryOpenMode originalOpenMode = openMode;
                     open(RepositoryOpenMode.READ_ONLY);
 
-                    int version = getDefaultVersion();
-                    MetadataRepositoryStorage upgradedStorage = createStorage(version, 0);
-
                     try {
-                        new RepositoryUpgrader(storage, upgradedStorage).upgrade();
+                        int version = getDefaultVersion();
+                        MetadataRepositoryStorage upgradedStorage = createStorage(version, 0);
 
-                        repositoryInfo.version = version;
-                        repositoryInfo.revision = 0;
+                        try {
+                            new RepositoryUpgrader(storage, upgradedStorage).upgrade();
 
-                        storage.close();
-                        storage.clear();
-                        storage = upgradedStorage;
-                    } catch (RepositoryUpgrader.RepositoryErrorException exc) {
-                        log.error("Detected repository errors during upgrade", exc);
-                        repositoryInfo.errorsDetected = true;
+                            repositoryInfo.version = version;
+                            repositoryInfo.revision = 0;
+
+                            storage.close();
+                            storage.clear();
+                            storage = upgradedStorage;
+                        } catch (RepositoryUpgrader.RepositoryErrorException exc) {
+                            log.error("Detected repository errors during upgrade", exc);
+                            repositoryInfo.errorsDetected = true;
+                        }
+                        saveRepositoryInfo();
+                    } finally {
+                        open(originalOpenMode);
                     }
-                    saveRepositoryInfo();
                 }
             }
         }

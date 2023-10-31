@@ -113,18 +113,33 @@ export default function SetConfig(props: SetProps) {
     }
 
     return <Paper sx={{p: 2}}>
-        {props.allowReset &&
-            <Tooltip
-                title="Backup this set now">
-                <IconButton style={{float: "right"}} onClick={() => {
-                    appContext.busyOperation(async () => {
-                        await restartSets([props.set.id]);
-                        await activityContext.update();
-                    });
-                }
-                }><PlayArrow/></IconButton>
-            </Tooltip>
-        }
+        <div style={{float: "right", height: "100%", paddingTop:  "8px"}}>
+            <TextField variant="standard"
+                       required={true}
+                       placeholder={"Set name"}
+                       value={state.set.id}
+                       error={!state.set.id}
+                       onChange={(e) => updateState({
+                           ...state,
+                           set: {
+                               ...state.set,
+                               id: e.target.value
+                           }
+                       })}
+            />
+            {props.allowReset &&
+                <Tooltip
+                    title="Backup this set now">
+                    <IconButton style={{marginLeft: "8px"}} onClick={() => {
+                        appContext.busyOperation(async () => {
+                            await restartSets([props.set.id]);
+                            await activityContext.update();
+                        });
+                    }
+                    }><PlayArrow/></IconButton>
+                </Tooltip>
+            }
+        </div>
         <Tabs value={state.tab} onChange={changeTab}>
             <Tab label="Contents"/>
             <Tab label="Schedule"/>
@@ -178,21 +193,6 @@ export default function SetConfig(props: SetProps) {
             })}/>
         </TabPanel>
         <TabPanel index={state.tab} value={2}>
-            <div style={{marginLeft: "0px", marginRight: "8px"}}>
-                <TextField label="Set Name" variant="outlined"
-                           required={true}
-                           fullWidth={true}
-                           value={state.set.id}
-                           error={!state.set.id}
-                           onChange={(e) => updateState({
-                               ...state,
-                               set: {
-                                   ...state.set,
-                                   id: e.target.value
-                               }
-                           })}
-                />
-            </div>
             <DividerWithText>Destinations</DividerWithText>
             <FormGroup style={{marginLeft: "8px"}}>
                 {props.destinations.map(dest => <FormControlLabel
