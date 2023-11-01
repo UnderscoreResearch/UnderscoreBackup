@@ -163,6 +163,7 @@ export function SourcePage(props: SourcePageProps) {
                 </Grid>
                 <Grid item md={9} xs={12}>
                     <TextField
+                        id={"sourceName"}
                         fullWidth={true}
                         value={state.sourceName}
                         onChange={e => setState({
