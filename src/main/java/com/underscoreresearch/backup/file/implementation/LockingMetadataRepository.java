@@ -867,6 +867,15 @@ public class LockingMetadataRepository implements MetadataRepository {
         return storage.exclusiveLock();
     }
 
+    @Override
+    public void compact() throws IOException {
+        try (RepositoryLock ignored = new RepositoryLock()) {
+            ensureOpen(false);
+
+            storage.compact();
+        }
+    }
+
     @Data
     @Builder
     @NoArgsConstructor

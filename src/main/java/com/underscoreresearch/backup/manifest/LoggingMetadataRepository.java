@@ -373,6 +373,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     @Override
+    public void compact() throws IOException {
+        repository.compact();
+    }
+
+    @Override
     public List<ExternalBackupFile> file(String path) throws IOException {
         return repository.file(path);
     }
@@ -553,14 +558,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
-        BackupDirectory currentData;
-        if (Instant.now().toEpochMilli() - directory.getAdded() < CURRENT_SPAN)
-            currentData = repository.directory(directory.getPath(), null, false);
-        else {
-            currentData = repository.directory(directory.getPath(), directory.getAdded(), false);
-        }
-
-        // Need share implementation
+        BackupDirectory currentData = repository.directory(directory.getPath(), directory.getAdded(), false);
 
         if (currentData == null || !directory.getFiles().equals(currentData.getFiles())) {
             if (shares != null) {
@@ -576,9 +574,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                             if (share.getContents().includeForShare(PathNormalizer.combinePaths(parent, file)))
                                 newContents.add(file);
                         }
-                        if (!newContents.isEmpty()) {
-                            writeLogEntry(entry.getValue(), "dir", directory.toBuilder().files(newContents).build());
-                        }
+                        writeLogEntry(entry.getValue(), "dir", directory.toBuilder().files(newContents).build());
+                        log.info("Directory {}: {}", directory, entry.getKey());
                     }
                 }
             }

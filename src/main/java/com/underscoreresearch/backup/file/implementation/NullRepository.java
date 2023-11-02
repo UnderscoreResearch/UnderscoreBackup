@@ -132,6 +132,11 @@ public class NullRepository implements MetadataRepository {
     }
 
     @Override
+    public void compact() throws IOException {
+
+    }
+
+    @Override
     public List<ExternalBackupFile> file(String path) throws IOException {
         return null;
     }

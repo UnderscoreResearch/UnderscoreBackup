@@ -131,4 +131,6 @@ public interface MetadataRepository {
 
     // Grant exclusive lock to the repository. All changes must happen on the granting thread.
     CloseableLock exclusiveLock() throws IOException;
+
+    void compact() throws IOException;
 }

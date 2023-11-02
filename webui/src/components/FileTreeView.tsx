@@ -227,7 +227,7 @@ function expandIncludedFilters(path: string, filters: BackupFilter[] | undefined
     if (path.endsWith("/"))
         path = path.substring(0, path.length - 1);
 
-    const ret : string[] = [];
+    const ret: string[] = [];
     if (filters) {
         filters.forEach(filter => {
             if (filter.type === "INCLUDE") {
@@ -549,7 +549,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
                         });
 
                         if (anyAdded)
-                            treeItems = treeItems.sort((a, b) => +(a.path>b.path)||-(b.path>a.path));
+                            treeItems = treeItems.sort((a, b) => +(a.path > b.path) || -(b.path > a.path));
 
                         newItems.splice(index + 1, childCount(oldState.items, index), ...treeItems)
                     }

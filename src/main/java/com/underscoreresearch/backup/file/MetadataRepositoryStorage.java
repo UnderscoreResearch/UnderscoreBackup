@@ -111,6 +111,8 @@ public interface MetadataRepositoryStorage {
 
     void commit() throws IOException;
 
+    void compact() throws IOException;
+
     boolean needPeriodicCommits();
 
     <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException;

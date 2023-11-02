@@ -257,7 +257,6 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                     .path(dirPath)
                     .build();
         }
-        directory.setAdded(System.currentTimeMillis());
         if (directory.getFiles().add(file.getName() + (isDirectory ? PathNormalizer.PATH_SEPARATOR : ""))) {
             repository.addDirectory(directory);
         }
@@ -271,10 +270,9 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         BackupDirectory directory = repository.directory(dirPath, null, false);
         if (directory != null) {
             if (directory.getFiles().remove(file.getName()) || directory.getFiles().remove(file.getName() + PathNormalizer.PATH_SEPARATOR)) {
-                if (!directory.getFiles().isEmpty()) {
-                    directory.setAdded(System.currentTimeMillis());
-                    repository.addDirectory(directory);
-                } else {
+                directory.setAdded(System.currentTimeMillis());
+                repository.addDirectory(directory);
+                if (directory.getFiles().isEmpty()) {
                     removeFileFromDirectory(parentFile);
                 }
             }

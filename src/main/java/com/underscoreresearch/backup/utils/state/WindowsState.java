@@ -29,7 +29,7 @@ public class WindowsState extends MachineState {
     public boolean getOnBattery() {
         try {
             Process proc = Runtime.getRuntime().exec(
-                    new String[] {
+                    new String[]{
                             "wmic",
                             "/NameSpace:\"\\\\root\\WMI\"",
                             "Path",

@@ -68,8 +68,14 @@ public final class LogUtil {
 
     public static void lastProcessedPath(Class<?> clz, List<StatusLine> ret, BackupFile lastProcessed, String code) {
         if (lastProcessed != null) {
+            lastProcessedPath(clz, ret, lastProcessed.getPath(), code);
+        }
+    }
+
+    public static void lastProcessedPath(Class<?> clz, List<StatusLine> ret, String lastProcessed, String code) {
+        if (lastProcessed != null) {
             ret.add(new StatusLine(clz, code, "Last processed path",
-                    null, PathNormalizer.physicalPath(lastProcessed.getPath())));
+                    null, PathNormalizer.physicalPath(lastProcessed)));
         }
     }
 

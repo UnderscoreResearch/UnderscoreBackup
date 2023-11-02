@@ -60,7 +60,7 @@ class BackupContentsAccessImplTest {
         ));
 
         directories.put("/test/set1/dir/", Lists.newArrayList(
-                new BackupDirectory("/test/set/dir/", 2L, Sets.newTreeSet(Lists.newArrayList()))
+                new BackupDirectory("/test/set/dir/", 2L, Sets.newTreeSet(Lists.newArrayList("doh")))
         ));
 
         files.put("/test/set1/file1", Lists.newArrayList(
@@ -127,12 +127,12 @@ class BackupContentsAccessImplTest {
 
     @Test
     public void testEarly() throws IOException {
-        assertThat(backupContentsAccessEarly.directoryFiles("/"), Is.is(newFileSet(file("/dir1/", 2L), file("/dir2/", 2L), file("/test/"))));
+        assertThat(backupContentsAccessEarly.directoryFiles("/"), Is.is(newFileSet(file("/dir1/", 2L), file("/test/"))));
         assertThat(backupContentsAccessEarly.directoryFiles("/test/"), Is.is(newFileSet(file("/test/set1/", 2L))));
         assertThat(backupContentsAccessEarly.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 2L))));
         assertThat(backupContentsAccessEarly.directoryFiles("/whatever"), nullValue());
 
-        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/"), Is.is(newFileSet(file("/dir1/", 2L), file("/dir2/", 2L), file("/test/"))));
+        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/"), Is.is(newFileSet(file("/dir1/", 2L), file("/test/"))));
         assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/test/"), Is.is(newFileSet(file("/test/set1/", 2L))));
         assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 2L))));
         assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/whatever"), nullValue());
@@ -153,17 +153,17 @@ class BackupContentsAccessImplTest {
 
     @Test
     public void testCurrent() throws IOException {
-        assertThat(backupContentsAccessCurrent.directoryFiles("/"), Is.is(newFileSet(file("/dir2/", 2L), file("/test/"))));
+        assertThat(backupContentsAccessCurrent.directoryFiles("/"), Is.is(newFileSet(file("/test/"))));
         assertThat(backupContentsAccessCurrent.directoryFiles("/test/"), Is.is(newFileSet(file("/test/set1/", 3L), file("/test/set2/"))));
         assertThat(backupContentsAccessCurrent.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
         assertThat(backupContentsAccessCurrent.directoryFiles("/whatever"), nullValue());
 
-        assertThat(backupContentsAccess.directoryFiles(""), Is.is(newFileSet(file("/dir2/", 2L), file("/test/"))));
+        assertThat(backupContentsAccess.directoryFiles(""), Is.is(newFileSet(file("/test/"))));
         assertThat(backupContentsAccess.directoryFiles("/test"), Is.is(newFileSet(file("/test/set1/", 3L), file("/test/set2/"))));
         assertThat(backupContentsAccess.directoryFiles("/test/set1"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
         assertThat(backupContentsAccess.directoryFiles("/whatever"), nullValue());
 
-        assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles(""), Is.is(newFileSet(file("/dir1/", 2L), file("/dir2/", 2L), file("/test/"))));
+        assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles(""), Is.is(newFileSet(file("/dir1/", 2L), file("/test/"))));
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/dir1"), Is.is(newFileSet(file("/dir1/fileDeleted", 2L))));
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/test"), Is.is(newFileSet(file("/test/set1/", 3L), file("/test/set2/"))));
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/test/set1"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));

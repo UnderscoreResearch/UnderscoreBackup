@@ -113,7 +113,7 @@ export default function SetConfig(props: SetProps) {
     }
 
     return <Paper sx={{p: 2}}>
-        <div style={{float: "right", height: "100%", paddingTop:  "8px"}}>
+        <div style={{float: "right", height: "100%", paddingTop: "8px"}}>
             <TextField variant="standard"
                        required={true}
                        placeholder={"Set name"}

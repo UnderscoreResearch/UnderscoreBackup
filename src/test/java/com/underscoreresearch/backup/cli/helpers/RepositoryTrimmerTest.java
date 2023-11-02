@@ -19,6 +19,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang.SystemUtils;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -67,6 +68,7 @@ class RepositoryTrimmerTest {
     private ManifestManager manifestManager;
     private RepositoryTrimmer trimmer;
     private BackupFile outsideFile;
+    private String root;
 
     @BeforeEach
     public void setup() throws IOException {
@@ -76,16 +78,18 @@ class RepositoryTrimmerTest {
         repository = Mockito.spy(new LoggingMetadataRepository(new LockingMetadataRepository(tempDir.getPath(), false), manifestManager, false));
         repository.open(RepositoryOpenMode.READ_WRITE);
 
+        root = SystemUtils.IS_OS_WINDOWS ? "C:/" : "/";
+
         backupConfiguration = new BackupConfiguration();
         set1 = new BackupSet();
         BackupSetRoot root1 = new BackupSetRoot();
-        root1.setNormalizedPath("/test1");
+        root1.setNormalizedPath(root + "test1");
         set1.setRoots(Lists.newArrayList(root1));
         set1.setId("set1");
         set1.setDestinations(Lists.newArrayList("mem"));
         set2 = new BackupSet();
         BackupSetRoot root2 = new BackupSetRoot();
-        root2.setNormalizedPath("/test2");
+        root2.setNormalizedPath(root + "test2");
         set2.setRoots(Lists.newArrayList(root2));
         set2.setId("set2");
         set2.setDestinations(Lists.newArrayList("mem"));
@@ -150,7 +154,7 @@ class RepositoryTrimmerTest {
 
         outsideFile = BackupFile
                 .builder()
-                .path("/outside")
+                .path(root + "outside")
                 .length(10L)
                 .locations(Lists.newArrayList(
                         BackupLocation.builder().parts(Lists.newArrayList(
@@ -166,58 +170,58 @@ class RepositoryTrimmerTest {
                 .build();
         repository.addFile(outsideFile);
 
-        addFile("/test1/abc/test1", 50);
-        addFile("/test1/abc/test2", 50);
-        addFile("/test1/def/test1", 0);
-        addFile("/test1/def/test2", 0);
-        addFile("/test1/def/test3", 0);
-        addFile("/test2/test4", 0);
-        addFile("/test1/orphaned/file", 0);
+        addFile(root + "test1/abc/test1", 50);
+        addFile(root + "test1/abc/test2", 50);
+        addFile(root + "test1/def/test1", 0);
+        addFile(root + "test1/def/test2", 0);
+        addFile(root + "test1/def/test3", 0);
+        addFile(root + "test2/test4", 0);
+        addFile(root + "test1/orphaned/file", 0);
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("")
-                .files(Sets.newTreeSet(Lists.newArrayList("/")))
+                .files(Sets.newTreeSet(Lists.newArrayList(root )))
                 .added(0L)
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
-                .path("/")
+                .path(root)
                 .files(Sets.newTreeSet(Lists.newArrayList("test1/", "test2/")))
                 .added(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
-                .path("/test1/")
+                .path(root + "test1/")
                 .files(Sets.newTreeSet(Lists.newArrayList("abc/", "def/")))
                 .added(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
-                .path("/test1/abc/")
+                .path(root + "test1/abc/")
                 .files(Sets.newTreeSet())
                 .added(new BackupTimespan(61, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
-                .path("/test1/abc/")
+                .path(root + "test1/abc/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test1", "test2")))
                 .added(new BackupTimespan(50 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
-                .path("/test1/def/")
+                .path(root + "test1/def/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test1", "test2")))
                 .added(new BackupTimespan(61, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
-                .path("/test1/def/")
+                .path(root + "test1/def/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test1", "test2", "test3")))
                 .added(new BackupTimespan(49 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
 
         repository.addDirectory(BackupDirectory.builder()
-                .path("/test2/")
+                .path(root + "test2/")
                 .files(Sets.newTreeSet(Lists.newArrayList("test4")))
                 .added(new BackupTimespan(49 * 60 + 1, MINUTES).toEpochMilli())
                 .build());
@@ -264,19 +268,19 @@ class RepositoryTrimmerTest {
             Map<String, Integer> result = closeStream(repository.allFiles(true), (stream) ->
                     stream.collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))));
             assertThat(result,
-                    Is.is(ImmutableMap.of("/test1/def/test1", 13,
-                            "/test1/def/test2", 13,
-                            "/test1/def/test3", 12,
-                            "/test2/test4", 26)));
+                    Is.is(ImmutableMap.of(root + "test1/def/test1", 13,
+                            root + "test1/def/test2", 13,
+                            root + "test1/def/test3", 12,
+                            root + "test2/test4", 26)));
 
             result = closeStream(repository.allDirectories(true), stream -> stream
                     .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
             assertThat(result,
                     Is.is(ImmutableMap.of("", 1,
-                            "/", 1,
-                            "/test1/", 1,
-                            "/test1/def/", 2,
-                            "/test2/", 1)));
+                            root, 1,
+                            root + "test1/", 1,
+                            root + "test1/def/", 1,
+                            root + "test2/", 1)));
 
             Set<String> resultSet = closeStream(repository.allBlocks(),
                     stream -> stream.map(t -> t.getHash()).collect(Collectors.toSet()));
@@ -319,19 +323,19 @@ class RepositoryTrimmerTest {
             Map<String, Integer> result = closeStream(repository.allFiles(false), (stream) -> stream
                     .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))));
             assertThat(result,
-                    Is.is(ImmutableMap.of("/test1/def/test1", 1,
-                            "/test1/def/test2", 1,
-                            "/test1/def/test3", 1,
-                            "/test2/test4", 1)));
+                    Is.is(ImmutableMap.of(root + "test1/def/test1", 1,
+                            root + "test1/def/test2", 1,
+                            root + "test1/def/test3", 1,
+                            root + "test2/test4", 1)));
 
             result = closeStream(repository.allDirectories(false), stream -> stream
                     .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
             assertThat(result,
                     Is.is(ImmutableMap.of("", 1,
-                            "/", 1,
-                            "/test1/", 1,
-                            "/test1/def/", 2,
-                            "/test2/", 1)));
+                            root, 1,
+                            root + "test1/", 1,
+                            root + "test1/def/", 1,
+                            root + "test2/", 1)));
 
             Set<String> setResult = closeStream(repository.allBlocks(),
                     stream -> stream.map(t -> t.getHash()).collect(Collectors.toSet()));
@@ -346,30 +350,30 @@ class RepositoryTrimmerTest {
 
     @Test
     public void testActivePath() throws IOException {
-        repository.pushActivePath("set1", "/test1/", new BackupActivePath());
+        repository.pushActivePath("set1", root + "test1/", new BackupActivePath());
         trimmer.trimRepository(false);
 
         try (CloseableLock ignored = repository.acquireLock()) {
             Map<String, Integer> result = closeStream(repository.allFiles(false), (stream) -> stream
                     .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))));
             assertThat(result,
-                    Is.is(ImmutableMap.of("/test1/def/test1", 13,
-                            "/test1/abc/test1", 1,
-                            "/test1/abc/test2", 1,
-                            "/test1/def/test2", 13,
-                            "/test1/def/test3", 13,
-                            "/test1/orphaned/file", 13,
-                            "/test2/test4", 26)));
+                    Is.is(ImmutableMap.of(root + "test1/def/test1", 13,
+                            root + "test1/abc/test1", 1,
+                            root + "test1/abc/test2", 1,
+                            root + "test1/def/test2", 13,
+                            root + "test1/def/test3", 13,
+                            root + "test1/orphaned/file", 13,
+                            root + "test2/test4", 26)));
 
             result = closeStream(repository.allDirectories(false), stream -> stream
                     .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
             assertThat(result,
                     Is.is(ImmutableMap.of("", 1,
-                            "/", 1,
-                            "/test1/", 1,
-                            "/test1/abc/", 2,
-                            "/test1/def/", 2,
-                            "/test2/", 1)));
+                            root, 1,
+                            root + "test1/", 1,
+                            root + "test1/abc/", 2,
+                            root + "test1/def/", 2,
+                            root + "test2/", 1)));
 
             Set<String> setResult = closeStream(repository.allBlocks(),
                     stream -> stream.map(BackupBlock::getHash).collect(Collectors.toSet()));
@@ -390,24 +394,24 @@ class RepositoryTrimmerTest {
             Map<String, Integer> result = closeStream(repository.allFiles(false), (stream) -> stream
                     .collect(groupingBy(BackupFile::getPath, summingInt(t -> 1))));
             assertThat(result,
-                    Is.is(ImmutableMap.of("/test1/def/test1", 13,
-                            "/test1/abc/test1", 1,
-                            "/test1/abc/test2", 1,
-                            "/test1/def/test2", 13,
-                            "/test1/def/test3", 13,
-                            "/test1/orphaned/file", 13,
-                            "/test2/test4", 26
+                    Is.is(ImmutableMap.of(root + "test1/def/test1", 13,
+                            root + "test1/abc/test1", 1,
+                            root + "test1/abc/test2", 1,
+                            root + "test1/def/test2", 13,
+                            root + "test1/def/test3", 13,
+                            root + "test1/orphaned/file", 13,
+                            root + "test2/test4", 26
                     )));
 
             result = closeStream(repository.allDirectories(false), stream -> stream
                     .collect(groupingBy(BackupDirectory::getPath, summingInt(t -> 1))));
             assertThat(result,
                     Is.is(ImmutableMap.of("", 1,
-                            "/", 1,
-                            "/test1/", 1,
-                            "/test1/abc/", 2,
-                            "/test1/def/", 2,
-                            "/test2/", 1)));
+                            root, 1,
+                            root + "test1/", 1,
+                            root + "test1/abc/", 2,
+                            root + "test1/def/", 2,
+                            root + "test2/", 1)));
 
             Set<String> setResult = closeStream(repository.allBlocks(),
                     stream -> stream.map(t -> t.getHash()).collect(Collectors.toSet()));

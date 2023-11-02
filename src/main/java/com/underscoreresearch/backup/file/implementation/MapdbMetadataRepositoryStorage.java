@@ -190,6 +190,28 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     }
 
     @Override
+    public void compact() throws IOException {
+        if (openMode == RepositoryOpenMode.READ_ONLY) {
+            throw new IOException("Cannot compact read only repository");
+        }
+
+        additionalBlockDb.getStore().compact();
+        blockDb.getStore().compact();
+        fileDb.getStore().compact();
+        partsDb.getStore().compact();
+        directoryDb.getStore().compact();
+        activePathDb.getStore().compact();
+        pendingSetDb.getStore().compact();
+        partialFileDb.getStore().compact();
+        updatedFilesDb.getStore().compact();
+        updatedPendingFilesDb.getStore().compact();
+
+        if (blockTmpDb != null) {
+            blockTmpDb.getStore().compact();
+        }
+    }
+
+    @Override
     public boolean needPeriodicCommits() {
         return true;
     }

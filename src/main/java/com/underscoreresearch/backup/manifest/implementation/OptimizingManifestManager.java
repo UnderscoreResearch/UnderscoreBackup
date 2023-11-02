@@ -1,7 +1,6 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.validateConfigurationUrl;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;

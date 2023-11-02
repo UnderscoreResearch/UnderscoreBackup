@@ -64,28 +64,36 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         return ret;
     }
 
-    private BackupFile createFile(String root, String path, boolean allowMissing) throws IOException {
+    private BackupFile createFile(String root, String path) throws IOException {
         if (path.endsWith(PATH_SEPARATOR)) {
             BackupDirectory ret = pathEntry(root + path);
-            if (ret == null)
-                return allowMissing ? BackupFile.builder().path(root + path).build() : null;
+            if (ret == null || ret.getFiles().isEmpty())
+                return null;
             return BackupFile.builder().path(root + path).added(ret.getAdded()).build();
         }
         BackupFile ret = repository.file(root + path, timestamp);
 
         if (ret == null) {
-            return allowMissing ? BackupFile.builder().path(root + path).build() : null;
+            return null;
         }
 
         if (ret.getDeleted() != null) {
             if (timestamp != null && ret.getDeleted() > timestamp) {
                 ret.setDeleted(null);
             } else if (!includeDeleted) {
-                return allowMissing ? BackupFile.builder().path(root + path).build() : null;
+                return null;
             }
         }
 
         return ret;
+    }
+
+    private BackupFile createFileAllowMissing(String root, String path) throws IOException {
+        BackupFile file = createFile(root, path);
+        if (file == null) {
+            return BackupFile.builder().path(root + path).build();
+        }
+        return file;
     }
 
     private BackupDirectory pathEntry(String path) throws IOException {
@@ -102,7 +110,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         FoundPath foundPaths = FoundPath.fromDirectory(getPaths(normalizedRoot));
 
         if (foundPaths == null && normalizedRoot.length() > 1) {
-            BackupFile file = createFile("", normalizedRoot.substring(0, normalizedRoot.length() - 1), false);
+            BackupFile file = createFile("", normalizedRoot.substring(0, normalizedRoot.length() - 1));
             if (file != null) {
                 return Lists.newArrayList(file);
             }
@@ -124,7 +132,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
                         fullPath = fullPath.substring(0, ind + 1);
                     }
                     if (foundRoots.add(fullPath)) {
-                        files.add(createFile("", fullPath, true));
+                        files.add(createFileAllowMissing("", fullPath));
                     }
                 }
                 return files;
@@ -137,7 +145,9 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         if (!foundPaths.getFiles().isEmpty()) {
             List<BackupFile> files = new ArrayList<>();
             for (Map.Entry<String, Boolean> dirPath : foundPaths.getFiles().entrySet()) {
-                BackupFile file = createFile(normalizedRoot, dirPath.getKey(), !dirPath.getValue());
+                BackupFile file = dirPath.getValue() ?
+                        createFile(normalizedRoot, dirPath.getKey()) :
+                        createFileAllowMissing(normalizedRoot, dirPath.getKey());
                 if (file != null)
                     files.add(file);
             }

@@ -316,6 +316,13 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                             });
                             lock.lock();
                         } else {
+                            if (existingFile.getDeleted() != null
+                                    && existingFile.getLastChanged().equals(file.getLastChanged())
+                                    && existingFile.getLength().equals(file.getLength())) {
+                                existingFile.setDeleted(null);
+                                repository.addFile(existingFile);
+                                log.info("File {} undeleted", PathNormalizer.physicalPath(file.getPath()));
+                            }
                             pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCLUDED);
                         }
                     } else {
@@ -426,9 +433,16 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     repository.popActivePath(set.getId(), currentPath);
                     Set<String> includedPaths = pending.includedPaths();
                     if (currentPath.endsWith(PATH_SEPARATOR)) {
-                        if (!includedPaths.isEmpty() || repository.directory(currentPath, null, false) != null) {
+                        BackupDirectory directory = repository.directory(currentPath, null, false);
+                        if (!includedPaths.isEmpty() || directory != null) {
+                            long timestamp;
+                            if (directory != null && includedPaths.containsAll(directory.getFiles())) {
+                                timestamp = directory.getAdded();
+                            } else {
+                                timestamp = Instant.now().toEpochMilli();
+                            }
                             repository.addDirectory(new BackupDirectory(currentPath,
-                                    Instant.now().toEpochMilli(),
+                                    timestamp,
                                     Sets.newTreeSet(includedPaths)));
                         }
                     }

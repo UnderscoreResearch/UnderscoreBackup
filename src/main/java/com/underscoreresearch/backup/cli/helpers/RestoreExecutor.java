@@ -158,9 +158,7 @@ public class RestoreExecutor {
             if (root && files.size() == 1 && !files.get(0).isDirectory() && !destinationFile.isDirectory()) {
                 downloadFile(scheduler, files.get(0), destination, overwrite, skipPermissions);
             } else {
-                if (!isNullFile(inputDestination) && !destination.isEmpty() && !destinationFile.isDirectory()) {
-                    createDirectory(destinationFile, true);
-                }
+                boolean needDirectory = (!isNullFile(inputDestination) && !destination.isEmpty());
 
                 for (BackupFile file : files) {
                     String currentDestination;
@@ -175,6 +173,11 @@ public class RestoreExecutor {
                                     currentDestination, recursive, overwrite, skipPermissions, false, commonRoot);
                         }
                     } else {
+                        if (needDirectory) {
+                            createDirectory(destinationFile, true);
+                            needDirectory = false;
+                        }
+
                         downloadFile(scheduler, file, currentDestination, overwrite, skipPermissions);
                     }
                 }

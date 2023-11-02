@@ -1460,6 +1460,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         }
     }
 
+    @Override
+    public void compact() throws IOException {
+        // No way to compact LMDB unfortunately.
+    }
+
     private void internalCommit() {
         if (sharedTransaction != null) {
             preCommitActions.forEach(Runnable::run);
