@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -190,6 +191,9 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
     public List<StatusLine> status() {
         synchronized (activeFiles) {
             return activeFiles.entrySet().stream().map(entry -> {
+                if (entry.getValue().getCompleted() == 0)
+                    return null;
+
                 Duration duration = Duration.ofMillis(Instant.now().toEpochMilli() - entry.getValue().getStarted().toEpochMilli());
                 if (duration.toSeconds() > 5) {
                     return new StatusLine(getClass(),
@@ -209,7 +213,7 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                             readableSize(entry.getValue().getCompleted()) + " / "
                                     + readableSize(entry.getValue().getTotal()));
                 }
-            }).collect(Collectors.toList());
+            }).filter(Objects::nonNull).collect(Collectors.toList());
         }
     }
 

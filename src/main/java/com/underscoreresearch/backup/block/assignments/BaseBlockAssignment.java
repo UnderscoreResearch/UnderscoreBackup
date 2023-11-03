@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import lombok.Getter;
@@ -39,33 +40,34 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Manual
     public List<StatusLine> status() {
         synchronized (backupPartialFiles) {
             return backupPartialFiles.stream().map(progress -> {
-                long completed = 0;
                 BackupPartialFile partial = progress.getPartialFile();
-                if (partial.getParts() != null && partial.getParts().size() > 0) {
-                    completed = partial.getParts().get(partial.getParts().size() - 1).getPosition();
-                }
+                if (partial.getParts() != null && !partial.getParts().isEmpty()) {
+                    long completed = partial.getParts().get(partial.getParts().size() - 1).getPosition();
 
-                Duration duration = Duration.ofMillis(Instant.now().toEpochMilli() - progress.getStarted().toEpochMilli());
-                if (duration.toSeconds() > 5) {
-                    return new StatusLine(getClass(),
-                            "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
-                            "Uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
-                            completed,
-                            partial.getFile().getLength(),
-                            readableSize(completed) + " / "
-                                    + readableSize(partial.getFile().getLength())
-                                    + readableEta(completed - progress.initialCompleted,
-                                    partial.getFile().getLength() - progress.initialCompleted, duration));
+                    Duration duration = Duration.ofMillis(Instant.now().toEpochMilli() - progress.getStarted().toEpochMilli());
+                    if (duration.toSeconds() > 5) {
+                        return new StatusLine(getClass(),
+                                "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
+                                "Uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
+                                completed,
+                                partial.getFile().getLength(),
+                                readableSize(completed) + " / "
+                                        + readableSize(partial.getFile().getLength())
+                                        + readableEta(completed - progress.initialCompleted,
+                                        partial.getFile().getLength() - progress.initialCompleted, duration));
+                    } else {
+                        return new StatusLine(getClass(),
+                                "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
+                                "Uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
+                                completed,
+                                partial.getFile().getLength(),
+                                readableSize(completed) + " / "
+                                        + readableSize(partial.getFile().getLength()));
+                    }
                 } else {
-                    return new StatusLine(getClass(),
-                            "UPLOADED_ACTIVE_" + partial.getFile().getPath(),
-                            "Uploading " + PathNormalizer.physicalPath(partial.getFile().getPath()),
-                            completed,
-                            partial.getFile().getLength(),
-                            readableSize(completed) + " / "
-                                    + readableSize(partial.getFile().getLength()));
+                    return null;
                 }
-            }).collect(Collectors.toList());
+            }).filter(Objects::nonNull).collect(Collectors.toList());
         }
     }
 

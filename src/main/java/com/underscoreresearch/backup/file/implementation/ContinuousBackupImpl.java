@@ -253,6 +253,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         if (directory == null) {
             addFileToDirectory(parentFile, true);
             directory = BackupDirectory.builder()
+                    .added(System.currentTimeMillis())
                     .files(new TreeSet<>())
                     .path(dirPath)
                     .build();

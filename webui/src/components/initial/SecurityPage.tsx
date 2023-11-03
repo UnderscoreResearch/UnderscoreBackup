@@ -96,14 +96,23 @@ export function SecurityPage(props: SecurityPageProps) {
         }));
         appContext.busyOperation(async () => {
             if (props.selectedSource) {
-                if (await updateSource(props.selectedSource.name, props.selectedSource.sourceId, state.password, force)) {
+                let error: string | undefined = undefined;
+                const ret = await updateSource(props.selectedSource.name, props.selectedSource.sourceId, state.password, force,
+                    (err) => {
+                        error = err;
+                        return false;
+                    });
+
+                if (ret) {
                     await appContext.update(state.password);
                     await activityContext.update();
                 } else {
-                    setState((oldState) => ({
-                        ...oldState,
-                        force: true
-                    }));
+                    if (error === "Trying to adopt a source with existing config") {
+                        setState((oldState) => ({
+                            ...oldState,
+                            force: true
+                        }));
+                    }
                 }
             } else if (await startRemoteRestore(state.password)) {
                 await appContext.update(state.password);

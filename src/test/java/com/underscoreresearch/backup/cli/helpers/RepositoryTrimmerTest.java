@@ -180,7 +180,7 @@ class RepositoryTrimmerTest {
 
         repository.addDirectory(BackupDirectory.builder()
                 .path("")
-                .files(Sets.newTreeSet(Lists.newArrayList(root )))
+                .files(Sets.newTreeSet(Lists.newArrayList(root)))
                 .added(0L)
                 .build());
 

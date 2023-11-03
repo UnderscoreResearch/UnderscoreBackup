@@ -3,13 +3,30 @@ import FileTreeView from "../FileTreeView";
 import * as React from "react";
 import {ApplicationContext, useApplication} from "../../utils/ApplicationContext";
 import Paper from "@mui/material/Paper";
-import {Button, Checkbox, FormControlLabel, Grid, LinearProgress, Stack} from "@mui/material";
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Button,
+    Checkbox,
+    FormControlLabel,
+    Grid,
+    Stack,
+    Table,
+    TableBody,
+    TableContainer
+} from "@mui/material";
 import DividerWithText from "../../3rdparty/react-js-cron-mui/components/DividerWithText";
 import Cron from "../../3rdparty/react-js-cron-mui";
 import {useNavigate} from "react-router-dom";
 import {useActivity} from "../../utils/ActivityContext";
 import Typography from "@mui/material/Typography";
 import LogTable from "../LogTable";
+import {ExpandMore} from "@mui/icons-material";
+import {StatusRow} from "../StatusRow";
+import TableRow from "@mui/material/TableRow";
+import TableCell from "@mui/material/TableCell";
+import {useTheme} from "../../utils/Theme";
 
 export interface SetState {
     set: BackupSet
@@ -24,6 +41,7 @@ function defaultSet(appContext: ApplicationContext): BackupSet {
 
 export function ContentPage() {
     const appContext = useApplication();
+    const theme = useTheme();
     const navigate = useNavigate();
     const activityContext = useActivity();
 
@@ -33,6 +51,7 @@ export function ContentPage() {
         } as SetState
     });
 
+    const [details, setDetails] = React.useState<boolean>(false);
 
     function fileSelectionChanged(roots: BackupSetRoot[]) {
         setState({
@@ -117,17 +136,74 @@ export function ContentPage() {
     if (!appContext.backendState.repositoryReady ||
         (appContext.originalConfiguration.sets && appContext.originalConfiguration.sets.length > 0)) {
         const rebuildActivity = activityContext.activity.filter((a) => a.code === "REPLAY_LOG_PROCESSED_FILES");
-
-        let progress = 0;
-        if (rebuildActivity.length == 1 &&
-            rebuildActivity[0].totalValue &&
-            rebuildActivity[0].value !== undefined) {
-            progress = 100 * rebuildActivity[0].value / rebuildActivity[0].totalValue;
-        }
+        const rebuildProgress = rebuildActivity.length === 1 ? {
+            ...rebuildActivity[0],
+            message: "Before you can continue your backup or start restoring, the repository needs to be rebuilt locally. This can take a while."
+        } : undefined;
 
         return <Stack spacing={2} style={{width: "100%"}}>
-            <Paper sx={{p: 2}}>
-                {rebuildActivity.length === 0 ?
+            {rebuildProgress ?
+                <>
+                    <TableContainer component={Paper}>
+                        <Table sx={{minWidth: 650}} aria-label="simple table">
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell colSpan={2} className={"cell-without-progress"} style={{
+                                        background: theme.theme.palette.background.default,
+                                        border: 0,
+                                        fontSize: "1rem"
+                                    }}>
+                                        <DividerWithText>Rebuilding repository</DividerWithText>
+                                    </TableCell>
+                                </TableRow>
+                                <StatusRow row={rebuildProgress} etaOnly={!details}/>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+
+                    <Paper>
+                        <Accordion
+                            expanded={details}
+                            onChange={(event, expanded) => {
+                                setDetails(expanded);
+                            }}
+                            sx={{
+                                // Remove shadow
+                                boxShadow: "none",
+                                // Remove default divider
+                                "&:before": {
+                                    display: "none",
+                                }
+                            }}>
+                            <AccordionSummary expandIcon={<ExpandMore/>}>
+                                <Typography>Details</Typography>
+                            </AccordionSummary>
+                            <AccordionDetails sx={{
+                                margin: 0,
+                                padding: 0
+                            }}>
+                                {activityContext.activity.length > 0 &&
+                                    <>
+                                        <div style={{paddingLeft: "16px", paddingRight: "16px"}}>
+                                            <DividerWithText>Additional stats</DividerWithText>
+                                        </div>
+                                        <TableContainer style={{borderTop: 0}}>
+                                            <Table sx={{minWidth: 650}} aria-label="simple table">
+                                                <TableBody>
+                                                    {activityContext.activity.filter(item => item.code !== "REPLAY_LOG_PROCESSED_FILES")
+                                                        .map((row) => <StatusRow key={row.code} row={row}/>)}
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    </>
+                                }
+                            </AccordionDetails>
+                        </Accordion>
+                    </Paper>
+                    <LogTable onlyErrors={!details}/>
+                </>
+                :
+                <Paper sx={{p: 2}}>
                     <Grid container spacing={2} alignItems={"center"}>
                         <Grid item md={12} sm={12} xs={12}>
                             <Typography>
@@ -154,26 +230,8 @@ export function ContentPage() {
                             </Button>
                         </Grid>
                     </Grid>
-                    :
-                    <>
-                        <Grid container spacing={2} alignItems={"center"}>
-                            <Grid item md={12} sm={12} xs={12}>
-                                <DividerWithText>Rebuilding repository</DividerWithText>
-                                <Typography>
-                                    Before you can continue your backup or start restoring, the repository needs to
-                                    be rebuilt locally. This can take a while.
-                                </Typography>
-                            </Grid>
-                            <Grid item md={12} sm={12} xs={12}>
-                                <LinearProgress variant="determinate" value={progress}/>
-                            </Grid>
-                            <Grid item md={12} sm={12} xs={12}>
-                                <LogTable onlyErrors={true}/>
-                            </Grid>
-                        </Grid>
-                    </>
-                }
-            </Paper>
+                </Paper>
+            }
         </Stack>
     }
 

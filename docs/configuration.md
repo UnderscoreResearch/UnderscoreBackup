@@ -1,6 +1,8 @@
 # File locations.
 
-On Windows the local data files are all located in the user directory `AppData\Local\UnderscoreBackup`.
+On Windows the local data files are all located in the user directory `AppData\Local\UnderscoreBackup` if
+running as a user application and `c:\Windows\System32\config\systemprofile\AppData\Local\UnderscoreBackup`
+if running as a service.
 
 On Unix or OSX if you run as a non-root user the default location of all files will be `~/.underscoreBackup`.
 

@@ -101,7 +101,8 @@ export async function createSupportBundle(contents: SupportBundleRequest): Promi
     return undefined;
 }
 
-export async function updateSource(name: string, sourceId?: string, password?: string, force?: boolean): Promise<boolean> {
+export async function updateSource(name: string, sourceId?: string, password?: string, force?: boolean,
+                                   err?: (error: string) => boolean): Promise<boolean> {
     return !!await makeApiCall("service/sources", {
         method: 'PUT',
         body: JSON.stringify({
@@ -110,7 +111,7 @@ export async function updateSource(name: string, sourceId?: string, password?: s
             password: password,
             force: force
         })
-    });
+    }, undefined, err);
 }
 
 export async function getBestRegion(): Promise<string | undefined> {

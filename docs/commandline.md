@@ -2,6 +2,9 @@
 
 Below are just a few things to get your started using Underscore Backup from the command line.
 
+**Note**: If you are running as a service on Windows you have to launch your command prompt as
+administrator to be able to run the commands below.
+
 ## Run your backup
 
 Now you can just execute the backup from the command line using the following command.

@@ -201,7 +201,10 @@ export interface ActiveShares {
     shareEncryptionNeeded: boolean
 }
 
-function reportError(errors: any) {
+function reportError(errors: any, err?: (error: string) => boolean) {
+    if (err && err(errors)) {
+        return;
+    }
     console.log(errors);
     DisplayMessage(errors.toString());
 }
@@ -458,9 +461,11 @@ export async function performFetch(api: string, init?: RequestInit, silentError?
  * @param api The API to call.
  * @param init Any API information.
  * @param silentError
+ * @param err
  * @returns The decrypted JSON of the result or undefined on an error or null if the auth is not ready.
  */
-export async function makeApiCall(api: string, init?: RequestInit, silentError?: boolean): Promise<any | undefined | null> {
+export async function makeApiCall(api: string, init?: RequestInit, silentError?: boolean,
+                                  err?: (error: string) => boolean): Promise<any | undefined | null> {
     try {
         const response = await performFetch(api, init, silentError);
         if (!response) {
@@ -472,13 +477,13 @@ export async function makeApiCall(api: string, init?: RequestInit, silentError?:
                     if (response.status !== 404) {
                         let json = await response.json();
                         if (json.message) {
-                            reportError(json.message);
+                            reportError(json.message, err);
                         } else {
-                            reportError(response.statusText);
+                            reportError(response.statusText, err);
                         }
                     }
                 } catch (error) {
-                    reportError(response.statusText);
+                    reportError(response.statusText, err);
                 }
             }
             return undefined;
@@ -493,13 +498,13 @@ export async function makeApiCall(api: string, init?: RequestInit, silentError?:
         // Only purely informational messages are allowed to be passed in clear text.
         const data = await response.json();
         if (!data.message || Object.keys(data).length > 1) {
-            reportError(new Error("Expected encrypted payload"));
+            reportError(new Error("Expected encrypted payload"), err);
         } else {
             return data;
         }
     } catch (error) {
         if (!silentError) {
-            reportError(error);
+            reportError(error, err);
         }
     }
     return undefined;

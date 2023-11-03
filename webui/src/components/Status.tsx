@@ -227,7 +227,7 @@ export default function Status(props: StatusProps) {
     return <Stack spacing={2}>
 
         {importantItems.length > 0 &&
-            <div>
+            <>
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         <TableBody>
@@ -236,11 +236,11 @@ export default function Status(props: StatusProps) {
                         </TableBody>
                     </Table>
                 </TableContainer>
-            </div>
+            </>
         }
 
         {statsItems.length > 0 &&
-            <div>
+            <>
                 <DividerWithText>Last completed backup stats</DividerWithText>
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
@@ -250,11 +250,11 @@ export default function Status(props: StatusProps) {
                         </TableBody>
                     </Table>
                 </TableContainer>
-            </div>
+            </>
         }
 
         {activeItems.length > 0 &&
-            <div>
+            <>
                 <DividerWithText>Active transfers</DividerWithText>
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
@@ -263,11 +263,11 @@ export default function Status(props: StatusProps) {
                         </TableBody>
                     </Table>
                 </TableContainer>
-            </div>
+            </>
         }
 
         {scheduledItems.length > 0 &&
-            <div>
+            <>
                 <DividerWithText>Scheduled sets</DividerWithText>
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
@@ -276,45 +276,50 @@ export default function Status(props: StatusProps) {
                         </TableBody>
                     </Table>
                 </TableContainer>
-            </div>
+            </>
         }
 
-        <Accordion
-            expanded={state.details}
-            onChange={(event, expanded) => {
-                setState({details: expanded});
-                window.localStorage.setItem("details", expanded.toString())
-            }}
-            sx={{
-                // Remove shadow
-                boxShadow: "none",
-                // Remove default divider
-                "&:before": {
-                    display: "none",
-                }
-            }}
-        >
-            <AccordionSummary expandIcon={<ExpandMore/>}>
-                <Typography>Details</Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{
-                margin: 0,
-                padding: 0
-            }}>
-                {statusItems.length > 0 &&
-                    <div>
-                        <DividerWithText>Additional stats</DividerWithText>
-                        <TableContainer component={Paper}>
-                            <Table sx={{minWidth: 650}} aria-label="simple table">
-                                <TableBody>
-                                    {statusItems.map((row) => <StatusRow key={row.code} row={row}/>)}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    </div>
-                }
-            </AccordionDetails>
-        </Accordion>
+        <Paper>
+            <Accordion
+                expanded={state.details}
+                onChange={(event, expanded) => {
+                    setState({details: expanded});
+                    window.localStorage.setItem("details", expanded.toString())
+                }}
+                sx={{
+                    // Remove shadow
+                    boxShadow: "none",
+                    // Remove default divider
+                    "&:before": {
+                        display: "none",
+                    }
+                }}
+            >
+                <AccordionSummary expandIcon={<ExpandMore/>}>
+                    <Typography>Details</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{
+                    margin: 0,
+                    padding: 0
+                }}>
+                    {statusItems.length > 0 &&
+                        <>
+                            <div style={{paddingLeft: "16px", paddingRight: "16px"}}>
+                                <DividerWithText>Additional stats</DividerWithText>
+                            </div>
+                            <TableContainer>
+                                <Table sx={{minWidth: 650}} aria-label="simple table">
+                                    <TableBody>
+                                        {statusItems.map((row) => <StatusRow key={row.code} row={row}/>)}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        </>
+                    }
+                </AccordionDetails>
+            </Accordion>
+        </Paper>
+
         <LogTable onlyErrors={!state.details}/>
     </Stack>
 }
