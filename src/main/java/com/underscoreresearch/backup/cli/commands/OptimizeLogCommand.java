@@ -23,7 +23,6 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 public class OptimizeLogCommand extends Command {
 
     public static boolean validateRepository(CommandLine commandLine, MetadataRepository repository) throws IOException {
-        repository.open(RepositoryOpenMode.READ_ONLY);
         if (repository.isErrorsDetected()) {
             if (commandLine.hasOption(FORCE)) {
                 log.warn("Proceeding despite corruption in local metadata repository");

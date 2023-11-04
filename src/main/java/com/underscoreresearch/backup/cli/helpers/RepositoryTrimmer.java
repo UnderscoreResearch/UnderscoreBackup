@@ -455,7 +455,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     private boolean trimFiles(CloseableMap<String, Boolean> usedBlockMap,
                               boolean filesOnly, Statistics statistics)
             throws IOException {
-        log.info("Trimming files and directories");
+        log.info("Trimming files");
 
         List<BackupFile> fileVersions = new ArrayList<>();
 

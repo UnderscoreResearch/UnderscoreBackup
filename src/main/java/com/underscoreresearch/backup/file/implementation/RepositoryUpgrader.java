@@ -70,7 +70,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
-                    log.info("Migrated {} pendingBlocks", readableNumber(pendingSets.size()));
+                    log.info("Migrated {} pending sets", readableNumber(pendingSets.size()));
                 }
 
                 try (CloseableStream<BackupBlock> blocks = storage.allBlocks()) {

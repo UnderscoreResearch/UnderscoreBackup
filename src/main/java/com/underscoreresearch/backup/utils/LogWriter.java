@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -47,10 +48,12 @@ public class LogWriter extends AbstractAppender {
     private static final Pattern LOG_TIMESTAMP = Pattern.compile("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
     private final static DateTimeFormatter LOG_FILE_FORMATTER
             = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final Duration NEXT_ROTATION = Duration.ofHours(1);
     long creationDate;
     private FileOutputStream stream;
     private boolean initialized;
     private List<Runnable> unPostedLogs = new ArrayList<>();
+    private Instant lastRotationTry = null;
 
     protected LogWriter(String name, Filter filter, Layout<String> layout) {
         super(name, filter, layout, true, Property.EMPTY_ARRAY);
@@ -148,7 +151,15 @@ public class LogWriter extends AbstractAppender {
     }
 
     private boolean logExpired() {
-        return creationDate + MAXIMUM_FILE_AGE < System.currentTimeMillis();
+        if (creationDate + MAXIMUM_FILE_AGE < System.currentTimeMillis()) {
+            Instant now = Instant.now();
+            if (lastRotationTry != null && lastRotationTry.plus(NEXT_ROTATION).isAfter(now)) {
+                return false;
+            }
+            lastRotationTry = now;
+            return true;
+        }
+        return false;
     }
 
     private synchronized void rotateLogs() {
