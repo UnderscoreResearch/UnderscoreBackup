@@ -387,7 +387,7 @@ class RepositoryTrimmerTest {
     }
 
     @Test
-    public void testFilesOnly() throws IOException {
+    public void testNoBlocks() throws IOException {
         trimmer.trimRepository(true);
 
         try (CloseableLock ignored = repository.acquireLock()) {
@@ -399,7 +399,6 @@ class RepositoryTrimmerTest {
                             root + "test1/abc/test2", 1,
                             root + "test1/def/test2", 13,
                             root + "test1/def/test3", 13,
-                            root + "test1/orphaned/file", 13,
                             root + "test2/test4", 26
                     )));
 
@@ -409,8 +408,8 @@ class RepositoryTrimmerTest {
                     Is.is(ImmutableMap.of("", 1,
                             root, 1,
                             root + "test1/", 1,
-                            root + "test1/abc/", 2,
-                            root + "test1/def/", 2,
+                            root + "test1/abc/", 1,
+                            root + "test1/def/", 1,
                             root + "test2/", 1)));
 
             Set<String> setResult = closeStream(repository.allBlocks(),

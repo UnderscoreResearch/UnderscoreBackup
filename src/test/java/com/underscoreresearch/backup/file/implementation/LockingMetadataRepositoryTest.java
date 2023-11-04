@@ -457,6 +457,7 @@ public abstract class LockingMetadataRepositoryTest {
         repository.addPendingSets(set1_1);
         assertThat(repository.getPendingSets(), Is.is(Sets.newHashSet(set0, set1_1, set2, set3)));
         repository.deletePendingSets("1");
+        assertThat(repository.getPendingSets(), Is.is(Sets.newHashSet(set0, set2, set3)));
 
         repository.flushLogging();
         repository.close();

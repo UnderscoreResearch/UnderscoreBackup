@@ -57,7 +57,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 totalSteps.set(storage.getBlockCount() + storage.getFileCount() + storage.getAdditionalBlockCount()
                         + storage.getDirectoryCount() + storage.getPartCount() + storage.getUpdatedFileCount());
 
-                log.info("Started metadata upgrade");
+                log.info("Started metadata migration");
                 {
                     Set<BackupPendingSet> pendingSets = storage.getPendingSets();
                     totalSteps.addAndGet(pendingSets.size());
@@ -70,6 +70,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
+                    log.info("Migrated {} pendingBlocks", readableNumber(pendingSets.size()));
                 }
 
                 try (CloseableStream<BackupBlock> blocks = storage.allBlocks()) {
@@ -85,7 +86,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
-                    log.info("Upgraded {} blocks", readableNumber(updatedStorage.getBlockCount()));
+                    log.info("Migrated {} blocks", readableNumber(updatedStorage.getBlockCount()));
                 }
 
                 try (CloseableStream<BackupBlockAdditional> blocks = storage.allAdditionalBlocks()) {
@@ -101,7 +102,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
-                    log.info("Upgraded {} additional blocks", readableNumber(updatedStorage.getAdditionalBlockCount()));
+                    log.info("Migrated {} additional blocks", readableNumber(updatedStorage.getAdditionalBlockCount()));
                 }
 
                 try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
@@ -117,7 +118,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
-                    log.info("Upgraded {} files", readableNumber(updatedStorage.getFileCount()));
+                    log.info("Migrated {} files", readableNumber(updatedStorage.getFileCount()));
                 }
 
                 try (CloseableStream<BackupFilePart> parts = storage.allFileParts()) {
@@ -133,7 +134,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
-                    log.info("Upgraded {} file parts", readableNumber(updatedStorage.getPartCount()));
+                    log.info("Migrated {} file parts", readableNumber(updatedStorage.getPartCount()));
                 }
 
                 try (CloseableStream<BackupDirectory> dirs = storage.allDirectories(true)) {
@@ -150,7 +151,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                         }
                     });
 
-                    log.info("Upgraded {} directories", readableNumber(updatedStorage.getDirectoryCount()));
+                    log.info("Migrated {} directories", readableNumber(updatedStorage.getDirectoryCount()));
                 }
 
                 try (CloseableStream<BackupUpdatedFile> files = storage.getUpdatedFiles()) {
@@ -166,13 +167,15 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                             throw new RuntimeException(e);
                         }
                     });
-                    log.info("Upgraded {} updated files", readableNumber(updatedStorage.getUpdatedFileCount()));
+                    log.info("Migrated {} updated files", readableNumber(updatedStorage.getUpdatedFileCount()));
                 }
+
+                updatedStorage.commit();
             }
         } catch (RuntimeRepositoryErrorException e) {
             throw new RepositoryErrorException(e.getMessage());
         } catch (RuntimeException e) {
-            throw new IOException(String.format("Failed to upgrade after %s/%s steps",
+            throw new IOException(String.format("Failed after %s/%s steps",
                     readableNumber(currentStep.get()), readableNumber(totalSteps.get())), e);
         } finally {
             stopwatch.stop();
@@ -180,7 +183,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
             StateLogger.removeLogger(this);
         }
 
-        log.info("Successfully completed metadata upgrade");
+        log.info("Successfully completed metadata migration");
     }
 
     @Override
@@ -196,12 +199,12 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         if (elapsedMilliseconds > 0) {
             long throughput = 1000 * currentStep.get() / elapsedMilliseconds;
             return Lists.newArrayList(
-                    new StatusLine(getClass(), "UPGRADE_PROCESSED_STEPS", "Repository upgrade",
+                    new StatusLine(getClass(), "UPGRADE_PROCESSED_STEPS", "Repository migration",
                             currentStep.get(), totalSteps.get(),
                             readableNumber(currentStep.get()) + " / " + readableNumber(totalSteps.get()) + " steps"
                                     + readableEta(currentStep.get(), totalSteps.get(),
                                     stopwatch.elapsed())),
-                    new StatusLine(getClass(), "UPGRADE_THROUGHPUT", "Repository upgrade throughput",
+                    new StatusLine(getClass(), "UPGRADE_THROUGHPUT", "Repository migration throughput",
                             throughput, readableNumber(throughput) + " steps/s")
             );
         }

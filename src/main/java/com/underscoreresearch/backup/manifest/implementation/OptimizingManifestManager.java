@@ -701,6 +701,7 @@ public class OptimizingManifestManager extends BaseManifestManagerImpl implement
             }
         } catch (Throwable exc) {
             repository.cancelStorageRevision(newStorage);
+            log.error("Failed repository upgrade", exc);
         }
     }
 

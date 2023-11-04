@@ -767,6 +767,7 @@ public class LockingMetadataRepository implements MetadataRepository {
                             storage.close();
                             storage.clear();
                             storage = upgradedStorage;
+                            close();
                         } catch (RepositoryUpgrader.RepositoryErrorException exc) {
                             log.error("Detected repository errors during upgrade", exc);
                             repositoryInfo.errorsDetected = true;
@@ -802,8 +803,9 @@ public class LockingMetadataRepository implements MetadataRepository {
         repositoryInfo.revision++;
         MetadataRepositoryStorage ret = createStorage(repositoryInfo.version, repositoryInfo.revision);
         ret.clear();
-        close();
+        storage.close();
         storage = ret;
+        storage.open(openMode);
         return ret;
     }
 
@@ -820,13 +822,11 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            MetadataRepositoryStorage oldStorage = createStorage(repositoryInfo.version, repositoryInfo.revision - 1);
-            oldStorage.clear();
-
-            open(RepositoryOpenMode.READ_ONLY);
-
             repositoryInfo.stopSaving = false;
             saveRepositoryInfo();
+
+            MetadataRepositoryStorage oldStorage = createStorage(repositoryInfo.version, repositoryInfo.revision - 1);
+            oldStorage.clear();
         }
     }
 
@@ -870,9 +870,24 @@ public class LockingMetadataRepository implements MetadataRepository {
     @Override
     public void compact() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
-            ensureOpen(false);
+            try (RepositoryLock ignored2 = new OpenLock()) {
+                ensureOpen(false);
 
-            storage.compact();
+                MetadataRepositoryStorage oldStorage = storage;
+
+                MetadataRepositoryStorage newStorage = createStorageRevision();
+                oldStorage.open(RepositoryOpenMode.READ_ONLY);
+                try {
+                    new RepositoryUpgrader(oldStorage, newStorage).upgrade();
+                    oldStorage.close();
+
+                    installStorageRevision(newStorage);
+                } catch (Throwable exc) {
+                    cancelStorageRevision(newStorage);
+                    log.error("Failed defrag operation", exc);
+                    oldStorage.close();
+                }
+            }
         }
     }
 

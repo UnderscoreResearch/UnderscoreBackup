@@ -654,6 +654,8 @@ print "Generation 3\n";
 push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
 
+&executeUnderscoreBackup("defrag-repository");
+
 print "Generation 4\n";
 &prepareTestPath();
 &generateData(4);
@@ -691,6 +693,7 @@ print "Other source tests\n";
 &executeUnderscoreBackup("rebuild-repository", "--password", $FIRST_PASSWORD, "--source", "same");
 &executeUnderscoreBackup("rebuild-repository", "--password", $FIRST_PASSWORD, "--source", "same");
 &executeUnderscoreBackup("repair-repository", "--password", $FIRST_PASSWORD, "--source", "same");
+&executeUnderscoreBackup("defrag-repository", "--source", "same");
 &executeUnderscoreBackup("restore", "/", "=", "--password", $FIRST_PASSWORD);
 &executeUnderscoreBackup("ls", "/", "--full-path", "--source", "same");
 &executeUnderscoreBackup("history", "--source", "same", File::Spec->catdir(File::Spec->catdir($testRoot, "a"), "0"));

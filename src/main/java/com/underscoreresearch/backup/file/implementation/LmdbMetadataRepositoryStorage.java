@@ -1454,15 +1454,10 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public void commit() throws IOException {
         synchronized (exclusiveLock) {
-            if (exclusiveThread == null || exclusiveLock == Thread.currentThread()) {
+            if (exclusiveThread == null || exclusiveThread == Thread.currentThread()) {
                 synchronizeDbAccess(this::internalCommit);
             }
         }
-    }
-
-    @Override
-    public void compact() throws IOException {
-        // No way to compact LMDB unfortunately.
     }
 
     private void internalCommit() {

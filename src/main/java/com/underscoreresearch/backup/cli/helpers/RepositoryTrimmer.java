@@ -165,7 +165,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         return new ArrayList<>();
     }
 
-    public synchronized Statistics trimRepository(boolean filesOnly) throws IOException {
+    public synchronized Statistics trimRepository(boolean noBlocks) throws IOException {
         File tempFile = File.createTempFile("block", ".db");
 
         manifestManager.setDisabledFlushing(true);
@@ -174,7 +174,13 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
             Statistics statistics = new Statistics();
 
-            try (CloseableMap<String, Boolean> usedBlockMap = metadataRepository.temporaryMap(new MapSerializer<String, Boolean>() {
+            boolean filesOnly = trimActivePaths();
+            if (!filesOnly && metadataRepository.isErrorsDetected()) {
+                log.warn("Repository contains errors, will only trim files");
+                filesOnly = true;
+            }
+
+            CloseableMap<String, Boolean> usedBlockMap = !filesOnly || !noBlocks ? metadataRepository.temporaryMap(new MapSerializer<String, Boolean>() {
                 @Override
                 public byte[] encodeKey(String s) {
                     return s.getBytes(StandardCharsets.UTF_8);
@@ -197,25 +203,24 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 public String decodeKey(byte[] data) {
                     return new String(data, StandardCharsets.UTF_8);
                 }
-            })) {
-                manifestManager.initialize((LogConsumer) metadataRepository, true);
+            }) : null;
 
-                boolean hasActivePaths = trimActivePaths();
-                filesOnly |= hasActivePaths;
-                if (!filesOnly && metadataRepository.isErrorsDetected()) {
-                    log.warn("Repository contains errors, will only trim files");
-                    filesOnly = true;
-                }
+            try {
+                manifestManager.initialize((LogConsumer) metadataRepository, true);
 
                 try (CloseableLock ignored = metadataRepository.acquireLock()) {
                     if (filesOnly) {
                         totalSteps.set(metadataRepository.getFileCount());
                     } else {
-                        totalSteps.set(metadataRepository.getBlockCount()
+                        totalSteps.set(metadataRepository.getFileCount()
                                 + metadataRepository.getDirectoryCount()
-                                + metadataRepository.getPartCount()
-                                + metadataRepository.getFileCount());
+                                + metadataRepository.getPartCount());
+
+                        if (!noBlocks) {
+                            totalSteps.addAndGet(metadataRepository.getBlockCount());
+                        }
                     }
+
                     stopwatch.start();
                     lastHeartbeat = Duration.ZERO;
 
@@ -228,23 +233,26 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     if (!filesOnly) {
                         trimDirectories(statistics);
 
-                        trimBlocks(usedBlockMap, statistics);
+                        if (!noBlocks) {
+                            metadataRepository.clearPartialFiles();
 
-                        metadataRepository.clearPartialFiles();
-
-                        log.info("Compacting repository");
-                        metadataRepository.compact();
+                            trimBlocks(usedBlockMap, statistics);
+                            ScannerSchedulerImpl.updateTrimSchedule(metadataRepository,
+                                    configuration.getManifest().getTrimSchedule());
+                        } else {
+                            log.info("Skipping block trimming");
+                        }
                     }
                 } catch (InterruptedException ignored) {
                 } finally {
                     stopwatch.stop();
                 }
+            } finally {
+                if (usedBlockMap != null) {
+                    usedBlockMap.close();
+                }
             }
 
-            if (!filesOnly) {
-                ScannerSchedulerImpl.updateTrimSchedule(metadataRepository,
-                        configuration.getManifest().getTrimSchedule());
-            }
             return statistics;
         } finally {
             deleteFile(tempFile);
@@ -451,7 +459,6 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
         List<BackupFile> fileVersions = new ArrayList<>();
 
-        AtomicReference<String> lastParent = new AtomicReference<>(null);
         AtomicBoolean foundError = new AtomicBoolean(false);
 
         try (CloseableStream<BackupFile> files = metadataRepository.allFiles(false)) {
@@ -616,7 +623,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
     private void markFileBlocks(CloseableMap<String, Boolean> usedBlockMap, boolean filesOnly, BackupFile file,
                                 boolean used) throws IOException {
-        if (!filesOnly) {
+        if (!filesOnly && usedBlockMap != null) {
             if (file.getLocations() != null)
                 for (BackupLocation location : file.getLocations()) {
                     if (location.getParts() != null)
