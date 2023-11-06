@@ -36,7 +36,6 @@ import Retention from "./Retention";
 import Typography from "@mui/material/Typography";
 import Timespan from "./Timespan";
 import PasswordStrengthBar from "../3rdparty/react-password-strength-bar";
-import SupportBundleDialog from "./SupportBundleDialog";
 import {useApplication} from "../utils/ApplicationContext";
 import {Warning} from "@mui/icons-material";
 
@@ -49,12 +48,12 @@ interface SettingsState {
     oldPassword: string,
     showChangePassword: boolean,
     showResetWarning: boolean,
-    showSupportBundle: boolean,
     configData: string,
     limits: BackupGlobalLimits,
     missingRetention?: BackupRetention,
     properties?: PropertyMap,
-    hasRandomizedSchedule: boolean
+    hasRandomizedSchedule: boolean,
+    regeneratePrivateKey: boolean
 }
 
 function createInitialState(config: BackupConfiguration): SettingsState {
@@ -63,12 +62,12 @@ function createInitialState(config: BackupConfiguration): SettingsState {
         showConfig: false,
         showChangePassword: false,
         showResetWarning: false,
-        showSupportBundle: false,
         password: "",
         passwordValid: false,
         passwordConfirm: "",
         oldPassword: "",
         hasRandomizedSchedule: !!config.manifest.scheduleRandomize,
+        regeneratePrivateKey: false,
         properties: config.properties,
         missingRetention: config.missingRetention,
         configData: JSON.stringify(config, null, 2),
@@ -185,12 +184,13 @@ export default function Settings() {
                 DisplayMessage("Missing new password");
             } else if (state.password !== state.passwordConfirm) {
                 DisplayMessage("Password does not match");
-            } else if (await changeEncryptionKey(state.oldPassword, state.password)) {
+            } else if (await changeEncryptionKey(state.oldPassword, state.password, state.regeneratePrivateKey)) {
                 await appContext.update(state.password);
                 setState((oldState) => {
                     return {
                         ...oldState,
-                        showChangePassword: false
+                        showChangePassword: false,
+                        regeneratePrivateKey: false
                     }
                 });
             }
@@ -492,10 +492,6 @@ export default function Settings() {
                         style={{marginRight: "16px", marginBottom: "16px"}}>
                     Change Password
                 </Button>
-                <Button variant="contained" onClick={() => setState({...state, showSupportBundle: true})}
-                        style={{marginRight: "16px", marginBottom: "16px"}}>
-                    Support Bundle
-                </Button>
             </Box>
             <Box textAlign={"right"} width={"40%"}>
                 <Button variant="contained" id="deleteConfiguration" onClick={handlesResetWarning} color="error">
@@ -592,6 +588,21 @@ export default function Settings() {
                                    ...state,
                                    passwordConfirm: e.target.value
                                })}/>
+                    <FormControlLabel control={<Checkbox checked={state.regeneratePrivateKey} onChange={(e) => {
+                        updateState({
+                            ...state,
+                            regeneratePrivateKey: e.target.checked
+                        });
+                    }
+                    }/>} label="Regenerate private key" style={{marginLeft: "8px"}}/>
+                    {state.regeneratePrivateKey &&
+                        <Alert severity="info">
+                            Regenerating your private key should be used if you believe your current password and your
+                            existing private key has been compromised. It will take a considerable amount of time
+                            because all existing log files need to be regenerated to complete this change. Your backup
+                            data does not though, so it is still substantially faster than a complete new backup.
+                        </Alert>
+                    }
                 </Box>
             </DialogContent>
             <DialogActions>
@@ -628,7 +639,5 @@ export default function Settings() {
                 </Button>
             </DialogActions>
         </Dialog>
-        <SupportBundleDialog open={state.showSupportBundle} backendState={appContext.backendState}
-                             onClose={() => setState({...state, showSupportBundle: false})}/>
     </Stack>
 }

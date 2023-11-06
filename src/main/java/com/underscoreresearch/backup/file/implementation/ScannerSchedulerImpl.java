@@ -297,7 +297,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         running = false;
         backupStatsLogger.setUploadRunning(false);
         condition.signal();
-        stateLogger.reset();
         lock.unlock();
 
         checkNewVersion();

@@ -36,7 +36,7 @@ import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.implementation.AdditionalManifestManager;
-import com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager;
+import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -64,7 +64,8 @@ public class ChangePasswordCommand extends Command {
         return keyFile.getAbsolutePath();
     }
 
-    private static void generateNewPrivateKey(CommandLine commandLine, String oldPassword, String newPassword) throws IOException, ParseException {
+    public static void generateNewPrivateKey(ManifestManager manifestManager, MetadataRepository repository,
+                                             File fileName, String oldPassword, String newPassword) throws IOException {
         BackupConfiguration configuration = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
         ConfigurationValidator.validateConfiguration(configuration, false, false);
 
@@ -72,42 +73,41 @@ public class ChangePasswordCommand extends Command {
         EncryptionKey.PrivateKey oldPrivateKey = oldPublicKey.getPrivateKey(oldPassword);
 
         // Make sure we have flushed all existing log files.
-        ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
 
         EncryptionKey newKey = EncryptionKey.changeEncryptionPasswordWithNewPrivateKey(newPassword, oldPrivateKey);
 
         // Generate a new key in memory and then rewrite all the backup metadata with the new key.
-        MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         repository.open(RepositoryOpenMode.READ_WRITE);
 
+        ChangePrivateKeyManifestManager changePrivateKeyManifestManager = new ChangePrivateKeyManifestManager(
+                configuration,
+                InstanceFactory.getInstance(MANIFEST_LOCATION),
+                InstanceFactory.getInstance(RateLimitController.class),
+                InstanceFactory.getInstance(ServiceManager.class),
+                InstanceFactory.getInstance(INSTALLATION_IDENTITY),
+                repository,
+                fileName,
+                newKey,
+                oldPrivateKey,
+                null,
+                InstanceFactory.getInstance(AdditionalManifestManager.class),
+                InstanceFactory.getInstance(UploadScheduler.class));
+
+        manifestManager.setDependentManager(changePrivateKeyManifestManager);
+
         try {
-            File fileName = getDefaultEncryptionFileName(commandLine);
-            ChangePrivateKeyManifestManager changePrivateKeyManifestManager = new ChangePrivateKeyManifestManager(
-                    configuration,
-                    InstanceFactory.getInstance(MANIFEST_LOCATION),
-                    InstanceFactory.getInstance(RateLimitController.class),
-                    InstanceFactory.getInstance(ServiceManager.class),
-                    InstanceFactory.getInstance(INSTALLATION_IDENTITY),
-                    repository,
-                    fileName,
-                    newKey,
-                    oldPrivateKey,
-                    null,
-                    InstanceFactory.getInstance(AdditionalManifestManager.class),
-                    InstanceFactory.getInstance(UploadScheduler.class));
 
-            changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class), false);
-            changePrivateKeyManifestManager.shutdown();
-
-            System.out.println("Wrote public key to " + fileName);
+            if (!changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class), false)) {
+                throw new IOException("Failed to rewrite all the log files with the new key");
+            }
         } catch (Exception exc) {
             log.error("Error changing private key", exc);
-            log.error("You must rerun the password change command with the --force option to complete the change or the backup can be corrupted");
+            log.error("You must rerun the password change to complete the change or the backup can be corrupted");
+        } finally {
+            changePrivateKeyManifestManager.shutdown();
+            manifestManager.setDependentManager(null);
         }
-
-        manifestManager.shutdown();
-        repository.close();
     }
 
     public void executeCommand(CommandLine commandLine) throws Exception {
@@ -135,6 +135,8 @@ public class ChangePasswordCommand extends Command {
 
         if (commandLine.hasOption(FORCE)) {
             MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+            ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
+
             try {
                 repository.open(RepositoryOpenMode.READ_ONLY);
                 if (repository.isErrorsDetected()) {
@@ -142,8 +144,13 @@ public class ChangePasswordCommand extends Command {
                     return;
                 }
 
-                generateNewPrivateKey(commandLine, getPassword(), firstTry);
+                File fileName = getDefaultEncryptionFileName(InstanceFactory.getInstance(CommandLine.class));
+
+                generateNewPrivateKey(manifestManager, repository, fileName, getPassword(), firstTry);
+
+                System.out.println("Wrote public key to " + fileName);
             } finally {
+                manifestManager.shutdown();
                 repository.close();
             }
         } else {
@@ -155,7 +162,7 @@ public class ChangePasswordCommand extends Command {
         reloadIfRunning();
     }
 
-    private static class ChangePrivateKeyManifestManager extends OptimizingManifestManager {
+    private static class ChangePrivateKeyManifestManager extends ManifestManagerImpl {
         private final File keyFile;
         private final MetadataRepository repository;
         private final EncryptionKey.PrivateKey oldPrivateKey;
@@ -184,9 +191,19 @@ public class ChangePasswordCommand extends Command {
         }
 
         @Override
-        protected void uploadPending(LogConsumer logConsumer) throws IOException {
+        protected void uploadPending(LogConsumer logConsumer) {
             // This is a NOP and we already do this first with the regular manifest manager and we don't want to
             // prematurely write config files with the new key.
+        }
+
+        protected void startOptimizeOperation() {
+            startOperation("Re-keying log");
+        }
+
+        @Override
+        public void shutdown() throws IOException {
+            waitCompletedOperation();
+            super.shutdown();
         }
 
         @Override

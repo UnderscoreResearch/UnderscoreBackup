@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
@@ -76,6 +78,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 try (CloseableStream<BackupBlock> blocks = storage.allBlocks()) {
                     blocks.setReportErrorsAsNull(true);
                     blocks.stream().forEach(block -> {
+                        if (InstanceFactory.isShutdown())
+                            throw new CancellationException();
                         if (block == null) {
                             throw new RuntimeRepositoryErrorException("Invalid block");
                         }
@@ -92,6 +96,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 try (CloseableStream<BackupBlockAdditional> blocks = storage.allAdditionalBlocks()) {
                     blocks.setReportErrorsAsNull(true);
                     blocks.stream().forEach(block -> {
+                        if (InstanceFactory.isShutdown())
+                            throw new CancellationException();
                         if (block == null) {
                             throw new RuntimeRepositoryErrorException("Invalid additional block");
                         }
@@ -108,6 +114,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 try (CloseableStream<BackupFile> files = storage.allFiles(true)) {
                     files.setReportErrorsAsNull(true);
                     files.stream().forEach(file -> {
+                        if (InstanceFactory.isShutdown())
+                            throw new CancellationException();
                         if (file == null) {
                             throw new RuntimeRepositoryErrorException("Invalid file");
                         }
@@ -124,6 +132,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 try (CloseableStream<BackupFilePart> parts = storage.allFileParts()) {
                     parts.setReportErrorsAsNull(true);
                     parts.stream().forEach(part -> {
+                        if (InstanceFactory.isShutdown())
+                            throw new CancellationException();
                         if (part == null) {
                             throw new RuntimeRepositoryErrorException("Invalid file part");
                         }
@@ -140,6 +150,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 try (CloseableStream<BackupDirectory> dirs = storage.allDirectories(true)) {
                     dirs.setReportErrorsAsNull(true);
                     dirs.stream().forEach(dir -> {
+                        if (InstanceFactory.isShutdown())
+                            throw new CancellationException();
                         if (dir == null) {
                             throw new RuntimeRepositoryErrorException("Invalid directory");
                         }
@@ -157,6 +169,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
                 try (CloseableStream<BackupUpdatedFile> files = storage.getUpdatedFiles()) {
                     files.setReportErrorsAsNull(true);
                     files.stream().forEach(file -> {
+                        if (InstanceFactory.isShutdown())
+                            throw new CancellationException();
                         if (file == null) {
                             throw new RuntimeRepositoryErrorException("Invalid updated file");
                         }
@@ -172,6 +186,8 @@ public class RepositoryUpgrader implements ManualStatusLogger {
 
                 updatedStorage.commit();
             }
+        } catch (CancellationException e) {
+            throw new CancellationException();
         } catch (RuntimeRepositoryErrorException e) {
             throw new RepositoryErrorException(e.getMessage());
         } catch (RuntimeException e) {

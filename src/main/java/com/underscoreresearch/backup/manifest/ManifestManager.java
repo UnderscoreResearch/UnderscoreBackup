@@ -12,7 +12,7 @@ public interface ManifestManager extends BaseManifestManager {
 
     void repairRepository(LogConsumer logConsumer, String password) throws IOException;
 
-    void optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer, boolean force) throws IOException;
+    boolean optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer, boolean force) throws IOException;
 
 
     void setDisabledFlushing(boolean disabledFlushing);
@@ -34,4 +34,6 @@ public interface ManifestManager extends BaseManifestManager {
     Map<String, ShareManifestManager> getActivatedShares();
 
     void updateShareEncryption(EncryptionKey.PrivateKey privateKey) throws IOException;
+
+    void setDependentManager(ManifestManager dependentManifestManager);
 }

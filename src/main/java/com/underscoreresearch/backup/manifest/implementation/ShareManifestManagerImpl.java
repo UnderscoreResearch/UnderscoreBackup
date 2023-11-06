@@ -2,7 +2,7 @@ package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -57,14 +57,14 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
         this.activatedShare = activatedShare;
     }
 
-    private boolean serviceShare() {
-        return activatedShare.getShare().getDestination().isServiceDestination();
+    private boolean isNotServiceShare() {
+        return !activatedShare.getShare().getDestination().isServiceDestination();
     }
 
     @Override
     public void validateIdentity() {
         // Service shares are validated by their parent.
-        if (!serviceShare()) {
+        if (isNotServiceShare()) {
             super.validateIdentity();
         }
     }
@@ -77,7 +77,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     @Override
     public void storeIdentity() {
         // Service shares are validated by their parent.
-        if (!serviceShare()) {
+        if (isNotServiceShare()) {
             super.storeIdentity();
         }
     }
@@ -91,7 +91,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
 
         List<File> files = existingLogFiles();
 
-        if (files.size() > 0) {
+        if (!files.isEmpty()) {
             getLogConsumer().setRecoveryMode(true);
             try {
                 for (File file : files) {

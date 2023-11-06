@@ -6,11 +6,12 @@ import {
     DialogContent,
     DialogContentText,
     DialogTitle,
-    LinearProgress
+    LinearProgress,
+    MenuItem
 } from "@mui/material";
 import Toolbar from "@mui/material/Toolbar";
 import IconButton from "@mui/material/IconButton";
-import MenuIcon from "@mui/icons-material/Menu";
+import MoreVert from "@mui/icons-material/MoreVert";
 import Typography from "@mui/material/Typography";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import Divider from "@mui/material/Divider";
@@ -25,12 +26,21 @@ import {useApplication} from "../utils/ApplicationContext";
 import {useTheme} from "../utils/Theme";
 import {IndividualButtonProps} from "../utils/ButtonContext";
 import {NightsStay, WbSunny} from "@mui/icons-material";
+import Menu from "@mui/material/Menu";
+import MenuIcon from "@mui/icons-material/Menu";
+import SupportBundleDialog from "./SupportBundleDialog";
+import PasswordDialog from "./PasswordDialog";
+import {defragRepository, optimizeRepository, repairRepository, trimRepository, validateBlocks} from "../api";
+import {useActivity} from "../utils/ActivityContext";
+import {DisplayState} from "../utils/DisplayState";
+import ConfirmationDialog, {ConfirmationDialogProps} from "./ConfirmationDialog";
 
 const drawerWidth: number = 240;
 
 interface AppBarProps extends MuiAppBarProps {
     open?: boolean;
 }
+
 
 export function AcceptButton(props: IndividualButtonProps) {
     return <Box sx={{flexGrow: 0, marginRight: "1em"}}>
@@ -109,6 +119,7 @@ export interface MainAppSkeletonProps {
     children?: React.ReactNode;
     acceptButton?: IndividualButtonProps;
     cancelButton?: IndividualButtonProps;
+    displayState?: DisplayState;
 }
 
 interface MainAppSkeletonState {
@@ -117,19 +128,110 @@ interface MainAppSkeletonState {
     showNewVersion: boolean;
 }
 
+function defaultConfirmationDialog(): ConfirmationDialogProps {
+    return {
+        open: false,
+        close: () => {
+        },
+        action: () => {
+        },
+        label: "",
+        dialogText: [] as string[]
+    };
+}
+
 export function MainAppSkeleton(props: MainAppSkeletonProps) {
-    const appConfig = useApplication();
+    const appContext = useApplication();
+    const activityContext = useActivity();
     const theme = useTheme();
 
+    const [showSupportBundle, setShowSupportBundle] = React.useState(false);
+
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
+    const [repairDialogOpen, setRepairDialogOpen] = React.useState(false);
+
+    const [confirmationDialog, setConfirmationDialog] = React.useState(() => defaultConfirmationDialog());
+
+    const open = Boolean(anchorEl);
     const [state, setState] = React.useState<MainAppSkeletonState>({
         open: window.localStorage.getItem("open") !== "false",
         slideAnimation: false,
         showNewVersion: false
     });
 
+
+    async function repairRepositoryNow(password: string) {
+        setRepairDialogOpen(false);
+        await appContext.busyOperation(async () => {
+            if (await repairRepository(password)) {
+                await appContext.updateBackendState();
+            }
+            await activityContext.update();
+        });
+    }
+
+    function handleClick(event: React.MouseEvent<HTMLElement, MouseEvent>) {
+        setAnchorEl(event.currentTarget);
+        event.preventDefault();
+    }
+
+    function handleClose() {
+        setAnchorEl(null);
+    }
+
     function toggleDrawer() {
         setState((oldState) => ({...oldState, open: !state.open}));
         window.localStorage.setItem("open", (!state.open).toString());
+    }
+
+    const busyState = !props.displayState ||
+        (!props.displayState.backupCanStart && !props.displayState?.backupInProgress);
+
+    async function executeTrimRepository() {
+        await appContext.busyOperation(async () => {
+            if (await trimRepository()) {
+                await appContext.updateBackendState();
+            }
+            await activityContext.update();
+        });
+    }
+
+    async function executeOptimizeLogs() {
+        await appContext.busyOperation(async () => {
+            if (await optimizeRepository()) {
+                await appContext.updateBackendState();
+            }
+            await activityContext.update();
+        });
+    }
+
+    async function executeValidateBlocks() {
+        await appContext.busyOperation(async () => {
+            if (await validateBlocks()) {
+                await appContext.updateBackendState();
+            }
+            await activityContext.update();
+        });
+    }
+
+    async function executeDefragRepository() {
+        await appContext.busyOperation(async () => {
+            if (await defragRepository()) {
+                await appContext.updateBackendState();
+            }
+            await activityContext.update();
+        });
+    }
+
+    function openConfirmationDialog(label: string, description: string[], action: () => void) {
+        setConfirmationDialog({
+            open: true,
+            close: () => setConfirmationDialog({...confirmationDialog, open: false}),
+            action: action,
+            label: label,
+            dialogText: description
+        });
     }
 
     return (
@@ -182,15 +284,76 @@ export function MainAppSkeleton(props: MainAppSkeletonProps) {
                     }
                     <IconButton
                         color="inherit"
-                        onClick={theme.toggle}
+                        onClick={(e) => handleClick(e)}
                         style={{opacity: 0.6, padding: "0"}}
                         size="large"
                     >
-                        {theme.mode === "dark" && <NightsStay/>}
-
-                        {theme.mode !== "dark" && <WbSunny/>}
+                        <MoreVert/>
                     </IconButton>
                 </Toolbar>
+                <Menu
+                    anchorEl={anchorEl}
+                    open={open}
+                    onClick={handleClose}
+                    onClose={handleClose}>
+                    <MenuItem onClick={theme.toggle} sx={{justifyContent: "center"}}>
+                        {theme.mode === "dark" && <NightsStay/>}
+                        {theme.mode !== "dark" && <WbSunny/>}
+                    </MenuItem>
+                    <Divider>Maintenance</Divider>
+                    <MenuItem title={"Apply retention policy right now on local repository"} disabled={busyState}
+                              onClick={() => openConfirmationDialog("Trim Repository",
+                                  [
+                                      "Apply retention policy right now on local repository and remove any unused backup data?",
+                                      "This operation can take a considerable amount of time to complete and usually runs at the end of each completed backup."
+                                  ],
+                                  () => executeTrimRepository())}>
+                        Trim repository
+                    </MenuItem>
+                    <MenuItem title={"Rewrite backup logs based on current backup contents"}
+                              disabled={busyState || !!appContext.selectedSource}
+                              onClick={() => openConfirmationDialog("Optimize Logs",
+                                  [
+                                      "Rewrite backup logs based on current backup contents?",
+                                      "Performing this operation on a regular basis ensures that you can do an efficient recovery in case you wish to restore a backup from scratch.",
+                                      "This operation can take a considerable amount of time to complete and usually runs once a month based on default settings."
+                                  ],
+                                  () => executeOptimizeLogs())}>
+                        Optimize backup logs
+                    </MenuItem>
+                    <MenuItem title={"Optimize storage for local repository"} disabled={busyState}
+                              onClick={() => openConfirmationDialog("Defrag Local Repository",
+                                  [
+                                      "Optimize storage for local repository?",
+                                      "Performing this operation will ensure that your local repository does not take up a lot of unused disk space.",
+                                      "This operation can take a considerable amount of time and does never run automatically. It is only necessary if you have removed a substantial portion of your backup."
+                                  ],
+                                  () => executeDefragRepository())}>
+                        Defrag local repository
+                    </MenuItem>
+                    <MenuItem title={"Rebuild local repository from backup logs"} disabled={busyState}
+                              onClick={() => setRepairDialogOpen(true)}>
+                        Repair local repository
+                    </MenuItem>
+                    <MenuItem title={"Validate that at your backed up files still have valid storage"}
+                              disabled={busyState}
+                              onClick={() => openConfirmationDialog("Validate Backup Blocks",
+                                  [
+                                      "Validate that at your backed up files still have valid storage?",
+                                      "Performing this operation will ensure that all your backed up files still have at least one valid storage location.",
+                                      "This operation can take a considerable amount of time and runs once a month based on default settings."
+                                  ],
+                                  () => executeValidateBlocks())}>
+                        Validate storage
+                    </MenuItem>
+                    <Divider>Support</Divider>
+                    <MenuItem title={"Generate support bundle"} onClick={() => setShowSupportBundle(true)}>
+                        Support Bundle
+                    </MenuItem>
+                    <MenuItem onClick={() => window.open("https://underscorebackup.com")}>
+                        About Underscore Backup
+                    </MenuItem>
+                </Menu>
             </AppBar>
             <Drawer variant="permanent" open={state.open || props.disallowClose}>
                 <Toolbar
@@ -232,7 +395,7 @@ export function MainAppSkeleton(props: MainAppSkeletonProps) {
                             textAlign: "right"
                         }}
                     >
-                        {appConfig.backendState && appConfig.backendState.newVersion &&
+                        {appContext.backendState && appContext.backendState.newVersion &&
                             <>
                                 <Typography
                                     color={theme.theme.palette.text.primary}
@@ -243,15 +406,15 @@ export function MainAppSkeleton(props: MainAppSkeletonProps) {
                                 <br/>
                                 <Button variant={"contained"}
                                         onClick={() => setState({...state, showNewVersion: true})}>
-                                    Get version {appConfig.backendState.newVersion.version}
+                                    Get version {appContext.backendState.newVersion.version}
                                 </Button>
                                 <br/>
                                 <br/>
                             </>
                         }
-                        {appConfig.backendState &&
+                        {appContext.backendState &&
                             <span>Version <span
-                                style={{fontWeight: "bold"}}>{appConfig.backendState.version}</span></span>
+                                style={{fontWeight: "bold"}}>{appContext.backendState.version}</span></span>
                         }
                     </Typography>
                 </Slide>
@@ -288,33 +451,40 @@ export function MainAppSkeleton(props: MainAppSkeletonProps) {
                     <div style={{height: "32px"}}/>
                 </Box>
             </Box>
-            {appConfig.backendState && appConfig.backendState.newVersion &&
+            {appContext.backendState && appContext.backendState.newVersion &&
                 <Dialog open={state.showNewVersion} onClose={() => setState({...state, showNewVersion: false})}>
-                    <DialogTitle>Version {appConfig.backendState?.newVersion?.version}: {appConfig.backendState?.newVersion?.name}</DialogTitle>
+                    <DialogTitle>Version {appContext.backendState?.newVersion?.version}: {appContext.backendState?.newVersion?.name}</DialogTitle>
                     <DialogContent dividers>
                         <DialogContentText>
-                            Released {new Date(appConfig.backendState?.newVersion?.releaseDate * 1000 as number).toLocaleString()}
+                            Released {new Date(appContext.backendState?.newVersion?.releaseDate * 1000 as number).toLocaleString()}
 
                             <div dangerouslySetInnerHTML={{
                                 __html:
-                                    marked(appConfig.backendState?.newVersion?.body as string)
+                                    marked(appContext.backendState?.newVersion?.body as string)
                             }}/>
                         </DialogContentText>
                     </DialogContent>
                     <DialogActions>
                         <Button autoFocus={true} onClick={() => {
-                            window.open(appConfig.backendState?.newVersion?.changeLog, '_blank')
+                            window.open(appContext.backendState?.newVersion?.changeLog, '_blank')
                         }}>Changelog</Button>
                         <div style={{flex: '1 0 0'}}/>
                         <Button onClick={() => setState({...state, showNewVersion: false})}>Cancel</Button>
                         <Button variant={"contained"} autoFocus={true} onClick={() => {
-                            window.open(appConfig.backendState?.newVersion?.download?.url, '_blank')
+                            window.open(appContext.backendState?.newVersion?.download?.url, '_blank')
                             setState({...state, showNewVersion: false});
                         }}>Download
-                            ({Math.round((appConfig.backendState?.newVersion?.download?.size as number) / 1024 / 1024)}mb)</Button>
+                            ({Math.round((appContext.backendState?.newVersion?.download?.size as number) / 1024 / 1024)}mb)</Button>
                     </DialogActions>
                 </Dialog>
             }
+            <SupportBundleDialog open={showSupportBundle}
+                                 onClose={() => setShowSupportBundle(false)}/>
+            <PasswordDialog action={(password) => repairRepositoryNow(password)}
+                            label={"Repair local repository"}
+                            open={repairDialogOpen} close={() => setRepairDialogOpen(false)}
+                            dialogText={"You need to enter your backup password to repair your local repository."}/>
+            <ConfirmationDialog {...confirmationDialog}/>
         </Box>
     )
 }

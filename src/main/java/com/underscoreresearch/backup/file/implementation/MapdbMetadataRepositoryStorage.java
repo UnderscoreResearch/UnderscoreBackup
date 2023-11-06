@@ -524,7 +524,8 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     @Override
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
-        pendingSetMap.put(scheduledTime.getSetId(), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
+        pendingSetMap.put(scheduledTime.getSetId(), encodeData(BACKUP_PENDING_SET_WRITER,
+                scheduledTime.toBuilder().setId(null).build()));
         increaseWrite();
     }
 

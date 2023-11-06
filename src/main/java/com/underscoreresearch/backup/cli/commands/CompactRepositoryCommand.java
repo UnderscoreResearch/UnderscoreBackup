@@ -8,10 +8,8 @@ import org.apache.commons.cli.CommandLine;
 
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
-import com.underscoreresearch.backup.cli.web.RepairPost;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 
 @CommandPlugin(value = "defrag-repository", description = "Compact local repository metadata",
         readonlyRepository = false, supportSource = true, needPrivateKey = false)

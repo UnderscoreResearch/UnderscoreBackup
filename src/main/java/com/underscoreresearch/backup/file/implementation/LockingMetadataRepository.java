@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -768,8 +769,10 @@ public class LockingMetadataRepository implements MetadataRepository {
                             storage.clear();
                             storage = upgradedStorage;
                             close();
+                        } catch (CancellationException exc) {
+                            log.warn("Repository migration cancelled", exc);
                         } catch (RepositoryUpgrader.RepositoryErrorException exc) {
-                            log.error("Detected repository errors during upgrade", exc);
+                            log.error("Detected repository errors during migration", exc);
                             repositoryInfo.errorsDetected = true;
                         }
                         saveRepositoryInfo();
@@ -803,9 +806,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         repositoryInfo.revision++;
         MetadataRepositoryStorage ret = createStorage(repositoryInfo.version, repositoryInfo.revision);
         ret.clear();
-        storage.close();
+        if (storage != null) {
+            storage.close();
+        }
         storage = ret;
-        storage.open(openMode);
+        if (open) {
+            storage.open(openMode);
+        }
         return ret;
     }
 
@@ -869,7 +876,7 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     @Override
     public void compact() throws IOException {
-        try (RepositoryLock ignored = new RepositoryLock()) {
+        try (UpdateLock ignored = new UpdateLock()) {
             try (RepositoryLock ignored2 = new OpenLock()) {
                 ensureOpen(false);
 
@@ -882,10 +889,12 @@ public class LockingMetadataRepository implements MetadataRepository {
                     oldStorage.close();
 
                     installStorageRevision(newStorage);
+                } catch (CancellationException exc) {
+                    log.warn("Repository migration cancelled", exc);
+                    cancelStorageRevision(newStorage);
                 } catch (Throwable exc) {
                     cancelStorageRevision(newStorage);
                     log.error("Failed defrag operation", exc);
-                    oldStorage.close();
                 }
             }
         }

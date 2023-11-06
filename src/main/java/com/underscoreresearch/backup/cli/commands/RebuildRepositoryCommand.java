@@ -4,7 +4,7 @@ import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reload
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
 import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
 import java.io.ByteArrayInputStream;

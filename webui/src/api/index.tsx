@@ -736,6 +736,34 @@ export async function repairRepository(password: string): Promise<AdditionalKeys
     });
 }
 
+export async function trimRepository(): Promise<AdditionalKeys | undefined> {
+    return await makeApiCall("trim", {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+}
+
+export async function optimizeRepository(): Promise<AdditionalKeys | undefined> {
+    return await makeApiCall("optimize", {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+}
+
+export async function defragRepository(): Promise<AdditionalKeys | undefined> {
+    return await makeApiCall("defrag", {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+}
+
+export async function validateBlocks(): Promise<AdditionalKeys | undefined> {
+    return await makeApiCall("validate-blocks", {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+}
+
 export async function resetSettings(): Promise<boolean> {
     const ret = await makeApiCall("", {
         method: 'DELETE'
@@ -744,12 +772,14 @@ export async function resetSettings(): Promise<boolean> {
     return ret !== undefined;
 }
 
-export async function changeEncryptionKey(password: string, newPassword: string): Promise<boolean> {
+export async function changeEncryptionKey(password: string, newPassword: string,
+                                          regeneratePrivateKey: boolean): Promise<boolean> {
     const ret = await makeApiCall("encryption-key/change", {
         method: 'POST',
         body: JSON.stringify({
             "password": password,
-            "newPassword": newPassword
+            "newPassword": newPassword,
+            "regeneratePrivateKey": regeneratePrivateKey
         })
     });
 

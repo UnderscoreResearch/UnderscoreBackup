@@ -14,7 +14,6 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.ScannerScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.utils.StateLogger;
@@ -26,7 +25,7 @@ public class BackupCommand extends SimpleCommand {
     public static void executeBackup(boolean asynchronous) throws Exception {
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
         ScannerScheduler scheduler = InstanceFactory.getInstance(ScannerScheduler.class);
-        UploadScheduler uploadScheduler = InstanceFactory.getInstance(UploadScheduler.class);
+        StateLogger stateLogger = InstanceFactory.getInstance(StateLogger.class);
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         try {
             IOUtils.waitForInternet(() -> {
@@ -51,11 +50,11 @@ public class BackupCommand extends SimpleCommand {
             InstanceFactory.shutdown();
             scheduler.shutdown();
             scheduler.waitForCompletion();
-            InstanceFactory.getInstance(StateLogger.class).reset();
 
             synchronized (scheduler) {
                 try {
                     manifestManager.shutdown();
+                    stateLogger.resetStatus();
                     repository.close();
                 } catch (IOException e) {
                     log.error("Failed to close manifest", e);

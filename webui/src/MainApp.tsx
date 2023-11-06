@@ -377,6 +377,7 @@ export default function MainApp() {
         }
 
         return <MainAppSkeleton title={displayState.statusTitle} processing={displayState.processing}
+                                displayState={displayState}
                                 navigation={navigation} disallowClose={false}
                                 acceptButton={acceptButton} cancelButton={cancelButton}>
         </MainAppSkeleton>
@@ -387,6 +388,7 @@ export default function MainApp() {
 
     return <MainAppSkeleton title={displayState.statusTitle} processing={displayState.processing}
                             navigation={navigation} disallowClose={false}
+                            displayState={displayState}
                             acceptButton={acceptButton} cancelButton={cancelButton}>
         <Routes>
             <Route path="*" element={<Status status={activityContext.activity}/>}/>

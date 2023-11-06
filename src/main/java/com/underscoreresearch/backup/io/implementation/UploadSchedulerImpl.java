@@ -21,6 +21,7 @@ import com.underscoreresearch.backup.utils.StatusLine;
 @Slf4j
 public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLogger, UploadScheduler {
     public static final String PREFIX = "blocks" + PATH_SEPARATOR;
+    private static UploadSchedulerImpl instance;
     private final RateLimitController rateLimitController;
     private final AtomicLong totalSize = new AtomicLong();
     private final AtomicLong totalCount = new AtomicLong();
@@ -29,6 +30,10 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
         super(maximumConcurrency);
         this.rateLimitController = rateLimitController;
         StateLogger.addLogger(this);
+
+        if (instance != null)
+            instance.shutdown();
+        instance = this;
     }
 
     public static String splitHash(String hash) {

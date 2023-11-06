@@ -148,10 +148,12 @@ export function calculateDisplayState(appContext: ApplicationContext,
                     busyStatus(ret, "Repairing Local Metadata Repository");
                     ret.rebuildInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("UPGRADE_"))) {
-                    busyStatus(ret, "Upgrading Repository Storage");
+                    busyStatus(ret, "Migrating Repository Storage");
                     ret.rebuildInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("OPTIMIZING_"))) {
                     busyStatus(ret, "Optimizing Log");
+                } else if (activityContext.activity.some(item => item.code.startsWith("RE-KEYING_"))) {
+                    busyStatus(ret, "Re-keying Log");
                 } else {
                     ret.backupCanStart = true;
                     ret.processing = false;

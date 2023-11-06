@@ -187,6 +187,14 @@ public class WebServer {
                                             )),
                                             new FkRegex(base + "/api/restore", new TkFork(
                                                     new FkMethods("POST", new RestorePost()))),
+                                            new FkRegex(base + "/api/trim", new TkFork(
+                                                    new FkMethods("POST", new TrimPost()))),
+                                            new FkRegex(base + "/api/optimize", new TkFork(
+                                                    new FkMethods("POST", new OptimizePost()))),
+                                            new FkRegex(base + "/api/validate-blocks", new TkFork(
+                                                    new FkMethods("POST", new ValidateBlocksPost()))),
+                                            new FkRegex(base + "/api/defrag", new TkFork(
+                                                    new FkMethods("POST", new DefragPost()))),
                                             new FkRegex(base + "/api/repair", new TkFork(
                                                     new FkMethods("POST", new RepairPost()))),
                                             new FkRegex(base + "/api/search-backup", new TkFork(

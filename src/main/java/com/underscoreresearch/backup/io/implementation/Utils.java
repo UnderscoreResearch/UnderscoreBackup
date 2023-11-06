@@ -3,7 +3,7 @@ package com.underscoreresearch.backup.io.implementation;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.LOG_ROOT;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
-import static com.underscoreresearch.backup.manifest.implementation.OptimizingManifestManager.CONFIGURATION_FILENAME;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
 
 import java.io.IOException;
 import java.util.ArrayList;

@@ -5,18 +5,12 @@ import {
     AccordionDetails,
     AccordionSummary,
     Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogContentText,
-    DialogTitle,
     Link,
     Paper,
     Stack,
     Table,
     TableBody,
     TableContainer,
-    TextField,
     Typography
 } from "@mui/material";
 import LogTable from "./LogTable";
@@ -24,8 +18,8 @@ import DividerWithText from "../3rdparty/react-js-cron-mui/components/DividerWit
 import {StatusRow, StatusRowProps} from "./StatusRow";
 import {ExpandMore} from "@mui/icons-material";
 import {useActivity} from "../utils/ActivityContext";
-import Box from "@mui/material/Box";
 import {useApplication} from "../utils/ApplicationContext";
+import PasswordDialog from "./PasswordDialog";
 
 export interface StatusProps {
     status: StatusLine[]
@@ -54,6 +48,7 @@ const IMPORTANT_CODES = [
     "DEACTIVATING_SHARES_PROCESSED_STEPS",
     "ACTIVATING_SHARES_PROCESSED_STEPS",
     "OPTIMIZING_LOG_PROCESSED_STEPS",
+    "RE-KEYING_LOG_PROCESSED_STEPS",
     "UPGRADE_PROCESSED_STEPS",
     "CONTINUOUS_BACKUP_FILES",
     "CONTINUOUS_BACKUP_SIZE",
@@ -75,51 +70,13 @@ interface ActionButtonProps {
 
 function ActionSharesButton(props: ActionButtonProps) {
     const [show, setShow] = React.useState<boolean>(false);
-    const [password, setPassword] = React.useState<string>("");
 
     return <>
         <Button variant="contained" color={props.color} onClick={() => {
             setShow(true)
         }}>{props.label}</Button>
-        <Dialog open={show} onClose={() => setShow(false)}>
-            <DialogTitle>Enter Password</DialogTitle>
-            <DialogContent>
-                <DialogContentText>
-                    {props.dialogText}
-                </DialogContentText>
-
-                <Box
-                    component="div"
-                    sx={{
-                        '& .MuiTextField-root': {m: 1},
-                    }}
-                    style={{marginTop: 4, marginLeft: "-8px", marginRight: "8px"}}
-                >
-                    <TextField label="Password" variant="outlined"
-                               fullWidth={true}
-                               required={true}
-                               value={password}
-                               error={!password}
-                               id={"password"}
-                               type="password"
-                               onKeyDown={(e) => {
-                                   if (e.key === "Enter" && password.length) {
-                                       setShow(false);
-                                       props.action(password);
-                                   }
-                               }}
-                               onChange={(e) => setPassword(e.target.value)}/>
-                </Box>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={() => setShow(false)}>Cancel</Button>
-                <Button disabled={!password}
-                        onClick={() => {
-                            setShow(false);
-                            props.action(password);
-                        }} id={"actionButton"}>OK</Button>
-            </DialogActions>
-        </Dialog>
+        <PasswordDialog open={show} close={() => setShow(false)} label={props.label} action={props.action}
+                        dialogText={props.dialogText}/>
     </>
 }
 
@@ -184,6 +141,7 @@ function importantProperties(row: StatusLine, details: boolean): StatusRowProps 
         case "DEACTIVATING_SHARES_PROCESSED_STEPS":
         case "ACTIVATING_SHARES_PROCESSED_STEPS":
         case "OPTIMIZING_LOG_PROCESSED_STEPS":
+        case "RE-KEYING_LOG_PROCESSED_STEPS":
             if (!details) {
                 props.etaOnly = true;
             }

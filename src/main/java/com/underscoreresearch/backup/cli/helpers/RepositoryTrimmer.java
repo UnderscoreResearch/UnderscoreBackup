@@ -245,7 +245,9 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     }
                 } catch (InterruptedException ignored) {
                 } finally {
-                    stopwatch.stop();
+                    if (stopwatch.isRunning()) {
+                        stopwatch.stop();
+                    }
                 }
             } finally {
                 if (usedBlockMap != null) {

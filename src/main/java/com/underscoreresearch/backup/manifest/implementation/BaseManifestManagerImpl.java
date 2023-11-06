@@ -471,6 +471,16 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         currentLogLength += data.length;
     }
 
+    protected MetadataRepository getMetadataRepository(boolean required) {
+        if (logConsumer instanceof MetadataRepository repository) {
+            return repository;
+        }
+        if (required) {
+            throw new RuntimeException("Metadata repository not ready");
+        }
+        return null;
+    }
+
     protected void flushRepositoryLogging(boolean wait) throws IOException {
         boolean performFlush = false;
         synchronized (lock) {
@@ -481,7 +491,10 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
         if (performFlush) {
             try {
-                InstanceFactory.getInstance(MetadataRepository.class).flushLogging();
+                MetadataRepository repository = getMetadataRepository(false);
+                if (repository != null) {
+                    repository.flushLogging();
+                }
             } catch (Exception exc) {
                 log.error("Failed to flush repository before starting new log file", exc);
             }
@@ -613,6 +626,12 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     public void shutdown() throws IOException {
+        synchronized (lock) {
+            shutdown = true;
+        }
+
+        waitCompletedOperation();
+
         uploadScheduler.waitForCompletion();
         flushRepositoryLogging(true);
 
@@ -620,8 +639,10 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             completeUploads();
             uploadExecutor.shutdown();
             executor.shutdownNow();
-            shutdown = true;
         }
+    }
+
+    protected void waitCompletedOperation() {
     }
 
     protected static class DeletionScheduler extends SchedulerImpl {

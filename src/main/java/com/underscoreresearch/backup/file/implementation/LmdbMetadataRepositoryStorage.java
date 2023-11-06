@@ -945,7 +945,9 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     @Override
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
         synchronizeDbAccess(() -> {
-            pendingSetMap.put(getWriteTransaction(), encodeString(scheduledTime.getSetId()), encodeData(BACKUP_PENDING_SET_WRITER, scheduledTime));
+            pendingSetMap.put(getWriteTransaction(), encodeString(scheduledTime.getSetId()),
+                    encodeData(BACKUP_PENDING_SET_WRITER,
+                            scheduledTime.toBuilder().setId(null).build()));
             checkExpand();
         });
     }

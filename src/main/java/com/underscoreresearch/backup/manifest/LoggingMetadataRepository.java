@@ -7,6 +7,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOC
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DIRECTORY_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_PART_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PENDING_SET_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.PUSH_ACTIVE_PATH_READER;
 
@@ -63,7 +64,6 @@ import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @Slf4j
 public class LoggingMetadataRepository implements MetadataRepository, LogConsumer {
-    private static final long CURRENT_SPAN = 60 * 1000;
     private final MetadataRepository repository;
     @Getter(AccessLevel.PROTECTED)
     private final ManifestManager manifestManager;
@@ -131,7 +131,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                             debug(() -> log.debug("Validated previous log file {}", lastFile));
                         }
                     }
-                });
+                })
+                .put("pendingSet", (json) -> repository.addPendingSets(BACKUP_PENDING_SET_READER.readValue(json)));
 
         if (noDeleteReplay) {
             decoderBuilder
@@ -144,6 +145,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                     .put("deleteDir", (json) -> {
                     })
                     .put("clear", (json) -> {
+                    })
+                    .put("deletePendingSet", (json) -> {
                     });
         } else {
             decoderBuilder
@@ -154,7 +157,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                         BackupDirectory dir = BACKUP_DIRECTORY_READER.readValue(json);
                         repository.deleteDirectory(dir.getPath(), dir.getAdded());
                     })
-                    .put("clear", (json) -> repository.clear());
+                    .put("clear", (json) -> repository.clear())
+                    .put("deletePendingSet", (json) -> {
+                        BackupPendingSet set = BACKUP_PENDING_SET_READER.readValue(json);
+                        repository.deletePendingSets(set.getSetId());
+                    });
         }
 
         decoders = decoderBuilder.build();
@@ -389,13 +396,14 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public boolean deleteFile(BackupFile file) throws IOException {
-        writeLogEntry("deleteFile", file);
+        BackupFile deletedFile = BackupFile.builder().path(file.getPath()).added(file.getAdded()).build();
+        writeLogEntry("deleteFile", deletedFile);
 
         if (shares != null) {
             for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
                 BackupShare share = shares.get(entry.getKey());
                 if (share != null && share.getContents().includeFile(file.getPath())) {
-                    writeLogEntry(entry.getValue(), "deleteFile", file);
+                    writeLogEntry(entry.getValue(), "deleteFile", deletedFile);
                 }
             }
         }
@@ -435,11 +443,13 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
+        writeLogEntry("pendingSet", scheduledTime);
         repository.addPendingSets(scheduledTime);
     }
 
     @Override
     public void deletePendingSets(String setId) throws IOException {
+        writeLogEntry("deletePendingSet", BackupPendingSet.builder().setId(setId).build());
         repository.deletePendingSets(setId);
     }
 
@@ -575,7 +585,6 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                                 newContents.add(file);
                         }
                         writeLogEntry(entry.getValue(), "dir", directory.toBuilder().files(newContents).build());
-                        log.info("Directory {}: {}", directory, entry.getKey());
                     }
                 }
             }

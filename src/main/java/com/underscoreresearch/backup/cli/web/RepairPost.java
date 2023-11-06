@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +26,46 @@ public class RepairPost extends BaseWrap {
         super(new Implementation());
     }
 
+    public static void executeAsyncOperation(Runnable runnable, BiConsumer<Thread, Boolean> shutdownHook, String name) {
+        AtomicBoolean started = new AtomicBoolean(false);
+        AtomicBoolean threadStarted = new AtomicBoolean(false);
+        AtomicBoolean completed = new AtomicBoolean(false);
+        Thread thread = new Thread(() -> {
+            try {
+                threadStarted.set(true);
+                runnable.run();
+            } catch (Exception exc) {
+                log.error("Repository operation failed", exc);
+            } finally {
+                completed.set(true);
+                while (!started.get()) {
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        log.warn("Interrupted while waiting for repair to complete", e);
+                    }
+                }
+                InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                        InstanceFactory.getAdditionalSourceName(),
+                        InteractiveCommand::startBackupIfAvailable);
+            }
+        },
+                name);
+        thread.setDaemon(true);
+
+        InstanceFactory.addOrderedCleanupHook(() -> shutdownHook.accept(thread, completed.get()));
+
+        thread.start();
+        while (!threadStarted.get()) {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                log.error("Failed to wait", e);
+            }
+        }
+        started.set(true);
+    }
+
     public static void repairRepository(String password, boolean async) {
         log.info("Repairing local repository from logs");
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
@@ -33,59 +74,30 @@ public class RepairPost extends BaseWrap {
 
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         if (async) {
-            AtomicBoolean started = new AtomicBoolean(false);
-            Thread thread = new Thread(() -> {
-                try {
-                    executeRepair(manifestManager, logConsumer, repository, password);
-                } catch (Exception exc) {
-                    log.error("Failed to repair repository", exc);
-                } finally {
-                    if (started.get())
-                        InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
-                                InstanceFactory.getAdditionalSourceName(),
-                                InteractiveCommand::startBackupIfAvailable);
-                }
-            },
-                    "RepositoryRepair");
-            thread.setDaemon(true);
-
-            InstanceFactory.addOrderedCleanupHook(() -> {
-                try {
-                    manifestManager.shutdown();
-                } catch (IOException e) {
-                    log.error("Failed to shut down log replay", e);
-                }
-                if (manifestManager.isBusy()) {
-                    try {
-                        thread.join(1000);
-                        if (!thread.isAlive())
-                            return;
-                    } catch (InterruptedException ignored) {
-                    }
-                    log.info("Waiting for rebuild to get to a checkpoint");
-                    do {
+            executeAsyncOperation(() -> executeRepair(manifestManager, logConsumer, repository, password),
+                    (thread, completed) -> {
                         try {
-                            thread.join();
-                        } catch (InterruptedException ignored) {
+                            manifestManager.shutdown();
+                        } catch (IOException e) {
+                            log.error("Failed to shut down log replay", e);
                         }
-                    } while (thread.isAlive());
-                }
-            });
-
-            thread.start();
-            while (!manifestManager.isBusy() && thread.isAlive()) {
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    log.error("Failed to wait", e);
-                }
-            }
-            started.set(true);
-            if (!thread.isAlive()) {
-                InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
-                        InstanceFactory.getAdditionalSourceName(),
-                        InteractiveCommand::startBackupIfAvailable);
-            }
+                        if (!completed && manifestManager.isBusy()) {
+                            try {
+                                thread.join(1000);
+                                if (!thread.isAlive())
+                                    return;
+                            } catch (InterruptedException ignored) {
+                            }
+                            log.info("Waiting for rebuild to get to a checkpoint");
+                            do {
+                                try {
+                                    thread.join();
+                                } catch (InterruptedException ignored) {
+                                }
+                            } while (thread.isAlive());
+                        }
+                    },
+                    "RepositoryRepair");
         } else {
             executeRepair(manifestManager, logConsumer, repository, password);
         }

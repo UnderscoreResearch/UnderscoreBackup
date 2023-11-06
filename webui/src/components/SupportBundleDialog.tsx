@@ -12,10 +12,11 @@ import {
     Link
 } from "@mui/material";
 import * as React from "react";
-import {BackupState} from "../api";
 import {createSupportBundle} from "../api/service";
+import {useApplication} from "../utils/ApplicationContext";
 
-export default function SupportBundleDialog(props: { open: boolean, backendState: BackupState, onClose: () => void }) {
+export default function SupportBundleDialog(props: { open: boolean, onClose: () => void }) {
+    const appContext = useApplication();
     const [busy, setBusy] = React.useState(false);
     const [location, setLocation] = React.useState(undefined as string | undefined);
 
@@ -89,7 +90,7 @@ export default function SupportBundleDialog(props: { open: boolean, backendState
                     Create a bundle of files to include in a support bundle to help with diagnosing issues.
                     A zip file will be generated with the option below. Data is not automatically submitted
                     to support but has to be done manually through&nbsp;
-                    <Link rel="noreferrer" target="_blank" href={`${props.backendState.siteUrl}`}
+                    <Link rel="noreferrer" target="_blank" href={`${appContext.backendState.siteUrl}`}
                           underline={"hover"}>the service website</Link>.
                 </DialogContentText>
                 <hr/>

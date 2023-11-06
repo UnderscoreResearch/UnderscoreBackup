@@ -48,6 +48,14 @@ export default function NavigationMenu(props: NavigationProps) {
             <ListItemText primary="Status"/>
         </MyListItemButton>
         <Divider sx={{my: 1}}/>
+        <MyListItemButton page="restore" currentPage={props.currentPage} disabled={!props.restore || props.unresponsive}
+                          id="pageRestore">
+            <ListItemIcon>
+                <CloudDownload/>
+            </ListItemIcon>
+            <ListItemText primary="Restore"/>
+        </MyListItemButton>
+        <Divider sx={{my: 1}}/>
         <MyListItemButton page="sets" currentPage={props.currentPage} disabled={!props.sets || props.unresponsive}
                           id="pageSets">
             <ListItemIcon>
@@ -86,13 +94,5 @@ export default function NavigationMenu(props: NavigationProps) {
             </ListItemIcon>
             <ListItemText primary="Shares"/>
         </MyListItemButton>
-        <Divider sx={{my: 1}}/>
-        <MyListItemButton page="restore" currentPage={props.currentPage} disabled={!props.restore || props.unresponsive}
-                          id="pageRestore">
-            <ListItemIcon>
-                <CloudDownload/>
-            </ListItemIcon>
-            <ListItemText primary="Restore"/>
-        </MyListItemButton>
-    </List>;
+    </List>
 }
