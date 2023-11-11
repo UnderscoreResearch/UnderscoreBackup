@@ -1,6 +1,16 @@
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
-import {Alert, Button, CircularProgress, Grid, Stack, TextField} from "@mui/material";
+import {
+    Alert,
+    Button,
+    CircularProgress,
+    FormControl,
+    FormControlLabel, FormLabel,
+    Grid,
+    Radio, RadioGroup,
+    Stack,
+    TextField
+} from "@mui/material";
 import * as React from "react";
 import {Fragment, useEffect} from "react";
 import Box from "@mui/material/Box";
@@ -14,6 +24,7 @@ export interface SourcePageProps {
 
 export interface SourcePageState {
     busy: boolean,
+    type: string | undefined,
     sourceName: string,
     sourceList: SourceResponse[] | undefined,
 }
@@ -31,10 +42,11 @@ export function formatNumber(num: number) {
     return num.toLocaleString();
 }
 
-export function SourcePage(props: SourcePageProps) {
+export default function SourcePage(props: SourcePageProps) {
     const appContext = useApplication();
     const [state, setState] = React.useState({
         busy: true,
+        type: undefined,
         sourceName: appContext.backendState.sourceName
     } as SourcePageState);
 
@@ -117,12 +129,22 @@ export function SourcePage(props: SourcePageProps) {
                     <>
                         {state.sourceList.length > 0 &&
                             <Grid item xs={12}>
+                                <FormControl>
+                                    <RadioGroup row onChange={(e, val) => setState({...state, type: val})}>
+                                        <FormControlLabel id="newChoice" value="new" control={<Radio />} label={<Typography fontSize={"larger"}>Create a new backup</Typography>} />
+                                        <FormControlLabel id="adoptChoice" value="adopt" control={<Radio />} label={<Typography fontSize={"larger"}>Take over an already existing backup</Typography>} />
+                                    </RadioGroup>
+                                </FormControl>
+                            </Grid>
+                        }
+                        {state.type == "adopt" && state.sourceList.length > 0 &&
+                            <Grid item xs={12}>
                                 <Typography variant="h6" component="div" marginBottom={"16px"}>
                                     Existing backup sources
                                 </Typography>
                             </Grid>
                         }
-                        {state.sourceList.map(source =>
+                        {state.type == "adopt" && state.sourceList.map(source =>
                             <Fragment key={source.sourceId}>
                                 <Grid item md={9} xs={12}>
                                     <b>{source.name}</b>
@@ -156,29 +178,33 @@ export function SourcePage(props: SourcePageProps) {
                         </Box>
                     </Grid>
                 }
-                <Grid item xs={12}>
-                    <Typography variant="h6" component="div" marginBottom={"16px"}>
-                        Create a new backup source
-                    </Typography>
-                </Grid>
-                <Grid item md={9} xs={12}>
-                    <TextField
-                        id={"sourceName"}
-                        fullWidth={true}
-                        value={state.sourceName}
-                        onChange={e => setState({
-                            ...state,
-                            sourceName: e.target.value
-                        })}
-                    />
-                </Grid>
-                <Grid item md={3} xs={12}>
-                    <Button fullWidth={true} disabled={state.busy || !state.sourceName} variant="contained"
-                            id="newSource"
-                            onClick={() => newSource()}>
-                        <>New Source</>
-                    </Button>
-                </Grid>
+                { (state.type === "new" || (state.sourceList && state.sourceList.length === 0)) &&
+                    <>
+                        <Grid item xs={12}>
+                            <Typography variant="h6" component="div" marginBottom={"16px"}>
+                                Create a new backup source
+                            </Typography>
+                        </Grid>
+                        <Grid item md={9} xs={12}>
+                            <TextField
+                                id={"sourceName"}
+                                fullWidth={true}
+                                value={state.sourceName}
+                                onChange={e => setState({
+                                    ...state,
+                                    sourceName: e.target.value
+                                })}
+                            />
+                        </Grid>
+                        <Grid item md={3} xs={12}>
+                            <Button fullWidth={true} disabled={state.busy || !state.sourceName} variant="contained"
+                                    id="newSource"
+                                    onClick={() => newSource()}>
+                                <>New Source</>
+                            </Button>
+                        </Grid>
+                    </>
+                }
             </Grid>
         </Paper>
     </Stack>

@@ -42,7 +42,7 @@ export interface ApplicationContext extends ApplicationState {
     setBusy: Dispatch<SetStateAction<boolean>>,
     busyOperation: (operation: () => Promise<void>) => Promise<void>,
 
-    update: (password: string) => Promise<void>,
+    update: (password?: string) => Promise<void>,
     applyChanges: (callback?: (oldState: ApplicationState, newState: ApplicationState) => Promise<void>) => Promise<boolean>,
     hasScheduledSets: () => boolean,
     interactiveEnabled: () => boolean,

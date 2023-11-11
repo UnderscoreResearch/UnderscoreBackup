@@ -146,7 +146,7 @@ abstract class AbstractWatchService implements WatchService {
         public Event(Kind<T> kind, int count, T context) {
             this.kind = requireNonNull(kind);
             if (count < 0) {
-                throw new IllegalArgumentException(String.format("count (%s) must be non-negative", count));
+                throw new IllegalArgumentException(String.format("count (\u200E%s\u200E) must be non-negative", count));
             }
             this.count = count;
             this.context = context;

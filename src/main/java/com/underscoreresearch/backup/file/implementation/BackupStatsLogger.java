@@ -5,12 +5,16 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -22,7 +26,11 @@ import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.service.api.invoker.ApiException;
+import com.underscoreresearch.backup.service.api.model.SourceStatsModel;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.StatusLogger;
 
@@ -30,6 +38,10 @@ import com.underscoreresearch.backup.utils.StatusLogger;
 public class BackupStatsLogger implements StatusLogger {
     private static final ObjectReader STATISTICS_READER = MAPPER.readerFor(RepositoryTrimmer.Statistics.class);
     private static final ObjectWriter STATISTICS_WRITER = MAPPER.writerFor(RepositoryTrimmer.Statistics.class);
+    // All errors with custom fields in them should have the custom fields within \" characters
+    // and that is redacted by this method. Should specifically include any paths logged anywhere in the app.
+    private static final Pattern ERROR_REQUEST = Pattern.compile("[\u200E\"].*[\u200E\"]");
+    private static File errorFile;
     private final String manifestPath;
     private final BackupConfiguration configuration;
     private final Map<String, Date> scheduledTimes = new HashMap<>();
@@ -46,30 +58,90 @@ public class BackupStatsLogger implements StatusLogger {
         this.configuration = configuration;
 
         statistics = readStatistics();
+        if (errorFile == null) {
+            errorFile = new File(manifestPath, "error.txt");
+        }
+    }
+
+    public static void writeEncounteredError(byte[] errorBytes) {
+        try {
+            if (!errorFile.exists()) {
+                try (FileWriter fileWriter = new FileWriter(errorFile, StandardCharsets.UTF_8)) {
+                    fileWriter.write(cleanError(new String(errorBytes, StandardCharsets.UTF_8)));
+                }
+            }
+        } catch (IOException e) {
+            log.warn("Failed to save last encountered error", e);
+        }
+    }
+
+    private static String cleanError(String error) {
+        return ERROR_REQUEST.matcher(error).replaceAll("{REDACTED}");
+    }
+
+    public static String extractEncounteredError() {
+        if (errorFile != null && errorFile.exists()) {
+            try {
+                String ret;
+                try (FileInputStream reader = new FileInputStream(errorFile)) {
+                    ret = new String(IOUtils.readAllBytes(reader), StandardCharsets.UTF_8);
+                }
+                IOUtils.deleteFile(errorFile);
+                return ret;
+            } catch (IOException e) {
+                log.warn("Failed to read last encountered error", e);
+            }
+        }
+        return null;
     }
 
     private File getStatisticsFile() {
         return new File(manifestPath, "statistics.json");
     }
 
-    public void updateStats(RepositoryTrimmer.Statistics statistics) {
+    public void updateStats(RepositoryTrimmer.Statistics statistics, boolean complete) {
         if (manifestPath != null) {
-            try {
-                if (this.statistics != null) {
-                    statistics.setNeedActivation(this.statistics.isNeedActivation());
-                }
-                STATISTICS_WRITER.writeValue(getStatisticsFile(), statistics);
-                this.statistics = statistics;
-            } catch (IOException e) {
-                log.warn("Failed to save backup statistics", e);
+            if (this.statistics != null) {
+                statistics.setNeedActivation(this.statistics.isNeedActivation());
             }
+            storeStats(statistics);
+            if (complete && configuration.getManifest() != null &&
+                    (configuration.getManifest().getReportStats() == null || configuration.getManifest().getReportStats())) {
+                ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
+                if (!Strings.isNullOrEmpty(serviceManager.getSourceId())) {
+                    SourceStatsModel stats = new SourceStatsModel();
+                    stats.setFiles(statistics.getFiles());
+                    stats.setFileVersions(statistics.getFileVersions());
+                    stats.setBlocks(statistics.getBlocks());
+                    stats.setBlockParts(statistics.getBlockParts());
+                    stats.setDirectories(statistics.getDirectories());
+                    stats.setDirectoryVersions(statistics.getDirectoryVersions());
+                    stats.setTotalSize(statistics.getTotalSize());
+                    stats.setTotalSizeLastVersion(statistics.getTotalSizeLastVersion());
+                    stats.setRecentError(BackupStatsLogger.extractEncounteredError());
+                    try {
+                        serviceManager.callApi(null, (api) -> api.updateSourceStats(serviceManager.getSourceId(), stats));
+                    } catch (ApiException e) {
+                        log.warn("Failed to updated source stats", e);
+                    }
+                }
+            }
+        }
+    }
+
+    private void storeStats(RepositoryTrimmer.Statistics statistics) {
+        try {
+            this.statistics = statistics;
+            STATISTICS_WRITER.writeValue(getStatisticsFile(), statistics);
+        } catch (IOException e) {
+            log.warn("Failed to save backup statistics", e);
         }
     }
 
     public void setNeedsActivation(boolean needsActivation) {
         if (statistics != null) {
             statistics.setNeedActivation(needsActivation);
-            updateStats(statistics);
+            storeStats(statistics);
         }
     }
 

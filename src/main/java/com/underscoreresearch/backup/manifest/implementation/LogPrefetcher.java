@@ -66,7 +66,7 @@ public class LogPrefetcher {
                                     return;
                                 }
 
-                                debug(() -> log.debug("Fetching log file {}", finalFile));
+                                debug(() -> log.debug("Fetching log file \"{}\"", finalFile));
                                 try {
                                     byte[] fileData = downloadData.downloadFile(finalFile);
                                     byte[] unencryptedData = encryptor.decodeBlock(null, fileData, privateKey);
@@ -118,7 +118,7 @@ public class LogPrefetcher {
             Holder ret = data.remove(logId);
             while (ret == null) {
                 try {
-                    debug(() -> log.debug("Waiting for log file {}", logId));
+                    debug(() -> log.debug("Waiting for log file \"{}\"", logId));
                     data.wait();
                 } catch (InterruptedException e) {
                     error.set(e);

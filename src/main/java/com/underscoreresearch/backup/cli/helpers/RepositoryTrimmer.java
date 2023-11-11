@@ -276,7 +276,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
                 if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                     lastHeartbeat = stopwatch.elapsed();
-                    log.info("Processing directory {}", PathNormalizer.physicalPath(directory.getPath()));
+                    log.info("Processing directory \"{}\"", PathNormalizer.physicalPath(directory.getPath()));
                 }
 
                 if (directory.getPath().equals("")) {
@@ -333,7 +333,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     }
                 }
             } catch (IOException e) {
-                log.error("Failed to check directory existence of {}", PathNormalizer.physicalPath(fullPath));
+                log.error("Failed to check directory existence of \"{}\"", PathNormalizer.physicalPath(fullPath));
             }
         }
 
@@ -353,9 +353,11 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     deleteDirectory(delDirectory, statistics);
                 }
             } catch (IOException e) {
-                log.error("Failed to merge directories at path {}", PathNormalizer.physicalPath(directory.getPath()));
+                log.error("Failed to merge directories at path \"{}\"", PathNormalizer.physicalPath(directory.getPath()));
             }
             deletions.clear();
+        } else {
+            statistics.addDirectoryVersion();
         }
 
         if (last && !(directory.getFiles().isEmpty() && laterVersion == null)) {
@@ -371,7 +373,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         for (Map.Entry<String, BackupActivePath> paths : activepaths.entrySet()) {
             for (String setId : paths.getValue().getSetIds()) {
                 if (configuration.getSets().stream().noneMatch(t -> t.getId().equals(setId))) {
-                    log.warn("Removing active path {} from non existing set {}",
+                    log.warn("Removing active path \"{}\" from non existing set \"{}\"",
                             PathNormalizer.physicalPath(paths.getKey()), setId);
                     metadataRepository.popActivePath(setId, paths.getKey());
                 } else {
@@ -411,15 +413,15 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                             if (key != null) {
                                 try {
                                     provider.delete(key);
-                                    debug(() -> log.debug("Removing block part " + key));
+                                    debug(() -> log.debug("Removing block part \"" + key + "\""));
                                     statistics.addDeletedBlockPart();
                                 } catch (IOException exc) {
-                                    log.error("Failed to delete part " + key + " from " + storage.getDestination(), exc);
+                                    log.error("Failed to delete part \"" + key + "\" from \"" + storage.getDestination() + "\"", exc);
                                 }
                             }
                         }
                     }
-                    debug(() -> log.debug("Removing block " + block.getHash()));
+                    debug(() -> log.debug("Removing block \"" + block.getHash() + "\""));
                     metadataRepository.deleteBlock(block);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -436,13 +438,13 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
                 try {
                     if (metadataRepository.block(part.getBlockHash()) == null) {
-                        debug(() -> log.debug("Removing file part {} references non existing block {}",
+                        debug(() -> log.debug("Removing file part \"{}\" references non existing block \"{}\"",
                                 part.getPartHash(), part.getBlockHash()));
                         statistics.addDeletedBlockPartReference();
                         metadataRepository.deleteFilePart(part);
                     }
                 } catch (IOException exc) {
-                    log.error("Encountered issue validating part {} for block {}", part.getPartHash(),
+                    log.error("Encountered issue validating part \"{}\" for block \"{}\"", part.getPartHash(),
                             part.getBlockHash());
                 }
             });
@@ -475,7 +477,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
                 if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                     lastHeartbeat = stopwatch.elapsed();
-                    log.info("Processing file {}", PathNormalizer.physicalPath(file.getPath()));
+                    log.info("Processing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                 }
                 lastProcessed = file.getPath();
 
@@ -507,7 +509,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     }
 
     private void deleteDirectory(BackupDirectory directory, Statistics statistics) throws IOException {
-        debug(() -> log.debug("Removing " + PathNormalizer.physicalPath(directory.getPath()) + " from "
+        debug(() -> log.debug("Removing \"" + PathNormalizer.physicalPath(directory.getPath()) + "\" from "
                 + LogUtil.formatTimestamp(directory.getAdded())));
         metadataRepository.deleteDirectory(directory.getPath(), directory.getAdded());
         statistics.addDeletedDirectoryVersion();
@@ -526,7 +528,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
         if (retention == null) {
             if (!force) {
-                log.warn("File not in set {}, use force flag to delete", PathNormalizer.physicalPath(files.get(0).getPath()));
+                log.warn("File not in set \"{}\", use force flag to delete", PathNormalizer.physicalPath(files.get(0).getPath()));
                 boolean anyFound = false;
                 for (BackupFile file : files) {
                     markFileBlocks(usedBlockMap, filesOnly, file, true);
@@ -539,7 +541,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 statistics.addFileVersions(files.size());
                 statistics.addFile();
             } else {
-                log.warn("File not in set, deleting {}", PathNormalizer.physicalPath(files.get(0).getPath()));
+                log.warn("File not in set, deleting \"{}\"", PathNormalizer.physicalPath(files.get(0).getPath()));
                 for (BackupFile file : files) {
                     metadataRepository.deleteFile(file);
                     markFileBlocks(usedBlockMap, filesOnly, file, false);
@@ -560,7 +562,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                         if (orphaned == null) {
                             orphaned = isOrphaned(file.getPath());
                             if (orphaned) {
-                                log.warn("Deleting orphaned file {} not referenced in any directory",
+                                log.warn("Deleting orphaned file \"{}\" not referenced in any directory",
                                         PathNormalizer.physicalPath(file.getPath()));
                             }
                         }
@@ -571,8 +573,8 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                                 if (!retention.deletedImmediate()) {
                                     file.setDeleted(Instant.now().toEpochMilli());
                                     metadataRepository.addFile(file);
-                                    debug(() -> log.debug("Marking " + PathNormalizer.physicalPath(file.getPath())
-                                            + " as deleted at " + LogUtil.formatTimestamp(file.getDeleted())));
+                                    debug(() -> log.debug("Marking \"" + PathNormalizer.physicalPath(file.getPath())
+                                            + "\" as deleted at " + LogUtil.formatTimestamp(file.getDeleted())));
                                 }
                             }
                         }
@@ -588,7 +590,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                         remove = true;
                     }
                     if (remove) {
-                        debug(() -> log.debug("Removing " + PathNormalizer.physicalPath(file.getPath()) + " from "
+                        debug(() -> log.debug("Removing \"" + PathNormalizer.physicalPath(file.getPath()) + "\" from "
                                 + LogUtil.formatTimestamp(file.getAdded())));
                     }
                 }
@@ -649,7 +651,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     markFileLocationBlocks(usedBlockMap, partHash, used);
                 }
             } else {
-                log.error("Missing referenced super block {}, run validate-blocks to remedy", hash);
+                log.error("Missing referenced super block \"{}\", run validate-blocks to remedy", hash);
             }
         }
     }

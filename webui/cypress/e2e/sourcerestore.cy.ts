@@ -9,8 +9,8 @@ const configInterface = Cypress.env("CONFIG_INTERFACE")
 it('sourcerestore', function () {
     cy.visit(configInterface);
 
-    cy.get('#uiPassword').type('KqNK4bFj8ZTc');
-    cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
+    cy.get('#password').type('KqNK4bFj8ZTc');
+    cy.get('#actionButton').should("be.visible").and('not.be.disabled').click();
 
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageSettings > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();

@@ -74,7 +74,7 @@ public class BlockValidator implements ManualStatusLogger {
                 processedSteps.incrementAndGet();
                 if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                     lastHeartbeat = stopwatch.elapsed();
-                    log.info("Processing path {}", PathNormalizer.physicalPath(file.getPath()));
+                    log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                 }
                 lastProcessed = file;
 
@@ -87,12 +87,12 @@ public class BlockValidator implements ManualStatusLogger {
                                     return false;
                                 }
                             } catch (IOException e) {
-                                log.error("Failed to read block " + part.getBlockHash(), e);
+                                log.error("Failed to read block \"" + part.getBlockHash() + "\"", e);
                                 return false;
                             }
                         }
                         if (maximumSize.get() < file.getLength()) {
-                            log.error("Not enough blocks to contain entire file size ({} < {})",
+                            log.error("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
                                     readableSize(maximumSize.get()), readableSize(file.getLength()));
                             return false;
                         }
@@ -102,18 +102,18 @@ public class BlockValidator implements ManualStatusLogger {
                     try {
                         if (validCollections.size() != file.getLocations().size()) {
                             if (validCollections.size() == 0) {
-                                log.error("Storage for {} does no longer exist",
+                                log.error("Storage for \"{}\" does no longer exist",
                                         PathNormalizer.physicalPath(file.getPath()));
                                 repository.deleteFile(file);
                             } else {
-                                log.warn("At least one location for {} no longer exists",
+                                log.warn("At least one location for \"{}\" no longer exists",
                                         PathNormalizer.physicalPath(file.getPath()));
                                 file.setLocations(validCollections);
                                 repository.addFile(file);
                             }
                         }
                     } catch (IOException e) {
-                        log.error("Failed to delete missing file {}", PathNormalizer.physicalPath(file.getPath()));
+                        log.error("Failed to delete missing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                     }
                 }
             });
@@ -141,12 +141,12 @@ public class BlockValidator implements ManualStatusLogger {
                                  int maxBlockSize) throws IOException {
         BackupBlock block = repository.block(blockHash);
         if (block == null) {
-            log.error("Block hash {} does not exist", blockHash);
+            log.error("Block hash \"{}\" does not exist", blockHash);
             return false;
         }
         if (block.isSuperBlock()) {
             if (block.getHashes() == null) {
-                log.error("Super block {} is missing hashes", block.getHash());
+                log.error("Super block \"{}\" is missing hashes", block.getHash());
                 return false;
             } else {
                 for (String hash : block.getHashes()) {
@@ -170,7 +170,7 @@ public class BlockValidator implements ManualStatusLogger {
             try {
                 EncryptorFactory.getEncryptor(storage.getEncryption());
             } catch (IllegalArgumentException exc) {
-                log.warn("Found invalid encryption {} for block {}", storage.getEncryption(), block.getHash());
+                log.warn("Found invalid encryption \"{}\" for block \"{}\"", storage.getEncryption(), block.getHash());
                 anyChange = true;
                 block.getStorage().remove(i);
                 continue;
@@ -178,13 +178,13 @@ public class BlockValidator implements ManualStatusLogger {
             try {
                 ErrorCorrectorFactory.getCorrector(storage.getEc());
             } catch (IllegalArgumentException exc) {
-                log.warn("Found invalid error correction {} for block {}", storage.getEc(), block.getHash());
+                log.warn("Found invalid error correction \"{}\" for block \"{}\"", storage.getEc(), block.getHash());
                 anyChange = true;
                 block.getStorage().remove(i);
                 continue;
             }
             if (storage.getParts().stream().anyMatch(Objects::isNull)) {
-                log.warn("Block hash {} has missing parts", block.getHash());
+                log.warn("Block hash \"{}\" has missing parts", block.getHash());
                 anyChange = true;
                 block.getStorage().remove(i);
                 continue;
@@ -192,7 +192,7 @@ public class BlockValidator implements ManualStatusLogger {
 
             BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
             if (destination == null) {
-                log.error("Block {} referencing missing destination {}", block.getHash(), storage.getDestination());
+                log.error("Block \"{}\" referencing missing destination \"{}\"", block.getHash(), storage.getDestination());
             } else if (destination.getMaxRetention() != null) {
                 long created;
                 if (storage.getCreated() != null)
@@ -218,7 +218,7 @@ public class BlockValidator implements ManualStatusLogger {
                         }
                     }
                 } catch (IOException e) {
-                    log.error("Failed to refresh block {}", block.getHash(), e);
+                    log.error("Failed to refresh block \"{}\"", block.getHash(), e);
                 }
             } else {
                 try {
@@ -230,7 +230,7 @@ public class BlockValidator implements ManualStatusLogger {
                         return false;
                     }
                 } catch (IOException e) {
-                    log.error("Could not save updated block {}", block.getHash(), e);
+                    log.error("Could not save updated block \"{}\"", block.getHash(), e);
                 }
             }
         }

@@ -343,8 +343,8 @@ final class Curve25519 {
         // q, resultx, nqpqx/nqpqx  are x coordinates of 3 collinear points q, n*q, (n + 1)*q.
         if (!isCollinear(q, resultx, nqpqx, nqpqz)) {
             throw new IllegalStateException(
-                    "Arithmetic error in curve multiplication with the public key: "
-                            + hexEncode(qBytes));
+                    "Arithmetic error in curve multiplication with the public key: \""
+                            + hexEncode(qBytes) + "\"");
         }
     }
 
@@ -363,7 +363,7 @@ final class Curve25519 {
 
         for (byte[] bannedPublicKey : BANNED_PUBLIC_KEYS) {
             if (byteEqual(bannedPublicKey, pubKey)) {
-                throw new InvalidKeyException("Banned public key: " + hexEncode(bannedPublicKey));
+                throw new InvalidKeyException("Banned public key: \"" + hexEncode(bannedPublicKey) + "\"");
             }
         }
     }

@@ -104,7 +104,7 @@ public class RepositoryBackfiller {
                             backfillDownloader.backfillFilePartOffsets(file, password);
                             long currentMinute = stopwatch.elapsed(TimeUnit.MINUTES);
                             if (currentMinute != lastDuration.get()) {
-                                log.info("Processed {} / {} files, updated {} files so far (Last file {})",
+                                log.info("Processed {} / {} files, updated {} files so far (Last file \"{}\")",
                                         readableNumber(backfillDownloader.getProcessed().get()),
                                         readableNumber(fileCount),
                                         readableNumber(backfillDownloader.getCompletedFiles().get()),
@@ -172,7 +172,7 @@ public class RepositoryBackfiller {
                                 encryptor.backfillEncryption(storage, data);
                             }
                         } catch (IOException e) {
-                            log.error("Failed to download backfill block {}", block.getHash());
+                            log.error("Failed to download backfill block \"{}\"", block.getHash());
                         }
                     }
                     pendingBlockUpdates.add(block);
@@ -232,7 +232,7 @@ public class RepositoryBackfiller {
                                     }
                                 }
                             } catch (IOException e) {
-                                log.error("Failed to fetch block {}", part.getBlockHash(), e);
+                                log.error("Failed to fetch block \"{}\"", part.getBlockHash(), e);
                             }
                         }
                     }
@@ -260,7 +260,7 @@ public class RepositoryBackfiller {
 
                     break;
                 } catch (IOException e) {
-                    log.error("Failed to download backfill block {}", block.getHash());
+                    log.error("Failed to download backfill block \"{}\"", block.getHash());
                 }
             }
             if (updateBlock) {
@@ -273,9 +273,9 @@ public class RepositoryBackfiller {
                 BackupBlock updateBlock = pendingBlockUpdates.poll();
                 try {
                     repository.addBlock(updateBlock);
-                    debug(() -> log.debug("Updated block {} with encryption metadata", updateBlock.getHash()));
+                    debug(() -> log.debug("Updated block \"{}\" with encryption metadata", updateBlock.getHash()));
                 } catch (IOException e) {
-                    log.error("Failed to save update to block {}", updateBlock.getHash());
+                    log.error("Failed to save update to block \"{}\"", updateBlock.getHash());
                 }
                 completedBlocks.incrementAndGet();
             }
@@ -295,10 +295,10 @@ public class RepositoryBackfiller {
                         try {
                             repository.addFile(file);
                             completedFiles.incrementAndGet();
-                            debug(() -> log.debug("Updated file {} with block offsets",
+                            debug(() -> log.debug("Updated file \"{}\" with block offsets",
                                     PathNormalizer.physicalPath(file.getPath())));
                         } catch (IOException e) {
-                            log.error("Failed to save update to file {}", PathNormalizer.physicalPath(file.getPath()));
+                            log.error("Failed to save update to file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                         }
                     } else {
                         i++;
@@ -326,10 +326,10 @@ public class RepositoryBackfiller {
                             }
                             block.setOffsets(offsets);
                             repository.addBlock(block);
-                            debug(() -> log.debug("Updated superblock {} with offsets", block.getHash()));
+                            debug(() -> log.debug("Updated superblock \"{}\" with offsets", block.getHash()));
                         }
                     } catch (IOException e) {
-                        log.error("Failed to fetch block {}", blockHash);
+                        log.error("Failed to fetch block \"{}\"", blockHash);
                     }
                 } else {
                     Long size = blockSizes.get(blockHash);

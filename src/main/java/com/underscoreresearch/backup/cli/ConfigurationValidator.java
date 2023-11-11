@@ -56,12 +56,12 @@ public class ConfigurationValidator {
 
     private static void validateShares(BackupConfiguration configuration) {
         if (configuration.getShares() != null) {
-            validateUniqueness("Shares ", configuration.getShares().keySet());
+            validateUniqueness("Shares", configuration.getShares().keySet());
             for (Map.Entry<String, BackupShare> entry : configuration.getShares().entrySet()) {
                 validateDestination(entry.getValue().getName(), entry.getValue().getDestination());
                 if (!entry.getValue().getDestination().getErrorCorrection().equals(DEFAULT_ERROR_CORRECTION)) {
-                    throw new IllegalArgumentException("Share " + entry.getValue().getName() +
-                            " destination must not use error correction");
+                    throw new IllegalArgumentException("Share \"" + entry.getValue().getName() +
+                            "\" destination must not use error correction");
                 }
                 if (invalidFilenameValue(entry.getValue().getName())) {
                     throw new IllegalArgumentException("Share has missing or invalid name");
@@ -71,8 +71,8 @@ public class ConfigurationValidator {
                         throw new IllegalArgumentException();
                     Hash.decodeBytes(entry.getKey());
                 } catch (IllegalArgumentException exc) {
-                    throw new IllegalArgumentException("Invalid public key " + entry.getKey()
-                            + " for share " + entry.getValue().getName());
+                    throw new IllegalArgumentException("Invalid public key \"" + entry.getKey() +
+                            "\" for share \"" + entry.getValue().getName() + "\"");
                 }
                 validateContents("Share contents " + entry.getValue().getName(), entry.getValue().getContents());
             }
@@ -81,15 +81,15 @@ public class ConfigurationValidator {
 
     private static void validateSources(BackupConfiguration configuration) {
         if (configuration.getAdditionalSources() != null) {
-            validateUniqueness("Additional sources ", configuration.getAdditionalSources().keySet());
+            validateUniqueness("Additional sources", configuration.getAdditionalSources().keySet());
             for (Map.Entry<String, BackupDestination> entry : configuration.getAdditionalSources().entrySet()) {
                 validateDestination(entry.getKey(), entry.getValue());
                 if (!entry.getValue().getErrorCorrection().equals(DEFAULT_ERROR_CORRECTION)) {
-                    throw new IllegalArgumentException("Additional source " + entry.getKey() +
-                            " destination must not use error correction");
+                    throw new IllegalArgumentException("Additional source \"" + entry.getKey() +
+                            "\" destination must not use error correction");
                 }
                 if (invalidFilenameValue(entry.getKey())) {
-                    throw new IllegalArgumentException("Additional source " + entry.getKey() + " has missing or invalid name");
+                    throw new IllegalArgumentException("Additional source \"" + entry.getKey() + "\" has missing or invalid name");
                 }
             }
         }
@@ -130,8 +130,8 @@ public class ConfigurationValidator {
 
         BackupDestination destination = configuration.getDestinations().get(manifest.getDestination());
         if (destination == null) {
-            throw new IllegalArgumentException("Destination " + manifest.getDestination()
-                    + " used in manifest is not defined");
+            throw new IllegalArgumentException("Destination \"" + manifest.getDestination()
+                    + "\" used in manifest is not defined");
         }
 
         if (!(IOProviderFactory.getProvider(destination) instanceof IOIndex)) {
@@ -141,12 +141,12 @@ public class ConfigurationValidator {
         if (configuration.getManifest().getAdditionalDestinations() != null) {
             for (String additionalDestination : configuration.getManifest().getAdditionalDestinations()) {
                 if (!configuration.getDestinations().containsKey(additionalDestination)) {
-                    throw new IllegalArgumentException("Additional manifest destination " + additionalDestination
-                            + " is not defined");
+                    throw new IllegalArgumentException("Additional manifest destination \"" + additionalDestination
+                            + "\" is not defined");
                 }
                 if (!(IOProviderFactory.getProvider(configuration.getDestinations().get(additionalDestination)) instanceof IOIndex)) {
                     throw new IllegalArgumentException(
-                            String.format("The destination %s does not support listing files and can not be used as metadata destination",
+                            String.format("The destination \"%s\" does not support listing files and can not be used as metadata destination",
                                     additionalDestination));
                 }
             }
@@ -172,12 +172,12 @@ public class ConfigurationValidator {
         } else {
             file = new File(file, "db");
             if (file.exists() && !file.isDirectory()) {
-                throw new IllegalArgumentException("Repository " + file.toString() + " exists but is not a directory");
+                throw new IllegalArgumentException("Repository \"" + file + "\" exists but is not a directory");
             }
 
             file = new File(file, "logs");
             if (file.exists() && !file.isDirectory()) {
-                throw new IllegalArgumentException("Repository " + file.toString() + " does exist but is not a directory");
+                throw new IllegalArgumentException("Repository \"" + file + "\" does exist but is not a directory");
             }
         }
 
@@ -205,25 +205,25 @@ public class ConfigurationValidator {
 
     private static void validateDestination(String name, BackupDestination destination) {
         if (destination == null) {
-            throw new IllegalArgumentException("Missing destination for " + name);
+            throw new IllegalArgumentException("Missing destination for \"" + name + "\"");
         }
         if (destination.getErrorCorrection() == null) {
-            debug(() -> log.debug("Error correction missing on " + name + " defaulting to "
-                    + DEFAULT_ERROR_CORRECTION));
+            debug(() -> log.debug("Error correction missing on \"" + name + "\" defaulting to \""
+                    + DEFAULT_ERROR_CORRECTION + "\""));
             destination.setErrorCorrection(DEFAULT_ERROR_CORRECTION);
         } else if (!ErrorCorrectorFactory.hasCorrector(destination.getErrorCorrection())) {
-            throw new IllegalArgumentException("Invalid error corrector " + destination.getErrorCorrection());
+            throw new IllegalArgumentException("Invalid error corrector \"" + destination.getErrorCorrection() + "\"");
         }
         if (destination.getEncryption() == null) {
             destination.setEncryption(DEFAULT_ENCRYPTION);
-            debug(() -> log.debug("Encryption missing on " + name + " defaulting to "
-                    + DEFAULT_ENCRYPTION));
+            debug(() -> log.debug("Encryption missing on \"" + name + "\" defaulting to \""
+                    + DEFAULT_ENCRYPTION + "\""));
         } else if (!EncryptorFactory.hasEncryptor(destination.getEncryption())) {
-            throw new IllegalArgumentException("Invalid encryptor " + destination.getErrorCorrection());
+            throw new IllegalArgumentException("Invalid encryptor \"" + destination.getErrorCorrection() + "\"");
         }
 
         if (!IOProviderFactory.hasProvider(destination)) {
-            throw new IllegalArgumentException("Unsupported backup destination type " + name);
+            throw new IllegalArgumentException("Unsupported backup destination type \"" + name + "\"");
         }
     }
 
@@ -231,7 +231,7 @@ public class ConfigurationValidator {
         if (configuration.getSets() == null) {
             configuration.setSets(new ArrayList<>());
         }
-        validateUniqueness("Sets ", configuration.getSets().stream().map(BackupSet::getId)
+        validateUniqueness("Sets", configuration.getSets().stream().map(BackupSet::getId)
                 .collect(Collectors.toList()));
         HashSet<String> existingSetIds = new HashSet<>();
         for (BackupSet backupSet : configuration.getSets()) {
@@ -244,17 +244,17 @@ public class ConfigurationValidator {
             }
 
             if (!existingSetIds.add(backupSet.getId())) {
-                throw new IllegalArgumentException("Backup set id " + backupSet.getId() + " is not unique");
+                throw new IllegalArgumentException("Backup set id \"" + backupSet.getId() + "\" is not unique");
             }
 
-            if (backupSet.getDestinations() == null || backupSet.getDestinations().size() == 0) {
-                throw new IllegalArgumentException("Backup set " + backupSet.getId() + "missing destination");
+            if (backupSet.getDestinations() == null || backupSet.getDestinations().isEmpty()) {
+                throw new IllegalArgumentException("Backup set \"" + backupSet.getId() + "\" is missing destination");
             }
 
             for (String destination : backupSet.getDestinations()) {
                 if (!configuration.getDestinations().containsKey(destination)) {
-                    throw new IllegalArgumentException("Destination " + destination + " used in backup set "
-                            + backupSet.getId() + " is not defined");
+                    throw new IllegalArgumentException("Destination \"" + destination + "\" used in backup set \""
+                            + backupSet.getId() + "\" is not defined");
                 }
             }
 
@@ -277,8 +277,8 @@ public class ConfigurationValidator {
 
                     for (BackupRetentionAdditional older : backupSet.getRetention().getOlder()) {
                         if (older.getValidAfter() == null)
-                            throw new IllegalArgumentException("Missing validAfter of retention in set "
-                                    + backupSet.getId());
+                            throw new IllegalArgumentException("Missing validAfter of retention in set \""
+                                    + backupSet.getId() + "\"");
 
                         if (older.getFrequency() == null) {
                             older.setFrequency(new BackupTimespan());
@@ -295,22 +295,22 @@ public class ConfigurationValidator {
             validateContents("Backup set " + backupSet.getId(), backupSet);
 
             if (Strings.isNullOrEmpty(backupSet.getSchedule()) && !source) {
-                debug(() -> log.debug("Backup set " + backupSet.getId()
-                        + " is missing a schedule so will only be scanned once on startup"));
+                debug(() -> log.debug("Backup set \"" + backupSet.getId()
+                        + "\" is missing a schedule so will only be scanned once on startup"));
             }
         }
     }
 
     private static void validateContents(String name, BackupFileSelection backupSet) {
         if (backupSet == null)
-            throw new IllegalArgumentException(name + " missing definition");
-        if (backupSet.getRoots() == null || backupSet.getRoots().size() == 0) {
-            throw new IllegalArgumentException(name + " does not have a single root defined");
+            throw new IllegalArgumentException("\"" + name + "\" missing definition");
+        if (backupSet.getRoots() == null || backupSet.getRoots().isEmpty()) {
+            throw new IllegalArgumentException("\"" + name + "\" does not have a single root defined");
         }
 
         for (BackupSetRoot root : backupSet.getRoots()) {
             if (Strings.isNullOrEmpty(root.getPath())) {
-                throw new IllegalArgumentException(name + " missing root path");
+                throw new IllegalArgumentException("\"" + name + "\" missing root path");
             }
 
             if (!root.getNormalizedPath().equals(PathNormalizer.ROOT)) {
@@ -320,11 +320,11 @@ public class ConfigurationValidator {
                         String rootFile = file.toPath().toRealPath().toString();
                         String existingRoot = file.toPath().toString();
                         if (!existingRoot.equals(rootFile)) {
-                            log.warn(name + " root " + existingRoot + " changed to " + rootFile);
+                            log.warn("\"{}\" root \"{}\" changed to \"{}\"", name, existingRoot, rootFile);
                             root.setNormalizedPath(PathNormalizer.normalizePath(rootFile));
                         }
                     } catch (IOException e) {
-                        throw new IllegalArgumentException(name + " can't access root " + root.getPath());
+                        throw new IllegalArgumentException("\"" + name + "\" can't access root \"" + root.getPath() + "\"");
                     }
                 }
             }

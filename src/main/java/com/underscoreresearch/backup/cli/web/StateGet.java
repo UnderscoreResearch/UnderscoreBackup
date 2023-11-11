@@ -92,6 +92,7 @@ public class StateGet extends BaseWrap {
         private String siteUrl;
         private boolean validDestinations;
         private boolean serviceConnected;
+        private boolean administrator;
         private String serviceSourceId;
         private boolean activeSubscription;
         private BackupSet defaultSet;
@@ -248,6 +249,7 @@ public class StateGet extends BaseWrap {
                         .serviceConnected(serviceConnected)
                         .activeSubscription(activeSubscription)
                         .serviceSourceId(serviceSourceId)
+                        .administrator(InstanceFactory.getInstance(SERVICE_MODE, Boolean.class))
                         .sourceName(sourceName)
                         .siteUrl(getSiteUrl(null))
                         .source(InstanceFactory.getAdditionalSource())

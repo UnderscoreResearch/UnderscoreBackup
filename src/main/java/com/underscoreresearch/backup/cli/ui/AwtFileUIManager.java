@@ -110,7 +110,7 @@ public class AwtFileUIManager extends AwtUIManager {
                 }
             }
         } catch (IOException e) {
-            log.warn("Failed to get last modified time for {}", file.getAbsolutePath(), e);
+            log.warn("Failed to get last modified time for \"{}\"", file.getAbsolutePath(), e);
         }
     }
 

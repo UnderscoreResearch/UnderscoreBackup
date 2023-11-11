@@ -88,7 +88,7 @@ public class PosixPermissionManager implements FilePermissionManager {
                     permissions.stream().mapToInt(PosixPermissionManager::encodePermission)
                             .reduce(0, (a, b) -> a | b)));
         } catch (IOException exc) {
-            log.warn("Failed to get permissions for {}", path, exc);
+            log.warn("Failed to get permissions for \"{}\"", path, exc);
             return null;
         }
     }
@@ -109,7 +109,7 @@ public class PosixPermissionManager implements FilePermissionManager {
                 posixView.setGroup(lookupService.lookupPrincipalByGroupName(posixPermissions.group));
                 posixView.setPermissions(decodePermissions(posixPermissions.permissions));
             } catch (IOException exc) {
-                log.warn("Failed to set permissions for {}", path, exc);
+                log.warn("Failed to set permissions for \"{}\"", path, exc);
             }
         }
     }

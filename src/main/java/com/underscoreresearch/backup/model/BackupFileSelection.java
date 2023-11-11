@@ -117,6 +117,6 @@ public class BackupFileSelection {
 
     @JsonIgnore
     public String getAllRoots() {
-        return roots.stream().map(BackupSetRoot::getPath).collect(Collectors.joining(", "));
+        return "\"" + roots.stream().map(BackupSetRoot::getPath).collect(Collectors.joining("\", \"")) + "\"";
     }
 }

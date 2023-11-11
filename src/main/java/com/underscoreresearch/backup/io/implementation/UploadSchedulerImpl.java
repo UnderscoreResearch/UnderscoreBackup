@@ -62,7 +62,7 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
                 totalSize.addAndGet(data.length);
                 totalCount.incrementAndGet();
             } catch (Throwable exc) {
-                log.error("Upload failed for " + suggestedPath, exc);
+                log.error("Upload failed for \"" + suggestedPath + "\"", exc);
                 completionPromise.completed(null);
             }
         };

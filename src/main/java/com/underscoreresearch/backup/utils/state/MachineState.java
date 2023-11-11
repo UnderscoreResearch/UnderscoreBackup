@@ -60,9 +60,9 @@ public class MachineState {
                 String reason;
                 synchronized (this) {
                     if (occasionallyGetOnBattery())
-                        reason = "Pausing until power is restored";
+                        reason = "Paused until power is restored";
                     else
-                        reason = "Pausing until CPU usage goes down";
+                        reason = "Paused until CPU usage goes down";
 
                     if (!loggedOnBattery) {
                         loggedOnBattery = true;
@@ -138,7 +138,7 @@ public class MachineState {
     }
 
     protected void executeUpdateProcess(String[] cmd) throws IOException {
-        log.info("Upgrading with command: {}", String.join(" ", cmd));
+        log.info("Upgrading with command: \"{}\"", String.join(" ", cmd));
         Process process = Runtime.getRuntime().exec(cmd);
         new Thread(() -> {
             try {

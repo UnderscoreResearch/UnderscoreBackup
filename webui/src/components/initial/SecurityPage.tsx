@@ -10,13 +10,9 @@ import {
     DialogContentText,
     DialogTitle,
     FormControlLabel,
-    Grid,
-    Link,
-    MenuItem,
-    Select,
-    SelectChangeEvent,
     Stack,
-    TextField
+    TextField,
+    Tooltip
 } from "@mui/material";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -31,6 +27,7 @@ import base64url from "base64url";
 import {BackupManifest, createEncryptionKey, startRemoteRestore} from "../../api";
 import {NextButton} from "./NextButton";
 import {useActivity} from "../../utils/ActivityContext";
+import SavePrivateKey from "../SavePrivateKey";
 
 export interface SecurityPageProps {
     onPageChange: (page: string) => void,
@@ -50,7 +47,7 @@ interface SecurityPageState {
     force: boolean
 }
 
-export function SecurityPage(props: SecurityPageProps) {
+export default function SecurityPage(props: SecurityPageProps) {
     const appContext = useApplication();
     const activityContext = useActivity();
     const [state, setState] = useState({
@@ -237,7 +234,6 @@ export function SecurityPage(props: SecurityPageProps) {
             </Dialog>
         </Stack>
     }
-    let privateKeyDisabled = !appContext.backendState.serviceSourceId || !window.localStorage.getItem("email") || appContext.hasKey;
 
     function updateManifest(manifest: BackupManifest) {
         appContext.setState((oldState) => ({
@@ -263,7 +259,7 @@ export function SecurityPage(props: SecurityPageProps) {
                 }
             } else {
                 if (await createEncryptionKey(state.password)) {
-                    if (state.saveSecret && state.secretRegion && !privateKeyDisabled) {
+                    if (state.saveSecret && state.secretRegion) {
                         await createSecret(state.password as string, state.secretRegion,
                             base64url.decode(window.localStorage.getItem("email") as string))
                     }
@@ -361,66 +357,35 @@ export function SecurityPage(props: SecurityPageProps) {
         </Paper>
 
         <Paper sx={{p: 2}}>
-            <Grid container spacing={2} alignItems={"center"}>
-                <Grid item xs={12}>
-                    <DividerWithText>Private key recovery</DividerWithText>
-                </Grid>
-                <Grid item md={6} xs={12}>
-                    <FormControlLabel
-                        style={{color: !privateKeyDisabled && state.saveSecret === undefined ? "#d32f2f" : "inherit"}}
-                        control={<Checkbox
-                            id={"saveSecret"}
-                            disabled={privateKeyDisabled}
-                            defaultChecked={false}
-                            onChange={(e) => setState({
-                                ...state,
-                                saveSecret: e.target.checked
-                            })}
-                            indeterminate={state.saveSecret === undefined}
-                        />} label={"Enable private key recovery from" + (!privateKeyDisabled ? " *" : "")}/>
-                </Grid>
-                <Grid item md={6} xs={12}>
-                    <Select style={{marginRight: "8px"}}
-                            fullWidth={true}
-                            value={props.secretRegion}
-                            disabled={!appContext.backendState.serviceSourceId || !state.saveSecret}
-                            label="Region"
-                            onChange={(event: SelectChangeEvent) => {
-                                setState((oldState) => ({
-                                    ...oldState,
-                                    secretRegion: event.target.value as string,
-                                }));
-                            }}>
-                        <MenuItem value={"us-west"}>North America (Oregon)</MenuItem>
-                        <MenuItem value={"eu-central"}>Europe (Frankfurt)</MenuItem>
-                        <MenuItem value={"ap-southeast"}>Asia (Singapore)</MenuItem>
-                    </Select>
-                </Grid>
-                <Grid item xs={12}>
-                    {!!window.localStorage.getItem("email") ?
-                        <Alert severity="warning">
-                            Enabling private key recover will store your private
-                            encryption key with online service! For more information see&nbsp;
-                            <Link rel="noreferrer" target="_blank" underline={"hover"}
-                                  href={"https://underscorebackup.com/blog?source=https%3A%2F%2Fblog.underscorebackup.com%2F2023%2F02%2Fhow-does-private-key-recovery-work.html"}>
-                                this documentation article.
-                            </Link>
-                        </Alert>
-                        :
-                        <Alert severity="warning">This option is only available if you are using a
-                            service account and complete the setup in a single browser session!
-                            {!!appContext.backendState.serviceSourceId &&
-                                <span> To enable go back to the beginning of the setup, disconnect from the service and reconnect!</span>
-                            }
-                        </Alert>
-                    }
-                </Grid>
-            </Grid>
+            <DividerWithText>Private key recovery</DividerWithText>
+            <SavePrivateKey hasKey={appContext.hasKey} secretRegion={props.secretRegion} enterEmail={false} onChange={
+                (saveSecret, email, secretRegion) => setState({
+                    ...state,
+                    saveSecret: saveSecret,
+                    secretRegion: secretRegion
+                })
+            }/>
         </Paper>
 
         <UIAuthentication manifest={appContext.currentConfiguration.manifest} onChange={updateManifest}/>
 
+        <Paper sx={{p: 2}}>
+            <Tooltip
+                title={"Usage information include the size of your backup and how many files are stored as well as any potential errors. No private information is included."}>
+                <FormControlLabel control={<Checkbox
+                    id={"reportUsage"}
+                    checked={appContext.backendState.serviceConnected &&
+                        (appContext.currentConfiguration.manifest.reportStats || appContext.currentConfiguration.manifest.reportStats === undefined)}
+                    disabled={!appContext.backendState.serviceConnected}
+                    onChange={(e) => updateManifest({
+                        ...appContext.currentConfiguration.manifest,
+                        reportStats: e.target.checked
+                    })}
+                />} label="Record backup usage with service"/>
+            </Tooltip>
+        </Paper>
+
         <NextButton disabled={(!state.passwordValid && !appContext.hasKey) ||
-            (state.saveSecret === undefined && !privateKeyDisabled)} onClick={createKey}/>
+            (state.saveSecret === undefined)} onClick={createKey}/>
     </Stack>
 }

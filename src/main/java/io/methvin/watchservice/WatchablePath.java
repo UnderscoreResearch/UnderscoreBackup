@@ -59,7 +59,7 @@ public class WatchablePath implements Watchable {
     public final WatchKey register(WatchService watcher, WatchEvent.Kind<?>... events)
             throws IOException {
         if (!file.toFile().exists()) {
-            throw new RuntimeException("Directory to watch doesn't exist: " + file);
+            throw new RuntimeException("Directory to watch doesn't exist: \"" + file + "\"");
         }
         return register(watcher, events, NO_MODIFIERS);
     }

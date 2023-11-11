@@ -30,7 +30,7 @@ public class TrimPost extends BaseWrap {
             executeAsyncOperation(() -> {
                         try {
                             RepositoryTrimmer.Statistics statistics = trimmer.trimRepository(false);
-                            InstanceFactory.getInstance(BackupStatsLogger.class).updateStats(statistics);
+                            InstanceFactory.getInstance(BackupStatsLogger.class).updateStats(statistics, true);
                         } catch (IOException e) {
                             log.error("Failed to trim repository", e);
                         }

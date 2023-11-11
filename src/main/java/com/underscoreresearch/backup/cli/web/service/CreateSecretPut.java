@@ -40,6 +40,26 @@ public class CreateSecretPut extends BaseWrap {
         }
     }
 
+    public static Response createSecret(ServiceManager serviceManager,
+                                        String region, String password, String email) throws IOException {
+        EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
+        EncryptionKey secretKey;
+        try {
+            secretKey = EncryptionKey.changeEncryptionPassword(password,
+                    email, encryptionKey);
+        } catch (IllegalArgumentException exc) {
+            return messageJson(403, "Invalid password");
+        }
+        secretKey.setPublicKey(null);
+        secretKey.setEncryptedAdditionalKeys(null);
+        String secret = ENCRYPTION_KEY_WRITER.writeValueAsString(secretKey);
+        String emailHash = Hash.hash64(email.getBytes(StandardCharsets.UTF_8));
+
+        serviceManager.call(region, (api) -> api.createSecret(serviceManager.getSourceId(),
+                new SecretRequest().secret(secret).emailHash(emailHash)));
+        return null;
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -66,21 +86,9 @@ public class CreateSecretPut extends BaseWrap {
                     return messageJson(400, "Missing required parameter");
                 }
 
-                EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
-                EncryptionKey secretKey;
-                try {
-                    secretKey = EncryptionKey.changeEncryptionPassword(request.getPassword(),
-                            request.getEmail(), encryptionKey);
-                } catch (IllegalArgumentException exc) {
-                    return messageJson(403, "Invalid password");
-                }
-                secretKey.setPublicKey(null);
-                secretKey.setEncryptedAdditionalKeys(null);
-                String secret = ENCRYPTION_KEY_WRITER.writeValueAsString(secretKey);
-                String emailHash = Hash.hash64(request.getEmail().getBytes(StandardCharsets.UTF_8));
-
-                serviceManager.call(request.getRegion(), (api) -> api.createSecret(serviceManager.getSourceId(),
-                        new SecretRequest().secret(secret).emailHash(emailHash)));
+                Response Invalid_password = createSecret(serviceManager,
+                        request.getRegion(), request.getPassword(), request.getEmail());
+                if (Invalid_password != null) return Invalid_password;
 
                 return messageJson(200, "Saved secret");
             } catch (IOException exc) {

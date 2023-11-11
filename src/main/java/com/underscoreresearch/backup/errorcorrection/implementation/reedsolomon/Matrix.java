@@ -107,10 +107,10 @@ public class Matrix {
      */
     public byte get(int r, int c) {
         if (r < 0 || rows <= r) {
-            throw new IllegalArgumentException("Row index out of range: " + r);
+            throw new IllegalArgumentException("Row index out of range");
         }
         if (c < 0 || columns <= c) {
-            throw new IllegalArgumentException("Column index out of range: " + c);
+            throw new IllegalArgumentException("Column index out of range");
         }
         return data[r][c];
     }
@@ -120,10 +120,10 @@ public class Matrix {
      */
     public void set(int r, int c, byte value) {
         if (r < 0 || rows <= r) {
-            throw new IllegalArgumentException("Row index out of range: " + r);
+            throw new IllegalArgumentException("Row index out of range");
         }
         if (c < 0 || columns <= c) {
-            throw new IllegalArgumentException("Column index out of range: " + c);
+            throw new IllegalArgumentException("Column index out of range");
         }
         data[r][c] = value;
     }
@@ -151,8 +151,8 @@ public class Matrix {
     public Matrix times(Matrix right) {
         if (getColumns() != right.getRows()) {
             throw new IllegalArgumentException(
-                    "Columns on left (" + getColumns() + ") " +
-                            "is different than rows on right (" + right.getRows() + ")");
+                    "Columns on left (\u200E" + getColumns() + "\u200E) " +
+                            "is different than rows on right (\u200E" + right.getRows() + "\u200E)");
         }
         Matrix result = new Matrix(getRows(), right.getColumns());
         for (int r = 0; r < getRows(); r++) {

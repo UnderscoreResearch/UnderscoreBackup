@@ -43,7 +43,7 @@ public class ConfigurationGet extends BaseWrap {
                     }
                     return encryptResponse(req, BACKUP_CONFIGURATION_WRITER.writeValueAsString(config));
                 } else if (InstanceFactory.getAdditionalSource() != null) {
-                    log.warn("Have a source but an invalid configuration {}, bailing",
+                    log.warn("Have a source but an invalid configuration \"{}\", bailing",
                             InstanceFactory.getAdditionalSource());
                     InstanceFactory.reloadConfiguration(InteractiveCommand::startBackupIfAvailable);
                     return actualAct(req);

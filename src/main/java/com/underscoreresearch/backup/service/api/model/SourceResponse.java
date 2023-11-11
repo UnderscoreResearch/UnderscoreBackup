@@ -17,7 +17,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.StringJoiner;
 import java.util.Objects;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -25,9 +24,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.underscoreresearch.backup.service.api.model.SourceStatsModel;
 import com.underscoreresearch.backup.service.api.model.SourceUsage;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -49,7 +50,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
   SourceResponse.JSON_PROPERTY_PERIOD_USAGE,
   SourceResponse.JSON_PROPERTY_APPLICATION_URL,
   SourceResponse.JSON_PROPERTY_KEY,
-  SourceResponse.JSON_PROPERTY_SHARING_KEY
+  SourceResponse.JSON_PROPERTY_SHARING_KEY,
+  SourceResponse.JSON_PROPERTY_STATS
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class SourceResponse {
@@ -94,6 +96,9 @@ public class SourceResponse {
 
   public static final String JSON_PROPERTY_SHARING_KEY = "sharingKey";
   private String sharingKey;
+
+  public static final String JSON_PROPERTY_STATS = "stats";
+  private SourceStatsModel stats;
 
   public SourceResponse() { 
   }
@@ -307,9 +312,9 @@ public class SourceResponse {
    * Last time anything was changed on this source
    * @return lastUsage
   **/
-  @jakarta.annotation.Nullable
+  @jakarta.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_LAST_USAGE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
   public BigDecimal getLastUsage() {
     return lastUsage;
@@ -317,7 +322,7 @@ public class SourceResponse {
 
 
   @JsonProperty(JSON_PROPERTY_LAST_USAGE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public void setLastUsage(BigDecimal lastUsage) {
     this.lastUsage = lastUsage;
   }
@@ -464,6 +469,31 @@ public class SourceResponse {
   }
 
 
+  public SourceResponse stats(SourceStatsModel stats) {
+    this.stats = stats;
+    return this;
+  }
+
+   /**
+   * Get stats
+   * @return stats
+  **/
+  @jakarta.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_STATS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public SourceStatsModel getStats() {
+    return stats;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_STATS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setStats(SourceStatsModel stats) {
+    this.stats = stats;
+  }
+
+
   /**
    * Return true if this SourceResponse object is equal to o.
    */
@@ -489,12 +519,13 @@ public class SourceResponse {
         Objects.equals(this.periodUsage, sourceResponse.periodUsage) &&
         Objects.equals(this.applicationUrl, sourceResponse.applicationUrl) &&
         Objects.equals(this.key, sourceResponse.key) &&
-        Objects.equals(this.sharingKey, sourceResponse.sharingKey);
+        Objects.equals(this.sharingKey, sourceResponse.sharingKey) &&
+        Objects.equals(this.stats, sourceResponse.stats);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(sourceId, name, created, identity, destination, encryptionMode, secretRegion, version, lastUsage, dailyUsage, periodUsage, applicationUrl, key, sharingKey);
+    return Objects.hash(sourceId, name, created, identity, destination, encryptionMode, secretRegion, version, lastUsage, dailyUsage, periodUsage, applicationUrl, key, sharingKey, stats);
   }
 
   @Override
@@ -515,6 +546,7 @@ public class SourceResponse {
     sb.append("    applicationUrl: ").append(toIndentedString(applicationUrl)).append("\n");
     sb.append("    key: ").append(toIndentedString(key)).append("\n");
     sb.append("    sharingKey: ").append(toIndentedString(sharingKey)).append("\n");
+    sb.append("    stats: ").append(toIndentedString(stats)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -640,6 +672,11 @@ public class SourceResponse {
     // add `sharingKey` to the URL query string
     if (getSharingKey() != null) {
       joiner.add(String.format("%ssharingKey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSharingKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    }
+
+    // add `stats` to the URL query string
+    if (getStats() != null) {
+      joiner.add(getStats().toUrlQueryString(prefix + "stats" + suffix));
     }
 
     return joiner.toString();

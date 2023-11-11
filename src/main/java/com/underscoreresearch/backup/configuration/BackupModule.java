@@ -425,7 +425,7 @@ public class BackupModule extends AbstractModule {
             return new WindowsFileSystemAccess(permissionManager.get());
         }
         if (permissionManager.get() == null) {
-            log.warn("Permissions are not supported on this file system.");
+            log.warn("Permissions are not supported on this file system");
             return new FileSystemAccessImpl();
         }
         debug(() -> log.debug("Using permission manager: " + permissionManager.get().getClass().getSimpleName()));

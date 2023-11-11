@@ -73,7 +73,7 @@ public class BackupPartialFile {
                 newList.add(parts.get(i));
                 i++;
             }
-            debug(() -> log.debug("Created superblock {} and went from {} parts to {}", superBlock.getHash(),
+            debug(() -> log.debug("Created superblock \"{}\" and went from {} parts to {}", superBlock.getHash(),
                     readableNumber(parts.size()), readableNumber(newList.size())));
             parts = newList;
         }

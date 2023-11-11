@@ -103,7 +103,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
                                 data = IOUtils.readAllBytes(stream);
                             }
                         } else {
-                            log.warn("Log file {} locked by other process", file.getAbsolutePath());
+                            log.warn("Log file \"{}\" locked by other process", file.getAbsolutePath());
                         }
                     }
                     if (data != null) {

@@ -2,20 +2,20 @@ import {ApplicationContext, useApplication} from "./utils/ApplicationContext";
 import {useActivity} from "./utils/ActivityContext";
 import {MainAppSkeleton} from "./components/MainAppSkeleton";
 import {Route, Routes, useLocation, useNavigate} from "react-router-dom";
-import AuthorizeAccept from "./components/AuthorizeAccept";
 import React, {useEffect} from "react";
 import NavigationMenu from "./components/NavigationMenu";
 import {calculateDisplayState} from "./utils/DisplayState";
-import Status from "./components/Status";
-import Settings from "./components/Settings";
-import Destinations from "./components/Destinations";
-import Sets from "./components/Sets";
-import Restore, {RestorePropsChange} from "./components/Restore";
 import {activateShares, BackupSetRoot, initiateRestore, restartSets, selectSource} from "./api";
 import {IndividualButtonProps, useButton} from "./utils/ButtonContext";
-import Shares from "./components/Shares";
 import {deepEqual} from "fast-equals";
+import Restore from "./components/Restore";
+import Status from "./components/Status";
+import AuthorizeAccept from "./components/AuthorizeAccept";
+import Destinations from "./components/Destinations";
+import Sets from "./components/Sets";
+import Shares from "./components/Shares";
 import Sources from "./components/Sources";
+import Settings from "./components/Settings";
 
 interface MainAppState {
     destinationValid: boolean,
@@ -31,6 +31,27 @@ interface MainAppState {
     restoreSource?: string,
     restoreIncludeDeleted: boolean,
     restoreSkipPermissions?: boolean
+}
+
+export interface RestorePropsChange {
+    password: string,
+    timestamp?: Date,
+    roots: BackupSetRoot[],
+    destination?: string,
+    overwrite: boolean,
+    source?: string,
+    includeDeleted?: boolean,
+    skipPermissions?: boolean
+}
+
+export interface RestoreProps {
+    password?: string,
+    timestamp?: Date,
+    destination?: string,
+    overwrite: boolean,
+    roots: BackupSetRoot[],
+    includeDeleted?: boolean
+    restoreUpdated: (state: RestorePropsChange) => void
 }
 
 function needActivation(appContext: ApplicationContext) {
@@ -395,40 +416,40 @@ export default function MainApp() {
             <Route path="authorizeaccept" element={<AuthorizeAccept updatedToken={updateBackendState}/>}/>
             <Route path="settings" element={<Settings/>}/>
             <Route path="destinations" element={<Destinations destinationsUpdated={(valid) => setState((oldState) => ({
-                ...oldState,
-                destinationValid: valid
-            }))}/>}/>
-            <Route path="sets" element={<Sets
-                allowReset={(displayState.backupCanStart || displayState.backupInProgress) && !!appContext.currentConfiguration.manifest.interactiveBackup}
-                setsUpdated={(valid) => setState((oldState) => ({
                     ...oldState,
-                    setsValid: valid
+                    destinationValid: valid
                 }))}/>}/>
-            <Route path="sources" element={<Sources
-                sourcesUpdated={(valid) => setState((oldState) => ({...oldState, sourcesValid: valid}))}/>}/>
+            <Route path="sets" element={<Sets
+                    allowReset={(displayState.backupCanStart || displayState.backupInProgress) && !!appContext.currentConfiguration.manifest.interactiveBackup}
+                    setsUpdated={(valid) => setState((oldState) => ({
+                        ...oldState,
+                        setsValid: valid
+                    }))}/>}/>
+            <Route path="sources" element={<Sources sourcesUpdated={(valid) => setState((oldState) => ({...oldState, sourcesValid: valid}))}/>}/>
             <Route path="share" element={<Shares password={state.password}
-                                                 sharesUpdated={(valid, password) => setState((oldState) => ({
-                                                     ...oldState,
-                                                     password: password,
-                                                     sharesValid: valid
-                                                 }))}/>}/>
-            <Route path="restore" element={<Restore password={state.password}
-                                                    destination={state.restoreDestination}
-                                                    roots={state.restoreRoots}
-                                                    overwrite={state.restoreOverwrite}
-                                                    includeDeleted={state.restoreIncludeDeleted}
-                                                    restoreUpdated={(newState: RestorePropsChange) =>
-                                                        setState((oldState) => ({
-                                                            ...oldState,
-                                                            password: newState.password,
-                                                            restoreDestination: newState.destination,
-                                                            restoreRoots: newState.roots,
-                                                            restoreSource: newState.source,
-                                                            restoreOverwrite: newState.overwrite,
-                                                            restoreTimestamp: newState.timestamp,
-                                                            restoreSkipPermissions: newState.skipPermissions
-                                                        }))}
-                                                    timestamp={state.restoreTimestamp}/>}/>
+                        sharesUpdated={(valid, password) => setState((oldState) => ({
+                            ...oldState,
+                            password: password,
+                            sharesValid: valid
+                        }))}/>}/>
+            <Route path="restore" element={
+                <Restore password={state.password}
+                         destination={state.restoreDestination}
+                         roots={state.restoreRoots}
+                         overwrite={state.restoreOverwrite}
+                         includeDeleted={state.restoreIncludeDeleted}
+                         restoreUpdated={(newState: RestorePropsChange) =>
+                             setState((oldState) => ({
+                                 ...oldState,
+                                 password: newState.password,
+                                 restoreDestination: newState.destination,
+                                 restoreRoots: newState.roots,
+                                 restoreSource: newState.source,
+                                 restoreOverwrite: newState.overwrite,
+                                 restoreTimestamp: newState.timestamp,
+                                 restoreSkipPermissions: newState.skipPermissions
+                             }))}
+                         timestamp={state.restoreTimestamp}/>}/>
         </Routes>
     </MainAppSkeleton>
 }

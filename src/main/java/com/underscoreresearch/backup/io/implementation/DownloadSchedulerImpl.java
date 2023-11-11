@@ -162,19 +162,19 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         schedule(() -> {
             try {
                 if (file.getLength() == null) {
-                    log.warn("File {} had undefined length", PathNormalizer.physicalPath(file.getPath()));
+                    log.warn("File \"{}\" had undefined length", PathNormalizer.physicalPath(file.getPath()));
                     file.setLength(0L);
                 }
-                log.info("Restoring {} to {} ({})", PathNormalizer.physicalPath(file.getPath()),
+                log.info("Restoring \"{}\" to \"{}\" ({})", PathNormalizer.physicalPath(file.getPath()),
                         destination, readableSize(file.getLength()));
                 fileDownloader.downloadFile(file, destination, password);
-                debug(() -> log.debug("Restored " + PathNormalizer.physicalPath(file.getPath())));
+                debug(() -> log.debug("Restored \"{}\"", PathNormalizer.physicalPath(file.getPath())));
                 totalSize.addAndGet(file.getLength());
                 totalCount.incrementAndGet();
                 lastProcessed = file;
             } catch (Exception e) {
                 if (!isShutdown()) {
-                    log.error("Failed to restore file {}", PathNormalizer.physicalPath(file.getPath()), e);
+                    log.error("Failed to restore file \"{}\"", PathNormalizer.physicalPath(file.getPath()), e);
                     failedCount.incrementAndGet();
                 }
             }

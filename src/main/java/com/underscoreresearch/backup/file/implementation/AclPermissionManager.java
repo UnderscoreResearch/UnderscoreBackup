@@ -169,7 +169,7 @@ public class AclPermissionManager implements FilePermissionManager {
 
             return WRITER.writeValueAsString(new AclPermissions(aclView.getOwner().getName(), ret));
         } catch (IOException exc) {
-            log.warn("Failed to get permissions for {}", path, exc);
+            log.warn("Failed to get permissions for \"{}\"", path, exc);
             return null;
         }
     }
@@ -206,11 +206,11 @@ public class AclPermissionManager implements FilePermissionManager {
                     aclView.setOwner(lookupService.lookupPrincipalByName(aclPermissions.owner));
                 } catch (IOException exc) {
                     if (!aclView.getOwner().getName().equals(aclPermissions.owner)) {
-                        log.warn("Failed to set owner of file {} to {}", path, aclPermissions.owner);
+                        log.warn("Failed to set owner of file \"{}\" to \"{}\"", path, aclPermissions.owner);
                     }
                 }
             } catch (IOException exc) {
-                log.warn("Failed to set permissions for {}", path, exc);
+                log.warn("Failed to set permissions for \"{}\"", path, exc);
             }
         }
     }

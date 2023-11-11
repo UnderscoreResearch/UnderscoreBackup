@@ -94,7 +94,7 @@ public final class IOUtils {
             } catch (Exception exc) {
                 if (!IOUtils.hasInternet()) {
                     boolean clearFlag = false;
-                    try (Closeable ignore = PausedStatusLogger.startPause("Waiting for internet to continue")) {
+                    try (Closeable ignore = PausedStatusLogger.startPause("Paused until internet access is restored")) {
                         do {
                             if (i == 0) {
                                 clearFlag = true;
@@ -132,9 +132,9 @@ public final class IOUtils {
     public static void createDirectory(File file, boolean warning) {
         if (!file.exists() && !file.mkdirs()) {
             if (warning)
-                log.warn("Failed to create directory {}", file);
+                log.warn("Failed to create directory \"{}\"", file);
             else
-                debug(() -> log.debug("Failed to create directory {}", file));
+                debug(() -> log.debug("Failed to create directory \"{}\"", file));
         }
     }
 
@@ -148,7 +148,7 @@ public final class IOUtils {
 
     public static void deleteFileException(File file) throws IOException {
         if (file.exists() && !file.delete()) {
-            throw new IOException("Failed to delete " + file);
+            throw new IOException("Failed to delete \"" + file + "\"");
         }
     }
 
@@ -190,7 +190,7 @@ public final class IOUtils {
                 }
             }
             if (allChildren) {
-                log.info("Deleting stale temp file {}", parent);
+                log.info("Deleting stale temp file \"{}\"", parent);
                 deleteFile(parent);
             }
             return allChildren;
@@ -202,14 +202,14 @@ public final class IOUtils {
                 long modifiedTime = Math.max(attr.creationTime().toMillis(), attr.lastModifiedTime().toMillis());
 
                 if (modifiedTime < System.currentTimeMillis() - HOUR_IN_MILLIS) {
-                    log.info("Deleting stale temp file {}", parent);
+                    log.info("Deleting stale temp file \"{}\"", parent);
                     deleteFile(parent);
                     return true;
                 }
             } catch (IOException exc) {
-                log.warn("Failed to get last modified time for {}", parent, exc);
+                log.warn("Failed to get last modified time for \"{}\"", parent, exc);
             }
-            debug(() -> log.debug("Skipping temp file {}", parent));
+            debug(() -> log.debug("Skipping temp file \"{}\"", parent));
             return false;
         }
     }

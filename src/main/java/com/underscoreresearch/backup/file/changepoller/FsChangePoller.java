@@ -45,7 +45,7 @@ public class FsChangePoller implements FileChangePoller {
         if (errorOutput != null && errorOutput.ready()) {
             if (!hasError) {
                 hasError = true;
-                log.warn("Error monitoring file changes: {}", errorOutput.readLine());
+                log.warn("Error monitoring file changes: \"{}\"", errorOutput.readLine());
             }
             while (errorOutput.ready()) {
                 errorOutput.readLine();
@@ -71,7 +71,7 @@ public class FsChangePoller implements FileChangePoller {
                 String path = new String(buffer, lastStart, i - lastStart);
                 int index = path.lastIndexOf(' ');
                 if (index < 0)
-                    throw new IOException("Failed to parse file change: " + path);
+                    throw new IOException("Failed to parse file change: \"" + path + "\"");
                 paths.add(path.substring(0, index));
                 lastStart = i + 1;
             }

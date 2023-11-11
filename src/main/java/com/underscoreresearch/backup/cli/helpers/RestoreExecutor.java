@@ -196,7 +196,7 @@ public class RestoreExecutor {
             File destinationFile = new File(PathNormalizer.physicalPath(currentDestination));
             if (overwrite || !destinationFile.exists()) {
                 if (destinationFile.exists() && !destinationFile.canWrite()) {
-                    log.error("Does not have permissions to write to existing file {}", destinationFile.toString());
+                    log.error("Does not have permissions to write to existing file \"{}\"", destinationFile.toString());
                 } else {
                     if (skipPermissions) {
                         file.setPermissions(null);
@@ -204,7 +204,7 @@ public class RestoreExecutor {
                     scheduler.scheduleDownload(file, currentDestination, password);
                 }
             } else if (destinationFile.length() != file.getLength()) {
-                log.warn("File {} not of same size as in backup", currentDestination);
+                log.warn("File \"{}\" not of same size as in backup", currentDestination);
             }
         }
     }

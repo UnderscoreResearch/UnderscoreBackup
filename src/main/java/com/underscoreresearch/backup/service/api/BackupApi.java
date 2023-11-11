@@ -36,6 +36,7 @@ import com.underscoreresearch.backup.service.api.model.ShareRequest;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import com.underscoreresearch.backup.service.api.model.SourceStatsModel;
 import com.underscoreresearch.backup.service.api.model.UploadUrl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -1597,7 +1598,7 @@ public class BackupApi {
   }
   /**
    * 
-   * Create a new source.
+   * List all available sources.
    * @return ListSourcesResponse
    * @throws ApiException if fails to make API call
    */
@@ -1608,7 +1609,7 @@ public class BackupApi {
 
   /**
    * 
-   * Create a new source.
+   * List all available sources.
    * @return ApiResponse&lt;ListSourcesResponse&gt;
    * @throws ApiException if fails to make API call
    */
@@ -1888,6 +1889,90 @@ public class BackupApi {
 
     try {
       byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(sourceRequest);
+      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Store source stats.
+   * @param sourceId Unique source identifier (required)
+   * @param sourceStatsModel  (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse updateSourceStats(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = updateSourceStatsWithHttpInfo(sourceId, sourceStatsModel);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Store source stats.
+   * @param sourceId Unique source identifier (required)
+   * @param sourceStatsModel  (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> updateSourceStatsWithHttpInfo(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = updateSourceStatsRequestBuilder(sourceId, sourceStatsModel);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("updateSourceStats", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder updateSourceStatsRequestBuilder(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling updateSourceStats");
+    }
+    // verify the required parameter 'sourceStatsModel' is set
+    if (sourceStatsModel == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceStatsModel' when calling updateSourceStats");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/sources/{sourceId}/stats"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(sourceStatsModel);
       localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
     } catch (IOException e) {
       throw new ApiException(e);

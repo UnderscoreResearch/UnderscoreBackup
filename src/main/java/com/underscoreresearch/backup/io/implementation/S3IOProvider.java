@@ -128,7 +128,7 @@ S3IOProvider implements IOIndex, Closeable {
                 }
             }
         } catch (Exception e) {
-            throw new IOException("Failed to list key prefix " + rootedKey, e);
+            throw new IOException("Failed to list key prefix \"" + rootedKey + "\"", e);
         }
         return ret;
     }
@@ -148,11 +148,11 @@ S3IOProvider implements IOIndex, Closeable {
             RetryUtils.retry(() -> {
                 client.putObject(request, body);
 
-                debug(() -> log.debug("Uploaded {}/{} ({})", bucket, rootedKey, readableSize(data.length)));
+                debug(() -> log.debug("Uploaded \"{}/{}\" ({})", bucket, rootedKey, readableSize(data.length)));
                 return null;
             }, null);
         } catch (Exception e) {
-            throw new IOException("Failed to upload object " + rootedKey, e);
+            throw new IOException("Failed to upload object \"" + rootedKey + "\"", e);
         }
 
         return key;
@@ -167,7 +167,7 @@ S3IOProvider implements IOIndex, Closeable {
                 try (ResponseInputStream<GetObjectResponse> obj = client.getObject(GetObjectRequest.builder()
                         .bucket(bucket).key(rootedKey).build())) {
                     byte[] data = IOUtils.readAllBytes(obj);
-                    debug(() -> log.debug("Downloaded {}/{} ({})", bucket, rootedKey, readableSize(data.length)));
+                    debug(() -> log.debug("Downloaded \"{}/{}\" ({})", bucket, rootedKey, readableSize(data.length)));
                     return data;
                 }
             }, (exc) -> {
@@ -176,7 +176,7 @@ S3IOProvider implements IOIndex, Closeable {
                 return true;
             });
         } catch (Exception e) {
-            throw new IOException("Failed to download object " + rootedKey, e);
+            throw new IOException("Failed to download object \"" + rootedKey + "\"", e);
         }
     }
 
@@ -196,7 +196,7 @@ S3IOProvider implements IOIndex, Closeable {
                 }
             }, null);
         } catch (Exception e) {
-            throw new IOException("Failed to download object " + rootedKey, e);
+            throw new IOException("Failed to download object \"" + rootedKey + "\"", e);
         }
     }
 

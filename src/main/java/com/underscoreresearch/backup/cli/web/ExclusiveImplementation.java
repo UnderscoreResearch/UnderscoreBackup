@@ -35,7 +35,7 @@ public abstract class ExclusiveImplementation extends BaseImplementation {
             if (message == null) {
                 message = "Service Unavailable";
             }
-            log.warn("{} {} Unavailable because: {}", method.method(), href, message);
+            log.warn("{} \"{}\" Unavailable because: {}", method.method(), href, message);
             return messageJson(409, message);
         }
     }

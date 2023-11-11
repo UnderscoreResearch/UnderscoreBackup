@@ -100,7 +100,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public static void closeAllRepositories() {
         synchronized (LockingMetadataRepository.openRepositories) {
             for (Map.Entry<String, LockingMetadataRepository> entry : openRepositories.entrySet()) {
-                debug(() -> log.debug("Closing unclosed repository {}", entry.getKey()));
+                debug(() -> log.debug("Closing unclosed repository \"{}\"", entry.getKey()));
                 try {
                     entry.getValue().close();
                 } catch (IOException e) {

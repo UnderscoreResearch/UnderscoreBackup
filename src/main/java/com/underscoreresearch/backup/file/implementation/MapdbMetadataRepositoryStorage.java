@@ -363,7 +363,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
             return readValue;
         } catch (Exception exc) {
-            throw new IOException(String.format("Failed to decode file %s:%s", entry.getKey()[0], entry.getKey()[1]),
+            throw new IOException(String.format("Failed to decode file \"%s:%s\"", entry.getKey()[0], entry.getKey()[1]),
                     exc);
         }
     }
@@ -400,7 +400,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             try {
                 return decodeFile(entry);
             } catch (IOException e) {
-                log.error(invalidRepositoryLogEntry("Invalid file {}:{}"), PathNormalizer.physicalPath((String) entry.getKey()[0]), entry.getKey()[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid file \"{}:{}\""), PathNormalizer.physicalPath((String) entry.getKey()[0]), entry.getKey()[1], e);
                 if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (fileMap.remove(entry.getKey()) == null) {
@@ -423,7 +423,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             try {
                 return decodeBlock(entry.getKey(), entry.getValue());
             } catch (IOException e) {
-                log.error(invalidRepositoryLogEntry("Invalid block {}"), entry.getKey(), e);
+                log.error(invalidRepositoryLogEntry("Invalid block \"{}\""), entry.getKey(), e);
                 if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (blockMap.remove(entry.getKey()) == null) {
@@ -446,7 +446,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             try {
                 return decodePath(entry);
             } catch (IOException e) {
-                log.error(invalidRepositoryLogEntry("Invalid filePart {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid filePart \"{}:{}\""), entry.getKey()[0], entry.getKey()[1], e);
                 if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (partsMap.remove(entry.getKey()) == null) {
@@ -477,7 +477,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 return new BackupDirectory((String) entry.getKey()[0], (Long) entry.getKey()[1],
                         decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
             } catch (IOException e) {
-                log.error(invalidRepositoryLogEntry("Invalid directory {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid directory \"{}:{}\""), entry.getKey()[0], entry.getKey()[1], e);
                 if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (directoryMap.remove(entry.getKey()) == null) {
@@ -505,7 +505,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 ret.setHash((String) entry.getKey()[1]);
                 return ret;
             } catch (IOException e) {
-                log.error(invalidRepositoryLogEntry("Invalid additional block {}:{}"), entry.getKey()[0], entry.getKey()[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid additional block \"{}:{}\""), entry.getKey()[0], entry.getKey()[1], e);
                 if (openMode != RepositoryOpenMode.READ_ONLY) {
                     try {
                         if (additionalBlockMap.remove(entry.getKey()) == null) {
@@ -542,7 +542,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 set.setSetId(entry.getKey());
                 return set;
             } catch (IOException e) {
-                log.error("Invalid pending set " + entry.getKey(), e);
+                log.error("Invalid pending set \"" + entry.getKey() + "\"", e);
                 try {
                     pendingSetMap.remove(entry.getKey());
                 } catch (Exception exc) {
@@ -560,7 +560,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             readValue.setBlockHash((String) entry.getKey()[1]);
             return readValue;
         } catch (IOException e) {
-            throw new IOException(String.format("Invalid path %s:%s", entry.getKey()[0], entry.getKey()[1]), e);
+            throw new IOException(String.format("Invalid path \"%s:%s\"", entry.getKey()[0], entry.getKey()[1]), e);
         }
     }
 
@@ -594,7 +594,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             block.setHash(hash);
             return block;
         } catch (IOException e) {
-            throw new IOException(String.format("Invalid block %s", hash), e);
+            throw new IOException(String.format("Invalid block \"%s\"", hash), e);
         }
     }
 
@@ -604,7 +604,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                     (Long) entry.getKey()[1],
                     decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
         } catch (IOException e) {
-            throw new IOException(String.format("Invalid directory %s:%s", entry.getKey()[0], entry.getKey()[1]), e);
+            throw new IOException(String.format("Invalid directory \"%s:%s\"", entry.getKey()[0], entry.getKey()[1]), e);
         }
     }
 
@@ -789,7 +789,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
                     try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
                         byte[] plaintextData = IOUtils.readAllBytes(gzipInputStream);
-                        log.error("Failed decoding: {}", new String(plaintextData, StandardCharsets.UTF_8));
+                        log.error("Failed decoding: \"{}\"", new String(plaintextData, StandardCharsets.UTF_8));
                     }
                 }
             } catch (Exception decodeTest2) {
@@ -843,7 +843,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             try {
                 ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
             } catch (IOException exc) {
-                log.error("Invalid partialFile {} reprocessing entire file",
+                log.error("Invalid partialFile \"{}\" reprocessing entire file",
                         PathNormalizer.physicalPath(file.getFile().getPath()), exc);
                 return null;
             }
@@ -879,7 +879,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
                 ret.put(path, activePath);
             } catch (IOException exc) {
-                log.error("Invalid activePath {} for set {}. Skipping during this run.", entry.getKey()[1], entry.getKey()[0],
+                log.error("Invalid activePath \"{}\" for set \"{}\". Skipping during this run.", entry.getKey()[1], entry.getKey()[0],
                         exc);
             }
         }
@@ -969,7 +969,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 block.setPublicKey(publicKey);
                 return block;
             } catch (IOException exc) {
-                throw new IOException(String.format("Invalid additionalBlock %s:%s", publicKey, blockHash), exc);
+                throw new IOException(String.format("Invalid additionalBlock \"%s:%s\"", publicKey, blockHash), exc);
             }
         }
         return null;

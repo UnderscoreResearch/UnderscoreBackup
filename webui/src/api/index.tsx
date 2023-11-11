@@ -77,7 +77,8 @@ export interface BackupManifest {
     authenticationRequired?: boolean,
     interactiveBackup?: boolean,
     initialSetup?: boolean,
-    ignorePermissions?: boolean
+    ignorePermissions?: boolean,
+    reportStats?: boolean
 }
 
 export interface BackupDestination {
@@ -155,6 +156,7 @@ export interface BackupState {
     defaultSet: BackupSet,
     serviceConnected: boolean,
     serviceSourceId?: string,
+    administrator: boolean,
     activeSubscription: boolean,
     validDestinations: boolean,
     sourceName: string,
@@ -523,6 +525,7 @@ export function getDefaultState(): BackupState {
         version: "",
         sourceName: "",
         siteUrl: "https://underscorebackup.com",
+        administrator: false,
         serviceConnected: false,
         activeSubscription: false,
         validDestinations: false,
@@ -773,13 +776,16 @@ export async function resetSettings(): Promise<boolean> {
 }
 
 export async function changeEncryptionKey(password: string, newPassword: string,
-                                          regeneratePrivateKey: boolean): Promise<boolean> {
+                                          regeneratePrivateKey: boolean, saveSecret: boolean, secretRegion: string | undefined, email: string | undefined): Promise<boolean> {
     const ret = await makeApiCall("encryption-key/change", {
         method: 'POST',
         body: JSON.stringify({
             "password": password,
             "newPassword": newPassword,
-            "regeneratePrivateKey": regeneratePrivateKey
+            "regeneratePrivateKey": regeneratePrivateKey,
+            "saveSecret": saveSecret,
+            "secretRegion": secretRegion,
+            "email": email
         })
     });
 

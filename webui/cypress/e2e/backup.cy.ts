@@ -24,8 +24,8 @@ it('backup', function () {
     cy.get('#next').should("be.visible").and('not.be.disabled').click();
     cy.get('#exit').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#uiPassword').type('bYisMYVs9Qdw');
-    cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
+    cy.get('#password').type('bYisMYVs9Qdw');
+    cy.get('#actionButton').should("be.visible").and('not.be.disabled').click();
     cy.get('#pageSettings > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('#showConfiguration').click();
     cy.get('#configurationTextField')

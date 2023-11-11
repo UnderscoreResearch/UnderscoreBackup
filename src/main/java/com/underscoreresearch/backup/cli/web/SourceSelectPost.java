@@ -270,7 +270,7 @@ public class SourceSelectPost extends BaseWrap {
                     boolean anyFound = false;
                     for (Map.Entry<String, BackupDestination> entry : newConfig.getDestinations().entrySet()) {
                         if (!sourceConfig.getDestinations().containsKey(entry.getKey())) {
-                            log.warn("Found new destination {} in share", entry.getKey());
+                            log.warn("Found new destination \"{}\" in share", entry.getKey());
                             sourceConfig.getDestinations().put(entry.getKey(), entry.getValue());
                             anyFound = true;
                         }

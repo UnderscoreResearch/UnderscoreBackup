@@ -4,12 +4,10 @@ import {
     BackupGlobalLimits,
     BackupManifest,
     BackupRetention,
-    changeEncryptionKey,
     PropertyMap,
     resetSettings
 } from "../api";
 import {
-    Alert,
     Button,
     Checkbox,
     Dialog,
@@ -35,25 +33,20 @@ import Box from "@mui/material/Box";
 import Retention from "./Retention";
 import Typography from "@mui/material/Typography";
 import Timespan from "./Timespan";
-import PasswordStrengthBar from "../3rdparty/react-password-strength-bar";
 import {useApplication} from "../utils/ApplicationContext";
 import {Warning} from "@mui/icons-material";
+import ChangePasswordDialog from "./ChangePasswordDialog";
 
 interface SettingsState {
     manifest: BackupManifest,
     showConfig: boolean,
-    passwordValid: boolean,
-    password: string,
-    passwordConfirm: string,
-    oldPassword: string,
     showChangePassword: boolean,
     showResetWarning: boolean,
     configData: string,
     limits: BackupGlobalLimits,
     missingRetention?: BackupRetention,
     properties?: PropertyMap,
-    hasRandomizedSchedule: boolean,
-    regeneratePrivateKey: boolean
+    hasRandomizedSchedule: boolean
 }
 
 function createInitialState(config: BackupConfiguration): SettingsState {
@@ -62,12 +55,7 @@ function createInitialState(config: BackupConfiguration): SettingsState {
         showConfig: false,
         showChangePassword: false,
         showResetWarning: false,
-        password: "",
-        passwordValid: false,
-        passwordConfirm: "",
-        oldPassword: "",
         hasRandomizedSchedule: !!config.manifest.scheduleRandomize,
-        regeneratePrivateKey: false,
         properties: config.properties,
         missingRetention: config.missingRetention,
         configData: JSON.stringify(config, null, 2),
@@ -145,9 +133,6 @@ export default function Settings() {
     function handleShowChangePassword() {
         setState({
             ...state,
-            oldPassword: "",
-            password: "",
-            passwordConfirm: "",
             showChangePassword: true
         });
     }
@@ -160,43 +145,11 @@ export default function Settings() {
         });
     }
 
-    function handleChangePasswordClose() {
-        setState({
-            ...state,
-            showChangePassword: false
-        });
-    }
-
     function handleResetWarningClose() {
         setState({
             ...state,
             showResetWarning: false
         });
-    }
-
-    async function handleChangePassword() {
-        try {
-            if (!state.oldPassword) {
-                DisplayMessage("Missing old password");
-            } else if (!state.passwordValid) {
-                DisplayMessage("Password too weak");
-            } else if (!state.password) {
-                DisplayMessage("Missing new password");
-            } else if (state.password !== state.passwordConfirm) {
-                DisplayMessage("Password does not match");
-            } else if (await changeEncryptionKey(state.oldPassword, state.password, state.regeneratePrivateKey)) {
-                await appContext.update(state.password);
-                setState((oldState) => {
-                    return {
-                        ...oldState,
-                        showChangePassword: false,
-                        regeneratePrivateKey: false
-                    }
-                });
-            }
-        } catch (e: any) {
-            DisplayMessage(e.toString());
-        }
     }
 
     async function performResetWarningClose() {
@@ -338,6 +291,21 @@ export default function Settings() {
                             }
                         })}
                     />} label="Automatically install new versions if possible"/>
+                </Grid>
+            </Grid>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <FormControlLabel control={<Checkbox
+                        checked={state.manifest.reportStats || state.manifest.reportStats === undefined}
+                        disabled={!appContext.backendState.serviceConnected}
+                        onChange={(e) => updateState({
+                            ...state,
+                            manifest: {
+                                ...state.manifest,
+                                reportStats: e.target.checked
+                            }
+                        })}
+                    />} label="Report backup statistics to service"/>
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
@@ -530,88 +498,8 @@ export default function Settings() {
             </DialogActions>
         </Dialog>
 
-        <Dialog open={state.showChangePassword} onClose={handleChangePasswordClose}>
-            <DialogTitle>Change Password</DialogTitle>
-            <DialogContent>
-                <DialogContentText>
-                    Change the password used to protect your backup.
-                </DialogContentText>
-                <Alert severity="warning">Please keep your password safe.
-                    There is no way to recover a lost password!</Alert>
-
-                <Box
-                    component="div"
-                    sx={{
-                        '& .MuiTextField-root': {m: 1},
-                    }}
-                    style={{marginTop: 4, marginLeft: "-8px", marginRight: "8px"}}
-                >
-                    <TextField label="Existing Password" variant="outlined"
-                               fullWidth={true}
-                               required={true}
-                               value={state.oldPassword}
-                               error={!state.oldPassword}
-                               id={"oldPassword"}
-                               type="password"
-                               onChange={(e) => setState({
-                                   ...state,
-                                   oldPassword: e.target.value
-                               })}/>
-                    <Box style={{marginLeft: "8px", marginRight: "-8px"}}>
-                        <PasswordStrengthBar password={state.password} onChangeScore={(newScore) =>
-                            setState((oldState) => ({
-                                ...oldState,
-                                passwordValid: newScore >= 2
-                            }))
-                        }/>
-                    </Box>
-                    <TextField label="New Password" variant="outlined"
-                               fullWidth={true}
-                               required={true}
-                               value={state.password}
-                               error={!state.password}
-                               id={"passwordFirst"}
-                               type="password"
-                               onChange={(e) => setState({
-                                   ...state,
-                                   password: e.target.value
-                               })}/>
-                    <TextField label="Confirm New Password" variant="outlined"
-                               fullWidth={true}
-                               required={true}
-                               helperText={state.passwordConfirm !== state.password ? "Does not match" : null}
-                               value={state.passwordConfirm}
-                               error={state.passwordConfirm !== state.password || !state.password}
-                               id={"passwordSecond"}
-                               type="password"
-                               onChange={(e) => setState({
-                                   ...state,
-                                   passwordConfirm: e.target.value
-                               })}/>
-                    <FormControlLabel control={<Checkbox checked={state.regeneratePrivateKey} onChange={(e) => {
-                        updateState({
-                            ...state,
-                            regeneratePrivateKey: e.target.checked
-                        });
-                    }
-                    }/>} label="Regenerate private key" style={{marginLeft: "8px"}}/>
-                    {state.regeneratePrivateKey &&
-                        <Alert severity="info">
-                            Regenerating your private key should be used if you believe your current password and your
-                            existing private key has been compromised. It will take a considerable amount of time
-                            because all existing log files need to be regenerated to complete this change. Your backup
-                            data does not though, so it is still substantially faster than a complete new backup.
-                        </Alert>
-                    }
-                </Box>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={handleChangePasswordClose}>Cancel</Button>
-                <Button
-                    disabled={!(state.passwordValid && state.oldPassword && state.password === state.passwordConfirm)}
-                    onClick={() => handleChangePassword()} id={"submitPasswordChange"}>OK</Button>
-            </DialogActions>
-        </Dialog>
+        <ChangePasswordDialog open={state.showChangePassword}
+                              onClose={() => setState({...state, showChangePassword: false})}/>
 
         <Dialog
             open={state.showResetWarning}

@@ -77,7 +77,7 @@ public class WebServer {
             try {
                 return InetAddress.getByName(commandLine.getOptionValue(BIND_ADDRESS));
             } catch (UnknownHostException e) {
-                throw new RuntimeException(String.format("Failed to resolve %s",
+                throw new RuntimeException(String.format("Failed to resolve \"%s\"",
                         commandLine.getOptionValue(BIND_ADDRESS)), e);
             }
         } else
@@ -90,7 +90,7 @@ public class WebServer {
 
             if (developerMode) {
                 try {
-                    socket = new ServerSocket(12345, 10, address);
+                    socket = new ServerSocket(12345, 100, address);
                 } catch (IOException e) {
                     throw new RuntimeException("Can't find local host address", e);
                 }
@@ -277,7 +277,7 @@ public class WebServer {
             );
 
             Thread thread = new Thread(() -> {
-                FtBasic basic = new FtBasic(new BkParallel(new BkSafe(new BkBasic(serviceTake)), 2), socket);
+                FtBasic basic = new FtBasic(new BkParallel(new BkSafe(new BkBasic(serviceTake)), 6), socket);
                 try {
                     basic.start(() -> false);
                 } catch (IOException e) {

@@ -98,7 +98,7 @@ public class BestRegionGet extends BaseWrap {
             for (Map.Entry<String, AtomicLong> entry : result.entrySet()) {
                 double success = successCount.get(entry.getKey()).get();
                 double latency = entry.getValue().get() / success;
-                log.info("{} had average latency of {}ms and succeeded {} times", entry.getKey(), latency, success);
+                log.info("\"{}\" had average latency of {}ms and succeeded {} times", entry.getKey(), latency, success);
                 if (success >= ITERATIONS * 0.75 && (bestRegion == null || bestLatency > latency)) {
                     bestRegion = entry.getKey();
                     bestLatency = latency;

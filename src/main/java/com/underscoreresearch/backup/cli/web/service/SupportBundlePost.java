@@ -106,7 +106,7 @@ public class SupportBundlePost extends BaseWrap {
                 if (request.includeKey) {
                     addZipFile(out, new File(InstanceFactory.getInstance(KEY_FILE_NAME)));
                 }
-                log.info("Generated support bundle at {}", f.getAbsolutePath());
+                log.info("Generated support bundle at \"{}\"", f.getAbsolutePath());
                 return true;
             } catch (Exception e) {
                 log.error("Failed to generate support bundle", e);
@@ -136,7 +136,7 @@ public class SupportBundlePost extends BaseWrap {
                                     addZipFile(out, Path.of("shares", shareFile.getName(), SHARE_CONFIG_FILE).toString(),
                                             (str) -> BACKUP_ACTIVATED_SHARE_WRITER.writeValue(str, strippedShare));
                                 } catch (IOException e) {
-                                    log.error("Failed to read share definition for {}", shareFile.getName(), e);
+                                    log.error("Failed to read share definition for \"{}\"", shareFile.getName(), e);
                                 }
                             }
                         }
@@ -188,7 +188,7 @@ public class SupportBundlePost extends BaseWrap {
                 return messageJson(400, "Failed to generate support bundle");
             }
 
-            log.info("Support bundle generated at " + f.getAbsolutePath());
+            log.info("Support bundle generated at \"" + f.getAbsolutePath() + "\"");
 
             UIHandler.openFolder(f.getParentFile());
 

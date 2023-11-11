@@ -112,13 +112,13 @@ public class AuthPost extends BaseWrap {
             }
 
             if (authConnection.getResponseCode() != 200) {
-                throw new IOException("Failed to call " + path + " (" + authConnection.getResponseCode() + ")");
+                throw new IOException("Failed to call \"" + path + "\" (" + authConnection.getResponseCode() + ")");
             }
 
             try (InputStream inputStream = authConnection.getInputStream()) {
                 byte[] encryptedData = new byte[inputStream.available()];
                 if (inputStream.read(encryptedData) != encryptedData.length)
-                    throw new IOException("Failed to read " + path);
+                    throw new IOException("Failed to read \"" + path + "\"");
                 if (authConnection.getHeaderField("Content-Type").equals(ENCRYPTED_CONTENT_TYPE))
                     return ApiAuth.getInstance().decryptData(sharedKey, encryptedData,
                             authConnection.getHeaderField(X_PAYLOAD_HASH_HEADER));

@@ -55,7 +55,7 @@ public final class Main {
                 try {
                     System.setProperty("user.dir", chdir.getCanonicalPath());
                 } catch (IOException e) {
-                    log.error("Invalid current working directory {}", System.getProperty("startup.directory"), e);
+                    log.error("Invalid current working directory \"{}\"", System.getProperty("startup.directory"), e);
                 }
             }
         }
@@ -65,7 +65,7 @@ public final class Main {
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
-                log.error("Uncaught exception from thread {} (Id {})", t.getName(), t.threadId(), e);
+                log.error("Uncaught exception from thread \"{}\" (Id \"{}\")", t.getName(), t.threadId(), e);
             }
         });
 

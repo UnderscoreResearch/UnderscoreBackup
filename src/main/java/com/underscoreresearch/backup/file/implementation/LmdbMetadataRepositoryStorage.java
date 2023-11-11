@@ -313,11 +313,11 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 try (ByteBufferBackedInputStream inputStream = new ByteBufferBackedInputStream(data)) {
                     try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
                         byte[] plaintextData = IOUtils.readAllBytes(gzipInputStream);
-                        log.error("Failed decoding: {}", new String(plaintextData, StandardCharsets.UTF_8));
+                        log.error("Failed decoding: \"{}\"", new String(plaintextData, StandardCharsets.UTF_8));
                     }
                 }
             } catch (Exception decodeTest2) {
-                log.error("Failed to decode string for supposed JSON object (Size {})", data.limit(), decodeTest2);
+                log.error("Failed to decode string for supposed JSON object (Size \u200E{}\u200E)", data.limit(), decodeTest2);
             }
             throw exc;
         }
@@ -331,7 +331,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             readValue.setBlockHash(keys[1]);
             return readValue;
         } catch (IOException e) {
-            throw new IOException(String.format("Invalid path %s:%s", keys[0], keys[1]), e);
+            throw new IOException(String.format("Invalid path \"%s:%s\"", keys[0], keys[1]), e);
         }
     }
 
@@ -375,7 +375,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
             return readValue;
         } catch (Exception exc) {
-            throw new IOException(String.format("Failed to decode file %s:%s", pathTimestamp.path, pathTimestamp.timestamp),
+            throw new IOException(String.format("Failed to decode file \"%s:%s\"", pathTimestamp.path, pathTimestamp.timestamp),
                     exc);
         }
     }
@@ -390,7 +390,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             block.setHash(hash);
             return block;
         } catch (IOException e) {
-            throw new IOException(String.format("Invalid block %s", hash), e);
+            throw new IOException(String.format("Invalid block \"%s\"", hash), e);
         }
     }
 
@@ -402,7 +402,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     pathTimestamp.timestamp,
                     encoding.files);
         } catch (IOException e) {
-            throw new IOException(String.format("Invalid directory %s:%s", pathTimestamp.path, pathTimestamp.timestamp), e);
+            throw new IOException(String.format("Invalid directory \"%s:%s\"", pathTimestamp.path, pathTimestamp.timestamp), e);
         }
     }
 
@@ -589,7 +589,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                                     map.put(txn, newKey, kv.val());
                                     map.delete(txn, kv.key());
                                 } else if (kv.key().limit() != 43) {
-                                    log.error("Unexpected key size for empty record: {}", kv.key().limit());
+                                    log.error("Unexpected key size for empty record: \u200E{}\u200E", kv.key().limit());
                                 }
                             }
                         }
@@ -666,7 +666,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             sharedTransaction.close();
             sharedTransaction = null;
             long estimated = getTotalUsedEstimatedSize();
-            log.error("Estimated usage at full map exception: {} of {} ({} overhead and {} uncommitted transactions)",
+            log.error("Estimated usage at full map exception: \u200E{} of {} ({} overhead and {} uncommitted transactions)\u200E",
                     readableSize(estimated),
                     readableSize(mapSize),
                     readableSize((long) Math.ceil(estimated * ASSUMED_OVERHEAD)),
@@ -832,7 +832,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 entry.key().position(0);
                 PathTimestamp key = decodePathTimestamp(entry.key());
-                log.error(invalidRepositoryLogEntry("Invalid file {}:{}"), PathNormalizer.physicalPath(key.path), key.path, e);
+                log.error(invalidRepositoryLogEntry("Invalid file \"{}:{}\""), PathNormalizer.physicalPath(key.path), key.path, e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -855,7 +855,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 entry.key().position(0);
                 String key = decodeString(entry.key());
-                log.error(invalidRepositoryLogEntry("Invalid block {}"), key, e);
+                log.error(invalidRepositoryLogEntry("Invalid block \"{}\""), key, e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -881,7 +881,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 block.setPublicKey(keys[0]);
                 return block;
             } catch (IOException e) {
-                log.error(invalidRepositoryLogEntry("Invalid additional block {}:{}"), keys[0], keys[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid additional block \"{}:{}\""), keys[0], keys[1], e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -904,7 +904,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 entry.key().position(0);
                 String[] keys = decodeDoubleString(entry.key());
-                log.error(invalidRepositoryLogEntry("Invalid filePart {}:{}"), keys[0], keys[1], e);
+                log.error(invalidRepositoryLogEntry("Invalid filePart \"{}:{}\""), keys[0], keys[1], e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -927,7 +927,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             } catch (IOException e) {
                 entry.key().position(0);
                 PathTimestamp pathTimestamp = decodePathTimestamp(entry.key());
-                log.error(invalidRepositoryLogEntry("Invalid directory {}:{}"), pathTimestamp.path, pathTimestamp.timestamp, e);
+                log.error(invalidRepositoryLogEntry("Invalid directory \"{}:{}\""), pathTimestamp.path, pathTimestamp.timestamp, e);
                 if (!readOnly) {
                     try {
                         entry.key().position(0);
@@ -969,7 +969,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                 set.setSetId(setId);
                 return set;
             } catch (IOException e) {
-                log.error("Invalid pending set " + setId, e);
+                log.error("Invalid pending set \"" + setId + "\"", e);
                 try {
                     entry.key().position(0);
                     pendingSetMap.delete(getWriteTransaction(), entry.key());
@@ -1242,7 +1242,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             try {
                 ret = decodeData(BACKUP_PARTIAL_FILE_READER, data);
             } catch (IOException exc) {
-                log.error("Invalid partialFile {} reprocessing entire file",
+                log.error("Invalid partialFile \"{}\" reprocessing entire file",
                         PathNormalizer.physicalPath(file.getFile().getPath()), exc);
                 return null;
             }
@@ -1278,7 +1278,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
                         ret.put(activePath.getSavedRealPath(), activePath);
                     } catch (IOException exc) {
-                        log.error("Invalid activePath {} for set {}. Skipping during this run.", keys[1], keys[0],
+                        log.error("Invalid activePath \"{}\" for set \"{}\". Skipping during this run.", keys[1], keys[0],
                                 exc);
                     }
                 }
@@ -1341,7 +1341,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
                     block.setPublicKey(publicKey);
                     return block;
                 } catch (IOException exc) {
-                    throw new IOException(String.format("Invalid additionalBlock %s:%s", publicKey, blockHash), exc);
+                    throw new IOException(String.format("Invalid additionalBlock \"%s:%s\"", publicKey, blockHash), exc);
                 }
             }
 

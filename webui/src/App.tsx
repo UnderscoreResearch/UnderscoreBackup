@@ -5,6 +5,7 @@ import {useApplication} from "./utils/ApplicationContext";
 import {useActivity} from "./utils/ActivityContext";
 import {MainAppSkeleton} from "./components/MainAppSkeleton";
 import {Loading} from "./components/Loading";
+import {retryImport} from "./api/utils";
 
 let internalDisplayMessage: (message: string, variant: VariantType) => void;
 
@@ -12,9 +13,9 @@ export function DisplayMessage(message: string, variant: VariantType = "error") 
     internalDisplayMessage(message, variant);
 }
 
-const MainApp = React.lazy(() => import('./MainApp'));
-const InitialSetup = React.lazy(() => import('./InitialSetup'));
-const UILogin = React.lazy(() => import('./components/UILogin'));
+const MainApp = React.lazy(() => retryImport(() => import('./MainApp')));
+const InitialSetup = React.lazy(() => retryImport(() => import('./InitialSetup')));
+const UILogin = React.lazy(() => retryImport(() => import('./components/UILogin')));
 
 const firstPath = `/${window.location.pathname.split('/')[1]}/`;
 export default function App() {

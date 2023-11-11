@@ -191,7 +191,7 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         } catch (RuntimeRepositoryErrorException e) {
             throw new RepositoryErrorException(e.getMessage());
         } catch (RuntimeException e) {
-            throw new IOException(String.format("Failed after %s/%s steps",
+            throw new IOException(String.format("Failed after \u200E%s/%s\u200E steps",
                     readableNumber(currentStep.get()), readableNumber(totalSteps.get())), e);
         } finally {
             stopwatch.stop();

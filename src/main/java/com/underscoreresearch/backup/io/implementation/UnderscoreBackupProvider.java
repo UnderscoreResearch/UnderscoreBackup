@@ -193,14 +193,14 @@ public class UnderscoreBackupProvider implements IOIndex {
                 cachedIdentity = data;
                 cachedIdentityTimeout = Instant.now().plus(IDENTITY_TIMEOUT);
             }
-            debug(() -> log.debug("Identity cached for {} {} until {}", getSourceId(), region, cachedIdentityTimeout));
+            debug(() -> log.debug("Identity cached for \"{}\" \"{}\" until {}", getSourceId(), region, cachedIdentityTimeout));
         }
 
         String hash = Hash.hash(data);
         int size = data.length;
 
         final String useKey = normalizeKey(suggestedKey);
-        debug(() -> log.debug("Uploading " + useKey));
+        debug(() -> log.debug("Uploading \"" + useKey + "\""));
 
         try {
             RetryUtils.retry(() -> {
@@ -225,7 +225,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                             return null;
                         }
                         if (httpCon.getResponseCode() != 200) {
-                            throw new IOException("Failed to upload data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                            throw new IOException("Failed to upload data with status code " + httpCon.getResponseCode() + ": \"" + httpCon.getResponseMessage() + "\"");
                         }
                         return "success";
                     });
@@ -267,16 +267,16 @@ public class UnderscoreBackupProvider implements IOIndex {
         if (IDENTITY_MANIFEST_LOCATION.equals(key)) {
             String identityKey = String.format("%s/%s", getSourceId(), region);
             if (cachedIdentityTimeout != null) {
-                debug(() -> log.debug("Identity cache check {} {} until {}", region, getSourceId(), cachedIdentityTimeout));
+                debug(() -> log.debug("Identity cache check \"{}\" \"{}\" until {}", region, getSourceId(), cachedIdentityTimeout));
                 synchronized (this) {
                     if (identityKey.equals(cachedIdentityKey) && Instant.now().isBefore(cachedIdentityTimeout)) {
-                        debug(() -> log.debug("Downloading cached " + useKey));
+                        debug(() -> log.debug("Downloading cached \"" + useKey + "\""));
                         return cachedIdentity;
                     }
                 }
             }
         }
-        debug(() -> log.debug("Downloading " + useKey));
+        debug(() -> log.debug("Downloading \"" + useKey + "\""));
 
         try {
             return RetryUtils.retry(() -> {
@@ -294,7 +294,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                         return null;
                     }
                     if (httpCon.getResponseCode() != 200) {
-                        throw new HttpException(httpCon.getResponseCode(), "Failed to download data with status code " + httpCon.getResponseCode() + ": " + httpCon.getResponseMessage());
+                        throw new HttpException(httpCon.getResponseCode(), "Failed to download data with status code " + httpCon.getResponseCode() + ": \"" + httpCon.getResponseMessage() + "\"");
                     }
                     byte[] data;
                     try (InputStream stream = httpCon.getInputStream()) {
@@ -317,7 +317,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     @Override
     public void delete(String key) throws IOException {
         final String useKey = normalizeKey(key);
-        debug(() -> log.debug("Deleting " + useKey));
+        debug(() -> log.debug("Deleting \"" + useKey + "\""));
 
         callRetry((api) -> api.deleteFile(getSourceId(), useKey, shareId));
     }

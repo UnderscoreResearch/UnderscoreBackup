@@ -40,6 +40,7 @@ import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
 @Slf4j
 @CommandPlugin(value = "change-password", description = "Change the password of an existing key",
@@ -110,6 +111,21 @@ public class ChangePasswordCommand extends Command {
         }
     }
 
+    public static void removeSecret(ServiceManager serviceManager) {
+        if (serviceManager.getSourceId() != null) {
+            try {
+                SourceResponse source = serviceManager.call(null, (api) -> api.getSource(serviceManager.getSourceId()));
+                if (source.getSecretRegion() != null) {
+                    serviceManager.call(source.getSecretRegion(),
+                            (api) -> api.deleteSecret(serviceManager.getSourceId()));
+                    log.warn("Removed private key recovery from region \"{}\"", source.getSecretRegion());
+                }
+            } catch (IOException e) {
+                log.error("Failed to remove old private key recovery", e);
+            }
+        }
+    }
+
     public void executeCommand(CommandLine commandLine) throws Exception {
         if (commandLine.getArgList().size() != 1) {
             throw new ParseException("Too many arguments for command");
@@ -149,6 +165,8 @@ public class ChangePasswordCommand extends Command {
                 generateNewPrivateKey(manifestManager, repository, fileName, getPassword(), firstTry);
 
                 System.out.println("Wrote public key to " + fileName);
+
+                removeSecret(InstanceFactory.getInstance(ServiceManager.class));
             } finally {
                 manifestManager.shutdown();
                 repository.close();
@@ -244,6 +262,16 @@ public class ChangePasswordCommand extends Command {
             completeUploads();
 
             super.deleteLogFiles(lastOldLogFile);
+        }
+
+        @Override
+        protected void awaitEventualConsistency() {
+            try {
+                log.info("Waiting 20 seconds for eventual consistency");
+                Thread.sleep(20000);
+            } catch (InterruptedException e) {
+                Thread.interrupted();
+            }
         }
     }
 }

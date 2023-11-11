@@ -146,7 +146,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         if (!file.exists()) {
             BackupFile existingFile = repository.file(file.getPath(), null);
             if (existingFile != null && existingFile.getDeleted() == null) {
-                log.info("File deleted {}", PathNormalizer.physicalPath(updatedFile.getPath()));
+                log.info("File deleted \"{}\"", PathNormalizer.physicalPath(updatedFile.getPath()));
 
                 existingFile.setDeleted(System.currentTimeMillis());
                 repository.addFile(existingFile);
@@ -159,7 +159,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
             BackupFile existingFile = repository.file(file.getPath(), null);
             if (existingFile == null
                     || (existingFile.getLastChanged() != Files.getLastModifiedTime(file.toPath()).toMillis() || existingFile.getLength() != file.length())) {
-                log.info("Backing up {}", PathNormalizer.physicalPath(updatedFile.getPath()));
+                log.info("Backing up \"{}\"", PathNormalizer.physicalPath(updatedFile.getPath()));
                 uploadFile(set, file, updatedFile);
             }
         }
@@ -193,7 +193,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                     .lastChanged(Files.getLastModifiedTime(file.toPath()).toMillis())
                     .build();
         } catch (IOException e) {
-            log.warn("Failed to get last modified time for file {}", file, e);
+            log.warn("Failed to get last modified time for file \"{}\"", file, e);
             return;
         }
         BackupPartialFile partialFile = new BackupPartialFile(backupFile);
@@ -211,7 +211,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
             try {
                 repository.deletePartialFile(partialFile);
             } catch (IOException e) {
-                log.warn("Failed to delete partial file {}", file, e);
+                log.warn("Failed to delete partial file \"{}\"", file, e);
             }
             processedFiles.incrementAndGet();
             processedSize.addAndGet(backupFile.getLength());
@@ -238,7 +238,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                 try (CloseableLock ignore = repository.acquireLock()) {
                     addFileToDirectory(file, file.isDirectory());
                 } catch (IOException e) {
-                    log.error("Error adding file {} to parent directory", file, e);
+                    log.error("Error adding file \"{}\" to parent directory", file, e);
                 }
             }
         });
@@ -342,7 +342,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                                     lock.unlock();
                                 }
                             } catch (IOException e) {
-                                log.error("Error processing file {}", file.getPath(), e);
+                                log.error("Error processing file \"{}\"", file.getPath(), e);
                             }
                         });
                         if (!currentFiles.isEmpty())

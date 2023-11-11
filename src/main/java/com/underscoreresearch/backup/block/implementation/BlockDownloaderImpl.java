@@ -62,7 +62,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     public byte[] downloadBlock(String blockHash, String password) throws IOException {
         BackupBlock block = metadataRepository.block(blockHash);
         if (block == null) {
-            throw new IOException(String.format("Trying to get unknown block %s", blockHash));
+            throw new IOException(String.format("Trying to get unknown block \"%s\"", blockHash));
         }
 
         for (int storageIndex = 0; storageIndex < block.getStorage().size(); storageIndex++) {
@@ -71,11 +71,11 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
                 return EncryptorFactory.decodeBlock(storage, downloadEncryptedBlockStorage(block, storage), key.getPrivateKey(password));
             } catch (Exception exc) {
                 if (storageIndex == block.getStorage().size() - 1 || InstanceFactory.isShutdown()) {
-                    throw new IOException("Failed to download block " + block.getHash() + " was unreadable", exc);
+                    throw new IOException("Failed to download block \"" + block.getHash() + "\" was unreadable", exc);
                 }
             }
         }
-        throw new IOException(String.format("No storage available for block %s", blockHash));
+        throw new IOException(String.format("No storage available for block \"%s\"", blockHash));
     }
 
     public byte[] downloadEncryptedBlockStorage(BackupBlock block, BackupBlockStorage storage) throws IOException {
@@ -118,7 +118,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
                     break;
                 } catch (Exception e) {
                     if (i == storage.getParts().size() - 1) {
-                        throw new IOException("Failed to error correct " + block.getHash(), e);
+                        throw new IOException("Failed to error correct \"" + block.getHash() + "\"", e);
                     }
                 }
             }
@@ -165,7 +165,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
             try {
                 consumer.accept(provider.download(storage.getParts().get(partIndex)));
             } catch (Throwable exc) {
-                log.warn("Failed to download " + storage.getParts().get(partIndex) + " from " + storage.getDestination(), exc);
+                log.warn("Failed to download \"" + storage.getParts().get(partIndex) + "\" from \"" + storage.getDestination() + "\"", exc);
                 consumer.accept(null);
             }
         });

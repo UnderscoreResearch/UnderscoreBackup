@@ -61,7 +61,7 @@ public class FileIOProvider implements IOIndex {
             stream.write(data, 0, data.length);
         }
 
-        debug(() -> log.debug("Wrote {} ({})", file.toString(), readableSize(data.length)));
+        debug(() -> log.debug("Wrote \"{}\" ({})", file.toString(), readableSize(data.length)));
 
         return key;
     }
@@ -71,7 +71,7 @@ public class FileIOProvider implements IOIndex {
         File file = getFile(key);
         try (FileInputStream stream = new FileInputStream(file)) {
             byte[] data = IOUtils.readAllBytes(stream);
-            debug(() -> log.debug("Read {} ({})", file.toString(), readableSize(data.length)));
+            debug(() -> log.debug("Read \"{}\" ({})", file.toString(), readableSize(data.length)));
             return data;
         }
     }
@@ -85,7 +85,7 @@ public class FileIOProvider implements IOIndex {
         File root = new File(this.root);
         while (parent != null && !parent.equals(root) && parent.exists() && parent.list().length == 0) {
             if (!parent.delete()) {
-                log.warn("Failed to delete directory {}", parent);
+                log.warn("Failed to delete directory \"{}\"", parent);
                 return;
             }
             parent = parent.getParentFile();

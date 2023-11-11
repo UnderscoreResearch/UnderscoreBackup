@@ -17,7 +17,7 @@ interface DestinationPageState {
     awaitingValidation: boolean
 }
 
-export function DestinationPage(props: DestinationPageProps) {
+export default function DestinationPage(props: DestinationPageProps) {
     const appContext = useApplication();
 
     const currentDestination = appContext.currentConfiguration &&
@@ -40,6 +40,7 @@ export function DestinationPage(props: DestinationPageProps) {
                 let manifest: BackupManifest = {
                     destination: "d0",
                     optimizeSchedule: "0 0 1 * *",
+                    authenticationRequired: appContext.backendState.administrator,
                     scheduleRandomize: {
                         duration: 1,
                         unit: "HOURS"

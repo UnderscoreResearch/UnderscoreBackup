@@ -1,8 +1,10 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.commands.ChangePasswordCommand.removeSecret;
 import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.createSecret;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
@@ -27,6 +29,7 @@ import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.ServiceManager;
 
 @Slf4j
 public class KeyChangePost extends BaseWrap {
@@ -43,16 +46,25 @@ public class KeyChangePost extends BaseWrap {
     public static class KeyChangeRequest extends PrivateKeyRequest {
         private String newPassword;
         private boolean regeneratePrivateKey;
+        private boolean saveSecret;
+        private String secretRegion;
+        private String email;
 
         @JsonCreator
         @Builder
         public KeyChangeRequest(@JsonProperty("newPassword") String newPassword,
                                 @JsonProperty("password") String password,
-                                @JsonProperty("regeneratePrivateKey") boolean regeneratePrivateKey) {
+                                @JsonProperty("regeneratePrivateKey") boolean regeneratePrivateKey,
+                                @JsonProperty("saveSecret") boolean saveSecret,
+                                @JsonProperty("secretRegion") String secretRegion,
+                                @JsonProperty("email") String email) {
             super(password);
 
             this.newPassword = newPassword;
             this.regeneratePrivateKey = regeneratePrivateKey;
+            this.saveSecret = saveSecret;
+            this.secretRegion = secretRegion;
+            this.email = email;
         }
     }
 
@@ -87,6 +99,25 @@ public class KeyChangePost extends BaseWrap {
                                         request.getNewPassword());
                             } catch (IOException e) {
                                 log.error("Failed to change password", e);
+                            }
+
+                            if (request.isSaveSecret()) {
+                                InstanceFactory.reloadConfiguration(null);
+                                try {
+                                    ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
+                                    Response response = createSecret(serviceManager,
+                                            request.getSecretRegion(),
+                                            request.getNewPassword(),
+                                            request.getEmail());
+                                    if (response != null) {
+                                        log.error("Failed to update private key recovery");
+                                    }
+                                } catch (IOException e) {
+                                    log.error("Failed to update private key recovery", e);
+                                }
+                            } else {
+                                ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
+                                removeSecret(serviceManager);
                             }
                         },
                         (thread, completed) -> {

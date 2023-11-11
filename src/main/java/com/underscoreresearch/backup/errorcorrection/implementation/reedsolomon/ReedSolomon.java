@@ -236,7 +236,7 @@ public class ReedSolomon {
         // The number of buffers should be equal to the number of
         // data shards plus the number of parity shards.
         if (shards.length != totalShardCount) {
-            throw new IllegalArgumentException("wrong number of shards: " + shards.length);
+            throw new IllegalArgumentException("wrong number of shards");
         }
 
         // All of the shard buffers should be the same length.
@@ -249,13 +249,13 @@ public class ReedSolomon {
 
         // The offset and byteCount must be non-negative and fit in the buffers.
         if (offset < 0) {
-            throw new IllegalArgumentException("offset is negative: " + offset);
+            throw new IllegalArgumentException("offset is negative");
         }
         if (byteCount < 0) {
-            throw new IllegalArgumentException("byteCount is negative: " + byteCount);
+            throw new IllegalArgumentException("byteCount is negative");
         }
         if (shardLength < offset + byteCount) {
-            throw new IllegalArgumentException("buffers to small: " + byteCount + offset);
+            throw new IllegalArgumentException("buffers to small");
         }
     }
 }

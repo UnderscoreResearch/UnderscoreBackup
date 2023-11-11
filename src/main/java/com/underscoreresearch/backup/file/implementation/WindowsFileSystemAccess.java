@@ -24,7 +24,7 @@ public class WindowsFileSystemAccess extends PermissionFileSystemAccess {
             BasicFileAttributes attrs = Files.readAttributes(filePath, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
             return attrs.isDirectory() && attrs.isOther();
         } catch (IOException e) {
-            debug(() -> log.debug("Failed to determine symbolic link state of {}", filePath.toAbsolutePath(), e));
+            debug(() -> log.debug("Failed to determine symbolic link state of \"{}\"", filePath.toAbsolutePath(), e));
             return true;
         }
     }

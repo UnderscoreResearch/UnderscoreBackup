@@ -123,15 +123,9 @@ class PasswordStrengthBar extends React.Component<
         const {password, minLength, userInputs, onChangeScore} = this.props;
 
         async function updateScore(parent: PasswordStrengthBar): Promise<void> {
-            const zxcvbn = await require('zxcvbn');
-
-            let result = null;
-            let score = 0;
-            let feedback: PasswordFeedback = {};
-            if (password.length >= (minLength as number)) {
-                result = zxcvbn(password, userInputs);
-                ({score, feedback} = result);
-            }
+            const {score, feedback} = await import('./passwordResolve').then((module) =>
+                module.default(password, minLength, userInputs)
+            );
             parent.setState(
                 {
                     score,

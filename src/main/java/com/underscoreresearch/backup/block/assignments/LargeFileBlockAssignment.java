@@ -66,7 +66,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 }
 
                 if (start > 0) {
-                    log.info("Resuming a backup {} from {}",
+                    log.info("Resuming a backup \"{}\" from {}",
                             PathNormalizer.physicalPath(backupPartialFile.getFile().getPath()), readableSize(start));
                 }
             }
@@ -94,7 +94,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 try {
                     length = access.readData(file.getPath(), buffer, start, size);
                 } catch (IOException exc) {
-                    log.warn("Failed to read file {}: {}", PathNormalizer.physicalPath(file.getPath()),
+                    log.warn("Failed to read file \"{}\": {}", PathNormalizer.physicalPath(file.getPath()),
                             exc.getMessage());
                     completionFuture.completed(null);
                     return true;
@@ -112,7 +112,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                         .build();
 
                 if (length != size) {
-                    log.warn("Only read {} when expected {} for {}", readableSize(length), readableSize(size),
+                    log.warn("Only read {} when expected {} for \"{}\"", readableSize(length), readableSize(size),
                             PathNormalizer.physicalPath(file.getPath()));
                     locationRef.set(null);
                     completionFuture.completed(null);
@@ -165,13 +165,13 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                         metadataRepository.savePartialFile(backupPartialFile);
                     }
                     if (start / GB != end / GB) {
-                        log.info("Processed {} / {} for {}", readableSize(end), readableSize(file.getLength()),
+                        log.info("Processed {} / {} for \"{}\"", readableSize(end), readableSize(file.getLength()),
                                 PathNormalizer.physicalPath(file.getPath()));
                         machineState.waitForRunCheck();
                     }
                 }
             } catch (Exception e) {
-                log.error("Failed to create block for {}", PathNormalizer.physicalPath(file.getPath()), e);
+                log.error("Failed to create block for \"{}\"", PathNormalizer.physicalPath(file.getPath()), e);
                 locationRef.set(null);
                 completionFuture.completed(null);
                 return true;
@@ -193,7 +193,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
             try {
                 metadataRepository.deletePartialFile(backupPartialFile);
             } catch (IOException e) {
-                log.error("Failed to remove partial file data for {}",
+                log.error("Failed to remove partial file data for \"{}\"",
                         PathNormalizer.physicalPath(backupPartialFile.getFile().getPath()));
             }
             if (locationRef.get() != null) {

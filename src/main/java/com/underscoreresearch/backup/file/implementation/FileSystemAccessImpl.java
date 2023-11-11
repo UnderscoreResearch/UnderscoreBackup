@@ -61,24 +61,24 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                                                 .path(path + PATH_SEPARATOR + fileName + PATH_SEPARATOR)
                                                 .build());
                                     } else {
-                                        debug(() -> log.debug("Skipping unreadable directory " + filePath.toAbsolutePath()));
+                                        debug(() -> log.debug("Skipping unreadable directory \"" + filePath.toAbsolutePath() + "\""));
                                     }
                                 } else if (file.isFile()) {
                                     if (Files.isReadable(filePath)) {
                                         files.add(createBackupFile(path + PATH_SEPARATOR + fileName, file));
                                     } else {
-                                        debug(() -> log.debug("Skipping unreadable file " + filePath.toAbsolutePath()));
+                                        debug(() -> log.debug("Skipping unreadable file \"" + filePath.toAbsolutePath() + "\""));
                                     }
                                 }
                             }
                         } catch (InvalidPathException exc) {
-                            log.warn("Skipping invalid path {}", file.getAbsolutePath(), exc);
+                            log.warn("Skipping invalid path \"{}\"", file.getAbsolutePath(), exc);
                         } catch (IOException e) {
-                            log.warn("Failed to get last modified time for {}", parent.getAbsolutePath(), e);
+                            log.warn("Failed to get last modified time for \"{}\"", parent.getAbsolutePath(), e);
                         }
                     }
                 } else {
-                    log.warn("Failed to get list of files for " + parent);
+                    log.warn("Failed to get list of files for \"" + parent + "\"");
                 }
             } else if (parent.exists()) {
                 try {
@@ -87,13 +87,13 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                         if (Files.isReadable(parentPath)) {
                             files.add(createBackupFile(path, parent));
                         } else {
-                            debug(() -> log.debug("Skipping unreadable file " + parentPath.toAbsolutePath()));
+                            debug(() -> log.debug("Skipping unreadable file \"" + parentPath.toAbsolutePath() + "\""));
                         }
                     }
                 } catch (InvalidPathException exc) {
-                    log.warn("Skipping invalid path {}", parent.getAbsolutePath(), exc);
+                    log.warn("Skipping invalid path \"{}\"", parent.getAbsolutePath(), exc);
                 } catch (IOException e) {
-                    log.warn("Failed to get last modified time for {}", parent.getAbsolutePath(), e);
+                    log.warn("Failed to get last modified time for \"{}\"", parent.getAbsolutePath(), e);
                 }
             }
         }
@@ -134,7 +134,7 @@ public class FileSystemAccessImpl implements FileSystemAccess {
         try (RandomAccessFile stream = new RandomAccessFile(file, "rw")) {
             try (FileChannel ch = stream.getChannel()) {
                 if (ch.write(ByteBuffer.wrap(buffer, 0, length), offset) != length) {
-                    throw new IOException("Failed to write data to file " + file.getAbsolutePath());
+                    throw new IOException("Failed to write data to file \"" + file.getAbsolutePath() + "\"");
                 }
             }
         }

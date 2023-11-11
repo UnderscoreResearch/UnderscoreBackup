@@ -1,19 +1,24 @@
 import * as React from "react";
 import {Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField} from "@mui/material";
 import Box from "@mui/material/Box";
+import {useApplication} from "../utils/ApplicationContext";
 
 export interface PasswordDialogProps {
     label: string,
     dialogText: string,
     open: boolean,
-    close: () => void,
+    close?: () => void,
     action: (password: string) => void
 }
 
 export default function PasswordDialog(props: PasswordDialogProps) {
+    const appContext = useApplication();
     const [password, setPassword] = React.useState<string>("");
 
-    return <Dialog open={props.open} onClose={() => props.close()}>
+    return <Dialog open={props.open} onClose={() => {
+        if (props.close)
+            props.close()
+    }}>
         <DialogTitle>{props.label}</DialogTitle>
         <DialogContent>
             <DialogContentText>
@@ -30,13 +35,15 @@ export default function PasswordDialog(props: PasswordDialogProps) {
                 <TextField label="Password" variant="outlined"
                            fullWidth={true}
                            required={true}
+                           disabled={appContext.isBusy()}
                            value={password}
                            error={!password}
                            id={"password"}
                            type="password"
                            onKeyDown={(e) => {
                                if (e.key === "Enter" && password.length) {
-                                   () => props.close();
+                                   if (props.close)
+                                       props.close();
                                    props.action(password);
                                }
                            }}
@@ -44,10 +51,16 @@ export default function PasswordDialog(props: PasswordDialogProps) {
             </Box>
         </DialogContent>
         <DialogActions>
-            <Button onClick={() => props.close()}>Cancel</Button>
-            <Button disabled={!password}
+            {props.close &&
+                <Button onClick={() => {
+                    if (props.close)
+                        props.close()
+                }}>Cancel</Button>
+            }
+            <Button disabled={!password || appContext.isBusy()}
                     onClick={() => {
-                        props.close();
+                        if (props.close)
+                            props.close();
                         props.action(password);
                     }} id={"actionButton"}>OK</Button>
         </DialogActions>

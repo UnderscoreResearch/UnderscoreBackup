@@ -27,7 +27,7 @@ public final class BlockFormatFactory {
                 BlockFormatPlugin plugin = clz.getAnnotation(BlockFormatPlugin.class);
                 blockFormats.put(plugin.value(), clz);
             } catch (ClassCastException exc) {
-                log.error("Invalid type of class {}", untyped.getCanonicalName());
+                log.error("Invalid type of class \"{}\"", untyped.getCanonicalName());
             }
         }
     }
@@ -35,7 +35,7 @@ public final class BlockFormatFactory {
     public static FileBlockExtractor getExtractor(String format) {
         Class<? extends FileBlockExtractor> clz = blockFormats.get(format);
         if (clz == null)
-            throw new IllegalArgumentException("Unsupported block format type " + format);
+            throw new IllegalArgumentException("Unsupported block format type \"" + format + "\"");
         return InstanceFactory.getInstance(clz);
     }
 }

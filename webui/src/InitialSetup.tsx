@@ -5,13 +5,13 @@ import {ServicePage} from "./components/initial/ServicePage";
 import {RemoveCircleOutline} from "@mui/icons-material";
 import {useApplication} from "./utils/ApplicationContext";
 import {Route, Routes, useLocation, useNavigate} from "react-router-dom";
-import AuthorizeAccept from "./components/AuthorizeAccept";
-import {SourcePage} from "./components/initial/SourcePage";
 import {SourceResponse} from "./api/service";
-import {DestinationPage} from "./components/initial/DestinationPage";
 import {BackupConfiguration} from "./api";
-import {SecurityPage} from "./components/initial/SecurityPage";
-import {ContentPage} from "./components/initial/ContentPage";
+import AuthorizeAccept from "./components/AuthorizeAccept";
+import ContentPage from "./components/initial/ContentPage";
+import SourcePage from "./components/initial/SourcePage";
+import DestinationPage from "./components/initial/DestinationPage";
+import SecurityPage from "./components/initial/SecurityPage";
 
 interface InitialSetupState {
     maximumStep: number,
@@ -230,7 +230,7 @@ export default function InitialSetup() {
             <Route path="source" element={<SourcePage onSourceChange={updateSource}/>}/>
             <Route path="destination" element={<DestinationPage onPageChange={changePage}/>}/>
             <Route path="security" element={<SecurityPage onPageChange={changePage} secretRegion={state.secretRegion}
-                                                          selectedSource={state.selectedSource}/>}/>
+                              selectedSource={state.selectedSource}/>}/>
             <Route path="contents" element={<ContentPage/>}/>
         </Routes>
     </MainAppSkeleton>

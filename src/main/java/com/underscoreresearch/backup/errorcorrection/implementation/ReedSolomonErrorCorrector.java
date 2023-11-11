@@ -99,7 +99,7 @@ public class ReedSolomonErrorCorrector implements ErrorCorrector {
         }
 
         if (shardCount < decodeDataShards) {
-            throw new IOException(decodeDataShards + " shards needed, only " + shardCount + " exists");
+            throw new IOException("\"" + decodeDataShards + "\" shards needed, only \"" + shardCount + "\" exists");
         }
 
         for (int i = 0; i < decodeTotalShards; i++) {

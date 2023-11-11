@@ -34,14 +34,14 @@ public class FileConsumerImpl implements FileConsumer {
                         file.setLocations(locations);
                         saveFile(file, completionPromise);
                     } else {
-                        log.warn("Failed backing up {}", PathNormalizer.physicalPath(file.getPath()));
+                        log.warn("Failed backing up \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                         completionPromise.completed(false);
                     }
                 })) {
                     return;
                 }
             }
-            log.error("No block assignment could handle file {}", PathNormalizer.physicalPath(file.getPath()));
+            log.error("No block assignment could handle file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
             completionPromise.completed(false);
         }
     }
@@ -55,12 +55,12 @@ public class FileConsumerImpl implements FileConsumer {
 
     private void saveFile(BackupFile file, BackupCompletion completionPromise) {
         try {
-            debug(() -> log.debug("Completed file {}", PathNormalizer.physicalPath(file.getPath())));
+            debug(() -> log.debug("Completed file \"{}\"", PathNormalizer.physicalPath(file.getPath())));
             file.setAdded(Instant.now().toEpochMilli());
             repository.addFile(file);
             completionPromise.completed(true);
         } catch (IOException e) {
-            log.error("Failed to add file " + PathNormalizer.physicalPath(file.getPath()), e);
+            log.error("Failed to add file \"" + PathNormalizer.physicalPath(file.getPath()) + "\"", e);
             completionPromise.completed(false);
         }
     }

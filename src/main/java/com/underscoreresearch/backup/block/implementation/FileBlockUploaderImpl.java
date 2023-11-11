@@ -112,7 +112,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
                     }
                 }
             } catch (IOException e) {
-                log.warn("Failed to fetch block definition " + blockHash, e);
+                log.warn("Failed to fetch block definition \"" + blockHash + "\"", e);
             }
 
             Set<BackupUploadCompletion> completions = new HashSet<>();
@@ -162,7 +162,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
                                             completionFuture.completed(true);
                                         }
                                     } catch (IOException e) {
-                                        log.error("Failed to save block " + blockHash, e);
+                                        log.error("Failed to save block \"" + blockHash + "\"", e);
                                         completionFuture.completed(false);
                                     }
                                 }
@@ -187,7 +187,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
                 }
             }
         } catch (Throwable e) {
-            log.error("Failed to save block " + blockHash, e);
+            log.error("Failed to save block \"" + blockHash + "\"", e);
             completionFuture.completed(false);
         }
     }

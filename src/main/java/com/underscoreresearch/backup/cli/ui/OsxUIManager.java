@@ -10,7 +10,7 @@ public class OsxUIManager extends FileUIManager {
         try {
             Runtime.getRuntime().exec(new String[]{"open", path});
         } catch (IOException e) {
-            log.warn("Failed to open folder {}", path, e);
+            log.warn("Failed to open folder \"{}\"", path, e);
         }
     }
 }

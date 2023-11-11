@@ -1,6 +1,29 @@
 import {BackupFileSpecification, BackupFilter, BackupSet, BackupState} from "./index";
 import crypto, {randomBytes} from "crypto";
 import base64url from "base64url";
+import React, {ComponentType} from "react";
+
+export async function retryImport<T extends ComponentType<any>>(importCmd: () => Promise<{ default: T }>) {
+    try {
+        return await importCmd();
+    } catch (e) {
+        console.error("Retry loading", e);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        try {
+            return await importCmd();
+        } catch (e) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            console.error("retry 2 loading", e);
+            return await importCmd();
+        }
+    }
+}
+
+export function RouteLoading(props: { children: React.ReactNode }) {
+    return <React.Suspense fallback={<div/>}>
+        {props.children}
+    </React.Suspense>
+}
 
 function expandFilters(filters: BackupFilter[]): BackupFilter[] {
     let ret: BackupFilter[] = [];

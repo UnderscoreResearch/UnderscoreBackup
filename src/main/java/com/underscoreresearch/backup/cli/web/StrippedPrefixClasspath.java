@@ -42,12 +42,12 @@ public final class StrippedPrefixClasspath extends TkWrap {
                             if (input == null) {
                                 throw new HttpException(
                                         HttpURLConnection.HTTP_NOT_FOUND,
-                                        String.format("File %s not found", path)
+                                        String.format("File \"%s\" not found", path)
                                 );
                             }
                             return new RsWithBody(input);
                         } catch (IOException | RuntimeException exc) {
-                            log.warn("Failed to fetch {}", path, exc);
+                            log.warn("Failed to fetch \"{}\"", path, exc);
                             throw exc;
                         }
                     }

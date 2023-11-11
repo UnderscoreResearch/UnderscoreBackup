@@ -175,7 +175,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                                     data = IOUtils.readAllBytes(stream);
                                 }
                             } else {
-                                log.warn("Log file {} locked by other process", file.getAbsolutePath());
+                                log.warn("Log file \"{}\" locked by other process", file.getAbsolutePath());
                             }
                         }
                         if (data != null) {
@@ -205,7 +205,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         } else {
             data = unencryptedData = inputData;
         }
-        log.info("Uploading {} ({})", filename, readableSize(data.length));
+        log.info("Uploading \"{}\" ({})", filename, readableSize(data.length));
 
         AtomicInteger successNeeded = new AtomicInteger(1 + additionalManifestManager.count());
         Runnable success;
@@ -315,7 +315,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         }
 
         if (consumer.lastSyncedLogFile(getShare()) != null) {
-            log.info("Continuing rebuild from after file {}", getLogConsumer().lastSyncedLogFile(getShare()));
+            log.info("Continuing rebuild from after file \"{}\"", getLogConsumer().lastSyncedLogFile(getShare()));
         }
 
         try {
@@ -329,7 +329,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                     awaitEventualConsistency();
                     files = index.availableLogs(consumer.lastSyncedLogFile(getShare()), true);
                     if (!files.contains(lastKnownExistingFile)) {
-                        log.warn("Expected log file {} to exist, but it does not", lastKnownExistingFile);
+                        log.warn("Expected log file \"{}\" to exist, but it does not", lastKnownExistingFile);
                     }
                 }
             }
@@ -346,7 +346,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
             try (CloseableLock ignored = repository.exclusiveLock()) {
                 for (String file : files) {
                     try {
-                        log.info("Processing log file {}", file);
+                        log.info("Processing log file \"{}\"", file);
                         byte[] data = logPrefetcher.getLog(file);
                         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
                             try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
@@ -355,7 +355,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                         }
                         consumer.setLastSyncedLogFile(getShare(), file);
                     } catch (Exception exc) {
-                        log.error("Failed to read log file " + file, exc);
+                        log.error("Failed to read log file \"{}\"", file, exc);
                         if (!allowFailures) {
                             logPrefetcher.stop();
                             return false;
@@ -414,7 +414,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                         consumer.replayLogEntry(line.substring(0, ind),
                                 line.substring(ind + 1));
                     } catch (Exception exc) {
-                        log.error("Failed processing log line: " + line, exc);
+                        log.error("Failed processing log line: \"" + line + "\"", exc);
                     }
                 }
             }
@@ -438,7 +438,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                                     BackupActivatedShare share = BACKUP_ACTIVATED_SHARE_READER.readValue(configFile);
                                     existingShares.put(shareFile.getName(), share);
                                 } catch (IOException e) {
-                                    log.error("Failed to read share definition for {}", shareFile.getName(), e);
+                                    log.error("Failed to read share definition for \"{}\"", shareFile.getName(), e);
                                 }
                             }
                         }
@@ -460,10 +460,10 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
             for (Map.Entry<String, BackupShare> entry : getConfiguration().getShares().entrySet()) {
                 BackupActivatedShare existingShare = existingShares.get(entry.getKey());
                 if (existingShare == null) {
-                    log.warn("Encountered share {} that is not activated", entry.getValue().getName());
+                    log.warn("Encountered share \"{}\" that is not activated", entry.getValue().getName());
                 } else if (existingShare.getShare().equals(entry.getValue().activatedShare(getServiceManager().getSourceId(), entry.getKey()).getShare())) {
                     if (!Strings.isNullOrEmpty(entry.getValue().getTargetEmail()) && !remainingServiceShares.containsKey(entry.getKey())) {
-                        log.warn("Removing share {} that no longer exist in service", existingShare.getShare().getName());
+                        log.warn("Removing share \"{}\" that no longer exist in service", existingShare.getShare().getName());
                     } else {
                         try {
                             ShareManifestManager manager = createShareManager(entry.getKey(), existingShare, true);
@@ -480,11 +480,11 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
             remainingServiceShares.values().forEach((share) -> {
                 if (!activeShares.containsKey(share.getShareId())) {
-                    log.info("Removing service share {} that no longer exist in configuration", share.getName());
+                    log.info("Removing service share \"{}\" that no longer exist in configuration", share.getName());
                     try {
                         getServiceManager().deleteShare(share.getShareId());
                     } catch (IOException e) {
-                        log.error("Failed to delete share {} from service", share.getName(), e);
+                        log.error("Failed to delete share \"{}\" from service", share.getName(), e);
                     }
                 }
             });
@@ -496,11 +496,11 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 try {
                     MetadataRepository metadataRepository = (MetadataRepository) getLogConsumer();
                     for (String share : existingShares.keySet()) {
-                        log.info("Deleting unused share {}", existingShares.get(share).getShare().getName());
+                        log.info("Deleting unused share \"{}\"", existingShares.get(share).getShare().getName());
                         try {
                             metadataRepository.deleteAdditionalBlock(share, null);
                         } catch (IOException e) {
-                            log.error("Failed to delete share {}", existingShares.get(share).getShare().getName(), e);
+                            log.error("Failed to delete share \"{}\"", existingShares.get(share).getShare().getName(), e);
                         }
 
                         File shareDir = new File(sharesDirectory, share);
@@ -656,13 +656,9 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 copyRepository.close();
                 flushRepositoryLogging(true);
 
-                awaitEventualConsistency();
-
                 ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                         getConfiguration().getManifest().getOptimizeSchedule());
                 completeUploads();
-
-                log.info("Deleting old log files before {}", lastLogFile);
 
                 deleteLogFiles(lastLogFile);
                 additionalManifestManager.finishOptimizeLog(lastLogFile, totalFiles, processedFiles);
@@ -698,7 +694,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
         awaitEventualConsistency(EVENTUAL_CONSISTENCY_TIMEOUT_MS);
 
-        log.info("Deleting log optimized log files after {} and keeping old log file", lastLogFile);
+        log.info("Deleting log optimized log files after \"{}\" and keeping old log file", lastLogFile);
 
         totalFiles = new AtomicLong();
         processedFiles = new AtomicLong();
@@ -759,6 +755,10 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
     @Override
     public void deleteLogFiles(String lastLogFile) throws IOException {
+        awaitEventualConsistency();
+
+        log.info("Deleting old log files before \"{}\"", lastLogFile);
+
         totalFiles = new AtomicLong();
         processedFiles = new AtomicLong();
         deleteLogFiles(lastLogFile, (IOIndex) getProvider(), totalFiles, processedFiles);
@@ -876,7 +876,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                                 processedOperations.incrementAndGet();
                                 copyRepository.addFile(file);
                             } catch (IOException e) {
-                                log.error("Failed to write file {}", file.getPath(), e);
+                                log.error("Failed to write file \"{}\"", file.getPath(), e);
                             }
                         });
                     }
@@ -892,7 +892,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                                 processedOperations.incrementAndGet();
                                 copyRepository.addDirectory(dir);
                             } catch (IOException e) {
-                                log.error("Failed to write file {}", PathNormalizer.physicalPath(dir.getPath()), e);
+                                log.error("Failed to write file \"{}\"", PathNormalizer.physicalPath(dir.getPath()), e);
                             }
                         });
                     }

@@ -37,7 +37,7 @@ public final class EncryptorFactory {
     public static boolean hasEncryptor(String encryption) {
         Holder holder = encryptors.get(encryption);
         if (holder == null)
-            throw new IllegalArgumentException("Unsupported encryption type " + encryption);
+            throw new IllegalArgumentException("Unsupported encryption type \"" + encryption + "\"");
         return true;
     }
 
@@ -52,7 +52,7 @@ public final class EncryptorFactory {
     public static Encryptor getEncryptor(String encryption) {
         Holder holder = encryptors.get(encryption);
         if (holder == null)
-            throw new IllegalArgumentException("Unsupported encryption type " + encryption);
+            throw new IllegalArgumentException("Unsupported encryption type \"" + encryption + "\"");
         if (holder.encryptor == null) {
             synchronized (holder) {
                 if (holder.encryptor == null) {

@@ -135,6 +135,7 @@ Contains information of how the backup repository is managed.
 * **hideNotifications** - Hide UI notifications except for errors. Defaults to off if not specified.
 * **versionCheck** - Controls whether to check for new versions online periodically. Defaults to on.
 * **automaticUpgrade** - Controls whether to automatically install a new version. Defaults to on.
+* **reportStats** - Report stats to service.
 
 ### Global limits
 

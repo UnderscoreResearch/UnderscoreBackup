@@ -51,11 +51,11 @@ public class BackupBlock {
             for (String hash : block.getHashes()) {
                 BackupBlock childBlock = repository.block(hash);
                 if (childBlock == null) {
-                    throw new IOException("Block " + hash + " not found");
+                    throw new IOException("Block \"" + hash + "\" not found");
                 }
                 blocks.add(childBlock);
             }
-            debug(() -> log.debug("Expanded super block {} to {} blocks", block.getHash(), readableNumber(blocks.size())));
+            debug(() -> log.debug("Expanded super block \"{}\" to {} blocks", block.getHash(), readableNumber(blocks.size())));
             return blocks;
         }
         return Lists.newArrayList(block);

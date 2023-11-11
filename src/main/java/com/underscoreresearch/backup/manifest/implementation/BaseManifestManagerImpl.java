@@ -41,7 +41,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.ParseException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
@@ -212,7 +211,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         } finally {
             if (logConsumer != null) {
                 if (logConsumer.lastSyncedLogFile(getShare()) != null && logConsumer.lastSyncedLogFile(getShare()).compareTo(uploadFilename) > 0) {
-                    log.warn("Uploaded log file {} out of order, already uploaded {}", uploadFilename,
+                    log.warn("Uploaded log file \"{}\" out of order, already uploaded \"{}\"", uploadFilename,
                             logConsumer.lastSyncedLogFile(getShare()));
                 } else {
                     logConsumer.setLastSyncedLogFile(getShare(), uploadFilename);
@@ -395,7 +394,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             data = encryptConfigData(unencryptedData);
         }
 
-        log.info("Uploading {} ({})", filename, readableSize(data.length));
+        log.info("Uploading \"{}\" ({})", filename, readableSize(data.length));
 
         Runnable success;
         if (deleteFilename != null) {
@@ -435,7 +434,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                     flush = true;
                 }
             } catch (IOException exc) {
-                log.error("Failed to save log entry: " + type + ": " + jsonDefinition, exc);
+                log.error("Failed to save log entry: " + type + ": \u200E" + jsonDefinition + "\u200E", exc);
 
                 try {
                     flushRepositoryLogging(false);
@@ -527,7 +526,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         String lastUploadFile = logConsumer.lastSyncedLogFile(getShare());
         if (lastUploadFile != null) {
             writeLogEntry("previousFile", MAPPER.writeValueAsString(lastUploadFile));
-            debug(() -> log.debug("Registering previous log file {} for {}", lastUploadFile, lastLogFilename));
+            debug(() -> log.debug("Registering previous log file \"{}\" for \"{}\"", lastUploadFile, lastLogFilename));
         }
 
         if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
@@ -572,7 +571,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 try {
                     currentLogLock.close();
                 } catch (IOException exc) {
-                    log.error("Failed to close log file lock {}", filename, exc);
+                    log.error("Failed to close log file lock \"{}\"", filename, exc);
                 }
                 currentLogLength = 0;
                 currentLogLock = null;
@@ -580,7 +579,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             try {
                 uploadLogFile(filename, data);
             } catch (IOException exc) {
-                throw new IOException(String.format("Failed to upload log file %s", filename), exc);
+                throw new IOException(String.format("Failed to upload log file \"%s\"", filename), exc);
             }
         }
     }
@@ -655,9 +654,9 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 try {
                     provider.delete(file);
                     counter.incrementAndGet();
-                    debug(() -> log.debug("Deleted {}", file));
+                    debug(() -> log.debug("Deleted \"{}\"", file));
                 } catch (IOException e) {
-                    log.error("Failed to delete {}", file, e);
+                    log.error("Failed to delete \"{}\"", file, e);
                 }
             });
         }

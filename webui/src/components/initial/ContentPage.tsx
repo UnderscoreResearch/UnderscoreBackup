@@ -39,7 +39,7 @@ function defaultSet(appContext: ApplicationContext): BackupSet {
     return appContext.backendState.defaultSet
 }
 
-export function ContentPage() {
+export default function ContentPage() {
     const appContext = useApplication();
     const theme = useTheme();
     const navigate = useNavigate();

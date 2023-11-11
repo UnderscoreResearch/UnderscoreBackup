@@ -52,7 +52,7 @@ public class RestartSetsPost extends BaseWrap {
                     try {
                         repository.deletePendingSets(set);
                     } catch (IOException e) {
-                        log.error("Failed to reset pending schedule for set {}", set);
+                        log.error("Failed to reset pending schedule for set \"{}\"", set);
                     }
                 });
                 InstanceFactory.reloadConfiguration(

@@ -74,13 +74,13 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                         if (destinationFile.equals("=")) {
                             originalFile = new File(PathNormalizer.physicalPath(source.getPath()));
                             if (!originalFile.isFile()) {
-                                log.warn("File missing locally {}", originalFile.getAbsolutePath());
+                                log.warn("File missing locally \"{}\"", originalFile.getAbsolutePath());
                                 originalFile = null;
                             } else if (!originalFile.canRead()) {
-                                log.warn("Can't read file {} to compare", originalFile.getAbsolutePath());
+                                log.warn("Can't read file \"{}\" to compare", originalFile.getAbsolutePath());
                                 originalFile = null;
                             } else if (originalFile.length() != source.getLength()) {
-                                log.warn("File size does not match {} ({} in backup, {} locally})", originalFile.getAbsolutePath(),
+                                log.warn("File size does not match \"{}\" ({} in backup, {} locally})", originalFile.getAbsolutePath(),
                                         readableSize(source.getLength()), readableSize(originalFile.length()));
                                 originalFile = null;
                             }
@@ -89,7 +89,7 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                                 try {
                                     originalStream = new FileInputStream(originalFile);
                                 } catch (IOException exc) {
-                                    log.warn("Can't open file {} to compare", originalFile.getAbsolutePath());
+                                    log.warn("Can't open file \"{}\" to compare", originalFile.getAbsolutePath());
                                 }
                             }
                         }
@@ -99,14 +99,14 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                                 List<BackupBlock> blocks = BackupBlock.expandBlock(part.getBlockHash(), repository);
                                 for (BackupBlock block : blocks) {
                                     if (block == null) {
-                                        throw new IOException(String.format("File referenced block %s that doesn't exist",
+                                        throw new IOException(String.format("File referenced block \"%s\" that doesn't exist",
                                                 part.getBlockHash()));
                                     }
                                     FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
                                     try {
                                         byte[] fileData = extractor.extractPart(part, block, password);
                                         if (fileData == null) {
-                                            throw new IOException("Failed to extra data for part of block " + block.getHash());
+                                            throw new IOException("Failed to extra data for part of block \"" + block.getHash() + "\"");
                                         }
 
                                         if (!isNullFile(destinationFile)) {
@@ -120,7 +120,7 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                                                 }
                                                 for (int j = 0; j < length; j++)
                                                     if (original[j] != fileData[j + originalOffset]) {
-                                                        String message = String.format("File %s does not match locally at location %s",
+                                                        String message = String.format("File \"%s\" does not match locally at location \"%s\"",
                                                                 PathNormalizer.physicalPath(source.getPath()), offset + j);
 
                                                         if (Files.getLastModifiedTime(originalFile.toPath()).toMillis() == source.getLastChanged())
@@ -137,14 +137,14 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
 
                                         offset += fileData.length;
                                         if ((offset - fileData.length) / GB != offset / GB) {
-                                            log.info("Processed {} / {} for {}", readableSize(offset), readableSize(source.getLength()),
+                                            log.info("Processed {} / {} for \"{}\"", readableSize(offset), readableSize(source.getLength()),
                                                     PathNormalizer.physicalPath(source.getPath()));
                                         }
 
                                         progress.setCompleted(offset);
                                     } catch (Exception exc) {
-                                        throw new IOException("Failed to download " + PathNormalizer.physicalPath(source.getPath())
-                                                + " because missing or corrupt block " + block.getHash(), exc);
+                                        throw new IOException("Failed to download \"" + PathNormalizer.physicalPath(source.getPath())
+                                                + " \"because missing or corrupt block \"" + block.getHash() + "\"", exc);
                                     }
                                 }
                             }
@@ -157,7 +157,7 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                             fileSystemAccess.completeFile(source, destinationFile, offset);
 
                         if (offset != source.getLength()) {
-                            throw new IOException(String.format("Expected file %s to be of size %s but was actually %s",
+                            throw new IOException(String.format("Expected file \"%s\" to be of size \u200E%s\u200E but was actually \u200E%s\u200E",
                                     PathNormalizer.physicalPath(source.getPath()), source.getLength(), offset));
                         }
                     }

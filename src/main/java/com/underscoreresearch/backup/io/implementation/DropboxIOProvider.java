@@ -107,7 +107,7 @@ public class DropboxIOProvider implements IOIndex {
         try {
             RetryUtils.retry(() -> clientV2.files().deleteV2(getFullPath(key)), null);
         } catch (Exception e) {
-            throw new IOException(String.format("Failed to delete %s", root + key), e);
+            throw new IOException(String.format("Failed to delete \"%s\"", root + key), e);
         }
     }
 

@@ -170,7 +170,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
             int index = 0;
             for (BackupSet set : configuration.getSets()) {
                 if (expiredSets.contains(set.getId())) {
-                    log.info("Rescheduling set {} after sleep", set.getId());
+                    log.info("Rescheduling set \"{}\" after sleep", set.getId());
                     restartSet(set, index);
                     scheduleNext(set, index);
                 }
@@ -216,7 +216,9 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                                 rescheduleCompletedSet(i, set);
                                 i++;
                                 if (set.getRetention() != null) {
-                                    backupStatsLogger.updateStats(trimmer.trimRepository(shouldOnlyDoFileTrim()));
+                                    boolean fileOnly = shouldOnlyDoFileTrim();
+                                    RepositoryTrimmer.Statistics statistics = trimmer.trimRepository(fileOnly);
+                                    backupStatsLogger.updateStats(statistics, !fileOnly);
                                     trimmer.resetStatus();
                                 }
                             } else {
@@ -228,7 +230,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                         }
                         scheduledRestart = false;
                     } catch (Exception exc) {
-                        log.error("Failed processing set {}", set.getId(), exc);
+                        log.error("Failed processing set \"{}\"", set.getId(), exc);
                         rescheduleCompletedSet(i, set);
                         i++;
                     }
@@ -309,7 +311,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 try {
                     repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
                 } catch (IOException e) {
-                    log.warn("Failed saving next scheduled time for backup set {}", set.getId());
+                    log.warn("Failed saving next scheduled time for backup set \"{}\"", set.getId());
                 }
             }
         }
@@ -443,7 +445,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                         try {
                             repository.addPendingSets(new BackupPendingSet(set.getId(), set.getSchedule(), date));
                         } catch (IOException e) {
-                            log.error("Failed to update pending set {}", set.getId());
+                            log.error("Failed to update pending set \"{}\"", set.getId());
                         }
                     } else {
                         pendingSet = null;
@@ -474,7 +476,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         try {
             repository.deletePendingSets(id);
         } catch (IOException e) {
-            log.error("Failed saving next scheduled time for backup set {}", id);
+            log.error("Failed saving next scheduled time for backup set \"{}\"", id);
         }
     }
 
@@ -500,7 +502,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     }
 
     private void scheduleNextAt(BackupSet set, int index, Date date) {
-        log.info("Schedule set {} to run again at {}", set.getId(), formatTimestamp(date.getTime()));
+        log.info("Schedule set \"{}\" to run again at {}", set.getId(), formatTimestamp(date.getTime()));
         synchronized (scheduledTimes) {
             scheduledTimes.put(set.getId(), new Date(date.getTime()));
             backupStatsLogger.updateScheduledTimes(scheduledTimes);
@@ -518,13 +520,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         lock.lock();
         try {
             if (!pendingSets[index]) {
-                log.info("Restarting scan of {} for {}", set.getAllRoots(), set.getId());
+                log.info("Restarting scan of {} for \"{}\"", set.getAllRoots(), set.getId());
                 scheduledRestart = true;
                 pendingSets[index] = true;
                 scanner.shutdown();
                 condition.signal();
             } else {
-                log.info("Set {} not completed, so not restarting it", set.getId());
+                log.info("Set \"{}\" not completed, so not restarting it", set.getId());
             }
             scheduleNext(set, index);
         } finally {

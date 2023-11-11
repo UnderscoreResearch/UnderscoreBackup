@@ -98,11 +98,11 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         boolean needStorageValidation = BackupSetDestinations.needStorageValidation(
                 manifestLocation, backupSet, originalActivePaths.isEmpty());
         if (needStorageValidation)
-            log.info("Enabled storage validation for set {}", backupSet.getId());
+            log.info("Enabled storage validation for set \"{}\"", backupSet.getId());
 
         if (!pendingPaths.isEmpty()) {
-            debug(() -> log.debug("Resuming paths from {}", pendingPaths.keySet().stream().map(PathNormalizer::physicalPath)
-                    .collect(Collectors.joining("; "))));
+            debug(() -> log.debug("Resuming paths from \"{}\"", pendingPaths.keySet().stream().map(PathNormalizer::physicalPath)
+                    .collect(Collectors.joining("\", \""))));
         }
 
         if (!registerBackupRoots(backupSet)) {
@@ -138,7 +138,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         if (!shutdown) {
             while (!pendingPaths.isEmpty()) {
                 String path = pendingPaths.lastKey();
-                log.info("Closing remaining active path: " + path);
+                log.info("Closing remaining active path: \"" + path + "\"");
                 updateActivePath(backupSet, path, true);
             }
 
@@ -157,7 +157,8 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
     }
 
     private String formatPathList(Collection<String> keySet) {
-        return keySet.stream().map(PathNormalizer::physicalPath).collect(Collectors.joining(", "));
+        return "\"" + keySet.stream().map(PathNormalizer::physicalPath)
+                .collect(Collectors.joining("\", \"")) + "\"";
     }
 
     private boolean registerBackupRoots(BackupSet backupSet) {
@@ -184,7 +185,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     try {
                         repository.popActivePath(backupSet.getId(), path);
                     } catch (IOException e) {
-                        log.error("Failed to remove invalid active path: " + path);
+                        log.error("Failed to remove invalid active path: \"" + path + "\"");
                     }
                     iterator.remove();
                 }
@@ -237,7 +238,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
 
         if (duration != null && (lastPath == null || lastPath.toMinutes() != duration.elapsed().toMinutes())) {
             lastPath = duration.elapsed();
-            log.info("Started processing {}", PathNormalizer.physicalPath(currentPath));
+            log.info("Started processing \"{}\"", PathNormalizer.physicalPath(currentPath));
         }
 
         Set<BackupFile> directoryFiles = filesystem.directoryFiles(currentPath);
@@ -275,7 +276,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                         try {
                             existingFile = repository.file(file.getPath(), null);
                         } catch (IOException e) {
-                            log.error("Failed to read metadata about file for {}. Backing up again to be sure. Consider doing rebuild-repository.", PathNormalizer.physicalPath(file.getPath()), e);
+                            log.error("Failed to read metadata about file for \"{}\". Backing up again to be sure. Consider doing rebuild-repository.", PathNormalizer.physicalPath(file.getPath()), e);
                             existingFile = null;
                         }
 
@@ -286,7 +287,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                                 || !existingFile.getLength().equals(file.getLength())
                                 || (needStorageValidation && invalidStorage(existingFile, set))) {
                             lock.unlock();
-                            log.info("Backing up {} ({})", PathNormalizer.physicalPath(file.getPath()), readableSize(file.getLength()));
+                            log.info("Backing up \"{}\" ({})", PathNormalizer.physicalPath(file.getPath()), readableSize(file.getLength()));
                             outstandingFiles.incrementAndGet();
                             pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCOMPLETE);
 
@@ -297,7 +298,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                                 outstandingFiles.decrementAndGet();
                                 if (!success) {
                                     if (!IOUtils.hasInternet()) {
-                                        log.warn("Lost internet connection, shutting down set {} backup", set.getId());
+                                        log.warn("Lost internet connection, shutting down set \"{}\" backup", set.getId());
                                         shutdown();
                                         return;
                                     }
@@ -321,7 +322,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                                     && existingFile.getLength().equals(file.getLength())) {
                                 existingFile.setDeleted(null);
                                 repository.addFile(existingFile);
-                                log.info("File {} undeleted", PathNormalizer.physicalPath(file.getPath()));
+                                log.info("File \"{}\" undeleted", PathNormalizer.physicalPath(file.getPath()));
                             }
                             pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCLUDED);
                         }
@@ -335,7 +336,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         for (BackupActiveFile file : pendingFiles.getFiles()) {
             if (file.getStatus() == null) {
                 file.setStatus(BackupActiveStatus.EXCLUDED);
-                debug(() -> log.debug("File " + PathNormalizer.physicalPath(file.getPath()) + " missing"));
+                debug(() -> log.debug("File \"" + PathNormalizer.physicalPath(file.getPath()) + "\" missing"));
             }
         }
 
@@ -372,12 +373,12 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                             }
 
                             if (!destinations.isEmpty()) {
-                                log.warn("Missing destinations for existing {}", PathNormalizer.physicalPath(existingFile.getPath()));
+                                log.warn("Missing destinations for existing \"{}\"", PathNormalizer.physicalPath(existingFile.getPath()));
                                 return true;
                             }
                         }
                     } catch (IOException e) {
-                        log.error("Failed to get block for existing file {}", PathNormalizer.physicalPath(existingFile.getPath()), e);
+                        log.error("Failed to get block for existing file \"{}\"", PathNormalizer.physicalPath(existingFile.getPath()), e);
                         return true;
                     }
                 }
@@ -416,11 +417,11 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
             pendingPaths.put(path, activePath);
 
             final String debugPath = path;
-            debug(() -> log.debug("Started processing {}", PathNormalizer.physicalPath(debugPath)));
+            debug(() -> log.debug("Started processing \"{}\"", PathNormalizer.physicalPath(debugPath)));
             try {
                 repository.pushActivePath(set.getId(), path, activePath);
             } catch (IOException e) {
-                log.error("Failed to add active path " + path, e);
+                log.error("Failed to add active path \"" + path + "\"", e);
             }
         }
     }
@@ -447,10 +448,10 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                         }
                     }
                 } catch (IOException e) {
-                    log.error("Failed to record completing " + currentPath, e);
+                    log.error("Failed to record completing \"" + currentPath + "\"", e);
                 }
                 pendingPaths.remove(currentPath);
-                debug(() -> log.debug("Completed processing {}", PathNormalizer.physicalPath(currentPath)));
+                debug(() -> log.debug("Completed processing \"{}\"", PathNormalizer.physicalPath(currentPath)));
                 String parent = BackupActivePath.findParent(currentPath);
                 if (parent != null) {
                     BackupActivePath parentActive = pendingPaths.get(parent);
@@ -467,7 +468,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                 try {
                     repository.pushActivePath(set.getId(), currentPath, pending);
                 } catch (IOException e) {
-                    log.error("Failed to record updating " + currentPath, e);
+                    log.error("Failed to record updating \"" + currentPath + "\"", e);
                 }
             }
         }

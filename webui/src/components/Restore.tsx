@@ -45,27 +45,7 @@ import Divider from "@mui/material/Divider";
 import {listShares, listSources, ShareResponse, SourceResponse} from "../api/service";
 import {ApplicationContext, DestinationProp, useApplication} from "../utils/ApplicationContext";
 import {useButton} from "../utils/ButtonContext";
-
-export interface RestorePropsChange {
-    password: string,
-    timestamp?: Date,
-    roots: BackupSetRoot[],
-    destination?: string,
-    overwrite: boolean,
-    source?: string,
-    includeDeleted?: boolean,
-    skipPermissions?: boolean
-}
-
-export interface RestoreProps {
-    password?: string,
-    timestamp?: Date,
-    destination?: string,
-    overwrite: boolean,
-    roots: BackupSetRoot[],
-    includeDeleted?: boolean
-    restoreUpdated: (state: RestorePropsChange) => void
-}
+import {RestoreProps} from "../MainApp";
 
 export interface RestoreState {
     password: string,

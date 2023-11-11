@@ -125,10 +125,10 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                     if (!recoveryMode) {
                         String lastFile = MAPPER.readValue(json, String.class);
                         if (!lastFile.equals(repository.lastSyncedLogFile(null))) {
-                            log.warn("Expected previous log file to be {} but got {}, could mean either missing data or backup tampering", lastFile,
+                            log.warn("Expected previous log file to be \"{}\" but got \"{}\", could mean either missing data or backup tampering", lastFile,
                                     repository.lastSyncedLogFile(null));
                         } else {
-                            debug(() -> log.debug("Validated previous log file {}", lastFile));
+                            debug(() -> log.debug("Validated previous log file \"{}\"", lastFile));
                         }
                     }
                 })
@@ -239,7 +239,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                         }
                         writeLogEntry(entry.getValue(), "file", file);
                     } catch (Exception e) {
-                        log.error("Failed to share file " + PathNormalizer.physicalPath(file.getPath()), e);
+                        log.error("Failed to share file \"" + PathNormalizer.physicalPath(file.getPath()) + "\"", e);
                     }
                 }
             }
@@ -257,12 +257,12 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 }
                 writeLogEntry(shareManager, "block", block);
             } else {
-                throw new IOException(String.format("Missing superblock %s for share key %s", blockHash, publicKey));
+                throw new IOException(String.format("Missing superblock \"%s\" for share key \"%s\"", blockHash, publicKey));
             }
         } else {
             BackupBlockAdditional additional = repository.additionalBlock(publicKey, blockHash);
             if (additional == null) {
-                throw new IOException(String.format("Missing block %s for share key %s", blockHash, publicKey));
+                throw new IOException(String.format("Missing block \"%s\" for share key \"%s\"", blockHash, publicKey));
             }
             if (!additional.isUsed()) {
                 additional.setUsed(true);

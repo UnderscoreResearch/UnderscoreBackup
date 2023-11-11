@@ -68,7 +68,7 @@ public class DownloadConfigCommand extends Command {
                     log.info("Successfully downloaded and replaced the configuration file");
                 } else {
                     ConfigurationPost.updateSourceConfiguration(config, false);
-                    log.info("Successfully downloaded and the configuration file for {}", source);
+                    log.info("Successfully downloaded and the configuration file for \"{}\"", source);
                 }
             } else {
                 EncryptionKey.PrivateKey privateKey = validatePrivateKey(sourceResponse, key);
@@ -82,7 +82,7 @@ public class DownloadConfigCommand extends Command {
                 }
 
                 ConfigurationPost.updateSourceConfiguration(config, false);
-                log.info("Successfully downloaded and the configuration file for {}", sourceResponse.getName());
+                log.info("Successfully downloaded and the configuration file for \"{}\"", sourceResponse.getName());
             }
 
             reloadIfRunning();

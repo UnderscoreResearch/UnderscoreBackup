@@ -38,6 +38,7 @@ import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 import org.apache.logging.log4j.util.Strings;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 
 @Plugin(name = "LogWriter",
         category = Core.CATEGORY_NAME,
@@ -179,7 +180,7 @@ public class LogWriter extends AbstractAppender {
             if (file.exists()) {
                 deleteFile(new File(nextFileName));
                 if (!file.renameTo(new File(nextFileName))) {
-                    unPostedLogs.add(() -> log.error("Failed to rename log file {} to {}", fileName, nextFileName));
+                    unPostedLogs.add(() -> log.error("Failed to rename log file \"{}\" to \"{}\"", fileName, nextFileName));
                     return;
                 }
             }
@@ -223,8 +224,17 @@ public class LogWriter extends AbstractAppender {
 
         if (stream != null) {
             try {
-                stream.write(getLayout().toByteArray(event));
+                byte[] error = getLayout().toByteArray(event);
+                stream.write(error);
                 stream.flush();
+
+                switch (event.getLevel().getStandardLevel()) {
+                    case FATAL:
+                    case ERROR:
+                        BackupStatsLogger.writeEncounteredError(error);
+                        System.err.write(error);
+                        break;
+                }
             } catch (IOException e) {
                 System.err.println("Failed to write to log");
                 e.printStackTrace(System.err);

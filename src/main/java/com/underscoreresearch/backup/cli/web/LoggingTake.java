@@ -24,14 +24,14 @@ public class LoggingTake implements Take {
         String method = new RqMethod.Base(req).method();
         try {
             if (!href.path().endsWith("/api/activity")) {
-                debug(() -> log.debug("{} {}", method, href));
+                debug(() -> log.debug("{} \"{}\"", method, href));
             }
             return take.act(req);
         } catch (HttpException httpException) {
-            debug(() -> log.debug("{} {}: {}", method, href, httpException.code()));
+            debug(() -> log.debug("{} \"{}\": {}", method, href, httpException.code()));
             throw httpException;
         } catch (Throwable exc) {
-            log.error("{} {}: 500", method, href, exc);
+            log.error("{} \"{}\": 500", method, href, exc);
             throw exc;
         }
     }

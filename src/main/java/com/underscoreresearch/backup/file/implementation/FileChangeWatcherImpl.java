@@ -220,7 +220,7 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                                     anyChanged = true;
                                 }
                             } catch (IOException e) {
-                                log.warn("Failed processing file change for {}", path, e);
+                                log.warn("Failed processing file change for \"{}\"", path, e);
                             }
                         }
                     }

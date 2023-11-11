@@ -127,7 +127,7 @@ public class CommandLineModule extends AbstractModule {
                 return date;
             }
         }
-        throw new ParseException("Failed to derive date from parameter: " + commandLine.getOptionValue(TIMESTAMP));
+        throw new ParseException("Failed to derive date from parameter: \"" + commandLine.getOptionValue(TIMESTAMP) + "\"");
     }
 
     public static String getDefaultUserManifestLocation() {
@@ -296,7 +296,7 @@ public class CommandLineModule extends AbstractModule {
                         return service.get().getSourceId();
                     }
                 }
-                throw new ParseException(String.format("Additional source %s not in config file", additionalSource));
+                throw new ParseException(String.format("Additional source \"%s\" not in config file", additionalSource));
             }
             return additionalSource;
         }
@@ -467,7 +467,7 @@ public class CommandLineModule extends AbstractModule {
                 createDirectory(file, false);
                 return file.getAbsolutePath();
             } catch (IOException exc) {
-                log.warn("Failed to resolve default manifest location from config location {}",
+                log.warn("Failed to resolve default manifest location from config location \"{}\"",
                         commandLine.getOptionValue(CONFIG));
             }
         }

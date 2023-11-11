@@ -29,6 +29,7 @@ public class BackupManifest {
     private Boolean ignorePermissions;
     private Boolean versionCheck;
     private Boolean automaticUpgrade;
+    private Boolean reportStats;
     private BackupTimespan scheduleRandomize;
 
     private String trimSchedule;

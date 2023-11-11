@@ -86,7 +86,7 @@ public class SearchBackupFilesGet extends BaseWrap {
                         throw new BackupSearchAccessImpl.InterruptedSearch();
                     }
                 });
-            } catch (BackupSearchAccessImpl.InterruptedSearch exc) {
+            } catch (BackupSearchAccessImpl.InterruptedSearch ignored) {
             }
         }
 

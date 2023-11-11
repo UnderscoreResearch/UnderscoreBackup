@@ -148,7 +148,7 @@ public class ServiceManagerImpl implements ServiceManager {
     public static void downloadRelease(ReleaseResponse release, ReleaseFileItem item, File destination)
             throws IOException {
         HttpURLConnection connection;
-        log.info("Downloading {} to {} ({})", item.getName(), destination, readableSize(item.getSize().longValue()));
+        log.info("Downloading \"{}\" to \"{}\" ({})", item.getName(), destination, readableSize(item.getSize().longValue()));
         if (item.getSecureUrl() != null && release.getToken() != null) {
             URL url;
             try {
@@ -465,7 +465,7 @@ public class ServiceManagerImpl implements ServiceManager {
                         log.error("Could not find matching private key for sharing key");
                     }
                 } else {
-                    log.warn("Share primary keys need to be updated for share {}", share.getName());
+                    log.warn("Share primary keys need to be updated for share \"{}\"", share.getName());
                 }
                 return false;
             }

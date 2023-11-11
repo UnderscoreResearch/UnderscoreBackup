@@ -113,7 +113,7 @@ public class AwtUIManager implements UIManager {
             try {
                 Desktop.getDesktop().open(path);
             } catch (IOException e) {
-                log.warn("Failed to open folder {}", path.toString(), e);
+                log.warn("Failed to open folder \"{}\"", path.toString(), e);
             }
         }
     }
@@ -124,7 +124,7 @@ public class AwtUIManager implements UIManager {
             try {
                 Desktop.getDesktop().browse(uri);
             } catch (IOException e) {
-                log.warn("Failed to open uri {}", uri.toString(), e);
+                log.warn("Failed to open uri \"{}\"", uri.toString(), e);
             }
         }
     }

@@ -47,7 +47,7 @@ public final class ErrorCorrectorFactory {
     public static ErrorCorrector getCorrector(String ec) {
         Class<? extends ErrorCorrector> clz = correctors.get(ec);
         if (clz == null)
-            throw new IllegalArgumentException("Unsupported error correction type " + ec);
+            throw new IllegalArgumentException("Unsupported error correction type \"" + ec + "\"");
         return InstanceFactory.getInstance(clz);
     }
 

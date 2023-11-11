@@ -56,7 +56,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
         if (!matcher.find()) {
             matcher = URI_PARSER.matcher(destination.getEndpointUri());
             if (!matcher.find()) {
-                throw new IllegalArgumentException("Invalid SMB path or URI" + destination.getEndpointUri());
+                throw new IllegalArgumentException("Invalid SMB path or URI \"" + destination.getEndpointUri() + "\"");
             }
             root = matcher.group(3).replace("/", "\\");
         } else {
@@ -168,7 +168,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
                     null)) {
                 try (InputStream stream = file.getInputStream()) {
                     byte[] data = IOUtils.readAllBytes(stream);
-                    debug(() -> log.debug("Read {} ({})", key, readableSize(data.length)));
+                    debug(() -> log.debug("Read \"{}\" ({})", key, readableSize(data.length)));
                     return data;
                 }
             }

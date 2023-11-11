@@ -81,7 +81,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
             try {
                 int length = access.readData(file.getPath(), buffer, 0, (int) (long) file.getLength());
                 if (length != file.getLength()) {
-                    log.warn("Only read {} when expected {} for {}",
+                    log.warn("Only read {} when expected {} for \"{}\"",
                             readableSize(length),
                             readableSize(file.getLength()),
                             PathNormalizer.physicalPath(file.getPath()));
@@ -89,13 +89,13 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
                     return true;
                 }
             } catch (IOException exc) {
-                log.warn("Failed to read file {}: {}", PathNormalizer.physicalPath(file.getPath()), exc.getMessage());
+                log.warn("Failed to read file \"{}\": {}", PathNormalizer.physicalPath(file.getPath()), exc.getMessage());
                 completionFuture.completed(null);
                 return true;
             }
             internalAssignBlock(set, buffer, completionFuture);
         } catch (Exception e) {
-            log.error("Failed to create block for " + PathNormalizer.physicalPath(file.getPath()), e);
+            log.error("Failed to create block for \"" + PathNormalizer.physicalPath(file.getPath()) + "\"", e);
             completionFuture.completed(null);
         }
 
@@ -147,7 +147,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
             CachedData data = cache.get(new KeyFetch(file.getBlockHash(), password));
             return data.get(file.getBlockIndex(), file.getPartHash());
         } catch (ExecutionException e) {
-            throw new IOException("Failed to process contents of block " + file.getBlockHash(), e);
+            throw new IOException("Failed to process contents of block \"" + file.getBlockHash() + "\"", e);
         }
     }
 
@@ -217,7 +217,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
                             }
                         }
                     } else {
-                        log.warn("Block " + part.getBlockHash() + " did not exist");
+                        log.warn("Block \"" + part.getBlockHash() + "\" did not exist");
                         skip = true;
                     }
                     if (!skip) {

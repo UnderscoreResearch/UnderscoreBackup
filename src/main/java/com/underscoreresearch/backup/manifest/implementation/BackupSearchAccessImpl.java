@@ -135,7 +135,7 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
                     return true;
                 }
             } catch (ExecutionException e) {
-                throw new RuntimeException(String.format("Failed fetching contents for %s", parent), e);
+                throw new RuntimeException(String.format("Failed fetching contents for \"%s\"", parent), e);
             }
             parent = child;
             ind = path.indexOf(PathNormalizer.PATH_SEPARATOR, ind + 1);

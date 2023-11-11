@@ -48,7 +48,7 @@ public final class IOProviderFactory {
                 try {
                     closeable.close();
                 } catch (IOException e) {
-                    log.error("Failed to close IO provider for {}", entry.getKey().getEndpointUri());
+                    log.error("Failed to close IO provider for \"{}\"", entry.getKey().getEndpointUri());
                 }
             }
         }
@@ -76,7 +76,7 @@ public final class IOProviderFactory {
         }
         Class<? extends IOProvider> clz = providerClasses.get(destination.getType());
         if (clz == null)
-            throw new IllegalArgumentException("Unsupported provider type " + destination.getType());
+            throw new IllegalArgumentException("Unsupported provider type \"" + destination.getType() + "\"");
 
         try {
             Constructor<? extends IOProvider> constructor = clz.getConstructor(BackupDestination.class);
@@ -85,7 +85,7 @@ public final class IOProviderFactory {
             return provider;
         } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
                  InvocationTargetException e) {
-            throw new IllegalArgumentException("Invalid provider type " + destination.getType(), e);
+            throw new IllegalArgumentException("Invalid provider type \"" + destination.getType() + "\"", e);
         }
     }
 
@@ -104,7 +104,7 @@ public final class IOProviderFactory {
 
                     @Override
                     public String upload(String suggestedKey, byte[] data) throws IOException {
-                        throw new IOException(String.format("Cant upload data to %s", InstanceFactory.getAdditionalSource()));
+                        throw new IOException(String.format("Cant upload data to \"%s\"", InstanceFactory.getAdditionalSource()));
                     }
 
                     @Override
@@ -114,7 +114,7 @@ public final class IOProviderFactory {
 
                     @Override
                     public void delete(String key) throws IOException {
-                        throw new IOException(String.format("Cant delete data from %s", InstanceFactory.getAdditionalSource()));
+                        throw new IOException(String.format("Cant delete data from \"%s\"", InstanceFactory.getAdditionalSource()));
                     }
 
                     @Override
@@ -131,7 +131,7 @@ public final class IOProviderFactory {
                 return new IOProvider() {
                     @Override
                     public String upload(String suggestedKey, byte[] data) throws IOException {
-                        throw new IOException(String.format("Cant upload data to %s", InstanceFactory.getAdditionalSource()));
+                        throw new IOException(String.format("Cant upload data to \"%s\"", InstanceFactory.getAdditionalSource()));
                     }
 
                     @Override
@@ -141,7 +141,7 @@ public final class IOProviderFactory {
 
                     @Override
                     public void delete(String key) throws IOException {
-                        throw new IOException(String.format("Cant delete data from %s", InstanceFactory.getAdditionalSource()));
+                        throw new IOException(String.format("Cant delete data from \"%s\"", InstanceFactory.getAdditionalSource()));
                     }
 
                     @Override

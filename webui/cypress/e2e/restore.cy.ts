@@ -30,8 +30,8 @@ it('restore', function () {
 
     cy.visit(configInterface);
 
-    cy.get('#uiPassword').type('KqNK4bFj8ZTc');
-    cy.get('#acceptButton').click();
+    cy.get('#password').type('KqNK4bFj8ZTc');
+    cy.get('#actionButton').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('#restorePassword').clear();
