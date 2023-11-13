@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.cli.commands.InteractiveCommand.suppressedOpen;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.URL_LOCATION;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -49,10 +50,10 @@ public class ConfigureCommand extends SimpleCommand {
                 throw new IOException("Got response code " + connection.getResponseCode());
             }
         } catch (SocketException exc) {
-            log.info("Failed pinging daemon");
+            debug(() -> log.debug("Failed pinging daemon"));
             throw new ConfigurationUrlException("Daemon does not appear to be running");
         } catch (Exception exc) {
-            log.info("Failed pinging daemon", exc);
+            debug(() -> log.debug("Failed pinging daemon", exc));
             throw new ConfigurationUrlException("Failed to ping daemon");
         }
     }

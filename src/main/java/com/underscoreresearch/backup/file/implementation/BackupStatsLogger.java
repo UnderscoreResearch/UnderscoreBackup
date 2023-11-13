@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
@@ -58,6 +59,11 @@ public class BackupStatsLogger implements StatusLogger {
         this.configuration = configuration;
 
         statistics = readStatistics();
+
+        setErrorFile(manifestPath);
+    }
+
+    private static void setErrorFile(String manifestPath) {
         if (errorFile == null) {
             errorFile = new File(manifestPath, "error.txt");
         }
@@ -65,7 +71,8 @@ public class BackupStatsLogger implements StatusLogger {
 
     public static void writeEncounteredError(byte[] errorBytes) {
         try {
-            if (!errorFile.exists()) {
+            ensureErrorFile();
+            if (errorFile != null && !errorFile.exists()) {
                 try (FileWriter fileWriter = new FileWriter(errorFile, StandardCharsets.UTF_8)) {
                     fileWriter.write(cleanError(new String(errorBytes, StandardCharsets.UTF_8)));
                 }
@@ -80,6 +87,7 @@ public class BackupStatsLogger implements StatusLogger {
     }
 
     public static String extractEncounteredError() {
+        ensureErrorFile();
         if (errorFile != null && errorFile.exists()) {
             try {
                 String ret;
@@ -93,6 +101,15 @@ public class BackupStatsLogger implements StatusLogger {
             }
         }
         return null;
+    }
+
+    private static void ensureErrorFile() {
+        if (errorFile == null) {
+            try {
+                setErrorFile(InstanceFactory.getInstance(MANIFEST_LOCATION));
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     private File getStatisticsFile() {
