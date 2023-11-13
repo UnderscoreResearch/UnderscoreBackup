@@ -20,6 +20,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
+import com.underscoreresearch.backup.service.api.BackupApi;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -188,8 +189,17 @@ public class SourcesPut extends BaseWrap {
                 }
                 EncryptionKey existingKey = encryptionKey();
 
-                SourceResponse sourceDefinition = serviceManager.call(null, (api) -> api
-                        .getSource(request.getSourceId()));
+                SourceResponse sourceDefinition = serviceManager.call(null, new ServiceManager.ApiFunction<SourceResponse>() {
+                    @Override
+                    public SourceResponse call(BackupApi api) throws ApiException {
+                        return api.getSource(request.getSourceId());
+                    }
+
+                    @Override
+                    public boolean shouldRetryMissing(String region) {
+                        return true;
+                    }
+                });
 
                 String identity = InstanceFactory.getInstance(CommandLineModule.INSTALLATION_IDENTITY);
 

@@ -4,10 +4,12 @@ import {
     Alert,
     Button,
     CircularProgress,
+    Collapse,
     FormControl,
-    FormControlLabel, FormLabel,
+    FormControlLabel,
     Grid,
-    Radio, RadioGroup,
+    Radio,
+    RadioGroup,
     Stack,
     TextField
 } from "@mui/material";
@@ -52,7 +54,7 @@ export default function SourcePage(props: SourcePageProps) {
 
     async function fetchSources() {
         if (!state.sourceList) {
-            const sources = await listSources(false);
+            let sources = await listSources(false);
             setState((oldState) => ({
                 ...oldState,
                 sourceList: sources.sources,
@@ -104,108 +106,129 @@ export default function SourcePage(props: SourcePageProps) {
         <Paper sx={{
             p: 2,
         }}>
-            {state.sourceList && state.sourceList.length > 0 ?
-                <>
-                    <Typography variant="h3" component="div" marginBottom={"16px"}>
-                        Adopt existing source?
-                    </Typography>
-                    <Typography variant="body1" component="div">
-                        <p>
-                            Would you like to adopt an existing backup source or start a new one?
-                        </p>
-                        <Alert severity="warning">
-                            Adopting an existing source will stop any backup currently backing up to that source.
-                        </Alert>
-                    </Typography>
-                </>
-                :
-                <Typography variant="h3" component="div" marginBottom={"16px"}>
-                    Name your backup source
-                </Typography>
-            }
-
-            <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
-                {state.sourceList ?
-                    <>
-                        {state.sourceList.length > 0 &&
-                            <Grid item xs={12}>
-                                <FormControl>
-                                    <RadioGroup row onChange={(e, val) => setState({...state, type: val})}>
-                                        <FormControlLabel id="newChoice" value="new" control={<Radio />} label={<Typography fontSize={"larger"}>Create a new backup</Typography>} />
-                                        <FormControlLabel id="adoptChoice" value="adopt" control={<Radio />} label={<Typography fontSize={"larger"}>Take over an already existing backup</Typography>} />
-                                    </RadioGroup>
-                                </FormControl>
-                            </Grid>
-                        }
-                        {state.type == "adopt" && state.sourceList.length > 0 &&
-                            <Grid item xs={12}>
-                                <Typography variant="h6" component="div" marginBottom={"16px"}>
-                                    Existing backup sources
-                                </Typography>
-                            </Grid>
-                        }
-                        {state.type == "adopt" && state.sourceList.map(source =>
-                            <Fragment key={source.sourceId}>
-                                <Grid item md={9} xs={12}>
-                                    <b>{source.name}</b>
-
-                                    {(!source.destination || !source.key || !source.encryptionMode) ?
-                                        <> (No configuration)</>
-                                        :
-                                        <>
-                                            {source.dailyUsage.length > 0 && source.dailyUsage[0].usage ?
-                                                <> ({formatNumber(source.dailyUsage[0].usage)} GB{formatDate(source.lastUsage)})</>
-                                                :
-                                                <> (No service data)</>
-                                            }
-                                        </>
-                                    }
-                                </Grid>
-                                <Grid item md={3} xs={12}>
-                                    <Button fullWidth={true} disabled={state.busy} variant="contained"
-                                            id="adoptSource"
-                                            onClick={() => adoptSource(source.sourceId, source.name)}>
-                                        Adopt
-                                    </Button>
-                                </Grid>
-                            </Fragment>
-                        )}
-                    </>
-                    :
+            {state.sourceList === undefined ?
+                <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
                     <Grid item xs={12}>
                         <Box textAlign={"center"}>
                             <CircularProgress/>
                         </Box>
                     </Grid>
-                }
-                { (state.type === "new" || (state.sourceList && state.sourceList.length === 0)) &&
-                    <>
-                        <Grid item xs={12}>
-                            <Typography variant="h6" component="div" marginBottom={"16px"}>
-                                Create a new backup source
+                </Grid>
+                :
+                <>
+                    {state.sourceList.length > 0 ?
+                        <>
+                            <Typography variant="h3" component="div" marginBottom={"16px"}>
+                                Adopt existing source?
                             </Typography>
+                            <Typography variant="body1" component="div">
+                                <p>
+                                    Would you like to adopt an existing backup source or start a new one?
+                                </p>
+                                <Alert severity="warning">
+                                    Adopting an existing source will stop any backup currently backing up to that
+                                    source.
+                                </Alert>
+                            </Typography>
+                        </>
+                        :
+                        <Typography variant="h3" component="div" marginBottom={"16px"}>
+                            Name your backup source
+                        </Typography>
+                    }
+
+                    {state.sourceList.length > 0 &&
+                        <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
+                            <Grid item xs={12}>
+                                <FormControl>
+                                    <RadioGroup row
+                                                onChange={(ignored, val) => setState({...state, type: val})}>
+                                        <FormControlLabel id="newChoice" value="new" control={<Radio/>}
+                                                          label={<Typography fontSize={"larger"}>Create a new
+                                                              backup</Typography>}/>
+                                        <FormControlLabel id="adoptChoice" value="adopt" control={<Radio/>}
+                                                          label={<Typography fontSize={"larger"}>Take over an
+                                                              already
+                                                              existing backup</Typography>}/>
+                                    </RadioGroup>
+                                </FormControl>
+                            </Grid>
                         </Grid>
-                        <Grid item md={9} xs={12}>
-                            <TextField
-                                id={"sourceName"}
-                                fullWidth={true}
-                                value={state.sourceName}
-                                onChange={e => setState({
-                                    ...state,
-                                    sourceName: e.target.value
-                                })}
-                            />
-                        </Grid>
-                        <Grid item md={3} xs={12}>
-                            <Button fullWidth={true} disabled={state.busy || !state.sourceName} variant="contained"
-                                    id="newSource"
-                                    onClick={() => newSource()}>
-                                <>New Source</>
-                            </Button>
-                        </Grid>
-                    </>
-                }
-            </Grid>
+                    }
+                    <Collapse in={state.type == "adopt" && state.sourceList.length > 0}>
+                        {state.type == "adopt" && state.sourceList.length > 0 &&
+                            <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
+                                <Grid item xs={12}>
+                                    <Typography variant="h6" component="div" marginBottom={"16px"}>
+                                        Existing backup sources
+                                    </Typography>
+                                </Grid>
+                            </Grid>
+                        }
+                        {state.type == "adopt" &&
+                            <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
+                                {state.sourceList.map(source =>
+                                    <Fragment key={source.sourceId}>
+                                        <Grid item md={9} xs={12}>
+                                            <b>{source.name}</b>
+
+                                            {(!source.destination || !source.key || !source.encryptionMode) ?
+                                                <> (No configuration)</>
+                                                :
+                                                <>
+                                                    {source.dailyUsage.length > 0 && source.dailyUsage[0].usage ?
+                                                        <> ({formatNumber(source.dailyUsage[0].usage)} GB{formatDate(source.lastUsage)})</>
+                                                        :
+                                                        <> (No service data)</>
+                                                    }
+                                                </>
+                                            }
+                                        </Grid>
+                                        <Grid item md={3} xs={12}>
+                                            <Button fullWidth={true} disabled={state.busy} variant="contained"
+                                                    id="adoptSource"
+                                                    onClick={() => adoptSource(source.sourceId, source.name)}>
+                                                Adopt
+                                            </Button>
+                                        </Grid>
+                                    </Fragment>
+                                )}
+                            </Grid>
+                        }
+                    </Collapse>
+
+                    <Collapse in={(state.type === "new" || state.sourceList.length === 0)}>
+                        {(state.type === "new" || state.sourceList.length === 0) &&
+                            <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
+                                <Grid item xs={12}>
+                                    <Typography variant="h6" component="div" marginBottom={"16px"}>
+                                        Create a new backup source
+                                    </Typography>
+                                </Grid>
+                                <Grid item md={9} xs={12}>
+                                    <TextField
+                                        id={"sourceName"}
+                                        fullWidth={true}
+                                        value={state.sourceName}
+                                        onChange={e => setState({
+                                            ...state,
+                                            sourceName: e.target.value
+                                        })}
+                                    />
+                                </Grid>
+                                <Grid item md={3} xs={12}>
+                                    <Button fullWidth={true} disabled={state.busy || !state.sourceName}
+                                            variant="contained"
+                                            id="newSource"
+                                            onClick={() => newSource()}>
+                                        <>New Source</>
+                                    </Button>
+                                </Grid>
+                            </Grid>
+                        }
+                    </Collapse>
+                </>
+            }
         </Paper>
     </Stack>
 }

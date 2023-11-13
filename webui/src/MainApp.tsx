@@ -416,22 +416,23 @@ export default function MainApp() {
             <Route path="authorizeaccept" element={<AuthorizeAccept updatedToken={updateBackendState}/>}/>
             <Route path="settings" element={<Settings/>}/>
             <Route path="destinations" element={<Destinations destinationsUpdated={(valid) => setState((oldState) => ({
-                    ...oldState,
-                    destinationValid: valid
-                }))}/>}/>
+                ...oldState,
+                destinationValid: valid
+            }))}/>}/>
             <Route path="sets" element={<Sets
-                    allowReset={(displayState.backupCanStart || displayState.backupInProgress) && !!appContext.currentConfiguration.manifest.interactiveBackup}
-                    setsUpdated={(valid) => setState((oldState) => ({
-                        ...oldState,
-                        setsValid: valid
-                    }))}/>}/>
-            <Route path="sources" element={<Sources sourcesUpdated={(valid) => setState((oldState) => ({...oldState, sourcesValid: valid}))}/>}/>
+                allowReset={(displayState.backupCanStart || displayState.backupInProgress) && !!appContext.currentConfiguration.manifest.interactiveBackup}
+                setsUpdated={(valid) => setState((oldState) => ({
+                    ...oldState,
+                    setsValid: valid
+                }))}/>}/>
+            <Route path="sources" element={<Sources
+                sourcesUpdated={(valid) => setState((oldState) => ({...oldState, sourcesValid: valid}))}/>}/>
             <Route path="share" element={<Shares password={state.password}
-                        sharesUpdated={(valid, password) => setState((oldState) => ({
-                            ...oldState,
-                            password: password,
-                            sharesValid: valid
-                        }))}/>}/>
+                                                 sharesUpdated={(valid, password) => setState((oldState) => ({
+                                                     ...oldState,
+                                                     password: password,
+                                                     sharesValid: valid
+                                                 }))}/>}/>
             <Route path="restore" element={
                 <Restore password={state.password}
                          destination={state.restoreDestination}

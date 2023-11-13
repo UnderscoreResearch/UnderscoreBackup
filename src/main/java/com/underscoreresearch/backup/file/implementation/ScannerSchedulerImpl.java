@@ -214,13 +214,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                             if (scanner.startScanning(set)) {
                                 anyRan = true;
                                 rescheduleCompletedSet(i, set);
-                                i++;
                                 if (set.getRetention() != null) {
                                     boolean fileOnly = shouldOnlyDoFileTrim();
                                     RepositoryTrimmer.Statistics statistics = trimmer.trimRepository(fileOnly);
                                     backupStatsLogger.updateStats(statistics, !fileOnly);
                                     trimmer.resetStatus();
                                 }
+                                i++;
                             } else {
                                 while (!shutdown && !scheduledRestart && !IOUtils.hasInternet()) {
                                     Thread.sleep(1000);

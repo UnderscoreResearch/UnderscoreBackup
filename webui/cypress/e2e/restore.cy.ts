@@ -25,6 +25,8 @@ it('restore', function () {
     cy.get('#passwordSecond').clear();
     cy.get('#passwordSecond').type('KqNK4bFj8ZTc');
     cy.get("#submitPasswordChange").click();
+    cy.get('#passwordChangeDialog').should('not.exist');
+
     cy.get("#loading").should('not.be.visible');
     cy.wait(2000);
 

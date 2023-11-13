@@ -75,7 +75,7 @@ export default function ChangePasswordDialog(props: ChangePasswordDialogProps) {
         return !!state.secretRegion && !!state.email;
     }
 
-    return <Dialog open={props.open} onClose={close}>
+    return <Dialog open={props.open} onClose={close} id={"passwordChangeDialog"}>
         <DialogTitle>Change Password</DialogTitle>
         <DialogContent>
             <DialogContentText>

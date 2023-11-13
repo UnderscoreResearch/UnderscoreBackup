@@ -230,7 +230,7 @@ export default function InitialSetup() {
             <Route path="source" element={<SourcePage onSourceChange={updateSource}/>}/>
             <Route path="destination" element={<DestinationPage onPageChange={changePage}/>}/>
             <Route path="security" element={<SecurityPage onPageChange={changePage} secretRegion={state.secretRegion}
-                              selectedSource={state.selectedSource}/>}/>
+                                                          selectedSource={state.selectedSource}/>}/>
             <Route path="contents" element={<ContentPage/>}/>
         </Routes>
     </MainAppSkeleton>
