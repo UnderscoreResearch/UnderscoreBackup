@@ -260,6 +260,14 @@ function expandIncludedRoots(roots: BackupSetRoot[]): string[] {
     return ret;
 }
 
+function matchWithoutEndingSlash(p1: string, p2: string) {
+    if (p1.endsWith("/"))
+        p1.substring(0, p1.length - 1);
+    if (p2.endsWith("/"))
+        p2.substring(0, p2.length - 1);
+    return p1 === p2;
+}
+
 export default function FileTreeView(props: SetTreeViewProps) {
     function defaultState() {
         const roots = normalizeRoots(props.roots, props.backendState);
@@ -514,7 +522,8 @@ export default function FileTreeView(props: SetTreeViewProps) {
                         }
 
                         let anyAdded = false;
-                        oldState.includedPaths.filter(p => p.startsWith(path)).map(includedPath => {
+                        oldState.includedPaths.filter(p => p.startsWith(path) &&
+                            !matchWithoutEndingSlash(p, path)).map(includedPath => {
                             if (includedPath.endsWith("/"))
                                 includedPath = includedPath.substring(0, includedPath.length - 1);
 

@@ -113,8 +113,16 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         pendingPaths.values().forEach(t -> t.setUnprocessed(true));
 
         for (BackupSetRoot root : backupSet.getRoots()) {
-            if (!shutdown && pendingPaths.containsKey(root.getNormalizedPath()))
-                processPath(backupSet, root.getNormalizedPath(), needStorageValidation);
+            if (!shutdown && pendingPaths.containsKey(root.getNormalizedPath())) {
+                try {
+                    processPath(backupSet, root.getNormalizedPath(), needStorageValidation);
+                } catch (Throwable exc) {
+                    consumer.flushAssignments();
+                    resetStatus();
+                    lock.unlock();
+                    throw exc;
+                }
+            }
         }
 
         lock.unlock();
