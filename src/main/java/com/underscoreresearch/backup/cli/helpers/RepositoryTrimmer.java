@@ -114,8 +114,14 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     }
 
     private static boolean missingInDirectory(String path, DirectoryCache cache, int depth) throws IOException {
-        String parent = findParent(path);
+
         try {
+            if (cache.getCache().get("").contains(path)) {
+                return false;
+            }
+
+            String parent = findParent(path);
+
             Set<String> contents;
             if (parent != null)
                 contents = cache.getCache().get(parent);
@@ -123,15 +129,16 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 contents = new TreeSet<>();
 
             if (!contents.contains(stripPath(path))) {
-                return !cache.getCache().get("").contains(path);
+                return true;
             }
+
+            if (cache.getCacheSize() - depth < 5) {
+                cache.setCacheSize(cache.getCacheSize() + 10);
+            }
+            return missingInDirectory(parent, cache, depth + 1);
         } catch (ExecutionException e) {
             throw new IOException(e.getCause());
         }
-        if (cache.getCacheSize() - depth < 5) {
-            cache.setCacheSize(cache.getCacheSize() + 10);
-        }
-        return missingInDirectory(parent, cache, depth + 1);
     }
 
     @Override
