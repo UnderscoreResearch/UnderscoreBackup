@@ -250,7 +250,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         if (!dirPath.endsWith(PathNormalizer.PATH_SEPARATOR))
             dirPath += PathNormalizer.PATH_SEPARATOR;
         BackupDirectory directory = repository.directory(dirPath, null, false);
-        if (directory == null) {
+        if (directory == null || directory.getDeleted() != null) {
             addFileToDirectory(parentFile, true);
             directory = BackupDirectory.builder()
                     .added(System.currentTimeMillis())

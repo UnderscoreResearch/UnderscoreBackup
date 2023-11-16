@@ -211,7 +211,7 @@ class ManifestManagerImplTest {
             repository.deleteDirectory("/a", Instant.now().toEpochMilli());
             repository.popActivePath("s1", "/c");
             repository.addDirectory(new BackupDirectory("d", Instant.now().toEpochMilli(),
-                    Sets.newTreeSet(Lists.newArrayList("e", "f"))));
+                    Sets.newTreeSet(Lists.newArrayList("e", "f")), 1L));
             repository.deleteBlock(BackupBlock.builder().hash("g").build());
             repository.addBlock(BackupBlock.builder().hash("h").build());
             repository.deleteFilePart(BackupFilePart.builder().partHash("i").build());

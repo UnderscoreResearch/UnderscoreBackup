@@ -421,7 +421,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                         Instant.now().toEpochMilli(),
                         configuration.getSets().stream().flatMap(t -> t.getRoots().stream()
                                         .map(BackupSetRoot::getNormalizedPath))
-                                .collect(Collectors.toCollection(TreeSet::new))));
+                                .collect(Collectors.toCollection(TreeSet::new)), null));
             } catch (IOException e) {
                 log.error("Failed to register root of backup sets in repository", e);
             }

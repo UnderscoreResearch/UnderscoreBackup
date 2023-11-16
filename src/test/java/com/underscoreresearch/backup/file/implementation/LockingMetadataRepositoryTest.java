@@ -286,14 +286,14 @@ public abstract class LockingMetadataRepositoryTest {
         assertNull(repository.directory(path, null, false));
 
         long timestamp = Instant.now().toEpochMilli();
-        repository.addDirectory(new BackupDirectory(path, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b"))));
-        repository.addDirectory(new BackupDirectory(path, timestamp + 1, Sets.newTreeSet(Lists.newArrayList("b", "c"))));
-        repository.addDirectory(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("c", "d"))));
+        repository.addDirectory(new BackupDirectory(path, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b")), null));
+        repository.addDirectory(new BackupDirectory(path, timestamp + 1, Sets.newTreeSet(Lists.newArrayList("b", "c")), null));
+        repository.addDirectory(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("c", "d")), null));
         repository.addDirectory(BackupDirectory.builder().path("/other/path").added(1L).build());
-        assertThat(repository.directory(path, timestamp, false), Is.is(new BackupDirectory(path, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b")))));
-        assertThat(repository.directory(path, null, false), Is.is(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("c", "d")))));
-        assertThat(repository.directory(path, null, true), Is.is(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c", "d")))));
-        assertThat(repository.directory(path, timestamp + 1, true), Is.is(new BackupDirectory(path, timestamp + 1, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c")))));
+        assertThat(repository.directory(path, timestamp, false), Is.is(new BackupDirectory(path, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b")), null)));
+        assertThat(repository.directory(path, null, false), Is.is(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("c", "d")), null)));
+        assertThat(repository.directory(path, null, true), Is.is(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c", "d")), null)));
+        assertThat(repository.directory(path, timestamp + 1, true), Is.is(new BackupDirectory(path, timestamp + 1, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c")), null)));
         assertThat(repository.getDirectoryCount(), Is.is(4L));
 
         halfwayUpgrade();

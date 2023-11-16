@@ -50,6 +50,9 @@ public class SerializationUtils {
             .writerFor(BackupFile.class);
     public static final ObjectReader BACKUP_DIRECTORY_READER = MAPPER
             .readerFor(BackupDirectory.class);
+    public static final ObjectWriter BACKUP_DIRECTORY_WRITER = MAPPER
+            .writerFor(BackupDirectory.class);
+
     public static final ObjectReader PUSH_ACTIVE_PATH_READER = MAPPER
             .readerFor(PushActivePath.class);
     public static final ObjectWriter PUSH_ACTIVE_PATH_WRITER = MAPPER

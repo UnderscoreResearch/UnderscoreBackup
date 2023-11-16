@@ -445,14 +445,14 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                         BackupDirectory directory = repository.directory(currentPath, null, false);
                         if (!includedPaths.isEmpty() || directory != null) {
                             long timestamp;
-                            if (directory != null && includedPaths.containsAll(directory.getFiles())) {
+                            if (directory != null && directory.getDeleted() == null && includedPaths.containsAll(directory.getFiles())) {
                                 timestamp = directory.getAdded();
                             } else {
                                 timestamp = Instant.now().toEpochMilli();
                             }
                             repository.addDirectory(new BackupDirectory(currentPath,
                                     timestamp,
-                                    Sets.newTreeSet(includedPaths)));
+                                    Sets.newTreeSet(includedPaths), null));
                         }
                     }
                 } catch (IOException e) {

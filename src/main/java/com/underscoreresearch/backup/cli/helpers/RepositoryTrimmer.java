@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
@@ -79,12 +79,12 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             .concurrencyLevel(1)
             .build(new CacheLoader<>() {
                 @Override
-                public NavigableSet<String> load(String key) throws Exception {
+                public BackupDirectory load(String key) throws Exception {
                     BackupDirectory ret = metadataRepository.directory(key, null, false);
                     if (ret == null) {
-                        return new TreeSet<>();
+                        return EMPTY_DIRECTORY;
                     }
-                    return ret.getFiles();
+                    return ret;
                 }
             }));
     private final DirectoryCache orphanedCache = new DirectoryCache((Integer size) -> CacheBuilder
@@ -93,12 +93,12 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             .concurrencyLevel(1)
             .build(new CacheLoader<>() {
                 @Override
-                public NavigableSet<String> load(String key) throws Exception {
+                public BackupDirectory load(String key) throws Exception {
                     BackupDirectory ret = metadataRepository.directory(key, null, true);
                     if (ret == null) {
-                        return new TreeSet<>();
+                        return EMPTY_DIRECTORY;
                     }
-                    return ret.getFiles();
+                    return ret;
                 }
             }));
     private String lastProcessed;
@@ -113,29 +113,33 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         StateLogger.addLogger(this);
     }
 
-    private static boolean missingInDirectory(String path, DirectoryCache cache, int depth) throws IOException {
+    private static final BackupDirectory EMPTY_DIRECTORY = BackupDirectory.builder().files(new TreeSet<>()).build();
+
+    private static boolean missingInDirectory(String path, DirectoryCache cache, int depth, boolean allowDeleted) throws IOException {
 
         try {
-            if (cache.getCache().get("").contains(path)) {
+            if (cache.getCache().get("").getFiles().contains(path)) {
                 return false;
             }
 
             String parent = findParent(path);
 
-            Set<String> contents;
+            BackupDirectory contents;
             if (parent != null)
                 contents = cache.getCache().get(parent);
             else
-                contents = new TreeSet<>();
+                contents = EMPTY_DIRECTORY;
 
-            if (!contents.contains(stripPath(path))) {
+            if (!allowDeleted && contents.getDeleted() != null)
                 return true;
-            }
+
+            if (!contents.getFiles().contains(stripPath(path)))
+                return true;
 
             if (cache.getCacheSize() - depth < 5) {
                 cache.setCacheSize(cache.getCacheSize() + 10);
             }
-            return missingInDirectory(parent, cache, depth + 1);
+            return missingInDirectory(parent, cache, depth + 1, allowDeleted);
         } catch (ExecutionException e) {
             throw new IOException(e.getCause());
         }
@@ -187,7 +191,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 filesOnly = true;
             }
 
-            CloseableMap<String, Boolean> usedBlockMap = !filesOnly || !noBlocks ? metadataRepository.temporaryMap(new MapSerializer<String, Boolean>() {
+            CloseableMap<String, Boolean> usedBlockMap = !filesOnly || !noBlocks ? metadataRepository.temporaryMap(new MapSerializer<>() {
                 @Override
                 public byte[] encodeKey(String s) {
                     return s.getBytes(StandardCharsets.UTF_8);
@@ -293,7 +297,8 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 if (lastDirectory.get() != null && lastDirectory.get().getPath().equals(directory.getPath())) {
                     TreeSet<String> files = new TreeSet<>(directory.getFiles());
                     files.addAll(lastDirectory.get().getFiles());
-                    if (files.size() < MINIMUM_FILES_FOR_DIRECTORY || (!directory.getFiles().isEmpty() && files.size() * MINIMUM_RATIO_DIRECTORY_DIFF < directory.getFiles().size())) {
+                    if (Objects.equals(directory.getDeleted(), lastDirectory.get().getDeleted()) &&
+                            (files.size() < MINIMUM_FILES_FOR_DIRECTORY || (!directory.getFiles().isEmpty() && files.size() * MINIMUM_RATIO_DIRECTORY_DIFF < directory.getFiles().size()))) {
                         directory.setFiles(files);
                         lastDirectory.get().getFiles().clear();
                         deletions.add(lastDirectory.get());
@@ -325,6 +330,9 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         HashSet<String> deletedPaths = new HashSet<>();
 
         Long searchVersion = laterVersion != null ? laterVersion - 1 : null;
+        boolean anyExists = false;
+        Long lastDeleted = null;
+
         for (String path : directory.getFiles()) {
             String fullPath = PathNormalizer.combinePaths(directory.getPath(), path);
             try {
@@ -332,19 +340,38 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     BackupDirectory child = metadataRepository.directory(fullPath, searchVersion, false);
                     if (child == null) {
                         deletedPaths.add(path);
-                    }
+                    } else if (child.getDeleted() == null) {
+                        anyExists = true;
+                    } else if (lastDeleted == null || lastDeleted < child.getDeleted())
+                        lastDeleted = child.getDeleted();
                 } else {
                     BackupFile file = metadataRepository.file(fullPath, searchVersion);
                     if (file == null) {
                         deletedPaths.add(path);
-                    }
+                    } else if (file.getDeleted() == null) {
+                        anyExists = true;
+                    } else if (lastDeleted == null || lastDeleted < file.getDeleted())
+                        lastDeleted = file.getDeleted();
                 }
             } catch (IOException e) {
                 log.error("Failed to check directory existence of \"{}\"", PathNormalizer.physicalPath(fullPath));
             }
         }
 
-        if (!deletions.isEmpty() || !deletedPaths.isEmpty()) {
+        boolean changed = !deletions.isEmpty() || !deletedPaths.isEmpty();
+        if (!anyExists) {
+            if (directory.getDeleted() == null) {
+                changed = true;
+                final Long useDeleted = Objects.requireNonNullElseGet(lastDeleted, () -> Instant.now().getEpochSecond());
+
+                debug(() -> log.debug("Marking \"{}\" as deleted at \u200E{}\u200E",
+                        PathNormalizer.physicalPath(directory.getPath()),
+                        LogUtil.formatTimestamp(useDeleted)));
+                directory.setDeleted(useDeleted);
+            }
+        }
+
+        if (changed) {
             directory.getFiles().removeAll(deletedPaths);
             try {
                 if (last && directory.getFiles().isEmpty()) {
@@ -375,9 +402,9 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     }
 
     private boolean trimActivePaths() throws IOException {
-        Map<String, BackupActivePath> activepaths = metadataRepository.getActivePaths(null);
+        Map<String, BackupActivePath> activePaths = metadataRepository.getActivePaths(null);
         boolean anyFound = false;
-        for (Map.Entry<String, BackupActivePath> paths : activepaths.entrySet()) {
+        for (Map.Entry<String, BackupActivePath> paths : activePaths.entrySet()) {
             for (String setId : paths.getValue().getSetIds()) {
                 if (configuration.getSets().stream().noneMatch(t -> t.getId().equals(setId))) {
                     log.warn("Removing active path \"{}\" from non existing set \"{}\"",
@@ -625,11 +652,11 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     }
 
     private boolean isOrphaned(String path) throws IOException {
-        return missingInDirectory(path, orphanedCache, 1);
+        return missingInDirectory(path, orphanedCache, 1, true);
     }
 
     private boolean isDeleted(String path) throws IOException {
-        return missingInDirectory(path, directoryCache, 1);
+        return missingInDirectory(path, directoryCache, 1, false);
     }
 
     private void markFileBlocks(CloseableMap<String, Boolean> usedBlockMap, boolean filesOnly, BackupFile file,

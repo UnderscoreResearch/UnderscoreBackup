@@ -40,27 +40,27 @@ class BackupContentsAccessImplTest {
         Map<String, List<BackupFile>> files = new HashMap<>();
 
         directories.put("", Lists.newArrayList(
-                new BackupDirectory("", 2L, Sets.newTreeSet(Lists.newArrayList("/test/set1/", "/"))),
-                new BackupDirectory("", 3L, Sets.newTreeSet(Lists.newArrayList("/test/set1/", "/test/set2/", "/")))
+                new BackupDirectory("", 2L, Sets.newTreeSet(Lists.newArrayList("/test/set1/", "/")), null),
+                new BackupDirectory("", 3L, Sets.newTreeSet(Lists.newArrayList("/test/set1/", "/test/set2/", "/")), null)
         ));
 
         directories.put("/", Lists.newArrayList(
-                new BackupDirectory("/", 2L, Sets.newTreeSet(Lists.newArrayList("dir1/", "dir2/"))),
-                new BackupDirectory("/", 3L, Sets.newTreeSet(Lists.newArrayList("dir2/")))));
+                new BackupDirectory("/", 2L, Sets.newTreeSet(Lists.newArrayList("dir1/", "dir2/")), null),
+                new BackupDirectory("/", 3L, Sets.newTreeSet(Lists.newArrayList("dir2/")), null)));
 
         directories.put("/dir1/", Lists.newArrayList(
-                new BackupDirectory("/dir1/", 2L, Sets.newTreeSet(Lists.newArrayList("fileDeleted")))));
+                new BackupDirectory("/dir1/", 2L, Sets.newTreeSet(Lists.newArrayList("fileDeleted")), null)));
 
         directories.put("/dir2/", Lists.newArrayList(
-                new BackupDirectory("/dir2/", 2L, Sets.newTreeSet())));
+                new BackupDirectory("/dir2/", 2L, Sets.newTreeSet(), null)));
 
         directories.put("/test/set1/", Lists.newArrayList(
-                new BackupDirectory("/test/set1/", 2L, Sets.newTreeSet(Lists.newArrayList("file1", "dir/"))),
-                new BackupDirectory("/test/set1/", 3L, Sets.newTreeSet(Lists.newArrayList("file1", "file2", "dir/")))
+                new BackupDirectory("/test/set1/", 2L, Sets.newTreeSet(Lists.newArrayList("file1", "dir/")), null),
+                new BackupDirectory("/test/set1/", 3L, Sets.newTreeSet(Lists.newArrayList("file1", "file2", "dir/")), null)
         ));
 
         directories.put("/test/set1/dir/", Lists.newArrayList(
-                new BackupDirectory("/test/set/dir/", 2L, Sets.newTreeSet(Lists.newArrayList("doh")))
+                new BackupDirectory("/test/set/dir/", 2L, Sets.newTreeSet(Lists.newArrayList("doh")), null)
         ));
 
         files.put("/test/set1/file1", Lists.newArrayList(

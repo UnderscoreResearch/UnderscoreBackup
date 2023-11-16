@@ -570,7 +570,8 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     public void addDirectory(BackupDirectory directory) throws IOException {
         BackupDirectory currentData = repository.directory(directory.getPath(), directory.getAdded(), false);
 
-        if (currentData == null || !directory.getFiles().equals(currentData.getFiles())) {
+        if (currentData == null || !directory.getFiles().equals(currentData.getFiles()) ||
+                ((directory.getDeleted() == null) != (currentData.getDeleted() == null))) {
             if (shares != null) {
                 for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
                     BackupShare share = shares.get(entry.getKey());
@@ -601,7 +602,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public boolean deleteDirectory(String path, long timestamp) throws IOException {
-        BackupDirectory deletedDir = new BackupDirectory(path, timestamp, null);
+        BackupDirectory deletedDir = new BackupDirectory(path, timestamp, null, null);
         if (shares != null) {
             for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
                 BackupShare share = shares.get(entry.getKey());

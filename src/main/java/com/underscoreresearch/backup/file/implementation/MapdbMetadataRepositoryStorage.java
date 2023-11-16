@@ -9,6 +9,8 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOC
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_ADDITIONAL_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DIRECTORY_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DIRECTORY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_PART_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_PART_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
@@ -28,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -81,11 +84,8 @@ import com.underscoreresearch.backup.model.ExternalBackupFile;
 
 @Slf4j
 public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage {
-    private static final ObjectReader BACKUP_DIRECTORY_FILES_READER
+    private static final ObjectReader BACKUP_DIRECTORY_FILES_LEGACY_READER
             = MAPPER.readerFor(new TypeReference<NavigableSet<String>>() {
-    });
-    private static final ObjectWriter BACKUP_DIRECTORY_FILES_WRITER
-            = MAPPER.writerFor(new TypeReference<Set<String>>() {
     });
 
     private static final String FILE_STORE = "files.db";
@@ -100,6 +100,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private static final String UPDATED_FILES_STORE = "updatedfiles.db";
     private static final String UPDATED_PENDING_FILES_STORE = "updatedpendingfiles.db";
     private static final long MAX_WRITES = 50000;
+    private static final String DELETED_MARKER = "";
     private final String dataPath;
     private final int revision;
     private final int version;
@@ -474,8 +475,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
         Stream<BackupDirectory> stream = map.entrySet().stream().map((entry) -> {
             try {
-                return new BackupDirectory((String) entry.getKey()[0], (Long) entry.getKey()[1],
-                        decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
+                return decodeDirectory(entry);
             } catch (IOException e) {
                 log.error(invalidRepositoryLogEntry("Invalid directory \"{}:{}\""), entry.getKey()[0], entry.getKey()[1], e);
                 if (openMode != RepositoryOpenMode.READ_ONLY) {
@@ -600,9 +600,18 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     private BackupDirectory decodeDirectory(Map.Entry<Object[], byte[]> entry) throws IOException {
         try {
-            return new BackupDirectory((String) entry.getKey()[0],
-                    (Long) entry.getKey()[1],
-                    decodeData(BACKUP_DIRECTORY_FILES_READER, entry.getValue()));
+            try {
+                BackupDirectory directory = decodeData(BACKUP_DIRECTORY_READER, entry.getValue());
+                directory.setPath((String) entry.getKey()[0]);
+                directory.setAdded((Long) entry.getKey()[1]);
+                return directory;
+            } catch (IOException exc) {
+                NavigableSet<String> files = decodeData(BACKUP_DIRECTORY_FILES_LEGACY_READER, entry.getValue());
+                return new BackupDirectory((String) entry.getKey()[0],
+                        (Long) entry.getKey()[1],
+                        files,
+                        null);
+            }
         } catch (IOException e) {
             throw new IOException(String.format("Invalid directory \"%s:%s\"", entry.getKey()[0], entry.getKey()[1]), e);
         }
@@ -722,8 +731,15 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
         directoryMap.put(new Object[]{directory.getPath(), directory.getAdded()},
-                encodeData(BACKUP_DIRECTORY_FILES_WRITER, directory.getFiles()));
+                encodeDirectoryData(directory));
         increaseWrite();
+    }
+
+    private byte[] encodeDirectoryData(BackupDirectory directory) throws IOException {
+        return encodeData(BACKUP_DIRECTORY_WRITER, BackupDirectory.builder()
+                .files(directory.getFiles())
+                .deleted(directory.getDeleted())
+                .build());
     }
 
     @Override

@@ -18,4 +18,5 @@ public class BackupDirectory {
     private String path;
     private Long added;
     private NavigableSet<String> files;
+    private Long deleted;
 }

@@ -400,7 +400,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             DirectoryEncoding encoding = decodeData(BACKUP_DIRECTORY_FILES_READER, entry.val());
             return new BackupDirectory(pathTimestamp.path == null ? encoding.getPath() : pathTimestamp.getPath(),
                     pathTimestamp.timestamp,
-                    encoding.files);
+                    encoding.files,
+                    encoding.deleted);
         } catch (IOException e) {
             throw new IOException(String.format("Invalid directory \"%s:%s\"", pathTimestamp.path, pathTimestamp.timestamp), e);
         }
@@ -1127,7 +1128,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     public void addDirectory(BackupDirectory directory) throws IOException {
         synchronizeDbAccess(() -> {
             ByteBuffer key = encodePathTimestamp(directory.getPath(), directory.getAdded());
-            DirectoryEncoding encoding = new DirectoryEncoding(directory.getFiles());
+            DirectoryEncoding encoding = new DirectoryEncoding(directory);
             if (missingPath(key))
                 encoding.setPath(directory.getPath());
             directoryMap.put(getWriteTransaction(), key,
@@ -1555,9 +1556,12 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         private String path;
         @JsonProperty("files")
         private NavigableSet<String> files;
+        @JsonProperty("deleted")
+        private Long deleted;
 
-        public DirectoryEncoding(NavigableSet<String> files) {
-            this.files = files;
+        public DirectoryEncoding(BackupDirectory directory) {
+            this.files = directory.getFiles();
+            this.deleted = directory.getDeleted();
         }
     }
 

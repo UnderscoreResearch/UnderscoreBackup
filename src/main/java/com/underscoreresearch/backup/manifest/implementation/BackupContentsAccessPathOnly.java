@@ -42,7 +42,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
             ret = repository.directory(path, timestamp, false);
 
             if (ret == null) {
-                ret = new BackupDirectory(path, null, new TreeSet<>());
+                ret = new BackupDirectory(path, null, new TreeSet<>(), null);
             }
 
             ret = processAdditionalPaths(ret);
@@ -69,7 +69,9 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
             BackupDirectory ret = pathEntry(root + path);
             if (ret == null || ret.getFiles().isEmpty())
                 return null;
-            return BackupFile.builder().path(root + path).added(ret.getAdded()).build();
+            if (!includeDeleted && ret.getDeleted() != null && (timestamp == null || ret.getDeleted() < timestamp))
+                return null;
+            return BackupFile.builder().path(root + path).added(ret.getAdded()).deleted(ret.getDeleted()).build();
         }
         BackupFile ret = repository.file(root + path, timestamp);
 
