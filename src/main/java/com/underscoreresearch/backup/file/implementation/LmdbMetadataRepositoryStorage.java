@@ -400,6 +400,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             DirectoryEncoding encoding = decodeData(BACKUP_DIRECTORY_FILES_READER, entry.val());
             return new BackupDirectory(pathTimestamp.path == null ? encoding.getPath() : pathTimestamp.getPath(),
                     pathTimestamp.timestamp,
+                    encoding.permissions,
                     encoding.files,
                     encoding.deleted);
         } catch (IOException e) {
@@ -1554,6 +1555,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
     private static final class DirectoryEncoding {
         @JsonProperty("p")
         private String path;
+        @JsonProperty("permissions")
+        private String permissions;
         @JsonProperty("files")
         private NavigableSet<String> files;
         @JsonProperty("deleted")
@@ -1561,6 +1564,7 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
 
         public DirectoryEncoding(BackupDirectory directory) {
             this.files = directory.getFiles();
+            this.permissions = directory.getPermissions();
             this.deleted = directory.getDeleted();
         }
     }
@@ -1701,8 +1705,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
         }
 
         @Override
-        public Stream<Map.Entry<K, V>> readOnlyEntryStream() {
-            Iterator<Map.Entry<K, V>> iterator = new TemporaryIterator();
+        public Stream<Map.Entry<K, V>> readOnlyEntryStream(boolean ascending) {
+            Iterator<Map.Entry<K, V>> iterator = new TemporaryIterator(ascending);
             return StreamSupport.stream(
                     Spliterators.spliteratorUnknownSize(
                             iterator,
@@ -1714,8 +1718,8 @@ public class LmdbMetadataRepositoryStorage implements MetadataRepositoryStorage 
             private final Iterator<CursorIterable.KeyVal<ByteBuffer>> iterator;
             private final CursorIterable<ByteBuffer> iterable;
 
-            public TemporaryIterator() {
-                iterable = map.iterate(txn, KeyRange.all());
+            public TemporaryIterator(boolean ascending) {
+                iterable = map.iterate(txn, ascending ? KeyRange.all() : KeyRange.allBackward());
                 iterator = iterable.iterator();
             }
 

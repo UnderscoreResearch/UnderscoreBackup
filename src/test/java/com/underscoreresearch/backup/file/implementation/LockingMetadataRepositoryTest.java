@@ -286,14 +286,14 @@ public abstract class LockingMetadataRepositoryTest {
         assertNull(repository.directory(path, null, false));
 
         long timestamp = Instant.now().toEpochMilli();
-        repository.addDirectory(new BackupDirectory(path, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b")), null));
-        repository.addDirectory(new BackupDirectory(path, timestamp + 1, Sets.newTreeSet(Lists.newArrayList("b", "c")), null));
-        repository.addDirectory(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("c", "d")), null));
+        repository.addDirectory(new BackupDirectory(path, timestamp, "Permission", Sets.newTreeSet(Lists.newArrayList("a, b")), null));
+        repository.addDirectory(new BackupDirectory(path, timestamp + 1, null, Sets.newTreeSet(Lists.newArrayList("b", "c")), null));
+        repository.addDirectory(new BackupDirectory(path, timestamp + 2, null, Sets.newTreeSet(Lists.newArrayList("c", "d")), 3L));
         repository.addDirectory(BackupDirectory.builder().path("/other/path").added(1L).build());
-        assertThat(repository.directory(path, timestamp, false), Is.is(new BackupDirectory(path, timestamp, Sets.newTreeSet(Lists.newArrayList("a, b")), null)));
-        assertThat(repository.directory(path, null, false), Is.is(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("c", "d")), null)));
-        assertThat(repository.directory(path, null, true), Is.is(new BackupDirectory(path, timestamp + 2, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c", "d")), null)));
-        assertThat(repository.directory(path, timestamp + 1, true), Is.is(new BackupDirectory(path, timestamp + 1, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c")), null)));
+        assertThat(repository.directory(path, timestamp, false), Is.is(new BackupDirectory(path, timestamp, "Permission", Sets.newTreeSet(Lists.newArrayList("a, b")), null)));
+        assertThat(repository.directory(path, null, false), Is.is(new BackupDirectory(path, timestamp + 2, null, Sets.newTreeSet(Lists.newArrayList("c", "d")), 3L)));
+        assertThat(repository.directory(path, null, true), Is.is(new BackupDirectory(path, timestamp + 2, null, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c", "d")), 3L)));
+        assertThat(repository.directory(path, timestamp + 1, true), Is.is(new BackupDirectory(path, timestamp + 1, null, Sets.newTreeSet(Lists.newArrayList("a, b", "b", "c")), null)));
         assertThat(repository.getDirectoryCount(), Is.is(4L));
 
         halfwayUpgrade();
@@ -692,7 +692,7 @@ public abstract class LockingMetadataRepositoryTest {
             answer.put("b", 2L);
             answer.put("c", 3L);
 
-            map.readOnlyEntryStream().forEach(entry -> assertThat(answer.remove(entry.getKey()), Is.is(entry.getValue())));
+            map.readOnlyEntryStream(true).forEach(entry -> assertThat(answer.remove(entry.getKey()), Is.is(entry.getValue())));
             assertThat(answer.size(), Is.is(0));
 
             assertThat(map.get("c"), Is.is(3L));

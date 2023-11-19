@@ -304,7 +304,7 @@ public abstract class MetadataRepositoryStoragePerformance {
                     watch.reset();
                     watch.start();
 
-                    assertThat(map.readOnlyEntryStream().count(), Matchers.equalTo((long) SIZE));
+                    assertThat(map.readOnlyEntryStream(true).count(), Matchers.equalTo((long) SIZE));
 
                     System.out.printf("%s: Iterate %s%s sorted temporary map: %.3f%n",
                             getClass().getSimpleName(), largeLabel(large), SIZE, watch.elapsed(TimeUnit.MILLISECONDS) / 1000.0);

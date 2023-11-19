@@ -61,4 +61,13 @@ public final class PathNormalizer {
         }
         return base + PATH_SEPARATOR + additional;
     }
+
+    public static String normalizedPathParent(String file) {
+        if (file.endsWith(PATH_SEPARATOR))
+            file = file.substring(0, file.length() - 1);
+        int index = file.lastIndexOf(PATH_SEPARATOR);
+        if (index < 0)
+            return "";
+        return file.substring(0, index + 1);
+    }
 }

@@ -12,8 +12,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -49,6 +51,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
     private final AtomicLong pendingOutstanding = new AtomicLong();
     private final AtomicLong index = new AtomicLong(0);
     private final MetadataRepository repository;
+    private final List<Consumer<String>> completionCallbacks = new ArrayList<>();
     private BackupFile lastProcessed;
     private Stopwatch duration;
     private CloseableSortedMap<ScheduledDownloadKey, ScheduledDownload> fileMap;
@@ -62,6 +65,26 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         this.repository = repository;
 
         StateLogger.addLogger(this);
+    }
+
+    public void addCompletionCallback(Consumer<String> callback) {
+        synchronized (completionCallbacks) {
+            completionCallbacks.add(callback);
+        }
+    }
+
+    public void removeCompletionCallback(Consumer<String> callback) {
+        synchronized (completionCallbacks) {
+            completionCallbacks.remove(callback);
+        }
+    }
+
+    private void notifyCompleted(String path) {
+        synchronized (completionCallbacks) {
+            for (Consumer<String> callback : completionCallbacks) {
+                callback.accept(path);
+            }
+        }
     }
 
     @Override
@@ -132,7 +155,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
     @Override
     public void waitForCompletion() {
         if (fileMap != null) {
-            fileMap.readOnlyEntryStream().forEach(entry -> {
+            fileMap.readOnlyEntryStream(true).forEach(entry -> {
                 if (InstanceFactory.isShutdown()) {
                     return;
                 }
@@ -178,6 +201,7 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
                     failedCount.incrementAndGet();
                 }
             }
+            notifyCompleted(file.getPath());
         });
     }
 

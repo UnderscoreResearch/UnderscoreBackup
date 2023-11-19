@@ -3,13 +3,13 @@ package com.underscoreresearch.backup.cli.helpers;
 import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.DownloadScheduler;
@@ -28,14 +30,18 @@ import com.underscoreresearch.backup.utils.StateLogger;
 @Slf4j
 public class RestoreExecutor {
     private final BackupContentsAccess contents;
+    private final FileSystemAccess fileSystemAccess;
+    private final MetadataRepository metadataRepository;
     private final DownloadScheduler scheduler;
     private final String password;
     private final BackupStatsLogger backupStatsLogger;
 
-    public RestoreExecutor(BackupContentsAccess contents, String password, BackupStatsLogger backupStatsLogger) {
+    public RestoreExecutor(BackupContentsAccess contents, FileSystemAccess fileSystemAccess, MetadataRepository repository, String password, BackupStatsLogger backupStatsLogger) {
         this.contents = contents;
         this.password = password;
         this.backupStatsLogger = backupStatsLogger;
+        this.fileSystemAccess = fileSystemAccess;
+        this.metadataRepository = repository;
         scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
     }
 
@@ -46,32 +52,37 @@ public class RestoreExecutor {
                              boolean skipPermisssions) throws IOException {
         String commonRoot = findCommonRoot(rootPaths);
         backupStatsLogger.setDownloadRunning(true);
+
+        AtomicBoolean anyData = new AtomicBoolean(false);
         try (Closeable ignored = UIHandler.registerTask("Restoring from " + rootPaths.stream()
                 .map(BackupSetRoot::getPath)
                 .map(PathNormalizer::physicalPath)
                 .collect(Collectors.joining(", ")))) {
 
-            for (BackupSetRoot root : rootPaths) {
-                String currentDestination = destination;
-                String rootPath = normalizePath(root.getPath());
-                if (currentDestination != null) {
-                    if (!isNullFile(currentDestination)) {
-                        currentDestination = PathNormalizer.normalizePath(currentDestination);
-                        if (!currentDestination.endsWith(PATH_SEPARATOR)) {
-                            currentDestination += PATH_SEPARATOR;
-                        }
-                        if (rootPaths.size() != 1) {
-                            currentDestination += stripCommonAndDrive(commonRoot, rootPath);
+            try (RestoreDirectoryPermissions pendingDirectories = new RestoreDirectoryPermissions(metadataRepository, scheduler, fileSystemAccess, skipPermisssions)) {
+                for (BackupSetRoot root : rootPaths) {
+                    String currentDestination = destination;
+                    String rootPath = normalizePath(root.getPath());
+                    if (currentDestination != null) {
+                        if (!isNullFile(currentDestination)) {
+                            currentDestination = PathNormalizer.normalizePath(currentDestination);
+                            if (!currentDestination.endsWith(PATH_SEPARATOR)) {
+                                currentDestination += PATH_SEPARATOR;
+                            }
+                            if (rootPaths.size() != 1) {
+                                currentDestination += stripCommonAndDrive(commonRoot, rootPath);
+                            }
                         }
                     }
+                    restorePaths(root, BackupFile.builder().path(rootPath).build(), currentDestination, recursive,
+                            overwrite, skipPermisssions, rootPaths.size() == 1, commonRoot, pendingDirectories);
                 }
-                restorePaths(root, BackupFile.builder().path(rootPath).build(), currentDestination, recursive,
-                        overwrite, skipPermisssions, rootPaths.size() == 1, commonRoot);
+                scheduler.waitForCompletion();
             }
-            scheduler.waitForCompletion();
         } finally {
             backupStatsLogger.setDownloadRunning(false);
         }
+
         StateLogger logger = InstanceFactory.getInstance(StateLogger.class);
         logger.logInfo();
         logger.reset();
@@ -121,7 +132,8 @@ public class RestoreExecutor {
                               boolean overwrite,
                               boolean skipPermissions,
                               boolean root,
-                              String commonRoot) throws IOException {
+                              String commonRoot,
+                              RestoreDirectoryPermissions pendingDirectories) throws IOException {
         if (InstanceFactory.isShutdown()) {
             return;
         }
@@ -170,23 +182,26 @@ public class RestoreExecutor {
                     if (file.isDirectory()) {
                         if (recursive) {
                             restorePaths(rootPath, file,
-                                    currentDestination, recursive, overwrite, skipPermissions, false, commonRoot);
+                                    currentDestination, recursive, overwrite, skipPermissions, false, commonRoot,
+                                    pendingDirectories);
                         }
                     } else {
                         if (needDirectory) {
-                            createDirectory(destinationFile, true);
-                            needDirectory = false;
+                            pendingDirectories.createDirectoryWithPermissions(destinationFile, sourceFile.getPath(),
+                                    file.getPath(), contents);
                         }
 
-                        downloadFile(scheduler, file, currentDestination, overwrite, skipPermissions);
+                        if (!downloadFile(scheduler, file, currentDestination, overwrite, skipPermissions)) {
+                            pendingDirectories.completeFile(sourceFile.getPath());
+                        }
                     }
                 }
             }
         }
     }
 
-    private void downloadFile(DownloadScheduler scheduler, BackupFile file, String currentDestination,
-                              boolean overwrite, boolean skipPermissions) {
+    private boolean downloadFile(DownloadScheduler scheduler, BackupFile file, String currentDestination,
+                                 boolean overwrite, boolean skipPermissions) {
         if (isNullFile(currentDestination)) {
             scheduler.scheduleDownload(file, currentDestination, password);
         } else {
@@ -197,6 +212,7 @@ public class RestoreExecutor {
             if (overwrite || !destinationFile.exists()) {
                 if (destinationFile.exists() && !destinationFile.canWrite()) {
                     log.error("Does not have permissions to write to existing file \"{}\"", destinationFile.toString());
+                    return false;
                 } else {
                     if (skipPermissions) {
                         file.setPermissions(null);
@@ -205,8 +221,10 @@ public class RestoreExecutor {
                 }
             } else if (destinationFile.length() != file.getLength()) {
                 log.warn("File \"{}\" not of same size as in backup", currentDestination);
+                return false;
             }
         }
+        return true;
     }
 
 }

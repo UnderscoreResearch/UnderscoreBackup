@@ -30,7 +30,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -600,20 +599,22 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     private BackupDirectory decodeDirectory(Map.Entry<Object[], byte[]> entry) throws IOException {
         try {
+            BackupDirectory directory = decodeData(BACKUP_DIRECTORY_READER, entry.getValue(), true);
+            directory.setPath((String) entry.getKey()[0]);
+            directory.setAdded((Long) entry.getKey()[1]);
+            return directory;
+        } catch (IOException exc) {
             try {
-                BackupDirectory directory = decodeData(BACKUP_DIRECTORY_READER, entry.getValue());
-                directory.setPath((String) entry.getKey()[0]);
-                directory.setAdded((Long) entry.getKey()[1]);
-                return directory;
-            } catch (IOException exc) {
-                NavigableSet<String> files = decodeData(BACKUP_DIRECTORY_FILES_LEGACY_READER, entry.getValue());
+                NavigableSet<String> files = decodeData(BACKUP_DIRECTORY_FILES_LEGACY_READER, entry.getValue(), false);
                 return new BackupDirectory((String) entry.getKey()[0],
                         (Long) entry.getKey()[1],
+                        null,
                         files,
                         null);
+            } catch (Exception exc2) {
+                // Intentionally throwing the first exception here.
+                throw new IOException(String.format("Invalid directory \"%s:%s\"", entry.getKey()[0], entry.getKey()[1]), exc);
             }
-        } catch (IOException e) {
-            throw new IOException(String.format("Invalid directory \"%s:%s\"", entry.getKey()[0], entry.getKey()[1]), e);
         }
     }
 
@@ -739,6 +740,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         return encodeData(BACKUP_DIRECTORY_WRITER, BackupDirectory.builder()
                 .files(directory.getFiles())
                 .deleted(directory.getDeleted())
+                .permissions(directory.getPermissions())
                 .build());
     }
 
@@ -794,6 +796,10 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     }
 
     private <T> T decodeData(ObjectReader reader, byte[] data) throws IOException {
+        return decodeData(reader, data, false);
+    }
+
+    private <T> T decodeData(ObjectReader reader, byte[] data, boolean expectError) throws IOException {
         try {
             try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
                 try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
@@ -801,6 +807,9 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                 }
             }
         } catch (JsonMappingException exc) {
+            if (expectError) {
+                throw exc;
+            }
             try {
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
                     try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
@@ -1349,9 +1358,13 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         }
 
         @Override
-        public Stream<Map.Entry<K, V>> readOnlyEntryStream() {
-            return map.ascendingMap().entrySet().stream().map((entry) -> Map.entry(getSerializer().decodeKey((byte[]) entry.getKey()[0]),
-                    getSerializer().decodeValue(entry.getValue())));
+        public Stream<Map.Entry<K, V>> readOnlyEntryStream(boolean ascending) {
+            if (ascending)
+                return map.ascendingMap().entrySet().stream().map((entry) -> Map.entry(getSerializer().decodeKey((byte[]) entry.getKey()[0]),
+                        getSerializer().decodeValue(entry.getValue())));
+            else
+                return map.descendingMap().entrySet().stream().map((entry) -> Map.entry(getSerializer().decodeKey((byte[]) entry.getKey()[0]),
+                        getSerializer().decodeValue(entry.getValue())));
         }
     }
 }

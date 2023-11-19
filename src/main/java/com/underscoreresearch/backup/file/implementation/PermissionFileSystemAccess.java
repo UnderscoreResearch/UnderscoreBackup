@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.file.FilePermissionManager;
 import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.model.BackupFile;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -16,13 +15,14 @@ public class PermissionFileSystemAccess extends FileSystemAccessImpl {
     private final FilePermissionManager permissionManager;
 
     @Override
-    public void populatePermissions(BackupFile backupFile) {
-        backupFile.setPermissions(permissionManager.getPermissions(
-                Path.of(PathNormalizer.physicalPath(backupFile.getPath()))));
+    public String extractPermissions(String path) {
+        return permissionManager.getPermissions(
+                Path.of(PathNormalizer.physicalPath(path)));
     }
 
     @Override
-    public void finalFileCompletion(BackupFile backupFile, File file) {
-        permissionManager.setPermissions(file.toPath(), backupFile.getPermissions());
+    public void applyPermissions(File path, String permissions) {
+        permissionManager.setPermissions(
+                path.toPath(), permissions);
     }
 }

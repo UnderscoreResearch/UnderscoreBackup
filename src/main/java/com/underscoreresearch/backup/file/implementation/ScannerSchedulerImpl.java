@@ -419,6 +419,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
             try {
                 repository.addDirectory(new BackupDirectory("",
                         Instant.now().toEpochMilli(),
+                        null,
                         configuration.getSets().stream().flatMap(t -> t.getRoots().stream()
                                         .map(BackupSetRoot::getNormalizedPath))
                                 .collect(Collectors.toCollection(TreeSet::new)), null));

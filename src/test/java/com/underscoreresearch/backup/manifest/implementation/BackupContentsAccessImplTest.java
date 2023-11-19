@@ -6,10 +6,12 @@ import static org.hamcrest.core.IsNull.nullValue;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.hamcrest.Matchers;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +25,6 @@ import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupFile;
 
 class BackupContentsAccessImplTest {
-    private MetadataRepository metadataRepository;
     private BackupContentsAccess backupContentsAccess;
     private BackupContentsAccess backupContentsAccessCurrent;
     private BackupContentsAccess backupContentsAccessEarly;
@@ -34,33 +35,33 @@ class BackupContentsAccessImplTest {
 
     @BeforeEach
     public void test() throws IOException {
-        metadataRepository = Mockito.mock(MetadataRepository.class);
+        MetadataRepository metadataRepository = Mockito.mock(MetadataRepository.class);
 
         Map<String, List<BackupDirectory>> directories = new HashMap<>();
         Map<String, List<BackupFile>> files = new HashMap<>();
 
         directories.put("", Lists.newArrayList(
-                new BackupDirectory("", 2L, Sets.newTreeSet(Lists.newArrayList("/test/set1/", "/")), null),
-                new BackupDirectory("", 3L, Sets.newTreeSet(Lists.newArrayList("/test/set1/", "/test/set2/", "/")), null)
+                new BackupDirectory("", 2L, null, Sets.newTreeSet(Lists.newArrayList("/test/set1/", "/")), null),
+                new BackupDirectory("", 3L, null, Sets.newTreeSet(Lists.newArrayList("/test/set1/", "/test/set2/", "/")), null)
         ));
 
         directories.put("/", Lists.newArrayList(
-                new BackupDirectory("/", 2L, Sets.newTreeSet(Lists.newArrayList("dir1/", "dir2/")), null),
-                new BackupDirectory("/", 3L, Sets.newTreeSet(Lists.newArrayList("dir2/")), null)));
+                new BackupDirectory("/", 2L, null, Sets.newTreeSet(Lists.newArrayList("dir1/", "dir2/")), null),
+                new BackupDirectory("/", 3L, null, Sets.newTreeSet(Lists.newArrayList("dir2/")), null)));
 
         directories.put("/dir1/", Lists.newArrayList(
-                new BackupDirectory("/dir1/", 2L, Sets.newTreeSet(Lists.newArrayList("fileDeleted")), null)));
+                new BackupDirectory("/dir1/", 2L, "1", Sets.newTreeSet(Lists.newArrayList("fileDeleted")), null)));
 
         directories.put("/dir2/", Lists.newArrayList(
-                new BackupDirectory("/dir2/", 2L, Sets.newTreeSet(), null)));
+                new BackupDirectory("/dir2/", 2L, "2", Sets.newTreeSet(), null)));
 
         directories.put("/test/set1/", Lists.newArrayList(
-                new BackupDirectory("/test/set1/", 2L, Sets.newTreeSet(Lists.newArrayList("file1", "dir/")), null),
-                new BackupDirectory("/test/set1/", 3L, Sets.newTreeSet(Lists.newArrayList("file1", "file2", "dir/")), null)
+                new BackupDirectory("/test/set1/", 2L, "12", Sets.newTreeSet(Lists.newArrayList("file1", "dir/")), null),
+                new BackupDirectory("/test/set1/", 3L, "23", Sets.newTreeSet(Lists.newArrayList("file1", "file2", "dir/")), null)
         ));
 
         directories.put("/test/set1/dir/", Lists.newArrayList(
-                new BackupDirectory("/test/set/dir/", 2L, Sets.newTreeSet(Lists.newArrayList("doh")), null)
+                new BackupDirectory("/test/set/dir/", 2L, "123", Sets.newTreeSet(Lists.newArrayList("doh")), null)
         ));
 
         files.put("/test/set1/file1", Lists.newArrayList(
@@ -103,7 +104,7 @@ class BackupContentsAccessImplTest {
             List<BackupFile> pathFiles = files.get(path);
             if (pathFiles != null) {
                 if (added == null) {
-                    if (pathFiles.size() > 0) {
+                    if (!pathFiles.isEmpty()) {
                         return pathFiles.get(pathFiles.size() - 1);
                     }
                 }
@@ -136,6 +137,19 @@ class BackupContentsAccessImplTest {
         assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/test/"), Is.is(newFileSet(file("/test/set1/", 2L))));
         assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/test/set1/"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 2L))));
         assertThat(backupContentsAccessEarlyIncludeDeleted.directoryFiles("/whatever"), nullValue());
+
+        testEarlyPermissions();
+    }
+
+    @Test
+    public void testEarlyPermissions() throws IOException {
+        assertThat(backupContentsAccessEarly.directoryPermissions("/"), Matchers.nullValue());
+        assertThat(backupContentsAccessEarly.directoryPermissions("/test/"), Matchers.nullValue());
+        assertThat(backupContentsAccessEarly.directoryPermissions("/test/set1/"), Matchers.is("12"));
+
+        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryPermissions("/"), Matchers.nullValue());
+        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryPermissions("/test/"), Matchers.nullValue());
+        assertThat(backupContentsAccessEarlyIncludeDeleted.directoryPermissions("/test/set1/"), Matchers.is("12"));
     }
 
     @Test
@@ -149,6 +163,8 @@ class BackupContentsAccessImplTest {
         assertThat(backupContentsAccessTooEarlyIncludeDeleted.directoryFiles("/test/"), nullValue());
         assertThat(backupContentsAccessTooEarlyIncludeDeleted.directoryFiles("/test/set1/"), nullValue());
         assertThat(backupContentsAccessTooEarlyIncludeDeleted.directoryFiles("/whatever"), nullValue());
+
+        assertThat(backupContentsAccessEarly.directoryPermissions("/test/set1/"), Matchers.is("12"));
     }
 
     @Test
@@ -168,13 +184,28 @@ class BackupContentsAccessImplTest {
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/test"), Is.is(newFileSet(file("/test/set1/", 3L), file("/test/set2/"))));
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/test/set1"), Is.is(newFileSet(file("/test/set1/dir/", 2L), file("/test/set1/file1", 4L), file("/test/set1/file2", 4L))));
         assertThat(backupContentsAccessNowIncludeDeleted.directoryFiles("/whatever"), nullValue());
+
+        testCurrentPermissions();
+    }
+
+    @Test
+    public void testCurrentPermissions() throws IOException {
+        assertThat(backupContentsAccessCurrent.directoryPermissions("/"), Matchers.nullValue());
+        assertThat(backupContentsAccessCurrent.directoryPermissions("/test/"), Matchers.nullValue());
+        assertThat(backupContentsAccessCurrent.directoryPermissions("/test/set1/"), Matchers.is("23"));
+
+        assertThat(backupContentsAccess.directoryPermissions(""), Matchers.nullValue());
+        assertThat(backupContentsAccess.directoryPermissions("/test/"), Matchers.nullValue());
+        assertThat(backupContentsAccess.directoryPermissions("/test/set1"), Matchers.is("23"));
+
+        assertThat(backupContentsAccessNowIncludeDeleted.directoryPermissions(""), Matchers.nullValue());
+        assertThat(backupContentsAccessNowIncludeDeleted.directoryPermissions("/test/"), Matchers.nullValue());
+        assertThat(backupContentsAccessNowIncludeDeleted.directoryPermissions("/test/set1"), Matchers.is("23"));
     }
 
     private List<BackupFile> newFileSet(BackupFile... files) {
         ArrayList<BackupFile> ret = new ArrayList<>();
-        for (BackupFile file : files) {
-            ret.add(file);
-        }
+        Collections.addAll(ret, files);
         return ret;
     }
 

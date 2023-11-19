@@ -29,6 +29,7 @@ import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.cli.helpers.RestoreExecutor;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.io.DownloadScheduler;
@@ -124,6 +125,8 @@ public class RestorePost extends BaseWrap {
 
                     try {
                         RestoreExecutor restoreExecutor = new RestoreExecutor(contents,
+                                InstanceFactory.getInstance(FileSystemAccess.class),
+                                repository,
                                 request.getPassword(),
                                 InstanceFactory.getInstance(BackupStatsLogger.class));
                         if (destination != null && !isNullFile(destination)) {

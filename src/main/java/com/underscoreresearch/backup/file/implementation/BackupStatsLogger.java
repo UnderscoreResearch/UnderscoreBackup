@@ -48,7 +48,6 @@ public class BackupStatsLogger implements StatusLogger {
     private final Map<String, Date> scheduledTimes = new HashMap<>();
     private RepositoryTrimmer.Statistics statistics;
     @Getter
-    @Setter
     private boolean uploadRunning;
     @Getter
     @Setter
@@ -120,29 +119,15 @@ public class BackupStatsLogger implements StatusLogger {
         if (manifestPath != null) {
             if (this.statistics != null) {
                 statistics.setNeedActivation(this.statistics.isNeedActivation());
-            }
-            storeStats(statistics);
-            if (complete && configuration.getManifest() != null &&
-                    (configuration.getManifest().getReportStats() == null || configuration.getManifest().getReportStats())) {
-                ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
-                if (!Strings.isNullOrEmpty(serviceManager.getSourceId())) {
-                    SourceStatsModel stats = new SourceStatsModel();
-                    stats.setFiles(statistics.getFiles());
-                    stats.setFileVersions(statistics.getFileVersions());
-                    stats.setBlocks(statistics.getBlocks());
-                    stats.setBlockParts(statistics.getBlockParts());
-                    stats.setDirectories(statistics.getDirectories());
-                    stats.setDirectoryVersions(statistics.getDirectoryVersions());
-                    stats.setTotalSize(statistics.getTotalSize());
-                    stats.setTotalSizeLastVersion(statistics.getTotalSizeLastVersion());
-                    stats.setRecentError(BackupStatsLogger.extractEncounteredError());
-                    try {
-                        serviceManager.callApi(null, (api) -> api.updateSourceStats(serviceManager.getSourceId(), stats));
-                    } catch (ApiException e) {
-                        log.warn("Failed to updated source stats", e);
-                    }
+
+                if (!complete) {
+                    statistics.setBlocks(statistics.getBlocks() + this.statistics.getBlocks());
+                    statistics.setBlockParts(statistics.getBlockParts() + this.statistics.getBlockParts());
+                    statistics.setDirectories(statistics.getDirectories() + this.statistics.getDirectories());
+                    statistics.setDirectoryVersions(statistics.getDirectoryVersions() + this.statistics.getDirectoryVersions());
                 }
             }
+            storeStats(statistics);
         }
     }
 
@@ -187,6 +172,33 @@ public class BackupStatsLogger implements StatusLogger {
 
     @Override
     public void resetStatus() {
+    }
+
+    public void setUploadRunning(boolean uploadRunning) {
+        if (this.uploadRunning && uploadRunning) {
+            if (statistics != null && configuration.getManifest() != null &&
+                    (configuration.getManifest().getReportStats() == null || configuration.getManifest().getReportStats())) {
+                ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
+                if (!Strings.isNullOrEmpty(serviceManager.getSourceId())) {
+                    SourceStatsModel stats = new SourceStatsModel();
+                    stats.setFiles(statistics.getFiles());
+                    stats.setFileVersions(statistics.getFileVersions());
+                    stats.setBlocks(statistics.getBlocks());
+                    stats.setBlockParts(statistics.getBlockParts());
+                    stats.setDirectories(statistics.getDirectories());
+                    stats.setDirectoryVersions(statistics.getDirectoryVersions());
+                    stats.setTotalSize(statistics.getTotalSize());
+                    stats.setTotalSizeLastVersion(statistics.getTotalSizeLastVersion());
+                    stats.setRecentError(BackupStatsLogger.extractEncounteredError());
+                    try {
+                        serviceManager.callApi(null, (api) -> api.updateSourceStats(serviceManager.getSourceId(), stats));
+                    } catch (ApiException e) {
+                        log.warn("Failed to updated source stats", e);
+                    }
+                }
+            }
+        }
+        this.uploadRunning = uploadRunning;
     }
 
     @Override

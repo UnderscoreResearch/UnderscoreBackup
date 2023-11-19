@@ -2,7 +2,6 @@ package com.underscoreresearch.backup.cli.helpers;
 
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
-import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 

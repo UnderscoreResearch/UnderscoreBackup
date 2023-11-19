@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 public class BackupDirectory {
     private String path;
     private Long added;
+    private String permissions;
     private NavigableSet<String> files;
     private Long deleted;
 }

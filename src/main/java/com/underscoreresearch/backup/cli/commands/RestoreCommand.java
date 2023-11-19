@@ -26,6 +26,7 @@ import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.helpers.RestoreExecutor;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
@@ -94,7 +95,8 @@ public class RestoreCommand extends Command {
 
         List<BackupSetRoot> roots = paths.stream().map(file -> BackupSetRoot.builder().path(PathNormalizer.normalizePath(file)).build())
                 .collect(Collectors.toList());
-        new RestoreExecutor(contents, getPassword(), InstanceFactory.getInstance(BackupStatsLogger.class))
+        new RestoreExecutor(contents, InstanceFactory.getInstance(FileSystemAccess.class), repository, getPassword(),
+                InstanceFactory.getInstance(BackupStatsLogger.class))
                 .restorePaths(roots, destination, commandLine.hasOption(RECURSIVE), commandLine.hasOption(OVER_WRITE), !commandLine.hasOption(SKIP_PERMISSIONS));
     }
 }

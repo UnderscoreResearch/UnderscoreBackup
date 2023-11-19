@@ -117,8 +117,8 @@ class LoggingMetadataRepositoryTest {
     @Test
     void addDirectory() throws IOException {
         long timestamp = Instant.now().toEpochMilli();
-        loggingMetadataRepository.addDirectory(new BackupDirectory("path", timestamp, Sets.newTreeSet(Lists.newArrayList("a")), null));
-        Mockito.verify(repository).addDirectory(new BackupDirectory("path", timestamp, Sets.newTreeSet(Lists.newArrayList("a")), null));
+        loggingMetadataRepository.addDirectory(new BackupDirectory("path", timestamp, null, Sets.newTreeSet(Lists.newArrayList("a")), null));
+        Mockito.verify(repository).addDirectory(new BackupDirectory("path", timestamp, null, Sets.newTreeSet(Lists.newArrayList("a")), null));
         Mockito.verify(manifestManager).addLogEntry(anyString(), anyString());
     }
 

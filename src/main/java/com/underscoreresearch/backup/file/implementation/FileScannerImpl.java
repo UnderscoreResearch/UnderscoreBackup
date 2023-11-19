@@ -299,7 +299,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                             outstandingFiles.incrementAndGet();
                             pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCOMPLETE);
 
-                            filesystem.populatePermissions(file);
+                            file.setPermissions(filesystem.extractPermissions(file.getPath()));
 
                             lastProcessed = file;
                             consumer.backupFile(set, file, (success) -> {
@@ -452,6 +452,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                             }
                             repository.addDirectory(new BackupDirectory(currentPath,
                                     timestamp,
+                                    filesystem.extractPermissions(currentPath),
                                     Sets.newTreeSet(includedPaths), null));
                         }
                     }

@@ -602,7 +602,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public boolean deleteDirectory(String path, long timestamp) throws IOException {
-        BackupDirectory deletedDir = new BackupDirectory(path, timestamp, null, null);
+        BackupDirectory deletedDir = new BackupDirectory(path, timestamp, null, null, null);
         if (shares != null) {
             for (Map.Entry<String, ShareManifestManager> entry : getShareManagers().entrySet()) {
                 BackupShare share = shares.get(entry.getKey());

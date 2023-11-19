@@ -5,5 +5,5 @@ import java.util.stream.Stream;
 
 public interface CloseableSortedMap<K, V> extends CloseableMap<K, V> {
 
-    Stream<Map.Entry<K, V>> readOnlyEntryStream();
+    Stream<Map.Entry<K, V>> readOnlyEntryStream(boolean ascending);
 }

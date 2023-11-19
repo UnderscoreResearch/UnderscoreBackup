@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -65,6 +64,7 @@ import com.underscoreresearch.backup.utils.StatusLine;
 public class RepositoryTrimmer implements ManualStatusLogger {
     private static final int MINIMUM_FILES_FOR_DIRECTORY = 50;
     private static final double MINIMUM_RATIO_DIRECTORY_DIFF = 0.75;
+    private static final BackupDirectory EMPTY_DIRECTORY = BackupDirectory.builder().files(new TreeSet<>()).build();
     private final MetadataRepository metadataRepository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
@@ -72,7 +72,6 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     private final Stopwatch stopwatch = Stopwatch.createUnstarted();
     private final AtomicLong processedSteps = new AtomicLong();
     private final AtomicLong totalSteps = new AtomicLong();
-
     private final DirectoryCache directoryCache = new DirectoryCache((Integer size) -> CacheBuilder
             .newBuilder()
             .maximumSize(size)
@@ -112,8 +111,6 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
         StateLogger.addLogger(this);
     }
-
-    private static final BackupDirectory EMPTY_DIRECTORY = BackupDirectory.builder().files(new TreeSet<>()).build();
 
     private static boolean missingInDirectory(String path, DirectoryCache cache, int depth, boolean allowDeleted) throws IOException {
 

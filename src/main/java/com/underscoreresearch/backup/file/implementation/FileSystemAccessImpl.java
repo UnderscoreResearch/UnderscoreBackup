@@ -105,7 +105,12 @@ public class FileSystemAccessImpl implements FileSystemAccess {
     }
 
     @Override
-    public void populatePermissions(BackupFile backupFile) throws IOException {
+    public String extractPermissions(String path) {
+        return null;
+    }
+
+    @Override
+    public void applyPermissions(File path, String permissions) throws IOException {
 
     }
 
@@ -150,10 +155,8 @@ public class FileSystemAccessImpl implements FileSystemAccess {
                 }
             }
         }
-        finalFileCompletion(backupFile, file);
-    }
 
-    protected void finalFileCompletion(BackupFile backupFile, File file) {
+        applyPermissions(file, backupFile.getPermissions());
     }
 
     @Override
