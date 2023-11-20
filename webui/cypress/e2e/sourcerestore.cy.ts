@@ -55,7 +55,7 @@ it('sourcerestore', function () {
     cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#currentProgress').contains("Browsing same Contents");
+    cy.get('#currentProgress').contains("Browsing same contents");
     cy.wait(1000);
     cy.get('#cancelButton').should("be.visible").and('not.be.disabled').click();
 
@@ -70,7 +70,7 @@ it('sourcerestore', function () {
     cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#currentProgress').contains("Browsing same Contents");
+    cy.get('#currentProgress').contains("Browsing same contents");
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('.fileTreeList').find(".treeRow").should('have.length.at.least', 2);
@@ -78,9 +78,9 @@ it('sourcerestore', function () {
     cy.get('#originalLocation').check();
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#currentProgress').contains("Restore From same In Progress");
+    cy.get('#currentProgress').contains("Restore from same in progress");
     cy.get('#pageStatus > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
-    cy.get('#currentProgress').contains("Browsing same Contents", {timeout: 10 * 60 * 1000});
+    cy.get('#currentProgress').contains("Browsing same contents", {timeout: 10 * 60 * 1000});
     cy.get('#cancelButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#currentProgress').contains("Stopped");

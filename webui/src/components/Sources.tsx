@@ -125,8 +125,6 @@ export default function Sources(props: SourcesProps) {
     }
 
     return <Stack spacing={2} style={{width: "100%"}}>
-        <Alert severity="warning">Making any changes to the location of existing sources could cause you to loose
-            the information backed up in those locations!</Alert>
 
         {EditableList<SourceState>({
             deleteBelow: true,

@@ -54,6 +54,6 @@ it('backup', function () {
     cy.get('#acceptButton').contains("Backup Now").should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageStatus > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
-    cy.get('#currentProgress').contains("Backup In Progress");
+    cy.get('#currentProgress').contains("Backup in progress");
     cy.get('#currentProgress').contains("Idle", {timeout: 10 * 60 * 1000});
 });

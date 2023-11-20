@@ -268,7 +268,7 @@ function ShareItem(props: {
     }
 
     const postElement = <Fragment>
-        <DividerWithText>Included Contents</DividerWithText>
+        <DividerWithText>Included contents</DividerWithText>
         <FileTreeView roots={state.share.contents.roots}
                       backendState={props.backendState}
                       fileFetcher={(path) => fetchContents(path)}
@@ -314,7 +314,7 @@ function ShareItem(props: {
         </div>
         {(!!props.backendState.serviceSourceId) &&
             <>
-                <DividerWithText>Service Sharing</DividerWithText>
+                <DividerWithText>Service sharing</DividerWithText>
                 <div style={{marginLeft: "0px", marginRight: "0px", marginBottom: "8px"}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.serviceSharing}
@@ -337,7 +337,7 @@ function ShareItem(props: {
         }
         {(!props.backendState.serviceSourceId || !state.serviceSharing) &&
             <>
-                <DividerWithText>Encryption Key</DividerWithText>
+                <DividerWithText>Encryption key</DividerWithText>
                 <div style={{marginLeft: "0px", marginRight: "0px", marginTop: "8px", display: "flex"}}>
                     <div style={{width: "100%", marginRight: "8px"}}>
                         <TextField label={privateKey || props.exists ? "Public Key" : "Encryption Key"}

@@ -162,7 +162,7 @@ export default function Settings() {
         <Paper sx={{p: 2}}>
             <Grid container spacing={2} alignItems={"center"}>
                 <Grid item xs={12}>
-                    <DividerWithText>Underscore Backup Service Account</DividerWithText>
+                    <DividerWithText>Underscore Backup service account</DividerWithText>
                 </Grid>
                 <ServiceAuthentication includeSkip={false}
                                        needSubscription={false}
@@ -254,7 +254,7 @@ export default function Settings() {
             </Grid>
         </Paper>
         <Paper sx={{p: 2}}>
-            <DividerWithText>Missing Retention</DividerWithText>
+            <DividerWithText>Missing retention</DividerWithText>
             <Typography variant={"body2"} style={{marginBottom: "16px"}}>The retention settings to use for any files
                 that are not covered by a set</Typography>
             <Retention retention={state.missingRetention} retentionUpdated={(newState) => updateState({

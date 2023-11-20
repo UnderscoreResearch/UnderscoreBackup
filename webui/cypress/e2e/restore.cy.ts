@@ -45,7 +45,7 @@ it('restore', function () {
     cy.get('#originalLocation').check();
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#currentProgress').contains("Restore In Progress");
+    cy.get('#currentProgress').contains("Restore in progress");
     cy.get('#pageStatus > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('#currentProgress').contains("Stopped", {timeout: 60 * 1000});
 });

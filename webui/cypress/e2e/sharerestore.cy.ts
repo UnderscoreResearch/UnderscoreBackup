@@ -28,7 +28,7 @@ it('sharerestore', function () {
     cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#currentProgress').contains("Browsing share Contents");
+    cy.get('#currentProgress').contains("Browsing share contents");
     cy.get('#cancelButton').should("be.visible").and('not.be.disabled').click();
 
     cy.wait(7500);
@@ -42,17 +42,17 @@ it('sharerestore', function () {
     cy.get('#restorePassword').clear().type('KqNK4bFj8ZTc');
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#currentProgress').contains("Browsing share Contents");
+    cy.get('#currentProgress').contains("Browsing share contents");
     cy.get('#pageRestore > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
     cy.get('.fileTreeList').find(".treeRow").should('have.length.at.least', 2);
     cy.get('.fileTreeList .treeRow #checkbox__').check({force: true});
     cy.get('#originalLocation').check();
     cy.get('#acceptButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');
-    cy.get('#currentProgress').contains("Restore From share In Progress");
+    cy.get('#currentProgress').contains("Restore from share in progress");
     cy.get("#loading").should('not.be.visible');
     cy.get('#pageStatus > .MuiListItemText-root > .MuiTypography-root').should('not.be.disabled').click();
-    cy.get('#currentProgress').contains("Browsing share Contents", {timeout: 10 * 60 * 1000});
+    cy.get('#currentProgress').contains("Browsing share contents", {timeout: 10 * 60 * 1000});
     cy.get("#loading").should('not.be.visible');
     cy.get('#cancelButton').should("be.visible").and('not.be.disabled').click();
     cy.get("#loading").should('not.be.visible');

@@ -299,7 +299,7 @@ function SharedProperties(props: {
                     }
                     {!props.sourceDestination && !props.shareDestination &&
                         <Grid item xs={12}>
-                            <DividerWithText>Maximum Retention</DividerWithText>
+                            <DividerWithText>Maximum retention</DividerWithText>
                         </Grid>
                     }
                     {!props.sourceDestination && !props.shareDestination &&

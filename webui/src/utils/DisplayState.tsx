@@ -93,13 +93,13 @@ export function calculateDisplayState(appContext: ApplicationContext,
     ret.processing = true;
 
     if (activityContext.activity.some(item => item.code.startsWith("BACKUP_"))) {
-        ret.statusTitle = "Backup In Progress";
+        ret.statusTitle = "Backup in progress";
     } else if (activityContext.activity.some(item => item.code.startsWith("TRIMMING_"))) {
-        ret.statusTitle = "Trimming Repository";
+        ret.statusTitle = "Trimming repository";
     } else if (activityContext.activity.some(item => item.code.startsWith("VALIDATE_"))) {
-        ret.statusTitle = "Validating Repository";
+        ret.statusTitle = "Validating repository";
     } else if (activityContext.activity.some(item => item.code.startsWith("CONTINUOUS_"))) {
-        ret.statusTitle = "Listening For Changes";
+        ret.statusTitle = "Listening for changes";
         ret.backupCanStart = true;
     } else {
         ret.backupInProgress = false;
@@ -107,9 +107,9 @@ export function calculateDisplayState(appContext: ApplicationContext,
         if (activityContext.activity.some(item => item.code.startsWith("UPLOAD_PENDING"))) {
             ret.statusTitle = "Initializing";
         } else if (activityContext.activity.some(item => item.code.startsWith("ACTIVATING_SHARES_"))) {
-            busyStatus(ret, "Activating Shares");
+            busyStatus(ret, "Activating shares");
         } else if (activityContext.activity.some(item => item.code.startsWith("DEACTIVATING_SHARES_"))) {
-            busyStatus(ret, "Deactivating Shares");
+            busyStatus(ret, "Deactivating shares");
         } else {
             if (appContext.selectedSource) {
                 ret.navigation.sets =
@@ -126,41 +126,41 @@ export function calculateDisplayState(appContext: ApplicationContext,
                     ret.rebuildInProgress = true;
                 } else if (activityContext.activity
                     .some(item => item.code.startsWith("REPAIRING_"))) {
-                    busyStatus(ret, `Repairing Local Repository For ${appContext.selectedSourceName}`);
+                    busyStatus(ret, `Repairing local repository For ${appContext.selectedSourceName}`);
                     ret.rebuildInProgress = true;
                 } else {
                     if (activityContext.activity.some(item => item.code.startsWith("RESTORE_"))) {
-                        busyStatus(ret, `Restore From ${appContext.selectedSourceName} In Progress`);
+                        busyStatus(ret, `Restore from ${appContext.selectedSourceName} in progress`);
                         ret.restoreInProgress = true;
                     } else {
-                        ret.statusTitle = `Browsing ${appContext.selectedSourceName} Contents`;
+                        ret.statusTitle = `Browsing ${appContext.selectedSourceName} contents`;
                         ret.processing = false;
                     }
                 }
             } else {
                 if (activityContext.activity.some(item => item.code.startsWith("RESTORE_"))) {
-                    busyStatus(ret, "Restore In Progress");
+                    busyStatus(ret, "Restore in progress");
                     ret.restoreInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("REPLAY_"))) {
-                    busyStatus(ret, "Replaying From Backup");
+                    busyStatus(ret, "Replaying from backup");
                     ret.rebuildInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("REPAIRING_"))) {
-                    busyStatus(ret, "Repairing Local Metadata Repository");
+                    busyStatus(ret, "Repairing local metadata repository");
                     ret.rebuildInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("UPGRADE_"))) {
-                    busyStatus(ret, "Migrating Repository Storage");
+                    busyStatus(ret, "Migrating repository storage");
                     ret.rebuildInProgress = true;
                 } else if (activityContext.activity.some(item => item.code.startsWith("OPTIMIZING_"))) {
-                    busyStatus(ret, "Optimizing Log");
+                    busyStatus(ret, "Optimizing log");
                 } else if (activityContext.activity.some(item => item.code.startsWith("RE-KEYING_"))) {
-                    busyStatus(ret, "Re-keying Log");
+                    busyStatus(ret, "Re-keying log");
                 } else {
                     ret.backupCanStart = true;
                     ret.processing = false;
                     if (appContext.interactiveEnabled())
                         ret.statusTitle = "Idle";
                     else if (appContext.hasScheduledSets())
-                        ret.statusTitle = "Schedule Paused";
+                        ret.statusTitle = "Schedule paused";
                     else
                         ret.statusTitle = "Stopped";
                 }
