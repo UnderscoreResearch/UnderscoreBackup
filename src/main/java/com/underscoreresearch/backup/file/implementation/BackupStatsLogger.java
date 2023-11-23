@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.file.implementation;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -10,6 +11,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -127,6 +129,7 @@ public class BackupStatsLogger implements StatusLogger {
                     statistics.setDirectoryVersions(statistics.getDirectoryVersions() + this.statistics.getDirectoryVersions());
                 }
             }
+            statistics.setTimestamp(Instant.now().toEpochMilli());
             storeStats(statistics);
         }
     }
@@ -175,7 +178,7 @@ public class BackupStatsLogger implements StatusLogger {
     }
 
     public void setUploadRunning(boolean uploadRunning) {
-        if (this.uploadRunning && uploadRunning) {
+        if (this.uploadRunning && !uploadRunning) {
             if (statistics != null && configuration.getManifest() != null &&
                     (configuration.getManifest().getReportStats() == null || configuration.getManifest().getReportStats())) {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
@@ -228,10 +231,12 @@ public class BackupStatsLogger implements StatusLogger {
             if (statistics != null) {
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILES",
                         "Total files in repository",
-                        statistics.getFiles()));
+                        statistics.getFiles(),
+                        readableNumber(statistics.getFiles())));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILE_VERSIONS",
                         "Total file versions in repository",
-                        statistics.getFileVersions()));
+                        statistics.getFileVersions(),
+                        readableNumber(statistics.getFileVersions())));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE",
                         "Total file size in repository",
                         statistics.getTotalSize(),
@@ -244,10 +249,19 @@ public class BackupStatsLogger implements StatusLogger {
                 if (statistics.getBlocks() > 0) {
                     ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCKS",
                             "Total blocks",
-                            statistics.getBlocks()));
+                            statistics.getBlocks(),
+                            readableNumber(statistics.getBlocks())));
                     ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCK_PARTS",
                             "Total block parts",
-                            statistics.getBlockParts()));
+                            statistics.getBlockParts(),
+                            readableNumber(statistics.getBlocks())));
+                }
+
+                if (statistics.getTimestamp() != 0) {
+                    ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TIMESTAMP",
+                            "Last completed backup",
+                            statistics.getTimestamp(),
+                            formatTimestamp(statistics.getTimestamp())));
                 }
 
                 if (statistics.isNeedActivation()) {

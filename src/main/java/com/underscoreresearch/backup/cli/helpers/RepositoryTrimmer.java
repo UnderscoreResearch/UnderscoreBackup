@@ -724,6 +724,8 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         private long deletedBlockParts;
         private long deletedBlockPartReferences;
 
+        private long timestamp;
+
         private boolean needActivation;
 
         private synchronized void addFile() {
