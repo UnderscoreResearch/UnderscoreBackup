@@ -10,7 +10,7 @@ export default function UILogin() {
 
     return <>
         <MainAppSkeleton
-            title={"Backup Password Required"}
+            title={"Backup password required"}
             processing={false}
             navigation={<></>} disallowClose={false}>
         </MainAppSkeleton>
