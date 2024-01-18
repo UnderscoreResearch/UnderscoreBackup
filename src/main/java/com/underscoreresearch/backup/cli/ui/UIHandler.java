@@ -79,6 +79,12 @@ public class UIHandler {
         return task;
     }
 
+    public static boolean isActive() {
+        synchronized (activeTasks) {
+            return !activeTasks.isEmpty();
+        }
+    }
+
     private static void updateTooltip() {
         String message;
         synchronized (activeTasks) {

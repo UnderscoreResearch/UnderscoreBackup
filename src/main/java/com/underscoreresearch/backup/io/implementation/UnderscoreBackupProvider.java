@@ -151,7 +151,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         FileListResponse response = callRetry((api) -> api.listLogFiles(getSourceId(), lastSyncedFile, shareId));
 
         // Almost all backups will be less than one page, so we can optimize for that case
-        if ((!all || Boolean.TRUE.equals(response.getCompleted())) && !response.getFiles().isEmpty()) {
+        if (!all || Boolean.TRUE.equals(response.getCompleted()) || response.getFiles().isEmpty()) {
             return response.getFiles();
         }
 
@@ -160,9 +160,6 @@ public class UnderscoreBackupProvider implements IOIndex {
         do {
             response = callRetry((api) -> api.listLogFiles(getSourceId(), ret.get(ret.size() - 1), shareId));
             ret.addAll(response.getFiles());
-            if (!ret.isEmpty() && !all) {
-                break;
-            }
         } while (Boolean.FALSE.equals(response.getCompleted()));
         return ret;
     }

@@ -42,54 +42,12 @@ public class RestoreDirectoryPermissions implements Closeable {
     private static final int CHANGED = 2;
 
     private final LoadingCache<String, PendingDirectory> pendingDirectories;
-
-    private CloseableSortedMap<String, PendingDirectory> pendingDirectoriesLarge;
     private final MetadataRepository repository;
     private final AtomicBoolean anyData = new AtomicBoolean(false);
     private final DownloadScheduler scheduler;
     private final FileSystemAccess fileSystemAccess;
     private final Consumer<String> callback;
-
-    private CloseableSortedMap<String, PendingDirectory> getPendingDirectoriesLarge() {
-        if (pendingDirectoriesLarge == null) {
-            try {
-                pendingDirectoriesLarge = repository.temporarySortedMap(
-                        new MapSerializer<>() {
-                            @Override
-                            public byte[] encodeKey(String s) {
-                                anyData.set(true);
-                                return s.getBytes(StandardCharsets.UTF_8);
-                            }
-
-                            @Override
-                            public byte[] encodeValue(PendingDirectory pendingDirectory) {
-                                try {
-                                    return WRITER.writeValueAsBytes(pendingDirectory);
-                                } catch (JsonProcessingException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-
-                            @Override
-                            public PendingDirectory decodeValue(byte[] data) {
-                                try {
-                                    return READER.readValue(data);
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-
-                            @Override
-                            public String decodeKey(byte[] data) {
-                                return new String(data, StandardCharsets.UTF_8);
-                            }
-                        });
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to keep track of directory permission restore", e);
-            }
-        }
-        return pendingDirectoriesLarge;
-    }
+    private CloseableSortedMap<String, PendingDirectory> pendingDirectoriesLarge;
 
     public RestoreDirectoryPermissions(MetadataRepository repository, DownloadScheduler scheduler,
                                        FileSystemAccess fileSystemAccess, boolean skipPermisssions) throws IOException {
@@ -137,6 +95,47 @@ public class RestoreDirectoryPermissions implements Closeable {
             this.fileSystemAccess = null;
             callback = null;
         }
+    }
+
+    private CloseableSortedMap<String, PendingDirectory> getPendingDirectoriesLarge() {
+        if (pendingDirectoriesLarge == null) {
+            try {
+                pendingDirectoriesLarge = repository.temporarySortedMap(
+                        new MapSerializer<>() {
+                            @Override
+                            public byte[] encodeKey(String s) {
+                                anyData.set(true);
+                                return s.getBytes(StandardCharsets.UTF_8);
+                            }
+
+                            @Override
+                            public byte[] encodeValue(PendingDirectory pendingDirectory) {
+                                try {
+                                    return WRITER.writeValueAsBytes(pendingDirectory);
+                                } catch (JsonProcessingException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+
+                            @Override
+                            public PendingDirectory decodeValue(byte[] data) {
+                                try {
+                                    return READER.readValue(data);
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+
+                            @Override
+                            public String decodeKey(byte[] data) {
+                                return new String(data, StandardCharsets.UTF_8);
+                            }
+                        });
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to keep track of directory permission restore", e);
+            }
+        }
+        return pendingDirectoriesLarge;
     }
 
     @Override

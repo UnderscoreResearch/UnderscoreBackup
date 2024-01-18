@@ -161,4 +161,14 @@ public final class LogUtil {
         return String.format("%-10s %-20s %s", size, age, PathNormalizer.physicalPath(strippedPath));
     }
 
+    public static void dumpAllStackTrace() {
+        for (Thread thread : Thread.getAllStackTraces().keySet()) {
+            StringBuilder sb = new StringBuilder("Thread: " + thread.getName());
+            for (StackTraceElement stackTraceElement : thread.getStackTrace()) {
+                sb.append("\n    ");
+                sb.append(stackTraceElement);
+            }
+            log.info(sb.toString());
+        }
+    }
 }
