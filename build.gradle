@@ -19,7 +19,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '2.4.3.2'
+version '2.4.4.7'
 def releaseType = ''
 
 def archiveName = 'underscorebackup'

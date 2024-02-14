@@ -751,7 +751,7 @@ public class LockingMetadataRepository implements MetadataRepository {
         if (shouldUpgrade() &&
                 !repositoryInfo.errorsDetected && !repositoryInfo.stopSaving) {
             try (RepositoryLock ignored = new RepositoryLock()) {
-                try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository")) {
+                try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository", true)) {
                     RepositoryOpenMode originalOpenMode = openMode;
                     open(RepositoryOpenMode.READ_ONLY);
 

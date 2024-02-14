@@ -15,7 +15,7 @@ public class PausedStatusLogger implements ManualStatusLogger {
     public static Closeable startPause(String reason) {
         PausedStatusLogger instance = new PausedStatusLogger(reason);
         StateLogger.addLogger(instance);
-        Closeable closeable = UIHandler.registerTask(reason);
+        Closeable closeable = UIHandler.registerTask(reason, false);
 
         return () -> {
             closeable.close();

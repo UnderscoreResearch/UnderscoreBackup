@@ -173,6 +173,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         boolean anyFound = false;
         for (BackupSetRoot root : backupSet.getRoots()) {
             addPendingPath(backupSet, root.getNormalizedPath());
+            lastProcessed = BackupFile.builder().path(root.getNormalizedPath()).build();
             anyFound = true;
         }
         return anyFound;

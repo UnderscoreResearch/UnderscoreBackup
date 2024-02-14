@@ -33,8 +33,8 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class StateLogger implements StatusLogger {
+    public static final Duration INACTVITY_DURATION = Duration.ofMinutes(10);
     private static final String OLD_KEYWORD = " Old ";
-    public static final Duration INACTVITY_DURATION = Duration.ofMinutes(5);
     private final AtomicLong lastHeapUsage = new AtomicLong();
     private final AtomicLong lastHeapUsageMax = new AtomicLong();
     private final AtomicLong lastMemoryAfterGCUse = new AtomicLong();
@@ -116,39 +116,51 @@ public class StateLogger implements StatusLogger {
             log.debug("Current CPU usage {}", state.getCpuUsage());
         });
 
+        detectDeadlock();
+    }
+
+    private void detectDeadlock() {
         boolean isActive = UIHandler.isActive();
         if (isActive) {
-            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                try (DataOutputStream writer = new DataOutputStream(out)) {
-                    logData((type) -> type != Type.LOG).forEach(item -> {
-                        if (!excludedProgressItem(item)) {
-                            try {
-                                writer.write(item.getCode().getBytes(StandardCharsets.UTF_8));
-                                writer.writeLong(item.getValue());
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
+            String newActivityHash;
+            try {
+                try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                    try (DataOutputStream writer = new DataOutputStream(out)) {
+                        logData((type) -> type != Type.LOG).forEach(item -> {
+                            if (!excludedProgressItem(item)) {
+                                try {
+                                    writer.write(item.getCode().getBytes(StandardCharsets.UTF_8));
+                                    if (item.getValue() != null) {
+                                        writer.writeLong(item.getValue());
+                                    } else {
+                                        writer.writeUTF(item.getValueString());
+                                    }
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
                             }
-                        }
-                        debug(() -> log.debug(item.toString()));
-                    });
+                            debug(() -> log.debug(item.toString()));
+                        });
+                    }
+                    newActivityHash = Hash.hash(out.toByteArray());
                 }
-                String newActivityHash = Hash.hash(out.toByteArray());
                 if (newActivityHash.equals(activityHash)) {
                     if (lastActivityHash.plus(INACTVITY_DURATION).isBefore(Instant.now())) {
-                        log.error("Detected potential deadlock");
-                        LogUtil.dumpAllStackTrace();
+                        StringBuilder sb = new StringBuilder("Detected potential deadlock: " + UIHandler.getActiveTaskMessage());
+                        LogUtil.dumpAllStackTrace(sb);
+                        log.error(sb.toString());
                         activityHash = "";
                     }
                 } else if (!"".equals(activityHash)) {
                     activityHash = newActivityHash;
                     lastActivityHash = Instant.now();
                 }
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 log.error("Failed calculating progress", e);
             }
         } else {
             activityHash = null;
-            printLogStatus((type) -> type != Type.LOG, log::debug);
+            debug(() -> printLogStatus((type) -> type != Type.LOG, log::debug));
         }
     }
 
@@ -165,7 +177,7 @@ public class StateLogger implements StatusLogger {
                     "HEAP_FULL_GC",
                     "MEMORY_HIGH",
                     "REPOSITORY_INFO_TIMESTAMP" -> true;
-            default -> item.getValue() == null;
+            default -> item.getValue() == null && item.getValueString() == null;
         };
     }
 

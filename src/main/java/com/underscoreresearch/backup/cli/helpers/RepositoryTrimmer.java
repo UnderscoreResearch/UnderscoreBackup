@@ -177,7 +177,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         File tempFile = File.createTempFile("block", ".db");
 
         manifestManager.setDisabledFlushing(true);
-        try (Closeable ignored2 = UIHandler.registerTask("Trimming repository")) {
+        try (Closeable ignored2 = UIHandler.registerTask("Trimming repository", true)) {
             deleteFile(tempFile);
 
             Statistics statistics = new Statistics();

@@ -375,6 +375,15 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
                 log.info("Creating additional blocks for {} shares", activeShares.size());
 
+                startOperation("Activating shares");
+
+                synchronized (operationLock) {
+                    processedOperations = new AtomicLong();
+                    totalOperations = new AtomicLong(repository.getBlockCount());
+                    totalFiles = null;
+                    processedFiles = null;
+                }
+
                 Set<EncryptionKey> shareKeys = activeShares.keySet().stream().map(EncryptionKey::createWithPublicKey)
                         .collect(Collectors.toSet());
 
@@ -792,7 +801,14 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         log.info(operation);
         synchronized (operationLock) {
             this.operation = operation;
-            this.operationTask = UIHandler.registerTask(operation);
+            if (this.operationTask != null) {
+                try {
+                    this.operationTask.close();
+                } catch (IOException e) {
+                    log.error("Failed to close active task", e);
+                }
+            }
+            this.operationTask = UIHandler.registerTask(operation, true);
             operationDuration = Stopwatch.createStarted();
         }
     }
@@ -927,8 +943,9 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 if (isShutdown()) {
                     throw new CancellationException();
                 }
+                processedOperations.incrementAndGet();
+
                 for (EncryptionKey entry : shareEncryptionKeys) {
-                    processedOperations.incrementAndGet();
                     if (!BackupBlock.isSuperBlock(block.getHash())) {
                         List<BackupBlockStorage> newStorage =
                                 block.getStorage().stream()

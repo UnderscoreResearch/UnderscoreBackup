@@ -53,11 +53,10 @@ public class RestoreExecutor {
         String commonRoot = findCommonRoot(rootPaths);
         backupStatsLogger.setDownloadRunning(true);
 
-        AtomicBoolean anyData = new AtomicBoolean(false);
-        try (Closeable ignored = UIHandler.registerTask("Restoring from " + rootPaths.stream()
+        try (Closeable ignored = UIHandler.registerTask("Restoring from \"" + rootPaths.stream()
                 .map(BackupSetRoot::getPath)
                 .map(PathNormalizer::physicalPath)
-                .collect(Collectors.joining(", ")))) {
+                .collect(Collectors.joining("\", \"")) + "\"", true)) {
 
             try (RestoreDirectoryPermissions pendingDirectories = new RestoreDirectoryPermissions(metadataRepository, scheduler, fileSystemAccess, skipPermisssions)) {
                 for (BackupSetRoot root : rootPaths) {
