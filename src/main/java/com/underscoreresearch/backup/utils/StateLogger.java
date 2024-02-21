@@ -124,10 +124,13 @@ public class StateLogger implements StatusLogger {
         if (isActive) {
             String newActivityHash;
             try {
+                List<StatusLine> logItems = logData((type) -> type != Type.LOG).stream()
+                        .filter(item -> includeProgressItem(item)).toList();
+
                 try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                     try (DataOutputStream writer = new DataOutputStream(out)) {
-                        logData((type) -> type != Type.LOG).forEach(item -> {
-                            if (!excludedProgressItem(item)) {
+                        logItems.forEach(item -> {
+                            if (includeProgressItem(item)) {
                                 try {
                                     writer.write(item.getCode().getBytes(StandardCharsets.UTF_8));
                                     if (item.getValue() != null) {
@@ -149,6 +152,9 @@ public class StateLogger implements StatusLogger {
                         StringBuilder sb = new StringBuilder("Detected potential deadlock: " + UIHandler.getActiveTaskMessage());
                         LogUtil.dumpAllStackTrace(sb);
                         log.error(sb.toString());
+                        if (!LogUtil.isDebug()) {
+                            logItems.forEach(item -> log.info(item.toString()));
+                        }
                         activityHash = "";
                     }
                 } else if (!"".equals(activityHash)) {
@@ -164,11 +170,11 @@ public class StateLogger implements StatusLogger {
         }
     }
 
-    private boolean excludedProgressItem(StatusLine item) {
+    private boolean includeProgressItem(StatusLine item) {
         if (item.getCode().endsWith("_DURATION") ||
                 item.getCode().endsWith("_THROUGHPUT") ||
                 item.getCode().startsWith("SCHEDULED_BACKUP_")) {
-            return true;
+            return false;
         }
 
         return switch (item.getCode()) {
@@ -176,8 +182,8 @@ public class StateLogger implements StatusLogger {
                     "HEAP_AFTER_GC",
                     "HEAP_FULL_GC",
                     "MEMORY_HIGH",
-                    "REPOSITORY_INFO_TIMESTAMP" -> true;
-            default -> item.getValue() == null && item.getValueString() == null;
+                    "REPOSITORY_INFO_TIMESTAMP" -> false;
+            default -> item.getValue() != null || item.getValueString() != null;
         };
     }
 

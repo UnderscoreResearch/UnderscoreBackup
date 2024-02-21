@@ -44,34 +44,46 @@ public class BackupSetDestinations {
         File file = backupSetLocationInfo(manifestLocation, backupSet);
         Set<String> destinations = Sets.newHashSet(backupSet.getDestinations());
         if (file.exists()) {
-            BackupSetDestinations sets = READER.readValue(file);
-            if (initial) {
-                sets.initial = true;
-                sets.minUsedDestinations = destinations;
-                if (sets.getCompletedDestinations() != null)
-                    sets.consistent = sets.getCompletedDestinations().containsAll(destinations);
-                WRITER.writeValue(file, sets);
-            } else {
-                sets.minUsedDestinations.retainAll(backupSet.getDestinations());
-                if (sets.consistent && !sets.minUsedDestinations.containsAll(destinations)) {
-                    sets.consistent = false;
+            try {
+                BackupSetDestinations sets = READER.readValue(file);
+                if (initial) {
+                    sets.initial = true;
+                    sets.minUsedDestinations = destinations;
+                    if (sets.getCompletedDestinations() != null)
+                        sets.consistent = sets.getCompletedDestinations().containsAll(destinations);
                     WRITER.writeValue(file, sets);
+                } else {
+                    sets.minUsedDestinations.retainAll(backupSet.getDestinations());
+                    if (sets.consistent && !sets.minUsedDestinations.containsAll(destinations)) {
+                        sets.consistent = false;
+                        WRITER.writeValue(file, sets);
+                    }
                 }
+                return !sets.consistent;
+            } catch (IOException e) {
+                log.warn("Error reading backup set destinations, resetting", e);
             }
-            return !sets.consistent;
-        } else {
-            BackupSetDestinations sets = BackupSetDestinations.builder().consistent(false)
-                    .minUsedDestinations(destinations)
-                    .initial(initial)
-                    .build();
-            WRITER.writeValue(file, sets);
-            return true;
         }
+        BackupSetDestinations sets = BackupSetDestinations.builder().consistent(false)
+                .minUsedDestinations(destinations)
+                .initial(initial)
+                .build();
+        WRITER.writeValue(file, sets);
+        return true;
     }
 
     public static void completedStorageValidation(String manifestLocation, BackupSet backupSet) throws IOException {
         File file = backupSetLocationInfo(manifestLocation, backupSet);
-        BackupSetDestinations sets = READER.readValue(file);
+        BackupSetDestinations sets;
+        try {
+            sets = READER.readValue(file);
+        } catch (IOException e) {
+            log.warn("Error reading backup set destinations, resetting", e);
+            sets = BackupSetDestinations.builder().consistent(false)
+                    .minUsedDestinations(Sets.newHashSet(backupSet.getDestinations()))
+                    .initial(true)
+                    .build();
+        }
         if (sets.minUsedDestinations.containsAll(backupSet.getDestinations()) && sets.initial) {
             sets.completedDestinations = sets.minUsedDestinations;
             sets.consistent = true;

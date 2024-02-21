@@ -270,6 +270,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     if (set.includeDirectory(file.getPath())) {
                         addPendingPath(set, file.getPath());
                         BackupActiveStatus status = processPath(set, file.getPath(), needStorageValidation);
+                        lastProcessed = file;
 
                         if (status == BackupActiveStatus.INCLUDED || status == BackupActiveStatus.INCOMPLETE) {
                             anyIncluded = true;

@@ -45,9 +45,13 @@ public final class LogUtil {
         FILE_TIME_FORMATTER = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
     }
 
-    public static void debug(Runnable log) {
+    public static boolean isDebug() {
         InstanceFactory factory = InstanceFactory.getFactory(CommandLine.class);
-        if (factory == null || InstanceFactory.getInstance(CommandLine.class).hasOption(DEBUG)) {
+        return factory == null || InstanceFactory.getInstance(CommandLine.class).hasOption(DEBUG);
+    }
+
+    public static void debug(Runnable log) {
+        if (isDebug()) {
             log.run();
         }
     }
@@ -171,16 +175,18 @@ public final class LogUtil {
     public static void dumpAllStackTrace(StringBuilder sb) {
         HashMap<String, NavigableSet<String>> bundles = new HashMap<>();
         for (Thread thread : Thread.getAllStackTraces().keySet()) {
-            StackTraceElement[] elements = trimStackTrace(thread.getStackTrace());
-            if (elements != null) {
-                StringBuilder builder = new StringBuilder();
-                for (StackTraceElement stackTraceElement : elements) {
-                    builder.append("\n    ");
-                    builder.append(stackTraceElement);
+            if (thread != Thread.currentThread()) {
+                StackTraceElement[] elements = trimStackTrace(thread.getStackTrace());
+                if (elements != null) {
+                    StringBuilder builder = new StringBuilder();
+                    for (StackTraceElement stackTraceElement : elements) {
+                        builder.append("\n    ");
+                        builder.append(stackTraceElement);
+                    }
+                    String stackString = builder.toString();
+                    bundles.computeIfAbsent(stackString,
+                            (key) -> new TreeSet<>()).add(thread.getName().replaceAll("\\d+$", "n"));
                 }
-                String stackString = builder.toString();
-                bundles.computeIfAbsent(stackString,
-                        (key) -> new TreeSet<>()).add(thread.getName().replaceAll("\\d+$", "n"));
             }
         }
 
