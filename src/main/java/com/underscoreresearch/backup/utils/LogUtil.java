@@ -179,9 +179,14 @@ public final class LogUtil {
                 StackTraceElement[] elements = trimStackTrace(thread.getStackTrace());
                 if (elements != null) {
                     StringBuilder builder = new StringBuilder();
+                    String lastElement = null;
                     for (StackTraceElement stackTraceElement : elements) {
                         builder.append("\n    ");
-                        builder.append(stackTraceElement);
+                        String element = stackTraceElement.toString();
+                        if (!element.equals(lastElement)) {
+                            builder.append(stackTraceElement);
+                            lastElement = element;
+                        }
                     }
                     String stackString = builder.toString();
                     bundles.computeIfAbsent(stackString,
