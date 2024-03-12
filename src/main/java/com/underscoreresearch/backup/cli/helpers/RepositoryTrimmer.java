@@ -351,7 +351,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                         lastDeleted = file.getDeleted();
                 }
             } catch (IOException e) {
-                log.error("Failed to check directory existence of \"{}\"", PathNormalizer.physicalPath(fullPath));
+                log.error("Failed to check directory existence of \"{}\"", PathNormalizer.physicalPath(fullPath), e);
             }
         }
 
