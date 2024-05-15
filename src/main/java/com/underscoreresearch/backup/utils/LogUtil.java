@@ -181,9 +181,9 @@ public final class LogUtil {
                     StringBuilder builder = new StringBuilder();
                     String lastElement = null;
                     for (StackTraceElement stackTraceElement : elements) {
-                        builder.append("\n    ");
                         String element = stackTraceElement.toString();
                         if (!element.equals(lastElement)) {
+                            builder.append("\n    ");
                             builder.append(stackTraceElement);
                             lastElement = element;
                         }

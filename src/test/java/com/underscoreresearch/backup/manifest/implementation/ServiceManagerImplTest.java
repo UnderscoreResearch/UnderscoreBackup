@@ -4,15 +4,25 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
 
 class ServiceManagerImplTest {
+    @BeforeEach
+    public void setup() {
+        InstanceFactory.initialize(new String[]{"--no-log", "--password", "test", "--config-data",
+                        "{}", "--encryption-key-data",
+                        "{\"publicKey\":\"OXYESQETTP4X4NJVUR3HTTL4OAZLVYUIFTBOEZ5ZILMJOLU4YB4A\",\"salt\":\"M7KL5D46VLT2MFXLC67KIPIPIROH2GX4NT3YJVAWOF4XN6FMMTSA\"}"},
+                null, null);
+    }
+
     @Test
     public void testIOExceptionRetry() throws ApiException {
         BackupApi api = Mockito.mock(BackupApi.class);

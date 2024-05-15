@@ -10,7 +10,7 @@ import com.underscoreresearch.backup.io.IOUtils;
 @Slf4j
 public class RetryUtils {
     public static final int DEFAULT_BASE = 1000;
-    public static final int DEFAULT_RETRIES = 5;
+    public static final int DEFAULT_RETRIES = 9; // Bump default retries to 9 which means about 8 minutes.
 
     public static <T> T retry(Callable<T> callable,
                               Function<Exception, Boolean> shouldRetry) throws Exception {
@@ -22,22 +22,40 @@ public class RetryUtils {
                               boolean waitForInternet) throws Exception {
         for (int i = 0; true; i++) {
             try {
-                return callable.call();
+                if (waitForInternet) {
+                    return IOUtils.waitForInternet(() -> callCallable(callable), false);
+                } else {
+                    return callCallable(callable);
+                }
+            } catch (InterruptedException exc) {
+                throw exc;
             } catch (Exception exc) {
-                if (retries == i || (shouldRetry != null && !shouldRetry.apply(exc))) {
-                    throw exc;
+                Exception thrownException;
+                if (exc instanceof InternalInterruptedException) {
+                    thrownException = (InterruptedException) exc.getCause();
+                } else {
+                    thrownException = exc;
+                }
+                if (retries == i || (shouldRetry != null && !shouldRetry.apply(thrownException))) {
+                    throw thrownException;
                 }
                 Thread.sleep((long) Math.pow(2, i) * retryBase);
-                if (waitForInternet && IOUtils.hasInternet()) {
-                    log.warn("Failed call retrying for the " + (i + 1) + " time ({})", exc.getMessage(), exc);
-                } else {
-                    try {
-                        return IOUtils.waitForInternet(callable);
-                    } catch (Exception internetExc) {
-                        log.warn("Failed to wait for internet", internetExc);
-                    }
-                }
+                log.warn("Failed call retrying for the " + (i + 1) + " time ({})", thrownException.getMessage(), thrownException);
             }
+        }
+    }
+
+    private static <T> T callCallable(Callable<T> callable) throws Exception {
+        try {
+            return callable.call();
+        } catch (InterruptedException exc) {
+            throw new InternalInterruptedException(exc);
+        }
+    }
+
+    private static class InternalInterruptedException extends RuntimeException {
+        public InternalInterruptedException(InterruptedException exc) {
+            super(exc);
         }
     }
 }

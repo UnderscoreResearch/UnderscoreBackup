@@ -112,7 +112,7 @@ public class InteractiveCommand extends Command {
             IOUtils.waitForInternet(() -> {
                 manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
                 return null;
-            });
+            }, true);
         } catch (Exception e) {
             log.error("Failed to initialize manifest", e);
         }

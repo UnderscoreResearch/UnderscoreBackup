@@ -33,7 +33,8 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class StateLogger implements StatusLogger {
-    public static final Duration INACTVITY_DURATION = Duration.ofMinutes(10);
+    // Bumping this because we want it to not trigger specifically for internet brownouts.
+    public static final Duration INACTVITY_DURATION = Duration.ofMinutes(30);
     private static final String OLD_KEYWORD = " Old ";
     private final AtomicLong lastHeapUsage = new AtomicLong();
     private final AtomicLong lastHeapUsageMax = new AtomicLong();
@@ -125,7 +126,7 @@ public class StateLogger implements StatusLogger {
             String newActivityHash;
             try {
                 List<StatusLine> logItems = logData((type) -> type != Type.LOG).stream()
-                        .filter(item -> includeProgressItem(item)).toList();
+                        .filter(this::includeProgressItem).toList();
 
                 try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                     try (DataOutputStream writer = new DataOutputStream(out)) {

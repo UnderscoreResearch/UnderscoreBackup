@@ -84,14 +84,14 @@ public final class IOUtils {
         }
     }
 
-    public static <T> T waitForInternet(Callable<T> callable) throws Exception {
+    public static <T> T waitForInternet(Callable<T> callable, boolean immediateFailOnShutdown) throws Exception {
         for (int i = 0; true; i++) {
+            if (immediateFailOnShutdown)
+                failOnShutdown();
             try {
-                if (InstanceFactory.isShutdown()) {
-                    throw new InterruptedException("Shutting down");
-                }
                 return callable.call();
             } catch (Exception exc) {
+                failOnShutdown();
                 if (!IOUtils.hasInternet()) {
                     boolean clearFlag = false;
                     try (Closeable ignore = PausedStatusLogger.startPause("Paused until internet access is restored")) {
@@ -111,6 +111,7 @@ public final class IOUtils {
                                 Thread.interrupted();
                             }
                             i++;
+                            failOnShutdown();
                         } while (!IOUtils.hasInternet());
                     } finally {
                         if (clearFlag) {
@@ -127,6 +128,11 @@ public final class IOUtils {
                 }
             }
         }
+    }
+
+    private static void failOnShutdown() throws InterruptedException {
+        if (InstanceFactory.isShutdown())
+            throw new InterruptedException("Shutting down");
     }
 
     public static void createDirectory(File file, boolean warning) {

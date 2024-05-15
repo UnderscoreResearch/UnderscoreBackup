@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,19 +16,31 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.SystemUtils;
 
+import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.StatusLine;
 
 @Slf4j
-public class FileSystemAccessImpl implements FileSystemAccess {
+public class FileSystemAccessImpl implements FileSystemAccess, ManualStatusLogger {
+    private static final List<StatusLine> EMPTY_LIST = Lists.newArrayList();
+    private final AtomicLong processedFiles = new AtomicLong();
+    private File activePath;
+    private int activeFiles;
+    private boolean registered;
+
     @Override
     public Set<BackupFile> directoryFiles(String path) {
         if (path.endsWith(PATH_SEPARATOR)) {
@@ -50,31 +63,48 @@ public class FileSystemAccessImpl implements FileSystemAccess {
 
                 if (fileNames != null) {
                     Arrays.sort(fileNames);
-                    for (String fileName : fileNames) {
-                        File file = new File(parent, fileName);
-                        try {
-                            Path filePath = file.toPath();
-                            if (!isSymbolicLink(filePath)) {
-                                if (file.isDirectory()) {
-                                    if (Files.isReadable(filePath)) {
-                                        files.add(BackupFile.builder()
-                                                .path(path + PATH_SEPARATOR + fileName + PATH_SEPARATOR)
-                                                .build());
-                                    } else {
-                                        debug(() -> log.debug("Skipping unreadable directory \"" + filePath.toAbsolutePath() + "\""));
-                                    }
-                                } else if (file.isFile()) {
-                                    if (Files.isReadable(filePath)) {
-                                        files.add(createBackupFile(path + PATH_SEPARATOR + fileName, file));
-                                    } else {
-                                        debug(() -> log.debug("Skipping unreadable file \"" + filePath.toAbsolutePath() + "\""));
+                    try {
+                        synchronized (processedFiles) {
+                            activeFiles = fileNames.length;
+                            processedFiles.set(0);
+                            activePath = parent;
+                            if (!registered) {
+                                registered = true;
+                                StateLogger.addLogger(this);
+                            }
+                        }
+                        for (String fileName : fileNames) {
+                            File file = new File(parent, fileName);
+                            try {
+                                Path filePath = file.toPath();
+                                if (!isSymbolicLink(filePath)) {
+                                    if (file.isDirectory()) {
+                                        if (Files.isReadable(filePath)) {
+                                            files.add(BackupFile.builder()
+                                                    .path(path + PATH_SEPARATOR + fileName + PATH_SEPARATOR)
+                                                    .build());
+                                        } else {
+                                            debug(() -> log.debug("Skipping unreadable directory \"" + filePath.toAbsolutePath() + "\""));
+                                        }
+                                    } else if (file.isFile()) {
+                                        if (Files.isReadable(filePath)) {
+                                            files.add(createBackupFile(path + PATH_SEPARATOR + fileName, file));
+                                        } else {
+                                            debug(() -> log.debug("Skipping unreadable file \"" + filePath.toAbsolutePath() + "\""));
+                                        }
                                     }
                                 }
+                            } catch (InvalidPathException exc) {
+                                log.warn("Skipping invalid path \"{}\"", file.getAbsolutePath(), exc);
+                            } catch (IOException e) {
+                                log.warn("Failed to get last modified time for \"{}\"", parent.getAbsolutePath(), e);
                             }
-                        } catch (InvalidPathException exc) {
-                            log.warn("Skipping invalid path \"{}\"", file.getAbsolutePath(), exc);
-                        } catch (IOException e) {
-                            log.warn("Failed to get last modified time for \"{}\"", parent.getAbsolutePath(), e);
+                            processedFiles.incrementAndGet();
+                        }
+                    } finally {
+                        synchronized (processedFiles) {
+                            activePath = null;
+                            activeFiles = 0;
                         }
                     }
                 } else {
@@ -163,5 +193,27 @@ public class FileSystemAccessImpl implements FileSystemAccess {
     public void delete(String path) throws IOException {
         File file = new File(PathNormalizer.physicalPath(path));
         deleteFileException(file);
+    }
+
+    @Override
+    public void resetStatus() {
+        synchronized (processedFiles) {
+            processedFiles.set(0);
+            activePath = null;
+            activeFiles = 0;
+        }
+    }
+
+    @Override
+    public List<StatusLine> status() {
+        synchronized (processedFiles) {
+            if (processedFiles.get() > 0) {
+                return Lists.newArrayList(new StatusLine(getClass(), "READING_DIRECTORY",
+                        String.format("Reading directory \"%s\"", activePath), processedFiles.get(),
+                        readableSize(processedFiles.get()) + " / "
+                        + readableSize(activeFiles)));
+            }
+            return EMPTY_LIST;
+        }
     }
 }
