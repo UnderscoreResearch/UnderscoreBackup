@@ -223,7 +223,7 @@ public class ConfigurationValidator {
         }
 
         if (!IOProviderFactory.hasProvider(destination)) {
-            throw new IllegalArgumentException("Unsupported backup destination type \"" + name + "\"");
+            throw new IllegalArgumentException("Unsupported backup destination type \"" + destination.getType() + "\"");
         }
     }
 
