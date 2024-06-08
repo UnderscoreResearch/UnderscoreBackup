@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-package com.underscoreresearch.backup.encryption.x25519;
+package com.underscoreresearch.backup.encryption.encryptors.x25519;
 
 import java.util.Arrays;
 
@@ -409,7 +409,7 @@ final class Field25519 {
                 // This calculation is a time-invariant way to make input[i] non-negative by borrowing
                 // from the next-larger limb.
                 int carry = -(int) ((input[i] & (input[i] >> 31)) >> SHIFT[i & 1]);
-                input[i] = input[i] + (carry << SHIFT[i & 1]);
+                input[i] = input[i] + ((long) carry << SHIFT[i & 1]);
                 input[i + 1] -= carry;
             }
 
@@ -417,8 +417,8 @@ final class Field25519 {
             // from input[0], which is valid mod 2^255-19.
             {
                 int carry = -(int) ((input[9] & (input[9] >> 31)) >> 25);
-                input[9] += (carry << 25);
-                input[0] -= (carry * 19);
+                input[9] += ((long) carry << 25);
+                input[0] -= (carry * 19L);
             }
 
             // After the first iteration, input[1..9] are non-negative and fit within 25 or 26 bits,
@@ -438,7 +438,7 @@ final class Field25519 {
         // now 2^25 - 1, and this last borrow-propagation step will leave input[1] non-negative.
         {
             int carry = -(int) ((input[0] & (input[0] >> 31)) >> 26);
-            input[0] += (carry << 26);
+            input[0] += ((long) carry << 26);
             input[1] -= carry;
         }
 
@@ -455,7 +455,7 @@ final class Field25519 {
         {
             int carry = (int) (input[9] >> 25);
             input[9] &= 0x1ffffff;
-            input[0] += 19 * carry;
+            input[0] += 19L * carry;
         }
 
         // If the first carry-chain pass, just above, ended up with a carry from input[9], and that

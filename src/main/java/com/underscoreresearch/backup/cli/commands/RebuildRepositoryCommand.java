@@ -11,6 +11,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.zip.GZIPInputStream;
 
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +21,10 @@ import org.apache.commons.cli.CommandLine;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOProvider;
@@ -43,17 +45,22 @@ public class RebuildRepositoryCommand extends Command {
             log.warn("Could not determine destination for manifest");
             throw new IOException("Could not determine destination for manifest");
         }
-        return downloadRemoteConfiguration(destination, InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(password));
+        try {
+            return downloadRemoteConfiguration(destination, InstanceFactory.getInstance(EncryptionIdentity.class).getPrivateKeys(password));
+        } catch (GeneralSecurityException e) {
+            throw new IOException(e);
+        }
     }
 
     public static String downloadRemoteConfiguration(BackupDestination destination,
-                                                     EncryptionKey.PrivateKey privateKey) throws IOException {
+                                                     IdentityKeys.PrivateKeys privateKey) throws IOException {
         IOProvider provider = IOProviderFactory.getProvider(destination);
         byte[] data = provider.download(CONFIGURATION_FILENAME);
         return unpackConfigData(destination.getEncryption(), privateKey, data);
     }
 
-    public static String unpackConfigData(String encryption, EncryptionKey.PrivateKey privateKey, byte[] data) throws IOException {
+    public static String unpackConfigData(String encryption, IdentityKeys.PrivateKeys privateKey, byte[] data)
+            throws IOException {
         try {
             BACKUP_CONFIGURATION_READER.readValue(data);
             return new String(data, StandardCharsets.UTF_8);
@@ -64,6 +71,8 @@ public class RebuildRepositoryCommand extends Command {
                 try (GZIPInputStream gzipInputStream = new GZIPInputStream(stream)) {
                     return new String(IOUtils.readAllBytes(gzipInputStream), StandardCharsets.UTF_8);
                 }
+            } catch (GeneralSecurityException e) {
+                throw new IOException(e);
             }
         }
     }
@@ -100,12 +109,14 @@ public class RebuildRepositoryCommand extends Command {
                     if (!thread.isAlive())
                         return;
                 } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
                 }
                 log.info("Waiting for rebuild to get to a checkpoint");
                 do {
                     try {
                         thread.join();
                     } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt();
                     }
                 } while (thread.isAlive());
             });
@@ -115,6 +126,7 @@ public class RebuildRepositoryCommand extends Command {
                 try {
                     Thread.sleep(1);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.error("Failed to wait", e);
                 }
             }

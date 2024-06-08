@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -14,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,15 +26,14 @@ import lombok.Data;
 import lombok.Getter;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.encryption.x25519.X25519;
+import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 public class ApiAuth {
     private static final int MAX_SIZE = 100;
     private static final int IV_SIZE = 16;
-    private static final SecureRandom RANDOM = new SecureRandom();
     private static final ApiAuth INSTANCE = new ApiAuth();
     private final SortedSet<EndpointInfo> endpointInfoSortedSet = new TreeSet<>();
     private final Map<String, EndpointInfo> endpoints = new HashMap<>();
@@ -148,7 +147,7 @@ public class ApiAuth {
                     configuration.getManifest().getAuthenticationRequired() != null &&
                     configuration.getManifest().getAuthenticationRequired()) {
                 try {
-                    InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class);
+                    InstanceFactory.getInstance(ROOT_KEY, EncryptionIdentity.class);
                     needAuthentication = true;
                     return true;
                 } catch (Exception ignored) {

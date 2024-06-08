@@ -1,11 +1,13 @@
 package com.underscoreresearch.backup.encryption;
 
+import java.security.GeneralSecurityException;
+
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 public interface Encryptor {
-    byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key);
+    byte[] encryptBlock(BackupBlockStorage storage, byte[] data, IdentityKeys keys) throws GeneralSecurityException;
 
-    byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, EncryptionKey.PrivateKey key);
+    byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, IdentityKeys.PrivateKeys keys) throws GeneralSecurityException;
 
     default void backfillEncryption(BackupBlockStorage storage, byte[] encryptedBlob) {
     }
@@ -15,6 +17,6 @@ public interface Encryptor {
     }
 
     BackupBlockStorage reKeyStorage(BackupBlockStorage storage,
-                                    EncryptionKey.PrivateKey oldPrivateKey,
-                                    EncryptionKey newPublicKey);
+                                    IdentityKeys.PrivateKeys oldPrivateKey,
+                                    IdentityKeys newPublicKey) throws GeneralSecurityException;
 }

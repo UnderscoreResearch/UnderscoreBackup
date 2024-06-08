@@ -18,6 +18,7 @@ public class ShutdownGet extends BaseWrap {
                 try {
                     Thread.sleep(50);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.error("Interrupted while waiting for shutdown", e);
                 }
                 System.exit(0);

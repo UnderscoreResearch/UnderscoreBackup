@@ -17,7 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.MapSerializer;
@@ -41,6 +42,7 @@ public class BlockRefresher extends SchedulerImpl {
     private final AtomicLong uploadedSize = new AtomicLong();
     private final long maximumRefreshed;
     private final ManifestManager manifestManager;
+    private final EncryptionIdentity encryptionIdentity;
 
     private Set<String> activatedShares;
     private CloseableMap<String, Boolean> processedBlockMap;
@@ -50,13 +52,15 @@ public class BlockRefresher extends SchedulerImpl {
                           UploadScheduler uploadScheduler,
                           BackupConfiguration configuration,
                           MetadataRepository repository,
-                          ManifestManager manifestManager) {
+                          ManifestManager manifestManager,
+                          EncryptionIdentity encryptionIdentity) {
         super(maximumConcurrency);
         this.blockDownloader = blockDownloader;
         this.uploadScheduler = uploadScheduler;
         this.configuration = configuration;
         this.repository = repository;
         this.manifestManager = manifestManager;
+        this.encryptionIdentity = encryptionIdentity;
 
         maximumRefreshed = configuration.getProperty("maximumRefreshedBytes", Long.MAX_VALUE);
     }
@@ -113,8 +117,8 @@ public class BlockRefresher extends SchedulerImpl {
                         if (configuration.getShares() != null) {
                             for (String key : configuration.getShares().keySet())
                                 if (activatedShares.contains(key)) {
-                                    storage.getAdditionalStorageProperties().put(EncryptionKey.createWithPublicKey(key),
-                                            new HashMap<>());
+                                    IdentityKeys keys = encryptionIdentity.getIdentityKeyForHash(key);
+                                    storage.getAdditionalStorageProperties().put(keys, new HashMap<>());
                                 }
                         }
                         List<byte[]> partData = ErrorCorrectorFactory.encodeBlocks(destination.getErrorCorrection(),

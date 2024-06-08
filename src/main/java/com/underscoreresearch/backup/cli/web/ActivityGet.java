@@ -19,7 +19,7 @@ import org.takes.rq.RqHref;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.inject.ProvisionException;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 
@@ -61,7 +61,7 @@ public class ActivityGet extends BaseWrap {
 
         private boolean hasKey() {
             try {
-                InstanceFactory.getInstance(EncryptionKey.class);
+                InstanceFactory.getInstance(EncryptionIdentity.class);
                 return true;
             } catch (ProvisionException exc) {
                 return false;

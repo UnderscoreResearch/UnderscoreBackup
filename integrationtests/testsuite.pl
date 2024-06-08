@@ -342,7 +342,7 @@ $retention
   "destinations": {
     "d0": {
       "type": "FILE",
-      "encryption": "AES256",
+      "encryption": "PQC",
       "endpointUri": "$escapedBackupRoot"
     },
     "d1": {
@@ -355,7 +355,7 @@ $extraDestination
   "additionalSources": {
     "same": {
       "type": "FILE",
-      "encryption": "AES256",
+      "encryption": "PQC",
       "endpointUri": "$escapedBackupRoot"
     },
     "shared": {
@@ -617,14 +617,14 @@ waitpid($pid, 0);
 
 for my $row (split(/\n/, &executeUnderscoreBackupWithOutput("generate-key", "--additional", "--password", $FIRST_PASSWORD))) {
     print "$row\n";
-    if ($row =~ /^(\S+)$/) {
-        my $key = $1;
-        if ($key !~ /^=/) {
-            $sharedPublicKey = $key;
-        }
+    if ($row =~ /Generated new key with ID\: (\S+)/) {
+        $sharedPublicKey = $1;
     }
 }
 
+if (!$sharedPublicKey) {
+    die "Didn't find a public key";
+}
 print "Created public key for sharing $sharedPublicKey\n";
 
 &createConfigFile();

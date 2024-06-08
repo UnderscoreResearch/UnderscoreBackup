@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
@@ -37,7 +37,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     private final BackupConfiguration configuration;
     private final RateLimitController rateLimitController;
     private final MetadataRepository metadataRepository;
-    private final EncryptionKey key;
+    private final EncryptionIdentity encryptionIdentity;
 
     private final AtomicLong totalSize = new AtomicLong();
     private final AtomicLong totalCount = new AtomicLong();
@@ -46,7 +46,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     public BlockDownloaderImpl(BackupConfiguration configuration,
                                RateLimitController rateLimitController,
                                MetadataRepository metadataRepository,
-                               EncryptionKey key,
+                               EncryptionIdentity encryptionIdentity,
                                int maximumConcurrency) {
         super(maximumConcurrency);
 
@@ -55,7 +55,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         this.configuration = configuration;
         this.rateLimitController = rateLimitController;
         this.metadataRepository = metadataRepository;
-        this.key = key;
+        this.encryptionIdentity = encryptionIdentity;
     }
 
     @Override
@@ -68,7 +68,8 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         for (int storageIndex = 0; storageIndex < block.getStorage().size(); storageIndex++) {
             BackupBlockStorage storage = block.getStorage().get(storageIndex);
             try {
-                return EncryptorFactory.decodeBlock(storage, downloadEncryptedBlockStorage(block, storage), key.getPrivateKey(password));
+                return EncryptorFactory.decodeBlock(storage, downloadEncryptedBlockStorage(block, storage),
+                        encryptionIdentity.getPrivateKeys(password));
             } catch (Exception exc) {
                 if (storageIndex == block.getStorage().size() - 1 || InstanceFactory.isShutdown()) {
                     throw new IOException("Failed to download block \"" + block.getHash() + "\" was unreadable", exc);
@@ -102,12 +103,13 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
 
         while (true) {
             synchronized (pendingParts) {
-                while (pendingParts.size() > 0) {
+                while (!pendingParts.isEmpty()) {
                     if (InstanceFactory.isShutdown())
                         throw new IOException("Shutting down");
                     try {
                         pendingParts.wait(1000);
                     } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt();
                     }
                 }
             }

@@ -57,6 +57,7 @@ import com.underscoreresearch.backup.model.BackupRetention;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.utils.LogUtil;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 
@@ -177,7 +178,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         File tempFile = File.createTempFile("block", ".db");
 
         manifestManager.setDisabledFlushing(true);
-        try (Closeable ignored2 = UIHandler.registerTask("Trimming repository")) {
+        try (Closeable ignored2 = UIHandler.registerTask("Trimming repository", true)) {
             deleteFile(tempFile);
 
             Statistics statistics = new Statistics();
@@ -251,7 +252,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                             log.info("Skipping block trimming");
                         }
                     }
-                } catch (InterruptedException ignored) {
+                } catch (ProcessingStoppedException ignored) {
                 } finally {
                     if (stopwatch.isRunning()) {
                         stopwatch.stop();
@@ -279,7 +280,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             List<BackupDirectory> deletions = new ArrayList<>();
             directories.stream().forEach((directory) -> {
                 if (InstanceFactory.isShutdown())
-                    throw new InterruptedException();
+                    throw new ProcessingStoppedException();
                 processedSteps.incrementAndGet();
 
                 if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
@@ -351,7 +352,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                         lastDeleted = file.getDeleted();
                 }
             } catch (IOException e) {
-                log.error("Failed to check directory existence of \"{}\"", PathNormalizer.physicalPath(fullPath));
+                log.error("Failed to check directory existence of \"{}\"", PathNormalizer.physicalPath(fullPath), e);
             }
         }
 
@@ -434,7 +435,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 return ret;
             }).forEach(block -> {
                 if (InstanceFactory.isShutdown())
-                    throw new InterruptedException();
+                    throw new ProcessingStoppedException();
                 try {
                     statistics.addDeletedBlock();
                     for (BackupBlockStorage storage : block.getStorage()) {
@@ -464,7 +465,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         try (CloseableStream<BackupFilePart> fileParts = metadataRepository.allFileParts()) {
             fileParts.stream().forEach((part) -> {
                 if (InstanceFactory.isShutdown())
-                    throw new InterruptedException();
+                    throw new ProcessingStoppedException();
                 processedSteps.incrementAndGet();
 
                 try {
@@ -504,7 +505,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     return;
                 }
                 if (InstanceFactory.isShutdown())
-                    throw new InterruptedException();
+                    throw new ProcessingStoppedException();
 
                 if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                     lastHeartbeat = stopwatch.elapsed();
@@ -636,6 +637,11 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     if (keptCopies == 0) {
                         statistics.addTotalSizeLastVersion(file.getLength());
                         statistics.addFile();
+
+                        if (file.getDeleted() == null) {
+                            statistics.addFileCurrent();
+                            statistics.addCurrentSize(file.getLength());
+                        }
                     }
                     keptCopies++;
                     statistics.addTotalSize(file.getLength());
@@ -708,9 +714,11 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     @Data
     public static class Statistics {
         private long files;
+        private long filesCurrent;
         private long fileVersions;
         private long totalSize;
         private long totalSizeLastVersion;
+        private long currentSize;
         private long blockParts;
         private long blocks;
         private long directories;
@@ -732,8 +740,16 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             this.files++;
         }
 
+        private synchronized void addFileCurrent() {
+            this.filesCurrent++;
+        }
+
         private synchronized void addFileVersions(long fileVersions) {
             this.fileVersions += fileVersions;
+        }
+
+        private synchronized void addCurrentSize(long currentSize) {
+            this.currentSize += currentSize;
         }
 
         private synchronized void addDirectory() {
@@ -787,9 +803,5 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         private synchronized void addDeletedBlockPartReference() {
             this.deletedBlockPartReferences++;
         }
-    }
-
-    private static class InterruptedException extends RuntimeException {
-
     }
 }

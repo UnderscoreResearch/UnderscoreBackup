@@ -15,18 +15,13 @@ package com.underscoreresearch.backup.service.api.model;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.StringJoiner;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.StringJoiner;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -34,203 +29,203 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * ScopedTokenResponse
  */
 @JsonPropertyOrder({
-  ScopedTokenResponse.JSON_PROPERTY_ACCOUNT_ID,
-  ScopedTokenResponse.JSON_PROPERTY_TOKEN,
-  ScopedTokenResponse.JSON_PROPERTY_SCOPES
+        ScopedTokenResponse.JSON_PROPERTY_ACCOUNT_ID,
+        ScopedTokenResponse.JSON_PROPERTY_TOKEN,
+        ScopedTokenResponse.JSON_PROPERTY_SCOPES
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ScopedTokenResponse {
-  public static final String JSON_PROPERTY_ACCOUNT_ID = "accountId";
-  private String accountId;
+    public static final String JSON_PROPERTY_ACCOUNT_ID = "accountId";
+    public static final String JSON_PROPERTY_TOKEN = "token";
+    public static final String JSON_PROPERTY_SCOPES = "scopes";
+    private String accountId;
+    private String token;
+    private List<String> scopes = new ArrayList<>();
 
-  public static final String JSON_PROPERTY_TOKEN = "token";
-  private String token;
-
-  public static final String JSON_PROPERTY_SCOPES = "scopes";
-  private List<String> scopes = new ArrayList<>();
-
-  public ScopedTokenResponse() { 
-  }
-
-  public ScopedTokenResponse accountId(String accountId) {
-    this.accountId = accountId;
-    return this;
-  }
-
-   /**
-   * Unique identifier of the account.
-   * @return accountId
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_ACCOUNT_ID)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getAccountId() {
-    return accountId;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_ACCOUNT_ID)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setAccountId(String accountId) {
-    this.accountId = accountId;
-  }
-
-
-  public ScopedTokenResponse token(String token) {
-    this.token = token;
-    return this;
-  }
-
-   /**
-   * Token that can be used for future calls to the API.
-   * @return token
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_TOKEN)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getToken() {
-    return token;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_TOKEN)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setToken(String token) {
-    this.token = token;
-  }
-
-
-  public ScopedTokenResponse scopes(List<String> scopes) {
-    this.scopes = scopes;
-    return this;
-  }
-
-  public ScopedTokenResponse addScopesItem(String scopesItem) {
-    if (this.scopes == null) {
-      this.scopes = new ArrayList<>();
-    }
-    this.scopes.add(scopesItem);
-    return this;
-  }
-
-   /**
-   * Scope of credentials returned.
-   * @return scopes
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_SCOPES)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public List<String> getScopes() {
-    return scopes;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_SCOPES)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setScopes(List<String> scopes) {
-    this.scopes = scopes;
-  }
-
-
-  /**
-   * Return true if this ScopedTokenResponse object is equal to o.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    ScopedTokenResponse scopedTokenResponse = (ScopedTokenResponse) o;
-    return Objects.equals(this.accountId, scopedTokenResponse.accountId) &&
-        Objects.equals(this.token, scopedTokenResponse.token) &&
-        Objects.equals(this.scopes, scopedTokenResponse.scopes);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(accountId, token, scopes);
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("class ScopedTokenResponse {\n");
-    sb.append("    accountId: ").append(toIndentedString(accountId)).append("\n");
-    sb.append("    token: ").append(toIndentedString(token)).append("\n");
-    sb.append("    scopes: ").append(toIndentedString(scopes)).append("\n");
-    sb.append("}");
-    return sb.toString();
-  }
-
-  /**
-   * Convert the given object to string with each line indented by 4 spaces
-   * (except the first line).
-   */
-  private String toIndentedString(Object o) {
-    if (o == null) {
-      return "null";
-    }
-    return o.toString().replace("\n", "\n    ");
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @return URL query string
-   */
-  public String toUrlQueryString() {
-    return toUrlQueryString(null);
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @param prefix prefix of the query string
-   * @return URL query string
-   */
-  public String toUrlQueryString(String prefix) {
-    String suffix = "";
-    String containerSuffix = "";
-    String containerPrefix = "";
-    if (prefix == null) {
-      // style=form, explode=true, e.g. /pet?name=cat&type=manx
-      prefix = "";
-    } else {
-      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-      prefix = prefix + "[";
-      suffix = "]";
-      containerSuffix = "]";
-      containerPrefix = "[";
+    public ScopedTokenResponse() {
     }
 
-    StringJoiner joiner = new StringJoiner("&");
-
-    // add `accountId` to the URL query string
-    if (getAccountId() != null) {
-      joiner.add(String.format("%saccountId%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getAccountId()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    public ScopedTokenResponse accountId(String accountId) {
+        this.accountId = accountId;
+        return this;
     }
 
-    // add `token` to the URL query string
-    if (getToken() != null) {
-      joiner.add(String.format("%stoken%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getToken()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Unique identifier of the account.
+     *
+     * @return accountId
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_ACCOUNT_ID)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getAccountId() {
+        return accountId;
     }
 
-    // add `scopes` to the URL query string
-    if (getScopes() != null) {
-      for (int i = 0; i < getScopes().size(); i++) {
-        joiner.add(String.format("%sscopes%s%s=%s", prefix, suffix,
-            "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix),
-            URLEncoder.encode(String.valueOf(getScopes().get(i)), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-      }
+
+    @JsonProperty(JSON_PROPERTY_ACCOUNT_ID)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
     }
 
-    return joiner.toString();
-  }
+
+    public ScopedTokenResponse token(String token) {
+        this.token = token;
+        return this;
+    }
+
+    /**
+     * Token that can be used for future calls to the API.
+     *
+     * @return token
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_TOKEN)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getToken() {
+        return token;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_TOKEN)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+
+    public ScopedTokenResponse scopes(List<String> scopes) {
+        this.scopes = scopes;
+        return this;
+    }
+
+    public ScopedTokenResponse addScopesItem(String scopesItem) {
+        if (this.scopes == null) {
+            this.scopes = new ArrayList<>();
+        }
+        this.scopes.add(scopesItem);
+        return this;
+    }
+
+    /**
+     * Scope of credentials returned.
+     *
+     * @return scopes
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_SCOPES)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public List<String> getScopes() {
+        return scopes;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_SCOPES)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setScopes(List<String> scopes) {
+        this.scopes = scopes;
+    }
+
+
+    /**
+     * Return true if this ScopedTokenResponse object is equal to o.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ScopedTokenResponse scopedTokenResponse = (ScopedTokenResponse) o;
+        return Objects.equals(this.accountId, scopedTokenResponse.accountId) &&
+                Objects.equals(this.token, scopedTokenResponse.token) &&
+                Objects.equals(this.scopes, scopedTokenResponse.scopes);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(accountId, token, scopes);
+    }
+
+    @Override
+    public String toString() {
+        String sb = "class ScopedTokenResponse {\n" +
+                "    accountId: " + toIndentedString(accountId) + "\n" +
+                "    token: " + toIndentedString(token) + "\n" +
+                "    scopes: " + toIndentedString(scopes) + "\n" +
+                "}";
+        return sb;
+    }
+
+    /**
+     * Convert the given object to string with each line indented by 4 spaces
+     * (except the first line).
+     */
+    private String toIndentedString(Object o) {
+        if (o == null) {
+            return "null";
+        }
+        return o.toString().replace("\n", "\n    ");
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @return URL query string
+     */
+    public String toUrlQueryString() {
+        return toUrlQueryString(null);
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @param prefix prefix of the query string
+     * @return URL query string
+     */
+    public String toUrlQueryString(String prefix) {
+        String suffix = "";
+        String containerSuffix = "";
+        String containerPrefix = "";
+        if (prefix == null) {
+            // style=form, explode=true, e.g. /pet?name=cat&type=manx
+            prefix = "";
+        } else {
+            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+            prefix = prefix + "[";
+            suffix = "]";
+            containerSuffix = "]";
+            containerPrefix = "[";
+        }
+
+        StringJoiner joiner = new StringJoiner("&");
+
+        // add `accountId` to the URL query string
+        if (getAccountId() != null) {
+            joiner.add(String.format("%saccountId%s=%s", prefix, suffix, URLEncoder.encode(getAccountId(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `token` to the URL query string
+        if (getToken() != null) {
+            joiner.add(String.format("%stoken%s=%s", prefix, suffix, URLEncoder.encode(getToken(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `scopes` to the URL query string
+        if (getScopes() != null) {
+            for (int i = 0; i < getScopes().size(); i++) {
+                joiner.add(String.format("%sscopes%s%s=%s", prefix, suffix,
+                        "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix),
+                        URLEncoder.encode(String.valueOf(getScopes().get(i)), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+            }
+        }
+
+        return joiner.toString();
+    }
 }
 

@@ -75,6 +75,7 @@ public class BestRegionGet extends BaseWrap {
                                 HttpURLConnection con = (HttpURLConnection) endpoint.toURL().openConnection();
                                 con.setConnectTimeout(3000);
                                 con.setReadTimeout(3000);
+                                con.setUseCaches(false);
                                 con.setRequestMethod("OPTIONS");
                                 if (con.getResponseCode() < 500) {
                                     result.get(region).addAndGet(timer.elapsed(TimeUnit.MILLISECONDS));
@@ -89,7 +90,10 @@ public class BestRegionGet extends BaseWrap {
             futures.forEach(item -> {
                 try {
                     item.get();
-                } catch (InterruptedException | ExecutionException ignored) {
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    log.error("Failed to test fetch", e);
                 }
             });
 

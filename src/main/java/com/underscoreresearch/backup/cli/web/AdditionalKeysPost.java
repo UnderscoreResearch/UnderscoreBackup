@@ -1,7 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.util.ArrayList;
@@ -14,8 +14,8 @@ import org.takes.Request;
 import org.takes.Response;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 
 public class AdditionalKeysPost extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(AdditionalKeysResponse.class);
@@ -35,17 +35,17 @@ public class AdditionalKeysPost extends BaseWrap {
         public Response actualAct(Request req) throws Exception {
             String password = PrivateKeyRequest.decodePrivateKeyRequest(req);
 
-            EncryptionKey.PrivateKey masterKey;
+            EncryptionIdentity masterKey = encryptionIdentity();
+            EncryptionIdentity.PrivateIdentity privateIdentity;
             try {
-                EncryptionKey publicKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class);
-                masterKey = publicKey.getPrivateKey(password);
+                privateIdentity = masterKey.getPrivateIdentity(password);
             } catch (Exception exc) {
                 return messageJson(403, "Invalid password provided");
             }
 
             List<AdditionalKeyPut.ExternalEncryptionKey> keys = new ArrayList<>();
-            for (EncryptionKey key : masterKey.getAdditionalKeyManager().getKeys()) {
-                keys.add(new AdditionalKeyPut.ExternalEncryptionKey(key));
+            for (IdentityKeys key : masterKey.getAdditionalKeys()) {
+                keys.add(new AdditionalKeyPut.ExternalEncryptionKey(key, privateIdentity));
             }
 
             return encryptResponse(req, WRITER.writeValueAsString(new AdditionalKeysResponse(keys)));

@@ -233,6 +233,10 @@ public class BackupStatsLogger implements StatusLogger {
                         "Total files in repository",
                         statistics.getFiles(),
                         readableNumber(statistics.getFiles())));
+                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_CURRENT_FILES",
+                        "Total current files in repository",
+                        statistics.getFilesCurrent(),
+                        readableNumber(statistics.getFilesCurrent())));
                 ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_FILE_VERSIONS",
                         "Total file versions in repository",
                         statistics.getFileVersions(),
@@ -241,10 +245,10 @@ public class BackupStatsLogger implements StatusLogger {
                         "Total file size in repository",
                         statistics.getTotalSize(),
                         readableSize(statistics.getTotalSize())));
-                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_SIZE_LAST_VERSION",
-                        "Total file last version size in repository",
-                        statistics.getTotalSizeLastVersion(),
-                        readableSize(statistics.getTotalSizeLastVersion())));
+                ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_CURRENT_SIZE",
+                        "Total current file size in repository",
+                        statistics.getCurrentSize(),
+                        readableSize(statistics.getCurrentSize())));
 
                 if (statistics.getBlocks() > 0) {
                     ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCKS",

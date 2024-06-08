@@ -2,13 +2,15 @@ package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.cli.web.BaseWrap.jsonResponse;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.KYBER_KEY;
+import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -22,6 +24,7 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -39,15 +43,15 @@ import org.takes.Response;
 import org.takes.rs.RsText;
 import org.takes.rs.RsWithStatus;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.inject.name.Named;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupShare;
@@ -104,9 +108,13 @@ public class ServiceManagerImpl implements ServiceManager {
         throw exc;
     }
 
-    private static String getShareDestinationString(String sourceId, BackupShare share, EncryptionKey publicKey) throws JsonProcessingException {
-        return Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
-                BACKUP_DESTINATION_WRITER.writeValueAsBytes(share.getDestination().strippedDestination(sourceId, publicKey.getPublicKey())), publicKey));
+    private static String getShareDestinationString(String sourceId, BackupShare share, IdentityKeys publicKey) throws IOException {
+        try {
+            return Hash.encodeBytes64(EncryptorFactory.encryptBlock(PQC_ENCRYPTION, null,
+                    BACKUP_DESTINATION_WRITER.writeValueAsBytes(share.getDestination().strippedDestination(sourceId, publicKey.getKeyIdentifier())), publicKey));
+        } catch (GeneralSecurityException e) {
+            throw new IOException(e);
+        }
     }
 
     static <T> T callApi(BackupApi client, String region, ApiFunction<T> callable) throws ApiException {
@@ -408,15 +416,15 @@ public class ServiceManagerImpl implements ServiceManager {
     }
 
     @Override
-    public void createShare(String shareId, BackupShare share) throws IOException {
+    public void createShare(EncryptionIdentity encryptionIdentity, String shareId, BackupShare share) throws IOException {
         final String targetAccountHash = Hash.hash64(share.getTargetEmail().getBytes(StandardCharsets.UTF_8));
 
-        EncryptionKey publicKey = EncryptionKey.createWithPublicKey(shareId);
+        IdentityKeys shareKey = encryptionIdentity.getIdentityKeyForHash(shareId);
 
         final ShareRequest request = new ShareRequest()
                 .targetAccountEmailHash(targetAccountHash);
 
-        String destination = getShareDestinationString(getSourceId(), share, publicKey);
+        String destination = getShareDestinationString(getSourceId(), share, shareKey);
         request.setTargetAccountEmailHash(targetAccountHash);
         request.setName(share.getName());
         request.setDestination(destination);
@@ -432,7 +440,7 @@ public class ServiceManagerImpl implements ServiceManager {
     }
 
     @Override
-    public boolean updateShareEncryption(EncryptionKey.PrivateKey privateKey, String shareId, BackupShare share) throws IOException {
+    public boolean updateShareEncryption(EncryptionIdentity.PrivateIdentity privateIdentity, String shareId, BackupShare share) throws IOException {
         try {
             final String targetAccountHash = Hash.hash64(share.getTargetEmail().getBytes(StandardCharsets.UTF_8));
             final ShareResponse response = callApi(null, (api) -> api.getShare(getSourceId(), shareId));
@@ -442,11 +450,20 @@ public class ServiceManagerImpl implements ServiceManager {
             if (keys.getPublicKeys().stream().anyMatch(publicKey ->
                     response.getPrivateKeys().stream().noneMatch(entry -> entry.getPublicKey().equals(publicKey)))) {
 
-                if (privateKey != null) {
-                    EncryptionKey publicKey = EncryptionKey.createWithPublicKey(shareId);
-                    EncryptionKey shareKey = privateKey.getAdditionalKeyManager().findMatchingPrivateKey(publicKey);
+                if (privateIdentity != null) {
+                    IdentityKeys shareKey = privateIdentity.getEncryptionIdentity().getIdentityKeyForHash(shareId);
                     if (shareKey != null) {
-                        byte[] sharePrivateKey = Hash.decodeBytes(shareKey.getPrivateKey(null).getPrivateKey());
+                        byte[] sharePrivateKey;
+                        try {
+                            try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
+                                try (GZIPOutputStream gzip = new GZIPOutputStream(stream)) {
+                                    gzip.write(shareKey.getPrivateKeyString(privateIdentity).getBytes(StandardCharsets.UTF_8));
+                                }
+                                sharePrivateKey = stream.toByteArray();
+                            }
+                        } catch (GeneralSecurityException e) {
+                            throw new IOException(e);
+                        }
 
                         String destination = getShareDestinationString(getSourceId(), share, shareKey);
                         ShareRequest request = new ShareRequest()
@@ -455,9 +472,18 @@ public class ServiceManagerImpl implements ServiceManager {
                         request.setName(share.getName());
 
                         for (String key : keys.getPublicKeys()) {
-                            request.addPrivateKeysItem(new SharePrivateKeys().publicKey(key).encryptedKey(
-                                    Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
-                                            sharePrivateKey, EncryptionKey.createWithPublicKey(key)))));
+                            try {
+                                IdentityKeys identityKey = IdentityKeys.fromString(key, null);
+                                if (identityKey.getKeys().containsKey(KYBER_KEY)) {
+                                    request.addPrivateKeysItem(new SharePrivateKeys().publicKey(identityKey.getKeyIdentifier()).encryptedKey(
+                                            Hash.encodeBytes64(EncryptorFactory.encryptBlock(PQC_ENCRYPTION, null,
+                                                    sharePrivateKey, identityKey))));
+                                } else {
+                                    log.warn("Skipping source because it is not a PQC enabled key");
+                                }
+                            } catch (GeneralSecurityException e) {
+                                throw new IOException(e);
+                            }
                         }
 
                         callApi(null, (api) -> api.updateShare(getSourceId(), shareId, request));

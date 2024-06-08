@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +29,7 @@ import org.takes.rs.RsWithHeader;
 import org.takes.rs.RsWithType;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 
 @Slf4j
 public class PsAuthedContent implements Pass {
@@ -36,6 +37,7 @@ public class PsAuthedContent implements Pass {
     public static final String X_PAYLOAD_HASH_HEADER = "x-payload-hash";
 
     public static final String ENCRYPTED_CONTENT_TYPE = "x-application/encrypted-json";
+    private static final Pattern AUTH_PATH = Pattern.compile("^/[^/]+/api/encryption-key$");
 
     public static Response encryptResponse(Request request, String data) throws Exception {
         ApiAuth.EndpointInfo info = endpointInfoOrUnauthed(request);
@@ -78,6 +80,14 @@ public class PsAuthedContent implements Pass {
         return info;
     }
 
+    private static boolean allowedMethodsWithoutPasswordAuth(EncryptionIdentity encryptionKey, String path, String method) {
+        if (encryptionKey.getPrivateHash() == null && AUTH_PATH.matcher(path).matches() && "POST".equals(method)) {
+            // log.info("Bypassed public key hash check for key upgrade request");
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public Opt<Identity> enter(Request request) throws Exception {
         final Iterator<String> keyExchange = new RqHeaders.Smart(request)
@@ -107,16 +117,24 @@ public class PsAuthedContent implements Pass {
                 if (validateHash(hash, method, path, nonce, endpointInfo.getSharedKey())) {
                     boolean success;
                     if (publicKeyHash != null) {
-                        EncryptionKey encryptionKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class);
-                        if (validateHash(publicKeyHash, method, path, nonce, encryptionKey.getPublicKey())) {
-                            ApiAuth.getInstance().setEndpointAuthenticated(endpointInfo);
+                        EncryptionIdentity encryptionKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionIdentity.class);
+                        if (allowedMethodsWithoutPasswordAuth(encryptionKey, path, method)) {
                             success = true;
                         } else {
+                            if (validateHash(publicKeyHash, method, path, nonce, encryptionKey.getPrivateHash())) {
+                                ApiAuth.getInstance().setEndpointAuthenticated(endpointInfo);
+                                success = true;
+                            } else {
 //                            log.info("Invalid public key hash");
-                            success = false;
+                                success = false;
+                            }
                         }
                     } else {
                         success = !ApiAuth.getInstance().needAuthentication();
+                        if (!success) {
+                            EncryptionIdentity encryptionKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionIdentity.class);
+                            success = allowedMethodsWithoutPasswordAuth(encryptionKey, path, method);
+                        }
                     }
                     if (success) {
                         if (!endpointInfo.recordNonce(nonce))

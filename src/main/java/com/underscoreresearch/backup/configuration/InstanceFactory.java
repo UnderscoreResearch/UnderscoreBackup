@@ -54,6 +54,7 @@ public abstract class InstanceFactory {
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
                 }
                 log.error("Failed to shut down gracefully, exiting forcefully");
                 Runtime.getRuntime().halt(1);

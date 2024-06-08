@@ -15,16 +15,11 @@ package com.underscoreresearch.backup.service.api.model;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.StringJoiner;
 import java.util.Objects;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.StringJoiner;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
-import java.util.Arrays;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -32,371 +27,371 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * SourceRequest
  */
 @JsonPropertyOrder({
-  SourceRequest.JSON_PROPERTY_NAME,
-  SourceRequest.JSON_PROPERTY_IDENTITY,
-  SourceRequest.JSON_PROPERTY_DESTINATION,
-  SourceRequest.JSON_PROPERTY_ENCRYPTION_MODE,
-  SourceRequest.JSON_PROPERTY_APPLICATION_URL,
-  SourceRequest.JSON_PROPERTY_KEY,
-  SourceRequest.JSON_PROPERTY_VERSION,
-  SourceRequest.JSON_PROPERTY_SHARING_KEY
+        SourceRequest.JSON_PROPERTY_NAME,
+        SourceRequest.JSON_PROPERTY_IDENTITY,
+        SourceRequest.JSON_PROPERTY_DESTINATION,
+        SourceRequest.JSON_PROPERTY_ENCRYPTION_MODE,
+        SourceRequest.JSON_PROPERTY_APPLICATION_URL,
+        SourceRequest.JSON_PROPERTY_KEY,
+        SourceRequest.JSON_PROPERTY_VERSION,
+        SourceRequest.JSON_PROPERTY_SHARING_KEY
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class SourceRequest {
-  public static final String JSON_PROPERTY_NAME = "name";
-  private String name;
+    public static final String JSON_PROPERTY_NAME = "name";
+    public static final String JSON_PROPERTY_IDENTITY = "identity";
+    public static final String JSON_PROPERTY_DESTINATION = "destination";
+    public static final String JSON_PROPERTY_ENCRYPTION_MODE = "encryptionMode";
+    public static final String JSON_PROPERTY_APPLICATION_URL = "applicationUrl";
+    public static final String JSON_PROPERTY_KEY = "key";
+    public static final String JSON_PROPERTY_VERSION = "version";
+    public static final String JSON_PROPERTY_SHARING_KEY = "sharingKey";
+    private String name;
+    private String identity;
+    private String destination;
+    private String encryptionMode;
+    private String applicationUrl;
+    private String key;
+    private String version;
+    private String sharingKey;
 
-  public static final String JSON_PROPERTY_IDENTITY = "identity";
-  private String identity;
-
-  public static final String JSON_PROPERTY_DESTINATION = "destination";
-  private String destination;
-
-  public static final String JSON_PROPERTY_ENCRYPTION_MODE = "encryptionMode";
-  private String encryptionMode;
-
-  public static final String JSON_PROPERTY_APPLICATION_URL = "applicationUrl";
-  private String applicationUrl;
-
-  public static final String JSON_PROPERTY_KEY = "key";
-  private String key;
-
-  public static final String JSON_PROPERTY_VERSION = "version";
-  private String version;
-
-  public static final String JSON_PROPERTY_SHARING_KEY = "sharingKey";
-  private String sharingKey;
-
-  public SourceRequest() { 
-  }
-
-  public SourceRequest name(String name) {
-    this.name = name;
-    return this;
-  }
-
-   /**
-   * Descriptive name of source.
-   * @return name
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_NAME)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getName() {
-    return name;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_NAME)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setName(String name) {
-    this.name = name;
-  }
-
-
-  public SourceRequest identity(String identity) {
-    this.identity = identity;
-    return this;
-  }
-
-   /**
-   * Unique identity of source.
-   * @return identity
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_IDENTITY)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getIdentity() {
-    return identity;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_IDENTITY)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setIdentity(String identity) {
-    this.identity = identity;
-  }
-
-
-  public SourceRequest destination(String destination) {
-    this.destination = destination;
-    return this;
-  }
-
-   /**
-   * Destination of manifest for source (Encrypted and base64 encoded).
-   * @return destination
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_DESTINATION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getDestination() {
-    return destination;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_DESTINATION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setDestination(String destination) {
-    this.destination = destination;
-  }
-
-
-  public SourceRequest encryptionMode(String encryptionMode) {
-    this.encryptionMode = encryptionMode;
-    return this;
-  }
-
-   /**
-   * Mode of encryption used for destination data.
-   * @return encryptionMode
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getEncryptionMode() {
-    return encryptionMode;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setEncryptionMode(String encryptionMode) {
-    this.encryptionMode = encryptionMode;
-  }
-
-
-  public SourceRequest applicationUrl(String applicationUrl) {
-    this.applicationUrl = applicationUrl;
-    return this;
-  }
-
-   /**
-   * URL to application for source.
-   * @return applicationUrl
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getApplicationUrl() {
-    return applicationUrl;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setApplicationUrl(String applicationUrl) {
-    this.applicationUrl = applicationUrl;
-  }
-
-
-  public SourceRequest key(String key) {
-    this.key = key;
-    return this;
-  }
-
-   /**
-   * Public key data for source
-   * @return key
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getKey() {
-    return key;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setKey(String key) {
-    this.key = key;
-  }
-
-
-  public SourceRequest version(String version) {
-    this.version = version;
-    return this;
-  }
-
-   /**
-   * Application version for source.
-   * @return version
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_VERSION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getVersion() {
-    return version;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_VERSION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setVersion(String version) {
-    this.version = version;
-  }
-
-
-  public SourceRequest sharingKey(String sharingKey) {
-    this.sharingKey = sharingKey;
-    return this;
-  }
-
-   /**
-   * Base32 encoding of public key to use for encrypting share information
-   * @return sharingKey
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_SHARING_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getSharingKey() {
-    return sharingKey;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_SHARING_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSharingKey(String sharingKey) {
-    this.sharingKey = sharingKey;
-  }
-
-
-  /**
-   * Return true if this SourceRequest object is equal to o.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    SourceRequest sourceRequest = (SourceRequest) o;
-    return Objects.equals(this.name, sourceRequest.name) &&
-        Objects.equals(this.identity, sourceRequest.identity) &&
-        Objects.equals(this.destination, sourceRequest.destination) &&
-        Objects.equals(this.encryptionMode, sourceRequest.encryptionMode) &&
-        Objects.equals(this.applicationUrl, sourceRequest.applicationUrl) &&
-        Objects.equals(this.key, sourceRequest.key) &&
-        Objects.equals(this.version, sourceRequest.version) &&
-        Objects.equals(this.sharingKey, sourceRequest.sharingKey);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(name, identity, destination, encryptionMode, applicationUrl, key, version, sharingKey);
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("class SourceRequest {\n");
-    sb.append("    name: ").append(toIndentedString(name)).append("\n");
-    sb.append("    identity: ").append(toIndentedString(identity)).append("\n");
-    sb.append("    destination: ").append(toIndentedString(destination)).append("\n");
-    sb.append("    encryptionMode: ").append(toIndentedString(encryptionMode)).append("\n");
-    sb.append("    applicationUrl: ").append(toIndentedString(applicationUrl)).append("\n");
-    sb.append("    key: ").append(toIndentedString(key)).append("\n");
-    sb.append("    version: ").append(toIndentedString(version)).append("\n");
-    sb.append("    sharingKey: ").append(toIndentedString(sharingKey)).append("\n");
-    sb.append("}");
-    return sb.toString();
-  }
-
-  /**
-   * Convert the given object to string with each line indented by 4 spaces
-   * (except the first line).
-   */
-  private String toIndentedString(Object o) {
-    if (o == null) {
-      return "null";
-    }
-    return o.toString().replace("\n", "\n    ");
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @return URL query string
-   */
-  public String toUrlQueryString() {
-    return toUrlQueryString(null);
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @param prefix prefix of the query string
-   * @return URL query string
-   */
-  public String toUrlQueryString(String prefix) {
-    String suffix = "";
-    String containerSuffix = "";
-    String containerPrefix = "";
-    if (prefix == null) {
-      // style=form, explode=true, e.g. /pet?name=cat&type=manx
-      prefix = "";
-    } else {
-      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-      prefix = prefix + "[";
-      suffix = "]";
-      containerSuffix = "]";
-      containerPrefix = "[";
+    public SourceRequest() {
     }
 
-    StringJoiner joiner = new StringJoiner("&");
-
-    // add `name` to the URL query string
-    if (getName() != null) {
-      joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getName()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    public SourceRequest name(String name) {
+        this.name = name;
+        return this;
     }
 
-    // add `identity` to the URL query string
-    if (getIdentity() != null) {
-      joiner.add(String.format("%sidentity%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getIdentity()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Descriptive name of source.
+     *
+     * @return name
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_NAME)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getName() {
+        return name;
     }
 
-    // add `destination` to the URL query string
-    if (getDestination() != null) {
-      joiner.add(String.format("%sdestination%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getDestination()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    @JsonProperty(JSON_PROPERTY_NAME)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setName(String name) {
+        this.name = name;
     }
 
-    // add `encryptionMode` to the URL query string
-    if (getEncryptionMode() != null) {
-      joiner.add(String.format("%sencryptionMode%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getEncryptionMode()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    public SourceRequest identity(String identity) {
+        this.identity = identity;
+        return this;
     }
 
-    // add `applicationUrl` to the URL query string
-    if (getApplicationUrl() != null) {
-      joiner.add(String.format("%sapplicationUrl%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getApplicationUrl()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Unique identity of source.
+     *
+     * @return identity
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_IDENTITY)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getIdentity() {
+        return identity;
     }
 
-    // add `key` to the URL query string
-    if (getKey() != null) {
-      joiner.add(String.format("%skey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    @JsonProperty(JSON_PROPERTY_IDENTITY)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setIdentity(String identity) {
+        this.identity = identity;
     }
 
-    // add `version` to the URL query string
-    if (getVersion() != null) {
-      joiner.add(String.format("%sversion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getVersion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    public SourceRequest destination(String destination) {
+        this.destination = destination;
+        return this;
     }
 
-    // add `sharingKey` to the URL query string
-    if (getSharingKey() != null) {
-      joiner.add(String.format("%ssharingKey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSharingKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Destination of manifest for source (Encrypted and base64 encoded).
+     *
+     * @return destination
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_DESTINATION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getDestination() {
+        return destination;
     }
 
-    return joiner.toString();
-  }
+
+    @JsonProperty(JSON_PROPERTY_DESTINATION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setDestination(String destination) {
+        this.destination = destination;
+    }
+
+
+    public SourceRequest encryptionMode(String encryptionMode) {
+        this.encryptionMode = encryptionMode;
+        return this;
+    }
+
+    /**
+     * Mode of encryption used for destination data.
+     *
+     * @return encryptionMode
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getEncryptionMode() {
+        return encryptionMode;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setEncryptionMode(String encryptionMode) {
+        this.encryptionMode = encryptionMode;
+    }
+
+
+    public SourceRequest applicationUrl(String applicationUrl) {
+        this.applicationUrl = applicationUrl;
+        return this;
+    }
+
+    /**
+     * URL to application for source.
+     *
+     * @return applicationUrl
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getApplicationUrl() {
+        return applicationUrl;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setApplicationUrl(String applicationUrl) {
+        this.applicationUrl = applicationUrl;
+    }
+
+
+    public SourceRequest key(String key) {
+        this.key = key;
+        return this;
+    }
+
+    /**
+     * Public key data for source
+     *
+     * @return key
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_KEY)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getKey() {
+        return key;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_KEY)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+
+    public SourceRequest version(String version) {
+        this.version = version;
+        return this;
+    }
+
+    /**
+     * Application version for source.
+     *
+     * @return version
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_VERSION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getVersion() {
+        return version;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_VERSION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+
+    public SourceRequest sharingKey(String sharingKey) {
+        this.sharingKey = sharingKey;
+        return this;
+    }
+
+    /**
+     * Base32 encoding of public key to use for encrypting share information
+     *
+     * @return sharingKey
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_SHARING_KEY)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getSharingKey() {
+        return sharingKey;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_SHARING_KEY)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setSharingKey(String sharingKey) {
+        this.sharingKey = sharingKey;
+    }
+
+
+    /**
+     * Return true if this SourceRequest object is equal to o.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SourceRequest sourceRequest = (SourceRequest) o;
+        return Objects.equals(this.name, sourceRequest.name) &&
+                Objects.equals(this.identity, sourceRequest.identity) &&
+                Objects.equals(this.destination, sourceRequest.destination) &&
+                Objects.equals(this.encryptionMode, sourceRequest.encryptionMode) &&
+                Objects.equals(this.applicationUrl, sourceRequest.applicationUrl) &&
+                Objects.equals(this.key, sourceRequest.key) &&
+                Objects.equals(this.version, sourceRequest.version) &&
+                Objects.equals(this.sharingKey, sourceRequest.sharingKey);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, identity, destination, encryptionMode, applicationUrl, key, version, sharingKey);
+    }
+
+    @Override
+    public String toString() {
+        String sb = "class SourceRequest {\n" +
+                "    name: " + toIndentedString(name) + "\n" +
+                "    identity: " + toIndentedString(identity) + "\n" +
+                "    destination: " + toIndentedString(destination) + "\n" +
+                "    encryptionMode: " + toIndentedString(encryptionMode) + "\n" +
+                "    applicationUrl: " + toIndentedString(applicationUrl) + "\n" +
+                "    key: " + toIndentedString(key) + "\n" +
+                "    version: " + toIndentedString(version) + "\n" +
+                "    sharingKey: " + toIndentedString(sharingKey) + "\n" +
+                "}";
+        return sb;
+    }
+
+    /**
+     * Convert the given object to string with each line indented by 4 spaces
+     * (except the first line).
+     */
+    private String toIndentedString(Object o) {
+        if (o == null) {
+            return "null";
+        }
+        return o.toString().replace("\n", "\n    ");
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @return URL query string
+     */
+    public String toUrlQueryString() {
+        return toUrlQueryString(null);
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @param prefix prefix of the query string
+     * @return URL query string
+     */
+    public String toUrlQueryString(String prefix) {
+        String suffix = "";
+        String containerSuffix = "";
+        String containerPrefix = "";
+        if (prefix == null) {
+            // style=form, explode=true, e.g. /pet?name=cat&type=manx
+            prefix = "";
+        } else {
+            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+            prefix = prefix + "[";
+            suffix = "]";
+            containerSuffix = "]";
+            containerPrefix = "[";
+        }
+
+        StringJoiner joiner = new StringJoiner("&");
+
+        // add `name` to the URL query string
+        if (getName() != null) {
+            joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(getName(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `identity` to the URL query string
+        if (getIdentity() != null) {
+            joiner.add(String.format("%sidentity%s=%s", prefix, suffix, URLEncoder.encode(getIdentity(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `destination` to the URL query string
+        if (getDestination() != null) {
+            joiner.add(String.format("%sdestination%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getDestination()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `encryptionMode` to the URL query string
+        if (getEncryptionMode() != null) {
+            joiner.add(String.format("%sencryptionMode%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getEncryptionMode()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `applicationUrl` to the URL query string
+        if (getApplicationUrl() != null) {
+            joiner.add(String.format("%sapplicationUrl%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getApplicationUrl()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `key` to the URL query string
+        if (getKey() != null) {
+            joiner.add(String.format("%skey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `version` to the URL query string
+        if (getVersion() != null) {
+            joiner.add(String.format("%sversion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getVersion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `sharingKey` to the URL query string
+        if (getSharingKey() != null) {
+            joiner.add(String.format("%ssharingKey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSharingKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        return joiner.toString();
+    }
 }
 

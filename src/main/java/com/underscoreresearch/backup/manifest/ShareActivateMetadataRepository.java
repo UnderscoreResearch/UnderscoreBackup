@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
+import com.underscoreresearch.backup.manifest.implementation.LoggingMetadataRepository;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupShare;

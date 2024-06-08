@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.cli.web.service;
 
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -20,7 +21,7 @@ import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
@@ -31,14 +32,6 @@ public class SourcesPost extends BaseWrap {
 
     public SourcesPost() {
         super(new Implementation());
-    }
-
-    public static EncryptionKey encryptionKey() {
-        try {
-            return InstanceFactory.getInstance(EncryptionKey.class);
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     @Data
@@ -63,7 +56,7 @@ public class SourcesPost extends BaseWrap {
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
                 serviceManager.setSourceId(null);
                 serviceManager.setSourceName(request.getName());
-                EncryptionKey key = encryptionKey();
+                EncryptionIdentity key = encryptionIdentity();
                 if (InstanceFactory.hasConfiguration(false) && key != null) {
                     InstanceFactory.getInstance(ManifestManager.class).updateServiceSourceData(key);
                 } else {

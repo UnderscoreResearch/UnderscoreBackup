@@ -12,28 +12,28 @@ public abstract class Command {
     private String password;
 
     public static String args(Class<? extends Command> clz) {
-        CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
+        CommandPlugin plugin = clz.getAnnotation(CommandPlugin.class);
         if (plugin != null)
             return plugin.args();
         return null;
     }
 
     public static String name(Class<? extends Command> clz) {
-        CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
+        CommandPlugin plugin = clz.getAnnotation(CommandPlugin.class);
         if (plugin != null)
             return plugin.value();
         return null;
     }
 
     public static String description(Class<? extends Command> clz) {
-        CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
+        CommandPlugin plugin = clz.getAnnotation(CommandPlugin.class);
         if (plugin != null)
             return plugin.description();
         return null;
     }
 
     public static boolean needPrivateKey(Class<? extends Command> clz) {
-        CommandPlugin plugin = (CommandPlugin) clz.getAnnotation(CommandPlugin.class);
+        CommandPlugin plugin = clz.getAnnotation(CommandPlugin.class);
         if (plugin != null)
             return plugin.needPrivateKey();
         return true;

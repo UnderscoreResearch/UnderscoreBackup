@@ -28,7 +28,7 @@ import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -52,7 +52,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
     private final BlockDownloader blockDownloader;
     private final MetadataRepository repository;
     private final FileSystemAccess access;
-    private final EncryptionKey encryptionKey;
+    private final EncryptionIdentity encryptionIdentity;
     private final int maximumFileSize;
     @Getter(AccessLevel.PROTECTED)
     private final int targetSize;
@@ -89,7 +89,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
                     return true;
                 }
             } catch (IOException exc) {
-                log.warn("Failed to read file \"{}\": {}", PathNormalizer.physicalPath(file.getPath()), exc.getMessage());
+                log.warn("Failed to read file \"{}\": \u200E{}\u200E", PathNormalizer.physicalPath(file.getPath()), exc.getMessage());
                 completionFuture.completed(null);
                 return true;
             }
@@ -189,7 +189,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         private int currentIndex;
 
         public PendingFile() {
-            encryptionKey.addBlockHashSalt(hash);
+            encryptionIdentity.addBlockHashSalt(hash);
             hash.addBytes(SmallFileBlockAssignment.this.getClass().getName().getBytes(StandardCharsets.UTF_8));
         }
 
@@ -197,7 +197,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
             String partHash;
             {
                 Hash partHasher = new Hash();
-                encryptionKey.addBlockHashSalt(partHasher);
+                encryptionIdentity.addBlockHashSalt(partHasher);
                 partHasher.addBytes(data);
                 partHash = partHasher.getHash();
             }

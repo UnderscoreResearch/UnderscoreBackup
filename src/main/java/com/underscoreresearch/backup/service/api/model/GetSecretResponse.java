@@ -15,16 +15,11 @@ package com.underscoreresearch.backup.service.api.model;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.StringJoiner;
 import java.util.Objects;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.StringJoiner;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
-import java.util.Arrays;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -32,155 +27,155 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * GetSecretResponse
  */
 @JsonPropertyOrder({
-  GetSecretResponse.JSON_PROPERTY_AVAILABLE,
-  GetSecretResponse.JSON_PROPERTY_SECRET
+        GetSecretResponse.JSON_PROPERTY_AVAILABLE,
+        GetSecretResponse.JSON_PROPERTY_SECRET
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class GetSecretResponse {
-  public static final String JSON_PROPERTY_AVAILABLE = "available";
-  private Boolean available;
+    public static final String JSON_PROPERTY_AVAILABLE = "available";
+    public static final String JSON_PROPERTY_SECRET = "secret";
+    private Boolean available;
+    private String secret;
 
-  public static final String JSON_PROPERTY_SECRET = "secret";
-  private String secret;
-
-  public GetSecretResponse() { 
-  }
-
-  public GetSecretResponse available(Boolean available) {
-    this.available = available;
-    return this;
-  }
-
-   /**
-   * True if the secret is available to be fetched using the emailHash provided.
-   * @return available
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_AVAILABLE)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public Boolean getAvailable() {
-    return available;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_AVAILABLE)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setAvailable(Boolean available) {
-    this.available = available;
-  }
-
-
-  public GetSecretResponse secret(String secret) {
-    this.secret = secret;
-    return this;
-  }
-
-   /**
-   * Actual secret if collected using called with valid code and codeVerifier.
-   * @return secret
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_SECRET)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getSecret() {
-    return secret;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_SECRET)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSecret(String secret) {
-    this.secret = secret;
-  }
-
-
-  /**
-   * Return true if this GetSecretResponse object is equal to o.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    GetSecretResponse getSecretResponse = (GetSecretResponse) o;
-    return Objects.equals(this.available, getSecretResponse.available) &&
-        Objects.equals(this.secret, getSecretResponse.secret);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(available, secret);
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("class GetSecretResponse {\n");
-    sb.append("    available: ").append(toIndentedString(available)).append("\n");
-    sb.append("    secret: ").append(toIndentedString(secret)).append("\n");
-    sb.append("}");
-    return sb.toString();
-  }
-
-  /**
-   * Convert the given object to string with each line indented by 4 spaces
-   * (except the first line).
-   */
-  private String toIndentedString(Object o) {
-    if (o == null) {
-      return "null";
-    }
-    return o.toString().replace("\n", "\n    ");
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @return URL query string
-   */
-  public String toUrlQueryString() {
-    return toUrlQueryString(null);
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @param prefix prefix of the query string
-   * @return URL query string
-   */
-  public String toUrlQueryString(String prefix) {
-    String suffix = "";
-    String containerSuffix = "";
-    String containerPrefix = "";
-    if (prefix == null) {
-      // style=form, explode=true, e.g. /pet?name=cat&type=manx
-      prefix = "";
-    } else {
-      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-      prefix = prefix + "[";
-      suffix = "]";
-      containerSuffix = "]";
-      containerPrefix = "[";
+    public GetSecretResponse() {
     }
 
-    StringJoiner joiner = new StringJoiner("&");
-
-    // add `available` to the URL query string
-    if (getAvailable() != null) {
-      joiner.add(String.format("%savailable%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getAvailable()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    public GetSecretResponse available(Boolean available) {
+        this.available = available;
+        return this;
     }
 
-    // add `secret` to the URL query string
-    if (getSecret() != null) {
-      joiner.add(String.format("%ssecret%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSecret()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * True if the secret is available to be fetched using the emailHash provided.
+     *
+     * @return available
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_AVAILABLE)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public Boolean getAvailable() {
+        return available;
     }
 
-    return joiner.toString();
-  }
+
+    @JsonProperty(JSON_PROPERTY_AVAILABLE)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setAvailable(Boolean available) {
+        this.available = available;
+    }
+
+
+    public GetSecretResponse secret(String secret) {
+        this.secret = secret;
+        return this;
+    }
+
+    /**
+     * Actual secret if collected using called with valid code and codeVerifier.
+     *
+     * @return secret
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_SECRET)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getSecret() {
+        return secret;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_SECRET)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setSecret(String secret) {
+        this.secret = secret;
+    }
+
+
+    /**
+     * Return true if this GetSecretResponse object is equal to o.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        GetSecretResponse getSecretResponse = (GetSecretResponse) o;
+        return Objects.equals(this.available, getSecretResponse.available) &&
+                Objects.equals(this.secret, getSecretResponse.secret);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(available, secret);
+    }
+
+    @Override
+    public String toString() {
+        String sb = "class GetSecretResponse {\n" +
+                "    available: " + toIndentedString(available) + "\n" +
+                "    secret: " + toIndentedString(secret) + "\n" +
+                "}";
+        return sb;
+    }
+
+    /**
+     * Convert the given object to string with each line indented by 4 spaces
+     * (except the first line).
+     */
+    private String toIndentedString(Object o) {
+        if (o == null) {
+            return "null";
+        }
+        return o.toString().replace("\n", "\n    ");
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @return URL query string
+     */
+    public String toUrlQueryString() {
+        return toUrlQueryString(null);
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @param prefix prefix of the query string
+     * @return URL query string
+     */
+    public String toUrlQueryString(String prefix) {
+        String suffix = "";
+        String containerSuffix = "";
+        String containerPrefix = "";
+        if (prefix == null) {
+            // style=form, explode=true, e.g. /pet?name=cat&type=manx
+            prefix = "";
+        } else {
+            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+            prefix = prefix + "[";
+            suffix = "]";
+            containerSuffix = "]";
+            containerPrefix = "[";
+        }
+
+        StringJoiner joiner = new StringJoiner("&");
+
+        // add `available` to the URL query string
+        if (getAvailable() != null) {
+            joiner.add(String.format("%savailable%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getAvailable()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `secret` to the URL query string
+        if (getSecret() != null) {
+            joiner.add(String.format("%ssecret%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSecret()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        return joiner.toString();
+    }
 }
 

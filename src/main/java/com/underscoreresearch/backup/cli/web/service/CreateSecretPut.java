@@ -1,12 +1,14 @@
 package com.underscoreresearch.backup.cli.web.service;
 
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
+import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +22,7 @@ import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.SecretRequest;
@@ -32,9 +34,9 @@ public class CreateSecretPut extends BaseWrap {
         super(new Implementation());
     }
 
-    public static EncryptionKey encryptionKey() {
+    public static EncryptionIdentity encryptionIdentity() {
         try {
-            return InstanceFactory.getInstance(EncryptionKey.class);
+            return InstanceFactory.getInstance(ROOT_KEY, EncryptionIdentity.class);
         } catch (Exception e) {
             return null;
         }
@@ -42,17 +44,19 @@ public class CreateSecretPut extends BaseWrap {
 
     public static Response createSecret(ServiceManager serviceManager,
                                         String region, String password, String email) throws IOException {
-        EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
-        EncryptionKey secretKey;
+        EncryptionIdentity encryptionIdentity = encryptionIdentity();
+        EncryptionIdentity secretKey;
         try {
-            secretKey = EncryptionKey.changeEncryptionPassword(password,
-                    email, encryptionKey);
-        } catch (IllegalArgumentException exc) {
+            secretKey = encryptionIdentity.changeEncryptionPassword(password,
+                    email, false);
+        } catch (GeneralSecurityException exc) {
             return messageJson(403, "Invalid password");
         }
-        secretKey.setPublicKey(null);
-        secretKey.setEncryptedAdditionalKeys(null);
-        String secret = ENCRYPTION_KEY_WRITER.writeValueAsString(secretKey);
+        String secret;
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            secretKey.writeKey(EncryptionIdentity.KeyFormat.SERVICE, output);
+            secret = output.toString(StandardCharsets.UTF_8);
+        }
         String emailHash = Hash.hash64(email.getBytes(StandardCharsets.UTF_8));
 
         serviceManager.call(region, (api) -> api.createSecret(serviceManager.getSourceId(),

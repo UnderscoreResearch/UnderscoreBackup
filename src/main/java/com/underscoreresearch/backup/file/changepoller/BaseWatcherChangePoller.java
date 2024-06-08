@@ -38,7 +38,10 @@ public abstract class BaseWatcherChangePoller implements FileChangePoller {
         WatchKey key;
         try {
             key = watchService.take();
-        } catch (InterruptedException | ClosedWatchServiceException e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new ArrayList<>();
+        } catch (ClosedWatchServiceException e) {
             return new ArrayList<>();
         }
         List<String> paths = new ArrayList<>();

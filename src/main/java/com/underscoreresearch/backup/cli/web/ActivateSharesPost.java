@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
+
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -10,7 +12,7 @@ import org.takes.Response;
 
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
@@ -40,6 +42,7 @@ public class ActivateSharesPost extends BaseWrap {
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.warn("Failed to wait", e);
             }
         }
@@ -53,8 +56,7 @@ public class ActivateSharesPost extends BaseWrap {
                 if (!PrivateKeyRequest.validatePassword(password)) {
                     return messageJson(403, "Invalid password provided");
                 }
-                EncryptionKey.PrivateKey privateKey = InstanceFactory.getInstance(EncryptionKey.class)
-                        .getPrivateKey(password);
+                EncryptionIdentity.PrivateIdentity privateIdentity = encryptionIdentity().getPrivateIdentity(password);
 
                 InstanceFactory.reloadConfiguration(() -> {
                     ManifestManager manager = InstanceFactory.getInstance(ManifestManager.class);
@@ -69,7 +71,7 @@ public class ActivateSharesPost extends BaseWrap {
                     startAsyncManagerOperation(manager, () -> {
                         try {
                             manager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
-                                    privateKey);
+                                    privateIdentity);
                         } catch (IOException exc) {
                             throw new RuntimeException(exc);
                         }

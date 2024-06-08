@@ -9,7 +9,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -53,11 +52,10 @@ public class RestoreExecutor {
         String commonRoot = findCommonRoot(rootPaths);
         backupStatsLogger.setDownloadRunning(true);
 
-        AtomicBoolean anyData = new AtomicBoolean(false);
-        try (Closeable ignored = UIHandler.registerTask("Restoring from " + rootPaths.stream()
+        try (Closeable ignored = UIHandler.registerTask("Restoring from \"" + rootPaths.stream()
                 .map(BackupSetRoot::getPath)
                 .map(PathNormalizer::physicalPath)
-                .collect(Collectors.joining(", ")))) {
+                .collect(Collectors.joining("\", \"")) + "\"", true)) {
 
             try (RestoreDirectoryPermissions pendingDirectories = new RestoreDirectoryPermissions(metadataRepository, scheduler, fileSystemAccess, skipPermisssions)) {
                 for (BackupSetRoot root : rootPaths) {
@@ -211,7 +209,7 @@ public class RestoreExecutor {
             File destinationFile = new File(PathNormalizer.physicalPath(currentDestination));
             if (overwrite || !destinationFile.exists()) {
                 if (destinationFile.exists() && !destinationFile.canWrite()) {
-                    log.error("Does not have permissions to write to existing file \"{}\"", destinationFile.toString());
+                    log.error("Does not have permissions to write to existing file \"{}\"", destinationFile);
                     return false;
                 } else {
                     if (skipPermissions) {

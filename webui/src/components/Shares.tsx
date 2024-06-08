@@ -45,6 +45,8 @@ import {expandRoots} from "../api/utils";
 import ExclusionList from "./ExclusionList";
 import {ApplicationContext, useApplication} from "../utils/ApplicationContext";
 import {useButton} from "../utils/ButtonContext";
+import KeyTooltip, {truncateKey} from "./KeyTooltip";
+import {base32} from "rfc4648";
 
 interface ShareState {
     valid: boolean,
@@ -66,6 +68,26 @@ export interface SharesProps {
     sharesUpdated: (valid: boolean, password: string) => void
 }
 
+function getKeyId(encryptionKey: string): string {
+    if (encryptionKey && encryptionKey.startsWith("{")) {
+        const decode = JSON.parse(encryptionKey);
+        if (decode.k && decode.k.p && decode.k.p.u) {
+            return base32.stringify(Buffer.from(decode.k.p.u, "base64"), {pad: false});
+        }
+    }
+    return encryptionKey;
+}
+
+function getAdditionalKeyId(key: AdditionalKey) {
+    if (key.publicKey && key.publicKey.startsWith("{")) {
+        const decode = JSON.parse(key.publicKey);
+        if (decode.k && decode.k.p && decode.k.p.u) {
+            return base32.stringify(Buffer.from(decode.k.p.u, "base64"), {pad: false});
+        }
+    }
+    return key.publicKey;
+}
+
 function validKey(encryptionKey: string): boolean {
     if (!encryptionKey) {
         return false;
@@ -73,10 +95,18 @@ function validKey(encryptionKey: string): boolean {
     if (encryptionKey.startsWith("=")) {
         encryptionKey = encryptionKey.substring(1);
     }
-    if (encryptionKey.match(/[^A-Z2-7]/)) {
+    if (encryptionKey.length == 52 && encryptionKey.match(/[^A-Z2-7]/)) {
+        return true;
+    }
+    try {
+        const str = JSON.parse(encryptionKey)
+        if (str.k && str.k.p && str.k.p.u) {
+            return true;
+        }
+        return false;
+    } catch (e) {
         return false;
     }
-    return encryptionKey.length == 52;
 }
 
 interface ShareItemState {
@@ -146,6 +176,15 @@ function ShareItem(props: {
         } as ShareItemState;
     });
 
+    useEffect(() => {
+        if (props.exists) {
+            setState((oldState) => ({
+                ...oldState,
+                encryptionKey: props.encryptionKey
+            }));
+        }
+    }, [props.encryptionKey]);
+
     function destinationUpdated(valid: boolean, destination: BackupDestination) {
         setState((oldState) => ({
             ...oldState,
@@ -173,12 +212,19 @@ function ShareItem(props: {
 
     function updateKey(value: string) {
         const isValid = validKey(value);
-        if (isValid && value.startsWith("=")) {
-            const key = props.additionalKeys.find((t) => t.privateKey === value);
-            if (!key) {
-                props.addNewKey(value);
+        if (isValid) {
+            if (value.startsWith("=")) {
+                const key = props.additionalKeys.find((t) => t.privateKey === value);
+                if (!key) {
+                    props.addNewKey(value);
+                } else {
+                    value = key.publicKey;
+                }
             } else {
-                value = key.publicKey;
+                const key = props.additionalKeys.find((t) => getAdditionalKeyId(t) === value);
+                if (key) {
+                    value = key.publicKey;
+                }
             }
         }
         setState({
@@ -246,9 +292,11 @@ function ShareItem(props: {
         }
     }, [state.missingUpdate])
 
+    const keyId = getKeyId(props.encryptionKey);
+
     let privateKey: string = "";
     if (state.encryptionKey && !state.encryptionKey.startsWith("=")) {
-        const key = props.additionalKeys.find((t) => t.publicKey === state.encryptionKey);
+        const key = props.additionalKeys.find((t) => getAdditionalKeyId(t) === keyId);
         if (key) {
             privateKey = key.privateKey;
         }
@@ -340,37 +388,54 @@ function ShareItem(props: {
                 <DividerWithText>Encryption key</DividerWithText>
                 <div style={{marginLeft: "0px", marginRight: "0px", marginTop: "8px", display: "flex"}}>
                     <div style={{width: "100%", marginRight: "8px"}}>
-                        <TextField label={privateKey || props.exists ? "Public Key" : "Encryption Key"}
-                                   variant="outlined"
-                                   required={true}
-                                   fullWidth={true}
-                                   InputProps={{
-                                       style: {fontFamily: 'Monospace'}
-                                   }}
-                                   value={state.encryptionKey ? state.encryptionKey : ""}
-                                   disabled={props.exists}
-                                   error={!state.encryptionKey}
-                                   onChange={(e) => updateKey(e.target.value)}
-                        />
-                        {privateKey &&
-                            <TextField label="Private Key" variant="outlined"
+                        <KeyTooltip encryptionKey={state.encryptionKey}>
+                            <TextField label={privateKey || props.exists ? "Public Key" : "Encryption Key"}
+                                       variant="outlined"
+                                       required={true}
+                                       fullWidth={true}
+                                       InputProps={{
+                                           style: {fontFamily: 'Monospace'}
+                                       }}
+                                       value={state.encryptionKey ? state.encryptionKey : ""}
+                                       disabled={props.exists}
+                                       error={!state.encryptionKey}
+                                       onChange={(e) => updateKey(e.target.value)}
+                            />
+                        </KeyTooltip>
+                        <KeyTooltip encryptionKey={keyId}>
+                            <TextField label={"Key ID"}
+                                       variant="outlined"
+                                       required={true}
                                        style={{marginTop: "8px"}}
                                        fullWidth={true}
                                        InputProps={{
-                                           style: {fontFamily: 'Monospace'},
-                                           endAdornment: (
-                                               <InputAdornment position={"end"}>
-                                                   <IconButton onClick={() => {
-                                                       navigator.clipboard.writeText(privateKey)
-                                                   }}>
-                                                       <ContentCopy/>
-                                                   </IconButton>
-                                               </InputAdornment>
-                                           )
+                                           style: {fontFamily: 'Monospace'}
                                        }}
-                                       value={privateKey}
+                                       value={keyId}
                                        disabled={true}
                             />
+                        </KeyTooltip>
+                        {privateKey &&
+                            <KeyTooltip encryptionKey={privateKey}>
+                                <TextField label="Private Key" variant="outlined"
+                                           style={{marginTop: "8px"}}
+                                           fullWidth={true}
+                                           InputProps={{
+                                               style: {fontFamily: 'Monospace'},
+                                               endAdornment: (
+                                                   <InputAdornment position={"end"}>
+                                                       <IconButton onClick={() => {
+                                                           navigator.clipboard.writeText(privateKey)
+                                                       }}>
+                                                           <ContentCopy/>
+                                                       </IconButton>
+                                                   </InputAdornment>
+                                               )
+                                           }}
+                                           value={privateKey}
+                                           disabled={true}
+                                />
+                            </KeyTooltip>
                         }
                     </div>
                     {!props.exists && !state.encryptionKey &&
@@ -393,6 +458,14 @@ interface SharesState {
     shares: ShareState[],
     showKeys: boolean,
     newPrivateKey: string
+}
+
+function getSharePublicKey(encryptionKey: string, keys: AdditionalKey[]) {
+    const key = keys.find(t => getAdditionalKeyId(t) === encryptionKey)
+    if (key && key.publicKey) {
+        return key.publicKey;
+    }
+    return encryptionKey;
 }
 
 export default function Shares(props: SharesProps) {
@@ -423,6 +496,12 @@ export default function Shares(props: SharesProps) {
             setState((oldState) => {
                 return {
                     ...oldState,
+                    shares: oldState.shares.map(item => {
+                        return {
+                            ...item,
+                            encryptionKey: getSharePublicKey(item.encryptionKey, keys.keys)
+                        }
+                    }),
                     additionalKeys: keys.keys
                 }
             });
@@ -441,7 +520,7 @@ export default function Shares(props: SharesProps) {
 
         let shares: ShareMap = {};
         newState.shares.forEach(item => {
-            shares[item.encryptionKey ? item.encryptionKey : item.id] = item.share;
+            shares[getKeyId(item.encryptionKey ? item.encryptionKey : item.id)] = item.share;
         })
 
         setState({
@@ -497,50 +576,6 @@ export default function Shares(props: SharesProps) {
         return newKey;
     }
 
-    const list = EditableList<ShareState>({
-        deleteBelow: true,
-        createNewItem: () => {
-            return {
-                id: findNewId(),
-                valid: false,
-                exists: false,
-                share: {
-                    name: "",
-                    destination: {
-                        type: !!appContext.backendState.serviceSourceId ? "UB" : "FILE",
-                        endpointUri: ''
-                    },
-                    contents: {
-                        roots: []
-                    } as BackupFileSpecification
-                }
-            } as ShareState
-        },
-        allowDrop: () => true,
-        onItemChanged: destinationChanged,
-        items: state.shares,
-        createItem: (item, itemUpdated: (item: ShareState) => void) => {
-            return <ShareItem id={item.id}
-                              share={item.share}
-                              exists={item.exists}
-                              encryptionKey={item.encryptionKey}
-                              additionalKeys={state.additionalKeys ? state.additionalKeys : []}
-                              backendState={appContext.backendState}
-                              addNewKey={addNewKey}
-                              shareUpdated={(valid, encryptionKey, share) => {
-                                  itemUpdated({
-                                      valid: valid,
-                                      share: share,
-                                      exists: item.exists,
-                                      id: item.id,
-                                      encryptionKey: encryptionKey,
-                                      name: share.name
-                                  });
-                              }}
-            />
-        }
-    });
-
     if (!props.password || !appContext.validatedPassword) {
         return <Stack spacing={2} style={{width: "100%"}}>
             <Paper sx={{
@@ -592,7 +627,51 @@ export default function Shares(props: SharesProps) {
                 </Button>
             </div>
 
-            {list}
+            {state.additionalKeys &&
+                <EditableList
+                    deleteBelow={true}
+                    createNewItem={() => {
+                        return {
+                            id: findNewId(),
+                            valid: false,
+                            exists: false,
+                            share: {
+                                name: "",
+                                destination: {
+                                    type: !!appContext.backendState.serviceSourceId ? "UB" : "FILE",
+                                    endpointUri: ''
+                                },
+                                contents: {
+                                    roots: []
+                                } as BackupFileSpecification
+                            }
+                        } as ShareState
+                    }}
+                    allowDrop={() => true}
+                    onItemChanged={destinationChanged}
+                    items={state.shares}
+                    createItem={(item, itemUpdated: (item: ShareState) => void) => {
+                        return <ShareItem id={item.id}
+                                          share={item.share}
+                                          exists={item.exists}
+                                          encryptionKey={item.encryptionKey}
+                                          additionalKeys={state.additionalKeys ? state.additionalKeys : []}
+                                          backendState={appContext.backendState}
+                                          addNewKey={addNewKey}
+                                          shareUpdated={(valid, encryptionKey, share) => {
+                                              itemUpdated({
+                                                  valid: valid,
+                                                  share: share,
+                                                  exists: item.exists,
+                                                  id: item.id,
+                                                  encryptionKey: encryptionKey,
+                                                  name: share.name
+                                              });
+                                          }}
+                        />
+                    }}
+                />
+            }
 
             <Dialog open={state.showKeys} onClose={() => setState({...state, showKeys: false})} fullWidth={true}
                     maxWidth={"xl"}>
@@ -626,22 +705,26 @@ export default function Shares(props: SharesProps) {
                                         sx={{'&:last-child td, &:last-child th': {border: 0}}}
                                     >
                                         <TableCell component="th" scope="row" sx={{fontFamily: 'Monospace'}}>
-                                            {row.publicKey}
-                                            <IconButton aria-label="delete" size="small"
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(row.publicKey)
-                                                        }}>
-                                                <ContentCopy fontSize="inherit"/>
-                                            </IconButton>
+                                            {truncateKey(row.publicKey)}
+                                            <KeyTooltip encryptionKey={row.publicKey}>
+                                                <IconButton aria-label="copy" size="small"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(row.publicKey)
+                                                            }}>
+                                                    <ContentCopy fontSize="inherit"/>
+                                                </IconButton>
+                                            </KeyTooltip>
                                         </TableCell>
                                         <TableCell component="th" scope="row" sx={{fontFamily: 'Monospace'}}>
-                                            {row.privateKey}
-                                            <IconButton aria-label="delete" size="small"
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(row.privateKey)
-                                                        }}>
-                                                <ContentCopy fontSize="inherit"/>
-                                            </IconButton>
+                                            {truncateKey(row.privateKey)}
+                                            <KeyTooltip encryptionKey={row.privateKey}>
+                                                <IconButton aria-label="copy" size="small"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(row.privateKey)
+                                                            }}>
+                                                    <ContentCopy fontSize="inherit"/>
+                                                </IconButton>
+                                            </KeyTooltip>
                                         </TableCell>
                                     </TableRow>
                                 ))}

@@ -139,6 +139,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                         .keySet())));
                 pendingDirectoriesUpdated.await();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.error("Failed to wait for completion", e);
             }
         }
@@ -173,6 +174,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         boolean anyFound = false;
         for (BackupSetRoot root : backupSet.getRoots()) {
             addPendingPath(backupSet, root.getNormalizedPath());
+            lastProcessed = BackupFile.builder().path(root.getNormalizedPath()).build();
             anyFound = true;
         }
         return anyFound;
@@ -269,6 +271,7 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     if (set.includeDirectory(file.getPath())) {
                         addPendingPath(set, file.getPath());
                         BackupActiveStatus status = processPath(set, file.getPath(), needStorageValidation);
+                        lastProcessed = file;
 
                         if (status == BackupActiveStatus.INCLUDED || status == BackupActiveStatus.INCOMPLETE) {
                             anyIncluded = true;

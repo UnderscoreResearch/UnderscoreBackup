@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 
 @Data
 @Builder(toBuilder = true)
@@ -32,10 +32,10 @@ public class BackupBlockStorage {
     private Long created;
 
     @JsonIgnore
-    private Map<EncryptionKey, Map<String, String>> additionalStorageProperties;
+    private Map<IdentityKeys, Map<String, String>> additionalStorageProperties;
 
     @JsonIgnore
-    public synchronized Map<EncryptionKey, Map<String, String>> getAdditionalStorageProperties() {
+    public synchronized Map<IdentityKeys, Map<String, String>> getAdditionalStorageProperties() {
         if (additionalStorageProperties == null) {
             additionalStorageProperties = new HashMap<>();
         }
@@ -44,7 +44,7 @@ public class BackupBlockStorage {
 
     @JsonIgnore
     public boolean hasAdditionalStorageProperties() {
-        return additionalStorageProperties != null && additionalStorageProperties.size() > 0;
+        return additionalStorageProperties != null && !additionalStorageProperties.isEmpty();
     }
 
     @JsonIgnore

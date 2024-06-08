@@ -2,7 +2,7 @@ package com.underscoreresearch.backup.cli.web.service;
 
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.cli.web.service.SourcesPost.encryptionKey;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -65,7 +65,7 @@ public class GenerateTokenPost extends BaseWrap {
                 if (found.isPresent()) {
                     serviceManager.setSourceId(found.get().getSourceId());
                     serviceManager.setSourceName(found.get().getName());
-                } else if (InstanceFactory.hasConfiguration(false) && encryptionKey() != null) {
+                } else if (InstanceFactory.hasConfiguration(false) && encryptionIdentity() != null) {
                     SourceResponse created = serviceManager.call(null, (api) -> api
                             .createSource(new SourceRequest().name(serviceManager.getSourceName())
                                     .version(VersionCommand.getVersionEdition())

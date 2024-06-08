@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.BIND_ADDRESS;
+import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
 import java.io.File;
@@ -12,7 +13,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -114,8 +114,6 @@ public class WebServer {
                     }
 
                 } catch (Exception exc) {
-                    SecureRandom random = new SecureRandom();
-
                     try {
                         socket = new ServerSocket(0, 10, address);
                     } catch (IOException e) {
@@ -123,7 +121,7 @@ public class WebServer {
                     }
 
                     byte[] bytes = new byte[32];
-                    random.nextBytes(bytes);
+                    RANDOM.nextBytes(bytes);
                     base = "/" + Hash.encodeBytes(bytes);
                 }
             }

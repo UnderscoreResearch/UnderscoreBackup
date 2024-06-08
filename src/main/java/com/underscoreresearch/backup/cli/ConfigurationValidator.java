@@ -1,6 +1,6 @@
 package com.underscoreresearch.backup.cli;
 
-import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
+import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
 import static com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector.NONE;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -41,7 +41,7 @@ import com.underscoreresearch.backup.model.BackupTimespan;
 
 @Slf4j
 public class ConfigurationValidator {
-    private static final String DEFAULT_ENCRYPTION = AES_ENCRYPTION;
+    private static final String DEFAULT_ENCRYPTION = PQC_ENCRYPTION;
     private static final String DEFAULT_ERROR_CORRECTION = NONE;
     private static final int DEFAULT_UNSYNCED_SIZE = 8 * 1024 * 1024;
     private static final Pattern INVALID_CHARACTERS = Pattern.compile("[/:\\\\]");
@@ -69,6 +69,7 @@ public class ConfigurationValidator {
                 try {
                     if (entry.getKey().length() != 52)
                         throw new IllegalArgumentException();
+
                     Hash.decodeBytes(entry.getKey());
                 } catch (IllegalArgumentException exc) {
                     throw new IllegalArgumentException("Invalid public key \"" + entry.getKey() +
@@ -223,7 +224,7 @@ public class ConfigurationValidator {
         }
 
         if (!IOProviderFactory.hasProvider(destination)) {
-            throw new IllegalArgumentException("Unsupported backup destination type \"" + name + "\"");
+            throw new IllegalArgumentException("Unsupported backup destination type \"" + destination.getType() + "\"");
         }
     }
 

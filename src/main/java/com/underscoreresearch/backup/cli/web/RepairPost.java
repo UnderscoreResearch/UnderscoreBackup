@@ -14,7 +14,7 @@ import org.takes.Response;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -42,6 +42,7 @@ public class RepairPost extends BaseWrap {
                     try {
                         Thread.sleep(1);
                     } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         log.warn("Interrupted while waiting for repair to complete", e);
                     }
                 }
@@ -60,6 +61,7 @@ public class RepairPost extends BaseWrap {
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.error("Failed to wait", e);
             }
         }
@@ -87,12 +89,14 @@ public class RepairPost extends BaseWrap {
                                 if (!thread.isAlive())
                                     return;
                             } catch (InterruptedException ignored) {
+                                Thread.currentThread().interrupt();
                             }
                             log.info("Waiting for rebuild to get to a checkpoint");
                             do {
                                 try {
                                     thread.join();
                                 } catch (InterruptedException ignored) {
+                                    Thread.currentThread().interrupt();
                                 }
                             } while (thread.isAlive());
                         }
@@ -128,8 +132,8 @@ public class RepairPost extends BaseWrap {
         public Response actualAct(Request req) throws Exception {
             String password = PrivateKeyRequest.decodePrivateKeyRequest(req);
             try {
-                EncryptionKey publicKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionKey.class);
-                publicKey.getPrivateKey(password);
+                EncryptionIdentity publicKey = InstanceFactory.getInstance(ROOT_KEY, EncryptionIdentity.class);
+                publicKey.getPrivateIdentity(password);
             } catch (Exception exc) {
                 return messageJson(403, "Invalid password provided");
             }

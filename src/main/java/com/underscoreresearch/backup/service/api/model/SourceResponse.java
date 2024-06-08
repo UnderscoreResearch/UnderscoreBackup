@@ -13,23 +13,16 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.StringJoiner;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.StringJoiner;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
-import com.underscoreresearch.backup.service.api.model.SourceStatsModel;
-import com.underscoreresearch.backup.service.api.model.SourceUsage;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -37,649 +30,649 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * SourceResponse
  */
 @JsonPropertyOrder({
-  SourceResponse.JSON_PROPERTY_SOURCE_ID,
-  SourceResponse.JSON_PROPERTY_NAME,
-  SourceResponse.JSON_PROPERTY_CREATED,
-  SourceResponse.JSON_PROPERTY_IDENTITY,
-  SourceResponse.JSON_PROPERTY_DESTINATION,
-  SourceResponse.JSON_PROPERTY_ENCRYPTION_MODE,
-  SourceResponse.JSON_PROPERTY_SECRET_REGION,
-  SourceResponse.JSON_PROPERTY_VERSION,
-  SourceResponse.JSON_PROPERTY_LAST_USAGE,
-  SourceResponse.JSON_PROPERTY_DAILY_USAGE,
-  SourceResponse.JSON_PROPERTY_PERIOD_USAGE,
-  SourceResponse.JSON_PROPERTY_APPLICATION_URL,
-  SourceResponse.JSON_PROPERTY_KEY,
-  SourceResponse.JSON_PROPERTY_SHARING_KEY,
-  SourceResponse.JSON_PROPERTY_STATS
+        SourceResponse.JSON_PROPERTY_SOURCE_ID,
+        SourceResponse.JSON_PROPERTY_NAME,
+        SourceResponse.JSON_PROPERTY_CREATED,
+        SourceResponse.JSON_PROPERTY_IDENTITY,
+        SourceResponse.JSON_PROPERTY_DESTINATION,
+        SourceResponse.JSON_PROPERTY_ENCRYPTION_MODE,
+        SourceResponse.JSON_PROPERTY_SECRET_REGION,
+        SourceResponse.JSON_PROPERTY_VERSION,
+        SourceResponse.JSON_PROPERTY_LAST_USAGE,
+        SourceResponse.JSON_PROPERTY_DAILY_USAGE,
+        SourceResponse.JSON_PROPERTY_PERIOD_USAGE,
+        SourceResponse.JSON_PROPERTY_APPLICATION_URL,
+        SourceResponse.JSON_PROPERTY_KEY,
+        SourceResponse.JSON_PROPERTY_SHARING_KEY,
+        SourceResponse.JSON_PROPERTY_STATS
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class SourceResponse {
-  public static final String JSON_PROPERTY_SOURCE_ID = "sourceId";
-  private String sourceId;
-
-  public static final String JSON_PROPERTY_NAME = "name";
-  private String name;
-
-  public static final String JSON_PROPERTY_CREATED = "created";
-  private BigDecimal created;
-
-  public static final String JSON_PROPERTY_IDENTITY = "identity";
-  private String identity;
-
-  public static final String JSON_PROPERTY_DESTINATION = "destination";
-  private String destination;
-
-  public static final String JSON_PROPERTY_ENCRYPTION_MODE = "encryptionMode";
-  private String encryptionMode;
-
-  public static final String JSON_PROPERTY_SECRET_REGION = "secretRegion";
-  private String secretRegion;
-
-  public static final String JSON_PROPERTY_VERSION = "version";
-  private String version;
-
-  public static final String JSON_PROPERTY_LAST_USAGE = "lastUsage";
-  private BigDecimal lastUsage;
-
-  public static final String JSON_PROPERTY_DAILY_USAGE = "dailyUsage";
-  private List<SourceUsage> dailyUsage;
-
-  public static final String JSON_PROPERTY_PERIOD_USAGE = "periodUsage";
-  private List<SourceUsage> periodUsage;
-
-  public static final String JSON_PROPERTY_APPLICATION_URL = "applicationUrl";
-  private String applicationUrl;
-
-  public static final String JSON_PROPERTY_KEY = "key";
-  private String key;
-
-  public static final String JSON_PROPERTY_SHARING_KEY = "sharingKey";
-  private String sharingKey;
-
-  public static final String JSON_PROPERTY_STATS = "stats";
-  private SourceStatsModel stats;
-
-  public SourceResponse() { 
-  }
-
-  public SourceResponse sourceId(String sourceId) {
-    this.sourceId = sourceId;
-    return this;
-  }
-
-   /**
-   * Unique identifier of source.
-   * @return sourceId
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_SOURCE_ID)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getSourceId() {
-    return sourceId;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_SOURCE_ID)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setSourceId(String sourceId) {
-    this.sourceId = sourceId;
-  }
-
-
-  public SourceResponse name(String name) {
-    this.name = name;
-    return this;
-  }
-
-   /**
-   * Descriptive name of source.
-   * @return name
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_NAME)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getName() {
-    return name;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_NAME)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setName(String name) {
-    this.name = name;
-  }
-
-
-  public SourceResponse created(BigDecimal created) {
-    this.created = created;
-    return this;
-  }
-
-   /**
-   * Timestamp of when source was created.
-   * @return created
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_CREATED)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public BigDecimal getCreated() {
-    return created;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_CREATED)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setCreated(BigDecimal created) {
-    this.created = created;
-  }
-
-
-  public SourceResponse identity(String identity) {
-    this.identity = identity;
-    return this;
-  }
-
-   /**
-   * Unique identity of source.
-   * @return identity
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_IDENTITY)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getIdentity() {
-    return identity;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_IDENTITY)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setIdentity(String identity) {
-    this.identity = identity;
-  }
-
-
-  public SourceResponse destination(String destination) {
-    this.destination = destination;
-    return this;
-  }
-
-   /**
-   * Destination of manifest for source (Encrypted and base64 encoded).
-   * @return destination
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_DESTINATION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getDestination() {
-    return destination;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_DESTINATION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setDestination(String destination) {
-    this.destination = destination;
-  }
-
-
-  public SourceResponse encryptionMode(String encryptionMode) {
-    this.encryptionMode = encryptionMode;
-    return this;
-  }
-
-   /**
-   * Mode of encryption used for destination data.
-   * @return encryptionMode
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getEncryptionMode() {
-    return encryptionMode;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setEncryptionMode(String encryptionMode) {
-    this.encryptionMode = encryptionMode;
-  }
-
-
-  public SourceResponse secretRegion(String secretRegion) {
-    this.secretRegion = secretRegion;
-    return this;
-  }
-
-   /**
-   * Region secret should be stored in.
-   * @return secretRegion
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_SECRET_REGION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getSecretRegion() {
-    return secretRegion;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_SECRET_REGION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSecretRegion(String secretRegion) {
-    this.secretRegion = secretRegion;
-  }
-
-
-  public SourceResponse version(String version) {
-    this.version = version;
-    return this;
-  }
-
-   /**
-   * Application version for source.
-   * @return version
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_VERSION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getVersion() {
-    return version;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_VERSION)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setVersion(String version) {
-    this.version = version;
-  }
-
-
-  public SourceResponse lastUsage(BigDecimal lastUsage) {
-    this.lastUsage = lastUsage;
-    return this;
-  }
-
-   /**
-   * Last time anything was changed on this source
-   * @return lastUsage
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_LAST_USAGE)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public BigDecimal getLastUsage() {
-    return lastUsage;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_LAST_USAGE)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setLastUsage(BigDecimal lastUsage) {
-    this.lastUsage = lastUsage;
-  }
-
-
-  public SourceResponse dailyUsage(List<SourceUsage> dailyUsage) {
-    this.dailyUsage = dailyUsage;
-    return this;
-  }
-
-  public SourceResponse addDailyUsageItem(SourceUsage dailyUsageItem) {
-    if (this.dailyUsage == null) {
-      this.dailyUsage = new ArrayList<>();
-    }
-    this.dailyUsage.add(dailyUsageItem);
-    return this;
-  }
-
-   /**
-   * Usage per day for the last month.
-   * @return dailyUsage
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_DAILY_USAGE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public List<SourceUsage> getDailyUsage() {
-    return dailyUsage;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_DAILY_USAGE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setDailyUsage(List<SourceUsage> dailyUsage) {
-    this.dailyUsage = dailyUsage;
-  }
-
-
-  public SourceResponse periodUsage(List<SourceUsage> periodUsage) {
-    this.periodUsage = periodUsage;
-    return this;
-  }
-
-  public SourceResponse addPeriodUsageItem(SourceUsage periodUsageItem) {
-    if (this.periodUsage == null) {
-      this.periodUsage = new ArrayList<>();
-    }
-    this.periodUsage.add(periodUsageItem);
-    return this;
-  }
-
-   /**
-   * Usage per billing period over the last 2 years.
-   * @return periodUsage
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_PERIOD_USAGE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public List<SourceUsage> getPeriodUsage() {
-    return periodUsage;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_PERIOD_USAGE)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setPeriodUsage(List<SourceUsage> periodUsage) {
-    this.periodUsage = periodUsage;
-  }
-
-
-  public SourceResponse applicationUrl(String applicationUrl) {
-    this.applicationUrl = applicationUrl;
-    return this;
-  }
-
-   /**
-   * URL to application for source.
-   * @return applicationUrl
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getApplicationUrl() {
-    return applicationUrl;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setApplicationUrl(String applicationUrl) {
-    this.applicationUrl = applicationUrl;
-  }
-
-
-  public SourceResponse key(String key) {
-    this.key = key;
-    return this;
-  }
-
-   /**
-   * Public key data for source
-   * @return key
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getKey() {
-    return key;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setKey(String key) {
-    this.key = key;
-  }
-
-
-  public SourceResponse sharingKey(String sharingKey) {
-    this.sharingKey = sharingKey;
-    return this;
-  }
-
-   /**
-   * Base32 encoding of public key to use for encrypting share information
-   * @return sharingKey
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_SHARING_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public String getSharingKey() {
-    return sharingKey;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_SHARING_KEY)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSharingKey(String sharingKey) {
-    this.sharingKey = sharingKey;
-  }
-
-
-  public SourceResponse stats(SourceStatsModel stats) {
-    this.stats = stats;
-    return this;
-  }
-
-   /**
-   * Get stats
-   * @return stats
-  **/
-  @jakarta.annotation.Nullable
-  @JsonProperty(JSON_PROPERTY_STATS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-  public SourceStatsModel getStats() {
-    return stats;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_STATS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setStats(SourceStatsModel stats) {
-    this.stats = stats;
-  }
-
-
-  /**
-   * Return true if this SourceResponse object is equal to o.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    SourceResponse sourceResponse = (SourceResponse) o;
-    return Objects.equals(this.sourceId, sourceResponse.sourceId) &&
-        Objects.equals(this.name, sourceResponse.name) &&
-        Objects.equals(this.created, sourceResponse.created) &&
-        Objects.equals(this.identity, sourceResponse.identity) &&
-        Objects.equals(this.destination, sourceResponse.destination) &&
-        Objects.equals(this.encryptionMode, sourceResponse.encryptionMode) &&
-        Objects.equals(this.secretRegion, sourceResponse.secretRegion) &&
-        Objects.equals(this.version, sourceResponse.version) &&
-        Objects.equals(this.lastUsage, sourceResponse.lastUsage) &&
-        Objects.equals(this.dailyUsage, sourceResponse.dailyUsage) &&
-        Objects.equals(this.periodUsage, sourceResponse.periodUsage) &&
-        Objects.equals(this.applicationUrl, sourceResponse.applicationUrl) &&
-        Objects.equals(this.key, sourceResponse.key) &&
-        Objects.equals(this.sharingKey, sourceResponse.sharingKey) &&
-        Objects.equals(this.stats, sourceResponse.stats);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(sourceId, name, created, identity, destination, encryptionMode, secretRegion, version, lastUsage, dailyUsage, periodUsage, applicationUrl, key, sharingKey, stats);
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("class SourceResponse {\n");
-    sb.append("    sourceId: ").append(toIndentedString(sourceId)).append("\n");
-    sb.append("    name: ").append(toIndentedString(name)).append("\n");
-    sb.append("    created: ").append(toIndentedString(created)).append("\n");
-    sb.append("    identity: ").append(toIndentedString(identity)).append("\n");
-    sb.append("    destination: ").append(toIndentedString(destination)).append("\n");
-    sb.append("    encryptionMode: ").append(toIndentedString(encryptionMode)).append("\n");
-    sb.append("    secretRegion: ").append(toIndentedString(secretRegion)).append("\n");
-    sb.append("    version: ").append(toIndentedString(version)).append("\n");
-    sb.append("    lastUsage: ").append(toIndentedString(lastUsage)).append("\n");
-    sb.append("    dailyUsage: ").append(toIndentedString(dailyUsage)).append("\n");
-    sb.append("    periodUsage: ").append(toIndentedString(periodUsage)).append("\n");
-    sb.append("    applicationUrl: ").append(toIndentedString(applicationUrl)).append("\n");
-    sb.append("    key: ").append(toIndentedString(key)).append("\n");
-    sb.append("    sharingKey: ").append(toIndentedString(sharingKey)).append("\n");
-    sb.append("    stats: ").append(toIndentedString(stats)).append("\n");
-    sb.append("}");
-    return sb.toString();
-  }
-
-  /**
-   * Convert the given object to string with each line indented by 4 spaces
-   * (except the first line).
-   */
-  private String toIndentedString(Object o) {
-    if (o == null) {
-      return "null";
-    }
-    return o.toString().replace("\n", "\n    ");
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @return URL query string
-   */
-  public String toUrlQueryString() {
-    return toUrlQueryString(null);
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @param prefix prefix of the query string
-   * @return URL query string
-   */
-  public String toUrlQueryString(String prefix) {
-    String suffix = "";
-    String containerSuffix = "";
-    String containerPrefix = "";
-    if (prefix == null) {
-      // style=form, explode=true, e.g. /pet?name=cat&type=manx
-      prefix = "";
-    } else {
-      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-      prefix = prefix + "[";
-      suffix = "]";
-      containerSuffix = "]";
-      containerPrefix = "[";
+    public static final String JSON_PROPERTY_SOURCE_ID = "sourceId";
+    public static final String JSON_PROPERTY_NAME = "name";
+    public static final String JSON_PROPERTY_CREATED = "created";
+    public static final String JSON_PROPERTY_IDENTITY = "identity";
+    public static final String JSON_PROPERTY_DESTINATION = "destination";
+    public static final String JSON_PROPERTY_ENCRYPTION_MODE = "encryptionMode";
+    public static final String JSON_PROPERTY_SECRET_REGION = "secretRegion";
+    public static final String JSON_PROPERTY_VERSION = "version";
+    public static final String JSON_PROPERTY_LAST_USAGE = "lastUsage";
+    public static final String JSON_PROPERTY_DAILY_USAGE = "dailyUsage";
+    public static final String JSON_PROPERTY_PERIOD_USAGE = "periodUsage";
+    public static final String JSON_PROPERTY_APPLICATION_URL = "applicationUrl";
+    public static final String JSON_PROPERTY_KEY = "key";
+    public static final String JSON_PROPERTY_SHARING_KEY = "sharingKey";
+    public static final String JSON_PROPERTY_STATS = "stats";
+    private String sourceId;
+    private String name;
+    private BigDecimal created;
+    private String identity;
+    private String destination;
+    private String encryptionMode;
+    private String secretRegion;
+    private String version;
+    private BigDecimal lastUsage;
+    private List<SourceUsage> dailyUsage;
+    private List<SourceUsage> periodUsage;
+    private String applicationUrl;
+    private String key;
+    private String sharingKey;
+    private SourceStatsModel stats;
+
+    public SourceResponse() {
     }
 
-    StringJoiner joiner = new StringJoiner("&");
-
-    // add `sourceId` to the URL query string
-    if (getSourceId() != null) {
-      joiner.add(String.format("%ssourceId%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSourceId()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    public SourceResponse sourceId(String sourceId) {
+        this.sourceId = sourceId;
+        return this;
     }
 
-    // add `name` to the URL query string
-    if (getName() != null) {
-      joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getName()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Unique identifier of source.
+     *
+     * @return sourceId
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_SOURCE_ID)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getSourceId() {
+        return sourceId;
     }
 
-    // add `created` to the URL query string
-    if (getCreated() != null) {
-      joiner.add(String.format("%screated%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCreated()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    @JsonProperty(JSON_PROPERTY_SOURCE_ID)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setSourceId(String sourceId) {
+        this.sourceId = sourceId;
     }
 
-    // add `identity` to the URL query string
-    if (getIdentity() != null) {
-      joiner.add(String.format("%sidentity%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getIdentity()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    public SourceResponse name(String name) {
+        this.name = name;
+        return this;
     }
 
-    // add `destination` to the URL query string
-    if (getDestination() != null) {
-      joiner.add(String.format("%sdestination%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getDestination()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Descriptive name of source.
+     *
+     * @return name
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_NAME)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getName() {
+        return name;
     }
 
-    // add `encryptionMode` to the URL query string
-    if (getEncryptionMode() != null) {
-      joiner.add(String.format("%sencryptionMode%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getEncryptionMode()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    @JsonProperty(JSON_PROPERTY_NAME)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setName(String name) {
+        this.name = name;
     }
 
-    // add `secretRegion` to the URL query string
-    if (getSecretRegion() != null) {
-      joiner.add(String.format("%ssecretRegion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSecretRegion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    public SourceResponse created(BigDecimal created) {
+        this.created = created;
+        return this;
     }
 
-    // add `version` to the URL query string
-    if (getVersion() != null) {
-      joiner.add(String.format("%sversion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getVersion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Timestamp of when source was created.
+     *
+     * @return created
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_CREATED)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public BigDecimal getCreated() {
+        return created;
     }
 
-    // add `lastUsage` to the URL query string
-    if (getLastUsage() != null) {
-      joiner.add(String.format("%slastUsage%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getLastUsage()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    @JsonProperty(JSON_PROPERTY_CREATED)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setCreated(BigDecimal created) {
+        this.created = created;
     }
 
-    // add `dailyUsage` to the URL query string
-    if (getDailyUsage() != null) {
-      for (int i = 0; i < getDailyUsage().size(); i++) {
-        if (getDailyUsage().get(i) != null) {
-          joiner.add(getDailyUsage().get(i).toUrlQueryString(String.format("%sdailyUsage%s%s", prefix, suffix,
-          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+
+    public SourceResponse identity(String identity) {
+        this.identity = identity;
+        return this;
+    }
+
+    /**
+     * Unique identity of source.
+     *
+     * @return identity
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_IDENTITY)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getIdentity() {
+        return identity;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_IDENTITY)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setIdentity(String identity) {
+        this.identity = identity;
+    }
+
+
+    public SourceResponse destination(String destination) {
+        this.destination = destination;
+        return this;
+    }
+
+    /**
+     * Destination of manifest for source (Encrypted and base64 encoded).
+     *
+     * @return destination
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_DESTINATION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getDestination() {
+        return destination;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_DESTINATION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setDestination(String destination) {
+        this.destination = destination;
+    }
+
+
+    public SourceResponse encryptionMode(String encryptionMode) {
+        this.encryptionMode = encryptionMode;
+        return this;
+    }
+
+    /**
+     * Mode of encryption used for destination data.
+     *
+     * @return encryptionMode
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getEncryptionMode() {
+        return encryptionMode;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_ENCRYPTION_MODE)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setEncryptionMode(String encryptionMode) {
+        this.encryptionMode = encryptionMode;
+    }
+
+
+    public SourceResponse secretRegion(String secretRegion) {
+        this.secretRegion = secretRegion;
+        return this;
+    }
+
+    /**
+     * Region secret should be stored in.
+     *
+     * @return secretRegion
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_SECRET_REGION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getSecretRegion() {
+        return secretRegion;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_SECRET_REGION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setSecretRegion(String secretRegion) {
+        this.secretRegion = secretRegion;
+    }
+
+
+    public SourceResponse version(String version) {
+        this.version = version;
+        return this;
+    }
+
+    /**
+     * Application version for source.
+     *
+     * @return version
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_VERSION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getVersion() {
+        return version;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_VERSION)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+
+    public SourceResponse lastUsage(BigDecimal lastUsage) {
+        this.lastUsage = lastUsage;
+        return this;
+    }
+
+    /**
+     * Last time anything was changed on this source
+     *
+     * @return lastUsage
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_LAST_USAGE)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public BigDecimal getLastUsage() {
+        return lastUsage;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_LAST_USAGE)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setLastUsage(BigDecimal lastUsage) {
+        this.lastUsage = lastUsage;
+    }
+
+
+    public SourceResponse dailyUsage(List<SourceUsage> dailyUsage) {
+        this.dailyUsage = dailyUsage;
+        return this;
+    }
+
+    public SourceResponse addDailyUsageItem(SourceUsage dailyUsageItem) {
+        if (this.dailyUsage == null) {
+            this.dailyUsage = new ArrayList<>();
         }
-      }
+        this.dailyUsage.add(dailyUsageItem);
+        return this;
     }
 
-    // add `periodUsage` to the URL query string
-    if (getPeriodUsage() != null) {
-      for (int i = 0; i < getPeriodUsage().size(); i++) {
-        if (getPeriodUsage().get(i) != null) {
-          joiner.add(getPeriodUsage().get(i).toUrlQueryString(String.format("%speriodUsage%s%s", prefix, suffix,
-          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+    /**
+     * Usage per day for the last month.
+     *
+     * @return dailyUsage
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_DAILY_USAGE)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public List<SourceUsage> getDailyUsage() {
+        return dailyUsage;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_DAILY_USAGE)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setDailyUsage(List<SourceUsage> dailyUsage) {
+        this.dailyUsage = dailyUsage;
+    }
+
+
+    public SourceResponse periodUsage(List<SourceUsage> periodUsage) {
+        this.periodUsage = periodUsage;
+        return this;
+    }
+
+    public SourceResponse addPeriodUsageItem(SourceUsage periodUsageItem) {
+        if (this.periodUsage == null) {
+            this.periodUsage = new ArrayList<>();
         }
-      }
+        this.periodUsage.add(periodUsageItem);
+        return this;
     }
 
-    // add `applicationUrl` to the URL query string
-    if (getApplicationUrl() != null) {
-      joiner.add(String.format("%sapplicationUrl%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getApplicationUrl()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Usage per billing period over the last 2 years.
+     *
+     * @return periodUsage
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_PERIOD_USAGE)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public List<SourceUsage> getPeriodUsage() {
+        return periodUsage;
     }
 
-    // add `key` to the URL query string
-    if (getKey() != null) {
-      joiner.add(String.format("%skey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    @JsonProperty(JSON_PROPERTY_PERIOD_USAGE)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setPeriodUsage(List<SourceUsage> periodUsage) {
+        this.periodUsage = periodUsage;
     }
 
-    // add `sharingKey` to the URL query string
-    if (getSharingKey() != null) {
-      joiner.add(String.format("%ssharingKey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSharingKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    public SourceResponse applicationUrl(String applicationUrl) {
+        this.applicationUrl = applicationUrl;
+        return this;
     }
 
-    // add `stats` to the URL query string
-    if (getStats() != null) {
-      joiner.add(getStats().toUrlQueryString(prefix + "stats" + suffix));
+    /**
+     * URL to application for source.
+     *
+     * @return applicationUrl
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getApplicationUrl() {
+        return applicationUrl;
     }
 
-    return joiner.toString();
-  }
+
+    @JsonProperty(JSON_PROPERTY_APPLICATION_URL)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setApplicationUrl(String applicationUrl) {
+        this.applicationUrl = applicationUrl;
+    }
+
+
+    public SourceResponse key(String key) {
+        this.key = key;
+        return this;
+    }
+
+    /**
+     * Public key data for source
+     *
+     * @return key
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_KEY)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getKey() {
+        return key;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_KEY)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+
+    public SourceResponse sharingKey(String sharingKey) {
+        this.sharingKey = sharingKey;
+        return this;
+    }
+
+    /**
+     * Base32 encoding of public key to use for encrypting share information
+     *
+     * @return sharingKey
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_SHARING_KEY)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public String getSharingKey() {
+        return sharingKey;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_SHARING_KEY)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setSharingKey(String sharingKey) {
+        this.sharingKey = sharingKey;
+    }
+
+
+    public SourceResponse stats(SourceStatsModel stats) {
+        this.stats = stats;
+        return this;
+    }
+
+    /**
+     * Get stats
+     *
+     * @return stats
+     **/
+    @jakarta.annotation.Nullable
+    @JsonProperty(JSON_PROPERTY_STATS)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+    public SourceStatsModel getStats() {
+        return stats;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_STATS)
+    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+    public void setStats(SourceStatsModel stats) {
+        this.stats = stats;
+    }
+
+
+    /**
+     * Return true if this SourceResponse object is equal to o.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SourceResponse sourceResponse = (SourceResponse) o;
+        return Objects.equals(this.sourceId, sourceResponse.sourceId) &&
+                Objects.equals(this.name, sourceResponse.name) &&
+                Objects.equals(this.created, sourceResponse.created) &&
+                Objects.equals(this.identity, sourceResponse.identity) &&
+                Objects.equals(this.destination, sourceResponse.destination) &&
+                Objects.equals(this.encryptionMode, sourceResponse.encryptionMode) &&
+                Objects.equals(this.secretRegion, sourceResponse.secretRegion) &&
+                Objects.equals(this.version, sourceResponse.version) &&
+                Objects.equals(this.lastUsage, sourceResponse.lastUsage) &&
+                Objects.equals(this.dailyUsage, sourceResponse.dailyUsage) &&
+                Objects.equals(this.periodUsage, sourceResponse.periodUsage) &&
+                Objects.equals(this.applicationUrl, sourceResponse.applicationUrl) &&
+                Objects.equals(this.key, sourceResponse.key) &&
+                Objects.equals(this.sharingKey, sourceResponse.sharingKey) &&
+                Objects.equals(this.stats, sourceResponse.stats);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(sourceId, name, created, identity, destination, encryptionMode, secretRegion, version, lastUsage, dailyUsage, periodUsage, applicationUrl, key, sharingKey, stats);
+    }
+
+    @Override
+    public String toString() {
+        String sb = "class SourceResponse {\n" +
+                "    sourceId: " + toIndentedString(sourceId) + "\n" +
+                "    name: " + toIndentedString(name) + "\n" +
+                "    created: " + toIndentedString(created) + "\n" +
+                "    identity: " + toIndentedString(identity) + "\n" +
+                "    destination: " + toIndentedString(destination) + "\n" +
+                "    encryptionMode: " + toIndentedString(encryptionMode) + "\n" +
+                "    secretRegion: " + toIndentedString(secretRegion) + "\n" +
+                "    version: " + toIndentedString(version) + "\n" +
+                "    lastUsage: " + toIndentedString(lastUsage) + "\n" +
+                "    dailyUsage: " + toIndentedString(dailyUsage) + "\n" +
+                "    periodUsage: " + toIndentedString(periodUsage) + "\n" +
+                "    applicationUrl: " + toIndentedString(applicationUrl) + "\n" +
+                "    key: " + toIndentedString(key) + "\n" +
+                "    sharingKey: " + toIndentedString(sharingKey) + "\n" +
+                "    stats: " + toIndentedString(stats) + "\n" +
+                "}";
+        return sb;
+    }
+
+    /**
+     * Convert the given object to string with each line indented by 4 spaces
+     * (except the first line).
+     */
+    private String toIndentedString(Object o) {
+        if (o == null) {
+            return "null";
+        }
+        return o.toString().replace("\n", "\n    ");
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @return URL query string
+     */
+    public String toUrlQueryString() {
+        return toUrlQueryString(null);
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @param prefix prefix of the query string
+     * @return URL query string
+     */
+    public String toUrlQueryString(String prefix) {
+        String suffix = "";
+        String containerSuffix = "";
+        String containerPrefix = "";
+        if (prefix == null) {
+            // style=form, explode=true, e.g. /pet?name=cat&type=manx
+            prefix = "";
+        } else {
+            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+            prefix = prefix + "[";
+            suffix = "]";
+            containerSuffix = "]";
+            containerPrefix = "[";
+        }
+
+        StringJoiner joiner = new StringJoiner("&");
+
+        // add `sourceId` to the URL query string
+        if (getSourceId() != null) {
+            joiner.add(String.format("%ssourceId%s=%s", prefix, suffix, URLEncoder.encode(getSourceId(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `name` to the URL query string
+        if (getName() != null) {
+            joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(getName(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `created` to the URL query string
+        if (getCreated() != null) {
+            joiner.add(String.format("%screated%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCreated()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `identity` to the URL query string
+        if (getIdentity() != null) {
+            joiner.add(String.format("%sidentity%s=%s", prefix, suffix, URLEncoder.encode(getIdentity(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `destination` to the URL query string
+        if (getDestination() != null) {
+            joiner.add(String.format("%sdestination%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getDestination()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `encryptionMode` to the URL query string
+        if (getEncryptionMode() != null) {
+            joiner.add(String.format("%sencryptionMode%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getEncryptionMode()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `secretRegion` to the URL query string
+        if (getSecretRegion() != null) {
+            joiner.add(String.format("%ssecretRegion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSecretRegion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `version` to the URL query string
+        if (getVersion() != null) {
+            joiner.add(String.format("%sversion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getVersion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `lastUsage` to the URL query string
+        if (getLastUsage() != null) {
+            joiner.add(String.format("%slastUsage%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getLastUsage()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `dailyUsage` to the URL query string
+        if (getDailyUsage() != null) {
+            for (int i = 0; i < getDailyUsage().size(); i++) {
+                if (getDailyUsage().get(i) != null) {
+                    joiner.add(getDailyUsage().get(i).toUrlQueryString(String.format("%sdailyUsage%s%s", prefix, suffix,
+                            "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+                }
+            }
+        }
+
+        // add `periodUsage` to the URL query string
+        if (getPeriodUsage() != null) {
+            for (int i = 0; i < getPeriodUsage().size(); i++) {
+                if (getPeriodUsage().get(i) != null) {
+                    joiner.add(getPeriodUsage().get(i).toUrlQueryString(String.format("%speriodUsage%s%s", prefix, suffix,
+                            "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+                }
+            }
+        }
+
+        // add `applicationUrl` to the URL query string
+        if (getApplicationUrl() != null) {
+            joiner.add(String.format("%sapplicationUrl%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getApplicationUrl()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `key` to the URL query string
+        if (getKey() != null) {
+            joiner.add(String.format("%skey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `sharingKey` to the URL query string
+        if (getSharingKey() != null) {
+            joiner.add(String.format("%ssharingKey%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getSharingKey()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `stats` to the URL query string
+        if (getStats() != null) {
+            joiner.add(getStats().toUrlQueryString(prefix + "stats" + suffix));
+        }
+
+        return joiner.toString();
+    }
 }
 

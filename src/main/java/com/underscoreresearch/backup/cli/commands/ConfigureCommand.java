@@ -86,7 +86,6 @@ public class ConfigureCommand extends SimpleCommand {
             if (!suppressedOpen()) {
                 try {
                     UIHandler.setup();
-                    ;
                     UIHandler.openUri(new URI(url.trim()));
                 } catch (URISyntaxException ignored) {
                 }

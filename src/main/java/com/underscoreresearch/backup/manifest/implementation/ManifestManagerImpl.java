@@ -10,7 +10,6 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -23,6 +22,7 @@ import java.io.InputStreamReader;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,12 +45,14 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
+import com.underscoreresearch.backup.cli.commands.ChangePasswordCommand;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -67,7 +69,6 @@ import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.BackupSearchAccess;
 import com.underscoreresearch.backup.manifest.LogConsumer;
-import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.ShareActivateMetadataRepository;
@@ -123,7 +124,8 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                                String installationIdentity,
                                String source,
                                boolean forceIdentity,
-                               EncryptionKey publicKey,
+                               EncryptionIdentity encryptionIdentity,
+                               IdentityKeys identityKeys,
                                BackupStatsLogger statsLogger,
                                AdditionalManifestManager additionalManifestManager,
                                UploadScheduler uploadScheduler) {
@@ -134,7 +136,8 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 serviceManager,
                 installationIdentity,
                 forceIdentity,
-                publicKey,
+                encryptionIdentity,
+                identityKeys,
                 uploadScheduler);
         this.source = source;
         this.statsLogger = statsLogger;
@@ -157,7 +160,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                     true, null);
             processedFiles.incrementAndGet();
 
-            updateServiceSourceData(getPublicKey());
+            updateServiceSourceData(getEncryptionIdentity());
 
             List<File> files = existingLogFiles();
 
@@ -201,7 +204,11 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
         if (encrypt) {
             unencryptedData = compressConfigData(inputData);
-            data = getEncryptor().encryptBlock(null, unencryptedData, getPublicKey());
+            try {
+                data = getEncryptor().encryptBlock(null, unencryptedData, getIdentityKeys());
+            } catch (GeneralSecurityException e) {
+                throw new IOException(e);
+            }
         } else {
             data = unencryptedData = inputData;
         }
@@ -221,11 +228,11 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         uploadData(filename, data, success);
 
         if (filename.equals(CONFIGURATION_FILENAME)) {
-            additionalManifestManager.uploadConfiguration(getConfiguration(), getPublicKey());
+            additionalManifestManager.uploadConfiguration(getConfiguration(), getIdentityKeys());
         } else {
             if (encrypt)
                 additionalManifestManager.uploadConfigurationData(filename, data, unencryptedData, getEncryptor(),
-                        getPublicKey(), success);
+                        getIdentityKeys(), success);
             else
                 additionalManifestManager.uploadConfigurationData(filename, data, null, null,
                         null, success);
@@ -233,7 +240,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     }
 
     @Override
-    public void updateServiceSourceData(EncryptionKey encryptionKey) throws IOException {
+    public void updateServiceSourceData(EncryptionIdentity encryptionKey) throws IOException {
         if (getServiceManager().getToken() != null
                 && getServiceManager().getSourceName() != null
                 && getServiceManager().getSourceId() != null) {
@@ -244,7 +251,12 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 BACKUP_DESTINATION_WRITER.writeValue(stream, destination);
                 destinationData = BaseEncoding.base64Url().encode(encryptConfigData(stream.toByteArray())).replace("=", "");
             }
-            String keyData = ENCRYPTION_KEY_WRITER.writeValueAsString(encryptionKey.serviceOnlyKey());
+            String keyData;
+            try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                encryptionKey.writeKey(EncryptionIdentity.KeyFormat.SERVICE, output);
+                keyData = output.toString(StandardCharsets.UTF_8);
+            }
+
             getServiceManager().call(null, new ServiceManager.ApiFunction<>() {
                 @Override
                 public boolean shouldRetryMissing(String region) {
@@ -262,7 +274,9 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                                     .encryptionMode(destination.getEncryption())
                                     .key(keyData)
                                     .version(VersionCommand.getVersionEdition())
-                                    .sharingKey(encryptionKey.getSharingPublicKey()));
+                                    .sharingKey(encryptionKey.getSharingKeys() != null ?
+                                            encryptionKey.getSharingKeys().getPublicKeyString() :
+                                            null));
                 }
             });
         }
@@ -338,10 +352,15 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
             processedFiles = new AtomicLong(0L);
             processedOperations = new AtomicLong(0L);
 
-            LogPrefetcher logPrefetcher = new LogPrefetcher(files,
-                    InstanceFactory.getInstance(BackupConfiguration.class),
-                    this::downloadData, getEncryptor(),
-                    InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(password));
+            LogPrefetcher logPrefetcher = null;
+            try {
+                logPrefetcher = new LogPrefetcher(files,
+                        InstanceFactory.getInstance(BackupConfiguration.class),
+                        this::downloadData, getEncryptor(),
+                        getIdentityKeys().getPrivateKeys(getEncryptionIdentity().getPrivateIdentity(password)));
+            } catch (GeneralSecurityException e) {
+                throw new IOException(e);
+            }
             logPrefetcher.start();
             try (CloseableLock ignored = repository.exclusiveLock()) {
                 for (String file : files) {
@@ -372,13 +391,28 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
             }
 
             if (activeShares != null && !activeShares.isEmpty()) {
-                EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
                 log.info("Creating additional blocks for {} shares", activeShares.size());
 
-                Set<EncryptionKey> shareKeys = activeShares.keySet().stream().map(EncryptionKey::createWithPublicKey)
+                EncryptionIdentity encryptionIdentity = getEncryptionIdentity();
+
+                Set<IdentityKeys> shareKeys = activeShares.keySet().stream()
+                        .map(encryptionIdentity::getIdentityKeyForHash)
                         .collect(Collectors.toSet());
 
-                createAdditionalBlocks(encryptionKey.getPrivateKey(password), repository, shareKeys);
+                startOperation("Activating shares");
+
+                synchronized (operationLock) {
+                    processedOperations = new AtomicLong();
+                    totalOperations = new AtomicLong(repository.getBlockCount());
+                    totalFiles = null;
+                    processedFiles = null;
+                }
+
+                try {
+                    createAdditionalBlocks(encryptionIdentity.getPrivateIdentity(password), repository, shareKeys);
+                } catch (GeneralSecurityException e) {
+                    throw new IOException(e);
+                }
             }
 
             if (processedOperations.get() > 1000000L) {
@@ -522,16 +556,18 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         }
     }
 
-    private ShareManifestManagerImpl createShareManager(String publicKey, BackupActivatedShare share, boolean activated) throws IOException {
+    private ShareManifestManagerImpl createShareManager(String shareId, BackupActivatedShare share, boolean activated) throws IOException {
+        IdentityKeys keys = getEncryptionIdentity().getIdentityKeyForHash(shareId);
         return new ShareManifestManagerImpl(
                 getConfiguration(),
                 share.getShare().getDestination(),
-                Paths.get(getManifestLocation(), "shares", publicKey).toString(),
+                Paths.get(getManifestLocation(), "shares", shareId).toString(),
                 getRateLimitController(),
                 getServiceManager(),
-                getInstallationIdentity() + publicKey,
+                getInstallationIdentity() + shareId,
                 isForceIdentity(),
-                EncryptionKey.createWithPublicKey(publicKey),
+                EncryptionIdentity.withIdentityKeys(keys),
+                keys,
                 activated,
                 share,
                 getUploadScheduler()
@@ -745,6 +781,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
             log.info("Waiting {} seconds for log file eventual consistency", milliseconds / 1000);
             Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.warn("Failed to wait for eventual consistency", e);
         }
     }
@@ -779,12 +816,10 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     }
 
     @Override
-    public void updateKeyData(EncryptionKey key) throws IOException {
-        EncryptionKey publicKey = key.publicOnly();
+    public void updateKeyData(EncryptionIdentity key) throws IOException {
+        ChangePasswordCommand.saveKeyFile(new File(InstanceFactory.getInstance(CommandLineModule.KEY_FILE_NAME)), key);
 
-        ENCRYPTION_KEY_WRITER.writeValue(new File(InstanceFactory.getInstance(CommandLineModule.KEY_FILE_NAME)),
-                publicKey);
-        uploadKeyData(publicKey);
+        uploadKeyData(key);
         updateServiceSourceData(key);
     }
 
@@ -792,7 +827,14 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         log.info(operation);
         synchronized (operationLock) {
             this.operation = operation;
-            this.operationTask = UIHandler.registerTask(operation);
+            if (this.operationTask != null) {
+                try {
+                    this.operationTask.close();
+                } catch (IOException e) {
+                    log.error("Failed to close active task", e);
+                }
+            }
+            this.operationTask = UIHandler.registerTask(operation, true);
             operationDuration = Stopwatch.createStarted();
         }
     }
@@ -816,23 +858,23 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     }
 
     @Override
-    public void activateShares(LogConsumer consumer, EncryptionKey.PrivateKey privateKey) throws IOException {
+    public void activateShares(LogConsumer consumer, EncryptionIdentity.PrivateIdentity privateIdentity) throws IOException {
         initialize(consumer, true);
 
         MetadataRepository repository = (MetadataRepository) consumer;
 
         if (getConfiguration().getShares() != null) {
-            Map<EncryptionKey, ShareManifestManagerImpl> pendingShareManagers = new HashMap<>();
+            Map<IdentityKeys, ShareManifestManagerImpl> pendingShareManagers = new HashMap<>();
             Map<String, BackupShare> pendingShares = new HashMap<>();
 
             for (Map.Entry<String, BackupShare> entry : getConfiguration().getShares().entrySet()) {
                 if (!activeShares.containsKey(entry.getKey())) {
-                    pendingShareManagers.put(EncryptionKey.createWithPublicKey(entry.getKey()),
+                    pendingShareManagers.put(privateIdentity.getEncryptionIdentity().getIdentityKeyForHash(entry.getKey()),
                             createShareManager(entry.getKey(), entry.getValue().activatedShare(getServiceManager().getSourceId(), entry.getKey()), false));
                     pendingShares.put(entry.getKey(), entry.getValue());
                     if (getServiceManager().getToken() != null && getServiceManager().getSourceId() != null
                             && !Strings.isNullOrEmpty(entry.getValue().getTargetEmail())) {
-                        getServiceManager().createShare(entry.getKey(), entry.getValue());
+                        getServiceManager().createShare(getEncryptionIdentity(), entry.getKey(), entry.getValue());
                     }
                 }
             }
@@ -847,23 +889,23 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                     log.info("Fetching existing logs");
 
                     Map<String, String> existingLogs = new HashMap<>();
-                    for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
+                    for (Map.Entry<IdentityKeys, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
                         entry.getValue().validateIdentity();
-                        existingLogs.put(entry.getKey().getPublicKey(), repository.lastSyncedLogFile(entry.getKey().getPublicKey()));
-                        repository.setLastSyncedLogFile(entry.getKey().getPublicKey(), null);
+                        existingLogs.put(entry.getKey().getKeyIdentifier(), repository.lastSyncedLogFile(entry.getKey().getKeyIdentifier()));
+                        repository.setLastSyncedLogFile(entry.getKey().getKeyIdentifier(), null);
                         entry.getValue().initialize(consumer, false);
                     }
 
                     ShareActivateMetadataRepository copyRepository = new ShareActivateMetadataRepository(repository,
                             this, pendingShares,
                             pendingShareManagers.entrySet().stream()
-                                    .map(entry -> Map.entry(entry.getKey().getPublicKey(), entry.getValue()))
+                                    .map(entry -> Map.entry(entry.getKey().getKeyIdentifier(), entry.getValue()))
                                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
                     copyRepository.clear();
 
                     log.info("Calculating new block storage keys if needed");
 
-                    createAdditionalBlocks(privateKey, repository, pendingShareManagers.keySet());
+                    createAdditionalBlocks(privateIdentity, repository, pendingShareManagers.keySet());
 
                     log.info("Writing files to shares");
 
@@ -899,12 +941,12 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
                     log.info("Deleting any existing log files");
 
-                    for (Map.Entry<EncryptionKey, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
+                    for (Map.Entry<IdentityKeys, ShareManifestManagerImpl> entry : pendingShareManagers.entrySet()) {
                         entry.getValue().syncLog();
-                        entry.getValue().deleteLogFiles(existingLogs.get(entry.getKey().getPublicKey()));
+                        entry.getValue().deleteLogFiles(existingLogs.get(entry.getKey().getKeyIdentifier()));
                         entry.getValue().completeActivation();
 
-                        activeShares.put(entry.getKey().getPublicKey(), entry.getValue());
+                        activeShares.put(entry.getKey().getKeyIdentifier(), entry.getValue());
                     }
 
                 } catch (CancellationException exc) {
@@ -915,28 +957,40 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
             }
         }
 
-        updateShareEncryption(privateKey);
+        updateShareEncryption(privateIdentity);
         if (statsLogger != null) {
             statsLogger.setNeedsActivation(false);
         }
     }
 
-    private void createAdditionalBlocks(EncryptionKey.PrivateKey privateKey, MetadataRepository repository, Set<EncryptionKey> shareEncryptionKeys) throws IOException {
+    private void createAdditionalBlocks(EncryptionIdentity.PrivateIdentity privateIdentity,
+                                        MetadataRepository repository,
+                                        Set<IdentityKeys> shareEncryptionKeys) throws IOException {
         try (CloseableStream<BackupBlock> blocks = repository.allBlocks()) {
             blocks.stream().forEach((block) -> {
                 if (isShutdown()) {
                     throw new CancellationException();
                 }
-                for (EncryptionKey entry : shareEncryptionKeys) {
+                processedOperations.incrementAndGet();
+                for (IdentityKeys entry : shareEncryptionKeys) {
                     processedOperations.incrementAndGet();
+
+                    IdentityKeys.PrivateKeys privateKey = privateIdentity.getEncryptionIdentity().getPrimaryKeys()
+                            .getPrivateKeys(privateIdentity);
+
                     if (!BackupBlock.isSuperBlock(block.getHash())) {
                         List<BackupBlockStorage> newStorage =
-                                block.getStorage().stream()
-                                        .map((storage) -> EncryptorFactory.getEncryptor(storage.getEncryption())
-                                                .reKeyStorage(storage, privateKey, entry))
-                                        .toList();
+                                new ArrayList<>();
+                        for (BackupBlockStorage storage : block.getStorage()) {
+                            try {
+                                newStorage.add(EncryptorFactory.getEncryptor(storage.getEncryption())
+                                        .reKeyStorage(storage, privateKey, entry));
+                            } catch (GeneralSecurityException e) {
+                                log.error("Failed to reencrypt block {} for share {}", block.getHash(), entry.getKeyIdentifier());
+                            }
+                        }
                         BackupBlockAdditional blockAdditional = BackupBlockAdditional.builder()
-                                .publicKey(entry.getPublicKey())
+                                .publicKey(entry.getKeyIdentifier())
                                 .used(false)
                                 .hash(block.getHash())
                                 .properties(new ArrayList<>())
@@ -966,12 +1020,12 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     }
 
     @Override
-    public void updateShareEncryption(EncryptionKey.PrivateKey privateKey) throws IOException {
+    public void updateShareEncryption(EncryptionIdentity.PrivateIdentity privateIdentity) throws IOException {
         boolean needActivation = false;
         Set<String> definedShares = new HashSet<>(getConfiguration().getShares().keySet());
         for (Map.Entry<String, ShareManifestManager> entry : activeShares.entrySet()) {
             definedShares.remove(entry.getKey());
-            entry.getValue().updateEncryptionKeys(privateKey);
+            entry.getValue().updateEncryptionKeys(privateIdentity);
             if (!entry.getValue().getActivatedShare().isUpdatedEncryption())
                 needActivation = true;
         }
@@ -1036,6 +1090,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 try {
                     getLock().wait();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn("Failed to wait", e);
                 }
             }

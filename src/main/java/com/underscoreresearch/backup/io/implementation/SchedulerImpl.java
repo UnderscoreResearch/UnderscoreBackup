@@ -38,10 +38,10 @@ public class SchedulerImpl {
         stopwatch.reset();
     }
 
-    protected void schedule(Runnable runnable) {
+    protected boolean schedule(Runnable runnable) {
         synchronized (executingTasks) {
             if (shutdown) {
-                return;
+                return false;
             }
             runnable = new SchedulerTask(runnable);
             executingTasks.add(runnable);
@@ -50,10 +50,11 @@ public class SchedulerImpl {
                     if (shutdown) {
                         executingTasks.remove(runnable);
                         executingTasks.notifyAll();
-                        return;
+                        return false;
                     }
                     executingTasks.wait();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn("Failed to wait", e);
                 }
             }
@@ -64,6 +65,7 @@ public class SchedulerImpl {
                 stopwatch.start();
         }
         executor.submit(runnable);
+        return true;
     }
 
     public void shutdown() {
@@ -76,6 +78,7 @@ public class SchedulerImpl {
                 try {
                     executingTasks.wait();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn("Failed to wait", e);
                 }
             }
@@ -91,6 +94,7 @@ public class SchedulerImpl {
                 try {
                     executingTasks.wait();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn("Failed to wait", e);
                 }
             }

@@ -5,8 +5,6 @@ import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.ByteArrayOutputStream;
@@ -17,6 +15,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -41,9 +40,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.ParseException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProvider;
@@ -90,11 +90,13 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
             new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
     @Getter(AccessLevel.PROTECTED)
-    private final EncryptionKey publicKey;
+    private final EncryptionIdentity encryptionIdentity;
     @Getter(AccessLevel.PROTECTED)
     private final UploadScheduler uploadScheduler;
     @Getter(AccessLevel.PROTECTED)
     private final IOProvider provider;
+    @Getter(AccessLevel.PROTECTED)
+    private final IdentityKeys identityKeys;
     @Getter
     private boolean shutdown;
     @Getter
@@ -115,15 +117,17 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                                    ServiceManager serviceManager,
                                    String installationIdentity,
                                    boolean forceIdentity,
-                                   EncryptionKey publicKey,
+                                   EncryptionIdentity encryptionIdentity,
+                                   IdentityKeys identityKeys,
                                    UploadScheduler uploadScheduler) {
         this.configuration = configuration;
         this.rateLimitController = rateLimitController;
         this.manifestLocation = manifestLocation;
         this.installationIdentity = installationIdentity;
         this.forceIdentity = forceIdentity;
-        this.publicKey = publicKey;
+        this.encryptionIdentity = encryptionIdentity;
         this.serviceManager = serviceManager;
+        this.identityKeys = identityKeys;
 
         this.manifestDestination = manifestDestination;
         if (manifestDestination == null) {
@@ -192,7 +196,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
-    protected void uploadKeyData(EncryptionKey key) throws IOException {
+    protected void uploadKeyData(EncryptionIdentity key) throws IOException {
         uploadConfigData(PUBLICKEY_FILENAME,
                 encryptionKeyForUpload(key),
                 false, null);
@@ -339,8 +343,11 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         return index.availableLogs(null, true);
     }
 
-    protected byte[] encryptionKeyForUpload(EncryptionKey encryptionKey) throws IOException {
-        return ENCRYPTION_KEY_WRITER.writeValueAsBytes(encryptionKey.publicOnlyHash());
+    protected byte[] encryptionKeyForUpload(EncryptionIdentity encryptionKey) throws IOException {
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            encryptionKey.writeKey(EncryptionIdentity.KeyFormat.UPLOAD, output);
+            return output.toByteArray();
+        }
     }
 
     protected void syncDestinationKey() throws IOException {
@@ -356,34 +363,32 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 }
             }
             log.info("Public key does not exist");
-            uploadPublicKey(getPublicKey());
+            uploadPublicKey(getEncryptionIdentity());
         }
 
         if (keyData != null) {
-            EncryptionKey existingPublicKey = null;
+            EncryptionIdentity existingPublicKey = null;
             try {
-                existingPublicKey = ENCRYPTION_KEY_READER
-                        .readValue(keyData);
-            } catch (IOException exc) {
+                existingPublicKey = EncryptionIdentity.restoreFromString(new String(keyData, StandardCharsets.UTF_8));
+            } catch (GeneralSecurityException exc) {
                 log.error("Failed to read destination public key, replacing with local copy", exc);
-                uploadPublicKey(getPublicKey());
+                uploadPublicKey(getEncryptionIdentity());
             }
 
             if (existingPublicKey != null) {
-                if (!getPublicKey().getPublicKeyHash().equals(existingPublicKey.getPublicKeyHash())) {
+                if (!getEncryptionIdentity().getPrimaryKeys().equals(existingPublicKey.getPrimaryKeys())) {
                     throw new IOException("Public key that exist in destination does not match current public key");
                 }
-                if (existingPublicKey.getPublicKey() != null ||
-                        (getPublicKey().getSalt() != null && !getPublicKey().getSalt().equals(existingPublicKey.getSalt()))) {
+                if (getEncryptionIdentity().getSalt() != null && !getEncryptionIdentity().getSalt().equals(existingPublicKey.getSalt())) {
                     log.info("Public key needs to be updated");
-                    uploadPublicKey(getPublicKey());
+                    uploadPublicKey(getEncryptionIdentity());
                 }
             }
         }
     }
 
-    protected void uploadPublicKey(EncryptionKey encryptionKey) throws IOException {
-        uploadConfigData(PUBLICKEY_FILENAME, encryptionKeyForUpload(encryptionKey), false, null);
+    protected void uploadPublicKey(EncryptionIdentity identity) throws IOException {
+        uploadConfigData(PUBLICKEY_FILENAME, encryptionKeyForUpload(identity), false, null);
     }
 
     protected void uploadConfigData(String filename, byte[] unencryptedData,
@@ -409,7 +414,11 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     public byte[] encryptConfigData(byte[] data) throws IOException {
-        return encryptor.encryptBlock(null, compressConfigData(data), publicKey);
+        try {
+            return encryptor.encryptBlock(null, compressConfigData(data), getIdentityKeys());
+        } catch (GeneralSecurityException e) {
+            throw new IOException(e);
+        }
     }
 
     private String transformLogFilename(String path) {
@@ -553,6 +562,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             try {
                 Thread.sleep(50);
             } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
             }
             debug(() -> log.warn("Had to wait a bit to get a unique filename for log"));
             filename = Paths.get(manifestLocation, LOG_ROOT, LOG_FILE_FORMATTER.format(Instant.now())).toString();
@@ -608,6 +618,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 try {
                     uploadSubmissionCount.wait();
                 } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
                 }
             }
         }
@@ -619,6 +630,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
                 try {
                     uploadCount.wait();
                 } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
                 }
             }
         }

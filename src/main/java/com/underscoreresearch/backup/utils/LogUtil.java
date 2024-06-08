@@ -11,9 +11,16 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.NavigableSet;
 import java.util.TimeZone;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,9 +45,13 @@ public final class LogUtil {
         FILE_TIME_FORMATTER = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
     }
 
-    public static void debug(Runnable log) {
+    public static boolean isDebug() {
         InstanceFactory factory = InstanceFactory.getFactory(CommandLine.class);
-        if (factory == null || InstanceFactory.getInstance(CommandLine.class).hasOption(DEBUG)) {
+        return factory == null || InstanceFactory.getInstance(CommandLine.class).hasOption(DEBUG);
+    }
+
+    public static void debug(Runnable log) {
+        if (isDebug()) {
             log.run();
         }
     }
@@ -161,4 +172,53 @@ public final class LogUtil {
         return String.format("%-10s %-20s %s", size, age, PathNormalizer.physicalPath(strippedPath));
     }
 
+    public static void dumpAllStackTrace(StringBuilder sb) {
+        HashMap<String, NavigableSet<String>> bundles = new HashMap<>();
+        for (Thread thread : Thread.getAllStackTraces().keySet()) {
+            if (thread != Thread.currentThread()) {
+                StackTraceElement[] elements = trimStackTrace(thread.getStackTrace());
+                if (elements != null) {
+                    StringBuilder builder = new StringBuilder();
+                    String lastElement = null;
+                    for (StackTraceElement stackTraceElement : elements) {
+                        String element = stackTraceElement.toString();
+                        if (!element.equals(lastElement)) {
+                            builder.append("\n    ");
+                            builder.append(stackTraceElement);
+                            lastElement = element;
+                        }
+                    }
+                    String stackString = builder.toString();
+                    bundles.computeIfAbsent(stackString,
+                            (key) -> new TreeSet<>()).add(thread.getName().replaceAll("\\d+$", "n"));
+                }
+            }
+        }
+
+        NavigableMap<String, String> threadGroups = new TreeMap<>();
+        for (Map.Entry<String, NavigableSet<String>> entry : bundles.entrySet()) {
+            threadGroups.put(String.join(", ", entry.getValue()), entry.getKey());
+        }
+        for (Map.Entry<String, String> entry : threadGroups.entrySet()) {
+            sb.append("\nThreads: ").append(entry.getKey());
+            sb.append(entry.getValue());
+        }
+    }
+
+    private static StackTraceElement[] trimStackTrace(StackTraceElement[] stackTrace) {
+        int first = -1;
+        int last = -1;
+        for (int i = 0; i < stackTrace.length; i++) {
+            if (stackTrace[i].getClassName().startsWith("com.underscoreresearch.")) {
+                if (first < 0) {
+                    first = i;
+                }
+                last = i;
+            }
+        }
+        if (last >= 0) {
+            return Arrays.copyOfRange(stackTrace, first, last + 1);
+        }
+        return null;
+    }
 }

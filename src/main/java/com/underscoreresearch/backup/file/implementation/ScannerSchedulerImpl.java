@@ -210,7 +210,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                         String message = String.format("Started scanning %s for %s", set.getAllRoots(), set.getId());
                         log.info(message);
                         UIHandler.displayInfoMessage(message);
-                        try (Closeable ignored = UIHandler.registerTask("Backing up " + set.getId())) {
+                        try (Closeable ignored = UIHandler.registerTask("Backing up " + set.getId(), true)) {
                             if (scanner.startScanning(set)) {
                                 anyRan = true;
                                 rescheduleCompletedSet(i, set);
@@ -267,10 +267,10 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                     Closeable task;
                     if (fileChangeWatcher.active()) {
                         log.info("Waiting for filesystem changes");
-                        task = UIHandler.registerTask("Waiting for filesystem changes");
+                        task = UIHandler.registerTask("Waiting for filesystem changes", false);
                     } else {
                         log.info("Paused for next scheduled scan");
-                        task = UIHandler.registerTask("Paused for next scheduled scan");
+                        task = UIHandler.registerTask("Paused for next scheduled scan", false);
                     }
                     try {
                         continuousBackup.start();
@@ -286,6 +286,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                         }
                     }
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.error("Failed to wait", e);
                 }
                 backupStatsLogger.setUploadRunning(true);
@@ -560,6 +561,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 try {
                     condition.await();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn("Failed to wait", e);
                 }
             }

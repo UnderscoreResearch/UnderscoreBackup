@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-package com.underscoreresearch.backup.encryption.x25519;
+package com.underscoreresearch.backup.encryption.encryptors.x25519;
 
 import java.security.InvalidKeyException;
 import java.util.Arrays;

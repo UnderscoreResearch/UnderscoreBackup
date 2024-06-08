@@ -35,7 +35,7 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
     private final MetadataRepository repository;
     private final Long timestamp;
     private final boolean includeDeleted;
-    private LoadingCache<String, String> directoryPermissions = CacheBuilder.newBuilder()
+    private final LoadingCache<String, String> directoryPermissions = CacheBuilder.newBuilder()
             .maximumSize(50)
             .build(new CacheLoader<String, String>() {
                 @Override

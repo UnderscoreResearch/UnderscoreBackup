@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,7 +27,7 @@ import org.mockito.Mockito;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -44,19 +45,18 @@ class AssignmentTests {
     private FileSystemAccess access;
     private FileBlockUploader uploader;
     private Map<String, byte[]> uploadedData;
-    private EncryptionKey encryptionKey;
+    private EncryptionIdentity encryptionKey;
     private String expectedFormat;
     private MetadataRepository repository;
     private boolean registerPart;
 
     @BeforeEach
-    public void setup() throws IOException {
+    public void setup() throws IOException, GeneralSecurityException {
         set = new BackupSet();
         access = Mockito.mock(FileSystemAccess.class);
         uploader = Mockito.mock(FileBlockUploader.class);
         repository = Mockito.mock(MetadataRepository.class);
-        encryptionKey = EncryptionKey.generateKeys();
-        encryptionKey.generateBlockHashSalt();
+        encryptionKey = EncryptionIdentity.generateKeyWithPassword("password");
         uploadedData = new HashMap<>();
         registerPart = false;
         set.setDestinations(Lists.newArrayList("destination"));

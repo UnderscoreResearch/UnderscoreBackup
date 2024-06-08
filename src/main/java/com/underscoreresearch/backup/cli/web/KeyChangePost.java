@@ -9,6 +9,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 import lombok.Builder;
 import lombok.Data;
@@ -97,7 +98,7 @@ public class KeyChangePost extends BaseWrap {
                                         fileName,
                                         request.getPassword(),
                                         request.getNewPassword());
-                            } catch (IOException e) {
+                            } catch (IOException | GeneralSecurityException e) {
                                 log.error("Failed to change password", e);
                             }
 

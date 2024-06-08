@@ -7,7 +7,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
 import com.underscoreresearch.backup.model.BackupActivatedShare;
@@ -34,11 +33,6 @@ public class SerializationUtils {
             .readerFor(BackupDestination.class);
     public static final ObjectWriter BACKUP_DESTINATION_WRITER = MAPPER
             .writerFor(BackupDestination.class);
-
-    public static final ObjectReader ENCRYPTION_KEY_READER = MAPPER
-            .readerFor(EncryptionKey.class);
-    public static final ObjectWriter ENCRYPTION_KEY_WRITER = MAPPER
-            .writerFor(EncryptionKey.class);
 
     public static final ObjectReader BACKUP_BLOCK_READER = MAPPER
             .readerFor(BackupBlock.class);

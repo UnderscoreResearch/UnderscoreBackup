@@ -7,6 +7,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -22,7 +23,7 @@ import com.google.inject.name.Named;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.BlockFormatFactory;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
@@ -44,14 +45,14 @@ public class RepositoryBackfiller {
     private final MetadataRepository repository;
     private final ManifestManager manifestManager;
     private final BlockDownloader blockDownloader;
-    private final EncryptionKey encryptionKey;
+    private final EncryptionIdentity encryptionKey;
     private final int maximumConcurrency;
 
     @Inject
     public RepositoryBackfiller(final MetadataRepository repository,
                                 final ManifestManager manifestManager,
                                 final BlockDownloader blockDownloader,
-                                final EncryptionKey encryptionKey,
+                                final EncryptionIdentity encryptionKey,
                                 @Named(DOWNLOAD_THREADS) final int maximumConcurrency) {
         this.repository = repository;
         this.manifestManager = manifestManager;
@@ -255,8 +256,12 @@ public class RepositoryBackfiller {
                     }
 
                     FileBlockExtractor extractor = BlockFormatFactory.getExtractor(block.getFormat());
-                    blockSizes.put(block.getHash(), extractor.blockSize(part,
-                            encryptor.decodeBlock(storage, data, encryptionKey.getPrivateKey(password))));
+                    try {
+                        blockSizes.put(block.getHash(), extractor.blockSize(part,
+                                encryptor.decodeBlock(storage, data, encryptionKey.getPrivateKeys(password))));
+                    } catch (GeneralSecurityException e) {
+                        log.error("Failed to decode block {}", block.getHash(), e);
+                    }
 
                     break;
                 } catch (IOException e) {
@@ -269,7 +274,7 @@ public class RepositoryBackfiller {
         }
 
         private void postPending() {
-            while (pendingBlockUpdates.size() > 0) {
+            while (!pendingBlockUpdates.isEmpty()) {
                 BackupBlock updateBlock = pendingBlockUpdates.poll();
                 try {
                     repository.addBlock(updateBlock);

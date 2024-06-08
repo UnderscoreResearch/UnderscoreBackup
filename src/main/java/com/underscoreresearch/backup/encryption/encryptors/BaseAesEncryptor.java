@@ -1,19 +1,34 @@
-package com.underscoreresearch.backup.encryption;
+package com.underscoreresearch.backup.encryption.encryptors;
 
-import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
-import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.KEY_DATA;
-import static com.underscoreresearch.backup.encryption.AesEncryptorFormat.PUBLIC_KEY;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.CBC;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.NON_PADDED_GCM;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.NON_PADDED_GCM_STABLE;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.PADDED_GCM;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.PADDED_GCM_STABLE;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorFormat.KEY_DATA;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorFormat.KEY_TYPES_X25519;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorFormat.PUBLIC_KEY;
 
+import java.security.GeneralSecurityException;
+import java.util.Map;
+import java.util.Set;
+
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Maps;
-import com.google.inject.Inject;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.Encryptor;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.encryption.PublicKeyMethod;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 /**
- * AES 256 encryptor.
+ * X25519 encryptor. Called AES for historical reasons (AES is used for the symmetrical cypher)
  * <p>
  * So this format is a bit of a mess in that I started using CBC encoding and padding and then realized that I really
  * should be using GCM encoding. Unfortunately I left no field for future expansion in the original format but I have
@@ -38,20 +53,16 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
  * this format a block with the same contents will always be encrypted to exactly the same encryption payload allowing
  * for good deduplication of the data without jeopardizing the contents.
  */
-@EncryptorPlugin(AES_ENCRYPTION)
 @Slf4j
-public class AesEncryptor implements Encryptor {
-    public static final String AES_ENCRYPTION = "AES256";
-    private final AesEncryptorFormat defaultFormat;
-    private final AesEncryptorFormat legacyFormat;
-    private final AesEncryptorFormat stableFormat;
+public class BaseAesEncryptor implements Encryptor {
+    private static final AesEncryptorFormat defaultFormat = new AesEncryptorGcm();
+    private static final AesEncryptorFormat legacyFormat = new AesEncryptorCbc();
+    private static final AesEncryptorFormat stableFormat = new AesEncryptorGcmStable();
+
+    @Getter(AccessLevel.PROTECTED)
     private boolean stableDedupe;
 
-    @Inject
-    public AesEncryptor() {
-        defaultFormat = new AesEncryptorGcm();
-        stableFormat = new AesEncryptorGcmStable();
-        legacyFormat = new AesEncryptorCbc();
+    public BaseAesEncryptor() {
 
         stableDedupe = true;
         try {
@@ -80,18 +91,18 @@ public class AesEncryptor implements Encryptor {
         return ret;
     }
 
-    private AesEncryptorFormat getEncryptorFormat(byte[] data) {
+    protected AesEncryptorFormat getEncryptorFormat(byte[] data) {
         if (data.length % 4 == 0) {
             return legacyFormat;
         }
         switch (data[0]) {
-            case AesEncryptorCbc.CBC -> {
+            case CBC -> {
                 return legacyFormat;
             }
-            case AesEncryptorGcm.NON_PADDED_GCM, AesEncryptorGcm.PADDED_GCM -> {
+            case NON_PADDED_GCM, PADDED_GCM -> {
                 return defaultFormat;
             }
-            case AesEncryptorGcmStable.NON_PADDED_GCM_STABLE, AesEncryptorGcmStable.PADDED_GCM_STABLE -> {
+            case NON_PADDED_GCM_STABLE, PADDED_GCM_STABLE -> {
                 return stableFormat;
             }
         }
@@ -106,7 +117,7 @@ public class AesEncryptor implements Encryptor {
     }
 
     @Override
-    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key) {
+    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, IdentityKeys key) throws GeneralSecurityException {
         if (storage != null && stableDedupe) {
             return stableFormat.encryptBlock(storage, data, key);
         }
@@ -114,7 +125,8 @@ public class AesEncryptor implements Encryptor {
     }
 
     @Override
-    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, EncryptionKey.PrivateKey key) {
+    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData,
+                              IdentityKeys.PrivateKeys key) throws GeneralSecurityException {
         return getEncryptorFormat(encryptedData).decodeBlock(storage, encryptedData,
                 getEncryptionFormatOffset(encryptedData), key);
     }
@@ -131,26 +143,38 @@ public class AesEncryptor implements Encryptor {
     }
 
     @Override
-    public BackupBlockStorage reKeyStorage(BackupBlockStorage storage, EncryptionKey.PrivateKey oldPrivateKey,
-                                           EncryptionKey newPublicKey) {
+    public BackupBlockStorage reKeyStorage(BackupBlockStorage storage, IdentityKeys.PrivateKeys oldPrivateKey, IdentityKeys newPublicKey) throws GeneralSecurityException {
         if (storage.getProperties() == null || !storage.getProperties().containsKey(PUBLIC_KEY)) {
             return null;
         }
-        EncryptionKey blockPublicKey = new EncryptionKey();
-        blockPublicKey.setPublicKey(storage.getProperties().get(PUBLIC_KEY));
-        byte[] privateKey = EncryptionKey.combinedSecret(oldPrivateKey, blockPublicKey);
-        privateKey = applyKeyData(storage, privateKey);
 
-        EncryptionKey newBlockKey = EncryptionKey.generateKeys();
-        byte[] newPrivateKey = EncryptionKey.combinedSecret(newBlockKey.getPrivateKey(null), newPublicKey);
-        byte[] keyData = applyKeyData(newPrivateKey, privateKey);
+        byte[] encryptionKey = oldPrivateKey.recreateSecret(createEncapsulatedKeys(storage));
+
+        encryptionKey = applyKeyData(storage, encryptionKey);
+
+        IdentityKeys.EncryptionParameters encryptionParameters = newPublicKey.getEncryptionParameters(getEncryptionKeys());
+        byte[] newKeyData = applyKeyData(encryptionKey, encryptionParameters.getSecret());
 
         BackupBlockStorage newStorage = storage.toBuilder()
                 .properties(Maps.newHashMap(storage.getProperties()))
                 .build();
-        newStorage.addProperty(PUBLIC_KEY, newBlockKey.getPublicKey());
-        newStorage.addProperty(KEY_DATA, Hash.encodeBytes(keyData));
+        newStorage.addProperty(KEY_DATA, Hash.encodeBytes(newKeyData));
+
+        storeEncryptionParameters(newStorage, encryptionParameters);
 
         return newStorage;
+    }
+
+    protected void storeEncryptionParameters(BackupBlockStorage storage, IdentityKeys.EncryptionParameters ret) {
+        storage.getProperties().put(X25519_KEY, Hash.encodeBytes(ret.getKeys().get(X25519_KEY).getEncapsulation()));
+    }
+
+    protected Set<String> getEncryptionKeys() {
+        return KEY_TYPES_X25519;
+    }
+
+    protected Map<String, PublicKeyMethod.EncapsulatedKey> createEncapsulatedKeys(BackupBlockStorage storage) {
+        byte[] blockPublicKey = Hash.decodeBytes(storage.getProperties().get(X25519_KEY));
+        return Map.of(X25519_KEY, new PublicKeyMethod.EncapsulatedKey(blockPublicKey));
     }
 }

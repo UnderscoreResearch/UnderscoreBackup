@@ -58,10 +58,15 @@ public class OsxState extends MachineState {
                     .exec(new String[]{
                             "renice", "+10", "-p", Long.toString(ProcessHandle.current().pid())
                     });
-            if (process.waitFor() != 0) {
-                throw new IOException();
+            try {
+                if (process.waitFor() != 0) {
+                    throw new IOException();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted changing process to low priority", e);
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             log.warn("Can't change process to low priority", e);
         }
     }

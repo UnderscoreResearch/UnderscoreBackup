@@ -10,7 +10,7 @@ import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.block.implementation.BlockDownloaderImpl;
 import com.underscoreresearch.backup.block.implementation.FileDownloaderImpl;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.DownloadScheduler;
@@ -62,9 +62,9 @@ public class RestoreModule extends AbstractModule {
     public BlockDownloaderImpl blockDownloader(@Named(SOURCE_CONFIG) BackupConfiguration configuration,
                                                RateLimitController rateLimitController,
                                                MetadataRepository metadataRepository,
-                                               EncryptionKey key,
+                                               EncryptionIdentity identity,
                                                @Named(DOWNLOAD_THREADS) int threads) {
-        return new BlockDownloaderImpl(configuration, rateLimitController, metadataRepository, key, threads);
+        return new BlockDownloaderImpl(configuration, rateLimitController, metadataRepository, identity, threads);
     }
 
     @Provides

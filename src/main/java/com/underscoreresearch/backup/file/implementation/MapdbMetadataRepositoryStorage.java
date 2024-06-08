@@ -26,6 +26,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -57,7 +58,6 @@ import org.mapdb.Serializer;
 import org.mapdb.serializer.SerializerArrayTuple;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
@@ -806,19 +806,28 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
                     return reader.readValue(gzipInputStream);
                 }
             }
-        } catch (JsonMappingException exc) {
+        } catch (IOException exc) {
             if (expectError) {
                 throw exc;
             }
+            StringBuilder sb = new StringBuilder();
             try {
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
                     try (GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream)) {
-                        byte[] plaintextData = IOUtils.readAllBytes(gzipInputStream);
-                        log.error("Failed decoding: \"{}\"", new String(plaintextData, StandardCharsets.UTF_8));
+                        try (InputStreamReader streamReader = new InputStreamReader(gzipInputStream,
+                                StandardCharsets.UTF_8)) {
+                            int chr = streamReader.read();
+                            while (chr >= 0) {
+                                sb.append((char) chr);
+                                chr = streamReader.read();
+                            }
+                        }
                     }
                 }
+                log.error("Failed to decode JSON data: \"{}\"", sb);
             } catch (Exception decodeTest2) {
-                log.error("Failed to decode string for supposed JSON object", decodeTest2);
+                log.error("Failed to decode JSON data: \"{}\" (Only partially data decoded)", sb,
+                        decodeTest2);
             }
             throw exc;
         }

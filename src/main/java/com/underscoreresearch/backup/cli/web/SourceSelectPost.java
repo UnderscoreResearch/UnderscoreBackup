@@ -3,7 +3,6 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.cli.commands.DownloadConfigCommand.storeKeyData;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.validateDestinations;
 import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
 import static com.underscoreresearch.backup.cli.web.service.SourcesPut.destinationDecode;
@@ -11,23 +10,21 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.MANI
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.expandSourceManifestDestination;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.getSourceConfigLocation;
-import static com.underscoreresearch.backup.encryption.AesEncryptor.AES_ENCRYPTION;
-import static com.underscoreresearch.backup.encryption.EncryptionKey.DISPLAY_PREFIX;
+import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
+import java.security.GeneralSecurityException;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,14 +38,15 @@ import org.takes.rq.RqHref;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
 import com.google.inject.ProvisionException;
+import com.underscoreresearch.backup.cli.commands.ChangePasswordCommand;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -65,30 +63,45 @@ public class SourceSelectPost extends BaseWrap {
         super(new Implementation(base));
     }
 
-    private static EncryptionKey getShareEncryptionKey(String password, ShareResponse share) throws IOException, InvalidKeyException {
-        EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
-        EncryptionKey.PrivateKey privateKey = encryptionKey.getPrivateKey(password);
-        EncryptionKey usedPrivateKey = null;
+    private static IdentityKeys getShareEncryptionKey(EncryptionIdentity encryptionIdentity,
+                                                      String password, ShareResponse share) throws IOException, GeneralSecurityException {
+        EncryptionIdentity.PrivateIdentity privateKey = encryptionIdentity.getPrivateIdentity(password);
+        IdentityKeys usedPrivateKey = null;
         for (SharePrivateKeys keys : share.getPrivateKeys()) {
-            EncryptionKey key = EncryptionKey.createWithPublicKey(keys.getPublicKey());
-            EncryptionKey sharePrivateKey = privateKey.getAdditionalKeyManager().findMatchingPrivateKey(key);
-            if (sharePrivateKey != null) {
-                Encryptor encryptor = EncryptorFactory.getEncryptor(AES_ENCRYPTION);
-                byte[] actualPrivateKey = encryptor.decodeBlock(null, BaseEncoding.base64Url().decode(keys.getEncryptedKey()),
-                        sharePrivateKey.getPrivateKey(null));
-                usedPrivateKey = EncryptionKey.createWithPrivateKey(DISPLAY_PREFIX + Hash.encodeBytes(actualPrivateKey));
-                if (privateKey.getAdditionalKeyManager().findMatchingPrivateKey(usedPrivateKey) == null) {
-                    privateKey.getAdditionalKeyManager().addNewKey(usedPrivateKey, InstanceFactory.getInstance(ManifestManager.class));
+            try {
+                IdentityKeys sharePrivateKey = encryptionIdentity.getIdentityKeysForPublicIdentity(IdentityKeys.fromString(keys.getPublicKey(), null));
+
+                Encryptor encryptor = EncryptorFactory.getEncryptor(PQC_ENCRYPTION);
+
+                byte[] decryptedKey = encryptor.decodeBlock(null, BaseEncoding.base64Url().decode(keys.getEncryptedKey()),
+                        sharePrivateKey.getPrivateKeys(privateKey));
+                if (decryptedKey.length > 53) { // 53 is the length of the string base32 encoded private key prepended by =
+                    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(decryptedKey)) {
+                        try (GZIPInputStream gzipStream = new GZIPInputStream(inputStream)) {
+                            decryptedKey = gzipStream.readAllBytes();
+                        }
+                    }
+                }
+                usedPrivateKey = IdentityKeys.fromString(new String(decryptedKey, StandardCharsets.UTF_8), privateKey);
+                try {
+                    encryptionIdentity.getIdentityKeysForPublicIdentity(usedPrivateKey);
+                } catch (IndexOutOfBoundsException exc) {
+                    encryptionIdentity.getAdditionalKeys().add(usedPrivateKey);
+                    InstanceFactory.getInstance(ManifestManager.class).updateKeyData(encryptionIdentity);
                 }
                 break;
+            } catch (IndexOutOfBoundsException ignored) {
+                // Normal case where the key did not exist.
+            } catch (GeneralSecurityException e) {
+                log.warn("Failed to process key", e);
             }
         }
         return usedPrivateKey;
     }
 
-    private static String downloadShareConfig(ShareResponse share, EncryptionKey.PrivateKey usedPrivateKey) {
+    private static String downloadShareConfig(ShareResponse share, IdentityKeys.PrivateKeys usedPrivateKey) {
         try {
-            Encryptor encryptor = EncryptorFactory.getEncryptor(AES_ENCRYPTION);
+            Encryptor encryptor = EncryptorFactory.getEncryptor(PQC_ENCRYPTION);
             BackupDestination destination = BACKUP_DESTINATION_READER.readValue(encryptor.decodeBlock(null,
                     destinationDecode(share.getDestination()),
                     usedPrivateKey));
@@ -106,7 +119,7 @@ public class SourceSelectPost extends BaseWrap {
                 IOProviderFactory.getProvider(destination).checkCredentials(false);
             } catch (Exception exc) {
                 writeSourceKey(share.getSourceId() + "." + share.getShareId(),
-                        usedPrivateKey.getParent().publicOnly());
+                        usedPrivateKey.getIdentity().toPublicEncryptionIdentity());
 
                 BackupConfiguration partialConfig = BackupConfiguration.builder()
                         .destinations(Map.of("manifest", destination))
@@ -120,7 +133,7 @@ public class SourceSelectPost extends BaseWrap {
 
             String config = downloadRemoteConfiguration(destination, usedPrivateKey);
 
-            writeSourceKey(sourceSharePath, usedPrivateKey.getParent().publicOnly());
+            writeSourceKey(sourceSharePath, usedPrivateKey.getIdentity().toPublicEncryptionIdentity());
 
             return BACKUP_CONFIGURATION_WRITER.writeValueAsString(
                     expandSourceManifestDestination(BACKUP_CONFIGURATION_READER.readValue(config),
@@ -131,25 +144,22 @@ public class SourceSelectPost extends BaseWrap {
         }
     }
 
-    private static void writeSourceKey(String share, EncryptionKey usedPrivateKey) throws IOException {
+    private static void writeSourceKey(String share, EncryptionIdentity identity) throws IOException {
         File keyFile = new File(CommandLineModule.getKeyFileName(share));
         createDirectory(keyFile.getParentFile(), true);
-        try (FileWriter outputStream = new FileWriter(keyFile, StandardCharsets.UTF_8)) {
-            outputStream.write(ENCRYPTION_KEY_WRITER.writeValueAsString(usedPrivateKey));
-        }
-
-        setOwnerOnlyPermissions(keyFile);
+        ChangePasswordCommand.saveKeyFile(keyFile, identity);
     }
 
-    public static String downloadSourceConfig(String source, SourceResponse sourceDefinition, EncryptionKey.PrivateKey privateKey) {
+    public static String downloadSourceConfig(String source, SourceResponse sourceDefinition, EncryptionIdentity.PrivateIdentity privateIdentity) {
         try {
+            IdentityKeys.PrivateKeys privateKeys = privateIdentity.getEncryptionIdentity().getPrimaryKeys().getPrivateKeys(privateIdentity);
             BackupDestination destination = BACKUP_DESTINATION_READER.readValue(unpackConfigData(
-                    sourceDefinition.getEncryptionMode(), privateKey,
+                    sourceDefinition.getEncryptionMode(), privateKeys,
                     destinationDecode(sourceDefinition.getDestination())));
 
-            String config = downloadRemoteConfiguration(destination.sourceShareDestination(source, null), privateKey);
+            String config = downloadRemoteConfiguration(destination.sourceShareDestination(source, null), privateKeys);
 
-            writeSourceKey(source, privateKey.getParent().publicOnly());
+            writeSourceKey(source, privateIdentity.getEncryptionIdentity());
 
             return BACKUP_CONFIGURATION_WRITER.writeValueAsString(
                     expandSourceManifestDestination(BACKUP_CONFIGURATION_READER.readValue(config),
@@ -160,11 +170,11 @@ public class SourceSelectPost extends BaseWrap {
         }
     }
 
-    public static EncryptionKey.PrivateKey validatePrivateKey(SourceResponse sourceDefinition, String password) {
+    public static EncryptionIdentity.PrivateIdentity validatePrivateKey(SourceResponse sourceDefinition, String password) {
         try {
-            EncryptionKey encryptionKey = ENCRYPTION_KEY_READER.readValue(sourceDefinition.getKey());
+            EncryptionIdentity identity = EncryptionIdentity.restoreFromString(sourceDefinition.getKey());
 
-            return encryptionKey.getPrivateKey(password);
+            return identity.getPrivateIdentity(password);
         } catch (Exception exc) {
             return null;
         }
@@ -182,7 +192,7 @@ public class SourceSelectPost extends BaseWrap {
             InstanceFactory.reloadConfiguration(source, null, null);
             try {
                 if (new File(CommandLineModule.getKeyFileName(source)).exists()) {
-                    InstanceFactory.getInstance(EncryptionKey.class);
+                    InstanceFactory.getInstance(EncryptionIdentity.class);
                 } else {
                     throw new IllegalArgumentException();
                 }
@@ -218,7 +228,7 @@ public class SourceSelectPost extends BaseWrap {
                 return messageJson(404, "Source not found");
             }
 
-            EncryptionKey.PrivateKey privateKey = validatePrivateKey(sourceDefinition, password);
+            EncryptionIdentity.PrivateIdentity privateKey = validatePrivateKey(sourceDefinition, password);
             if (privateKey == null) {
                 return messageJson(403, "Invalid password provided");
             }
@@ -233,7 +243,9 @@ public class SourceSelectPost extends BaseWrap {
             return processConfig(password, config);
         }
 
-        private static Response selectShareSource(String fullSource, String password, ServiceManager serviceManager, String sourceId, String shareId) throws IOException, InvalidKeyException {
+        private static Response selectShareSource(String fullSource, String password, ServiceManager serviceManager,
+                                                  String sourceId, String shareId)
+                throws IOException, GeneralSecurityException {
             String config;
             if (!PrivateKeyRequest.validatePassword(password)) {
                 return messageJson(403, "Invalid password provided");
@@ -246,12 +258,13 @@ public class SourceSelectPost extends BaseWrap {
                 return messageJson(404, "Share not found");
             }
 
-            EncryptionKey usedPrivateKey = getShareEncryptionKey(password, share);
+            EncryptionIdentity encryptionKey = InstanceFactory.getInstance(EncryptionIdentity.class);
+            IdentityKeys usedPrivateKey = getShareEncryptionKey(encryptionKey, password, share);
             if (usedPrivateKey == null) {
                 return messageJson(403, "No matching private key found");
             }
 
-            config = downloadShareConfig(share, usedPrivateKey.getPrivateKey(null));
+            config = downloadShareConfig(share, usedPrivateKey.getPrivateKeys(encryptionKey.getPrivateIdentity(password)));
             if (config == null) {
                 return messageJson(403, "Could not download share configuration");
             }

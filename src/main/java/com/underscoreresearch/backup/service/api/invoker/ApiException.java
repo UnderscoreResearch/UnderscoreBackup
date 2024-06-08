@@ -21,7 +21,8 @@ public class ApiException extends Exception {
     private HttpHeaders responseHeaders = null;
     private String responseBody = null;
 
-    public ApiException() {}
+    public ApiException() {
+    }
 
     public ApiException(Throwable throwable) {
         super(throwable);
@@ -39,7 +40,7 @@ public class ApiException extends Exception {
     }
 
     public ApiException(String message, int code, HttpHeaders responseHeaders, String responseBody) {
-        this(message, (Throwable) null, code, responseHeaders, responseBody);
+        this(message, null, code, responseHeaders, responseBody);
     }
 
     public ApiException(String message, Throwable throwable, int code, HttpHeaders responseHeaders) {
@@ -47,7 +48,7 @@ public class ApiException extends Exception {
     }
 
     public ApiException(int code, HttpHeaders responseHeaders, String responseBody) {
-        this((String) null, (Throwable) null, code, responseHeaders, responseBody);
+        this(null, null, code, responseHeaders, responseBody);
     }
 
     public ApiException(int code, String message) {

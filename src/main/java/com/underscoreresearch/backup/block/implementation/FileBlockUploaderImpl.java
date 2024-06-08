@@ -16,8 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.UploadScheduler;
@@ -41,13 +42,13 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
     private final UploadScheduler uploadScheduler;
     private final AtomicLong totalBlocks = new AtomicLong();
     private final ManifestManager manifestManager;
-    private final EncryptionKey key;
+    private final EncryptionIdentity encryptionIdentity;
     private final Set<String> usedDestinations;
     private Set<String> activatedShares;
 
     public FileBlockUploaderImpl(BackupConfiguration configuration, MetadataRepository repository,
                                  UploadScheduler uploadScheduler, ManifestManager manifestManager,
-                                 EncryptionKey key) {
+                                 EncryptionIdentity encryptionIdentity) {
         StateLogger.addLogger(this);
 
         this.configuration = configuration;
@@ -59,7 +60,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
         for (BackupSet set : configuration.getSets()) {
             usedDestinations.addAll(set.getDestinations());
         }
-        this.key = key;
+        this.encryptionIdentity = encryptionIdentity;
     }
 
     @Override
@@ -129,12 +130,14 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
                 {
                     if (configuration.getShares() != null) {
                         for (String key : configuration.getShares().keySet())
-                            if (activatedShares.contains(key))
-                                storage.getAdditionalStorageProperties().put(EncryptionKey.createWithPublicKey(key),
+                            if (activatedShares.contains(key)) {
+                                IdentityKeys identityKeys = encryptionIdentity.getIdentityKeyForHash(key);
+                                storage.getAdditionalStorageProperties().put(identityKeys,
                                         new HashMap<>());
+                            }
                     }
                     byte[] encrypted = EncryptorFactory.encryptBlock(destination.getEncryption(),
-                            storage, unencryptedData.getData(), key);
+                            storage, unencryptedData.getData(), encryptionIdentity.getPrimaryKeys());
                     if (destinationsLeft <= 0)
                         unencryptedData.clear();
 

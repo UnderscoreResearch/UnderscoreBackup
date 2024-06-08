@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -57,8 +58,6 @@ import com.underscoreresearch.backup.utils.AccessLock;
 public class LockingMetadataRepository implements MetadataRepository {
     public static final long MINIMUM_WAIT_UPDATE_MS = 2000;
     public static final int MAPDB_STORAGE = 1;
-    public static final int LMDB_STORAGE = 2;
-    public static final int LMDB_NON_MAPPING_STORAGE = 3;
     public static final int MAPDB_STORAGE_VERSIONED = 4;
     private static final ObjectReader REPOSITORY_INFO_READER
             = MAPPER.readerFor(RepositoryInfo.class);
@@ -183,10 +182,6 @@ public class LockingMetadataRepository implements MetadataRepository {
         return switch (version) {
             case MAPDB_STORAGE, MAPDB_STORAGE_VERSIONED ->
                     new MapdbMetadataRepositoryStorage(dataPath, version, revision, repositoryInfo.alternateBlockTable);
-            case LMDB_STORAGE ->
-                    new LmdbMetadataRepositoryStorage(dataPath, revision, repositoryInfo.alternateBlockTable);
-            case LMDB_NON_MAPPING_STORAGE ->
-                    new LmdbMetadataRepositoryStorage.NonMemoryMapped(dataPath, revision, repositoryInfo.alternateBlockTable);
             default -> throw new IllegalArgumentException("Unsupported repository version");
         };
     }
@@ -245,6 +240,7 @@ public class LockingMetadataRepository implements MetadataRepository {
                 return;
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return;
         }
         try {
@@ -750,35 +746,40 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void upgradeStorage() throws IOException {
         if (shouldUpgrade() &&
                 !repositoryInfo.errorsDetected && !repositoryInfo.stopSaving) {
-            try (RepositoryLock ignored = new RepositoryLock()) {
-                try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository")) {
-                    RepositoryOpenMode originalOpenMode = openMode;
-                    open(RepositoryOpenMode.READ_ONLY);
+            forceUpgrade();
+        }
+    }
+
+    @VisibleForTesting
+    void forceUpgrade() throws IOException {
+        try (RepositoryLock ignored = new RepositoryLock()) {
+            try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository", true)) {
+                RepositoryOpenMode originalOpenMode = openMode;
+                open(RepositoryOpenMode.READ_ONLY);
+
+                try {
+                    int version = getDefaultVersion();
+                    MetadataRepositoryStorage upgradedStorage = createStorage(version, 0);
 
                     try {
-                        int version = getDefaultVersion();
-                        MetadataRepositoryStorage upgradedStorage = createStorage(version, 0);
+                        new RepositoryUpgrader(storage, upgradedStorage).upgrade();
 
-                        try {
-                            new RepositoryUpgrader(storage, upgradedStorage).upgrade();
+                        repositoryInfo.version = version;
+                        repositoryInfo.revision = 0;
 
-                            repositoryInfo.version = version;
-                            repositoryInfo.revision = 0;
-
-                            storage.close();
-                            storage.clear();
-                            storage = upgradedStorage;
-                            close();
-                        } catch (CancellationException exc) {
-                            log.warn("Repository migration cancelled", exc);
-                        } catch (RepositoryUpgrader.RepositoryErrorException exc) {
-                            log.error("Detected repository errors during migration", exc);
-                            repositoryInfo.errorsDetected = true;
-                        }
-                        saveRepositoryInfo();
-                    } finally {
-                        open(originalOpenMode);
+                        storage.close();
+                        storage.clear();
+                        storage = upgradedStorage;
+                        close();
+                    } catch (CancellationException exc) {
+                        log.warn("Repository migration cancelled", exc);
+                    } catch (RepositoryUpgrader.RepositoryErrorException exc) {
+                        log.error("Detected repository errors during migration", exc);
+                        repositoryInfo.errorsDetected = true;
                     }
+                    saveRepositoryInfo();
+                } finally {
+                    open(originalOpenMode);
                 }
             }
         }
@@ -788,10 +789,7 @@ public class LockingMetadataRepository implements MetadataRepository {
         if (repositoryInfo.version != getDefaultVersion()) {
             // Special case where we don't need to force an upgrade because they are the same except
             // for the location.
-            if (repositoryInfo.version == MAPDB_STORAGE) {
-                return false;
-            }
-            return true;
+            return repositoryInfo.version != MAPDB_STORAGE;
         }
         return false;
     }

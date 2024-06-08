@@ -31,7 +31,7 @@ public class BackupCommand extends SimpleCommand {
             IOUtils.waitForInternet(() -> {
                 manifestManager.validateIdentity();
                 return null;
-            });
+            }, true);
         } catch (Exception exc) {
             if (exc.getCause() instanceof ParseException)
                 log.error(exc.getCause().getMessage());
@@ -82,7 +82,7 @@ public class BackupCommand extends SimpleCommand {
             IOUtils.waitForInternet(() -> {
                 manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
                 return null;
-            });
+            }, true);
 
             if (started.get()) {
                 scheduler.start();

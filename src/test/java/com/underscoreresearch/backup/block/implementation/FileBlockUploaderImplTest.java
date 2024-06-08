@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -22,7 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -77,7 +78,7 @@ class FileBlockUploaderImplTest {
     }
 
     @BeforeEach
-    public void setup() {
+    public void setup() throws GeneralSecurityException {
         repository = Mockito.mock(MetadataRepository.class);
         scheduler = Mockito.mock(UploadScheduler.class);
 
@@ -120,7 +121,7 @@ class FileBlockUploaderImplTest {
         Mockito.when(manifestManager.getActivatedShares()).thenReturn(new HashMap<>());
 
         fileBlockUploader = new FileBlockUploaderImpl(configuration, repository, scheduler, manifestManager,
-                EncryptionKey.generateKeys().publicOnly());
+                EncryptionIdentity.generateKeyWithPassword("doh"));
     }
 
     @Test
@@ -305,10 +306,10 @@ class FileBlockUploaderImplTest {
     }
 
     @Test
-    public void existingBlockPartialWrongType() throws IOException {
+    public void existingBlockPartialWrongType() throws IOException, GeneralSecurityException {
         configuration.getSets().add(BackupSet.builder().destinations(Lists.newArrayList("dest1")).build());
         fileBlockUploader = new FileBlockUploaderImpl(configuration, repository, scheduler, manifestManager,
-                EncryptionKey.generateKeys().publicOnly());
+                EncryptionIdentity.generateKeyWithPassword("doh"));
 
         Mockito.when(repository.block("hash")).thenReturn(BackupBlock.builder()
                 .format("GZIP")

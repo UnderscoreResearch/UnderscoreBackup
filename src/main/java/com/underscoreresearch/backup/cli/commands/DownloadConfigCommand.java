@@ -11,6 +11,7 @@ import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,7 +26,7 @@ import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 
 @CommandPlugin(value = "download-config", description = "Download config from manifest destination",
@@ -34,7 +35,12 @@ import com.underscoreresearch.backup.service.api.model.SourceResponse;
 public class DownloadConfigCommand extends Command {
 
     public static void storeKeyData(String key, String source) throws ParseException, IOException {
-        byte[] keyData = downloadKeyData(key, source);
+        byte[] keyData;
+        try {
+            keyData = downloadKeyData(key, source);
+        } catch (GeneralSecurityException e) {
+            throw new IOException(e);
+        }
         File keyFile = new File(CommandLineModule.getKeyFileName(source));
         createDirectory(keyFile.getParentFile(), true);
         try (FileOutputStream outputStream = new FileOutputStream(keyFile)) {
@@ -71,7 +77,7 @@ public class DownloadConfigCommand extends Command {
                     log.info("Successfully downloaded and the configuration file for \"{}\"", source);
                 }
             } else {
-                EncryptionKey.PrivateKey privateKey = validatePrivateKey(sourceResponse, key);
+                EncryptionIdentity.PrivateIdentity privateKey = validatePrivateKey(sourceResponse, key);
                 if (privateKey == null) {
                     throw new ParseException("Invalid password provided for restore");
                 }

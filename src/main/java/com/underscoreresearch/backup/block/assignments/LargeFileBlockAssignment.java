@@ -19,7 +19,7 @@ import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.block.FileBlockExtractor;
 import com.underscoreresearch.backup.block.FileBlockUploader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -44,7 +44,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
     private final FileSystemAccess access;
     private final MetadataRepository metadataRepository;
     private final MachineState machineState;
-    private final EncryptionKey encryptionKey;
+    private final EncryptionIdentity encryptionIdentity;
     private final int maximumBlockSize;
 
     @Override
@@ -94,14 +94,14 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 try {
                     length = access.readData(file.getPath(), buffer, start, size);
                 } catch (IOException exc) {
-                    log.warn("Failed to read file \"{}\": {}", PathNormalizer.physicalPath(file.getPath()),
+                    log.warn("Failed to read file \"{}\": \u200E{}\u200E", PathNormalizer.physicalPath(file.getPath()),
                             exc.getMessage());
                     completionFuture.completed(null);
                     return true;
                 }
 
                 final Hash hashCalc = new Hash();
-                encryptionKey.addBlockHashSalt(hashCalc);
+                encryptionIdentity.addBlockHashSalt(hashCalc);
                 hashCalc.addBytes(getClass().getName().getBytes(StandardCharsets.UTF_8));
                 hashCalc.addBytes(buffer);
                 final String hash = hashCalc.getHash();

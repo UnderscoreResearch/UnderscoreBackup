@@ -13,21 +13,13 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.StringJoiner;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.StringJoiner;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
-import com.underscoreresearch.backup.service.api.model.ShareResponse;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -35,132 +27,132 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * ListSharesResponse
  */
 @JsonPropertyOrder({
-  ListSharesResponse.JSON_PROPERTY_SHARES
+        ListSharesResponse.JSON_PROPERTY_SHARES
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ListSharesResponse {
-  public static final String JSON_PROPERTY_SHARES = "shares";
-  private List<ShareResponse> shares = new ArrayList<>();
+    public static final String JSON_PROPERTY_SHARES = "shares";
+    private List<ShareResponse> shares = new ArrayList<>();
 
-  public ListSharesResponse() { 
-  }
-
-  public ListSharesResponse shares(List<ShareResponse> shares) {
-    this.shares = shares;
-    return this;
-  }
-
-  public ListSharesResponse addSharesItem(ShareResponse sharesItem) {
-    if (this.shares == null) {
-      this.shares = new ArrayList<>();
-    }
-    this.shares.add(sharesItem);
-    return this;
-  }
-
-   /**
-   * List of shares of response.
-   * @return shares
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_SHARES)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public List<ShareResponse> getShares() {
-    return shares;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_SHARES)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setShares(List<ShareResponse> shares) {
-    this.shares = shares;
-  }
-
-
-  /**
-   * Return true if this ListSharesResponse object is equal to o.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    ListSharesResponse listSharesResponse = (ListSharesResponse) o;
-    return Objects.equals(this.shares, listSharesResponse.shares);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(shares);
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("class ListSharesResponse {\n");
-    sb.append("    shares: ").append(toIndentedString(shares)).append("\n");
-    sb.append("}");
-    return sb.toString();
-  }
-
-  /**
-   * Convert the given object to string with each line indented by 4 spaces
-   * (except the first line).
-   */
-  private String toIndentedString(Object o) {
-    if (o == null) {
-      return "null";
-    }
-    return o.toString().replace("\n", "\n    ");
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @return URL query string
-   */
-  public String toUrlQueryString() {
-    return toUrlQueryString(null);
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @param prefix prefix of the query string
-   * @return URL query string
-   */
-  public String toUrlQueryString(String prefix) {
-    String suffix = "";
-    String containerSuffix = "";
-    String containerPrefix = "";
-    if (prefix == null) {
-      // style=form, explode=true, e.g. /pet?name=cat&type=manx
-      prefix = "";
-    } else {
-      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-      prefix = prefix + "[";
-      suffix = "]";
-      containerSuffix = "]";
-      containerPrefix = "[";
+    public ListSharesResponse() {
     }
 
-    StringJoiner joiner = new StringJoiner("&");
+    public ListSharesResponse shares(List<ShareResponse> shares) {
+        this.shares = shares;
+        return this;
+    }
 
-    // add `shares` to the URL query string
-    if (getShares() != null) {
-      for (int i = 0; i < getShares().size(); i++) {
-        if (getShares().get(i) != null) {
-          joiner.add(getShares().get(i).toUrlQueryString(String.format("%sshares%s%s", prefix, suffix,
-          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+    public ListSharesResponse addSharesItem(ShareResponse sharesItem) {
+        if (this.shares == null) {
+            this.shares = new ArrayList<>();
         }
-      }
+        this.shares.add(sharesItem);
+        return this;
     }
 
-    return joiner.toString();
-  }
+    /**
+     * List of shares of response.
+     *
+     * @return shares
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_SHARES)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public List<ShareResponse> getShares() {
+        return shares;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_SHARES)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setShares(List<ShareResponse> shares) {
+        this.shares = shares;
+    }
+
+
+    /**
+     * Return true if this ListSharesResponse object is equal to o.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ListSharesResponse listSharesResponse = (ListSharesResponse) o;
+        return Objects.equals(this.shares, listSharesResponse.shares);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(shares);
+    }
+
+    @Override
+    public String toString() {
+        String sb = "class ListSharesResponse {\n" +
+                "    shares: " + toIndentedString(shares) + "\n" +
+                "}";
+        return sb;
+    }
+
+    /**
+     * Convert the given object to string with each line indented by 4 spaces
+     * (except the first line).
+     */
+    private String toIndentedString(Object o) {
+        if (o == null) {
+            return "null";
+        }
+        return o.toString().replace("\n", "\n    ");
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @return URL query string
+     */
+    public String toUrlQueryString() {
+        return toUrlQueryString(null);
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @param prefix prefix of the query string
+     * @return URL query string
+     */
+    public String toUrlQueryString(String prefix) {
+        String suffix = "";
+        String containerSuffix = "";
+        String containerPrefix = "";
+        if (prefix == null) {
+            // style=form, explode=true, e.g. /pet?name=cat&type=manx
+            prefix = "";
+        } else {
+            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+            prefix = prefix + "[";
+            suffix = "]";
+            containerSuffix = "]";
+            containerPrefix = "[";
+        }
+
+        StringJoiner joiner = new StringJoiner("&");
+
+        // add `shares` to the URL query string
+        if (getShares() != null) {
+            for (int i = 0; i < getShares().size(); i++) {
+                if (getShares().get(i) != null) {
+                    joiner.add(getShares().get(i).toUrlQueryString(String.format("%sshares%s%s", prefix, suffix,
+                            "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+                }
+            }
+        }
+
+        return joiner.toString();
+    }
 }
 

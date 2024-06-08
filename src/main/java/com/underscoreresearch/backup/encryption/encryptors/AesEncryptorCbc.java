@@ -1,4 +1,6 @@
-package com.underscoreresearch.backup.encryption;
+package com.underscoreresearch.backup.encryption.encryptors;
+
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.CBC;
 
 import javax.crypto.spec.IvParameterSpec;
 import java.security.spec.AlgorithmParameterSpec;
@@ -7,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AesEncryptorCbc extends AesEncryptorFormat {
-    public static final byte CBC = 0;
     private static final String ENCRYPTION_ALGORITHM = "AES/CBC/PKCS5Padding";
 
     protected String getKeyAlgorithm() {

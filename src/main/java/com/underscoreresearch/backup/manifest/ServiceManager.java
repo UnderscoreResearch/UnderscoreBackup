@@ -3,7 +3,7 @@ package com.underscoreresearch.backup.manifest;
 import java.io.IOException;
 import java.util.List;
 
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
@@ -33,9 +33,9 @@ public interface ServiceManager {
 
     void reset();
 
-    void createShare(String shareId, BackupShare share) throws IOException;
+    void createShare(EncryptionIdentity encryptionIdentity, String shareId, BackupShare share) throws IOException;
 
-    boolean updateShareEncryption(EncryptionKey.PrivateKey privateKey, String shareId, BackupShare share) throws IOException;
+    boolean updateShareEncryption(EncryptionIdentity.PrivateIdentity privateIdentity, String shareId, BackupShare share) throws IOException;
 
     void deleteShare(String shareId) throws IOException;
 

@@ -6,18 +6,17 @@ import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryComman
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
 import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
-import static com.underscoreresearch.backup.cli.web.service.SourcesPost.encryptionKey;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.Objects;
 
 import lombok.Data;
@@ -31,6 +30,7 @@ import org.takes.Response;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.io.BaseEncoding;
+import com.underscoreresearch.backup.cli.commands.ChangePasswordCommand;
 import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.cli.web.BaseWrap;
@@ -38,7 +38,8 @@ import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.cli.web.PrivateKeyRequest;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
@@ -56,21 +57,25 @@ public class SourcesPut extends BaseWrap {
         super(new Implementation());
     }
 
-    public static BackupDestination decodeDestination(SourceResponse sourceDefinition, EncryptionKey.PrivateKey privateKey) throws IOException {
+    public static BackupDestination decodeDestination(SourceResponse sourceDefinition, IdentityKeys.PrivateKeys privateKey) throws IOException {
         return BACKUP_DESTINATION_READER.readValue(unpackConfigData(
                 sourceDefinition.getEncryptionMode(), privateKey,
                 destinationDecode(sourceDefinition.getDestination())));
     }
 
-    public static EncryptionKey getEncryptionKey(ServiceManager serviceManager,
-                                                 SourceResponse sourceDefinition,
-                                                 EncryptionKey.PrivateKey privateKey) throws IOException {
+    public static EncryptionIdentity getEncryptionKey(ServiceManager serviceManager,
+                                                      SourceResponse sourceDefinition,
+                                                      IdentityKeys.PrivateKeys privateKey) throws IOException {
         String oldSourceId = serviceManager.getSourceId();
         try {
             serviceManager.setSourceId(sourceDefinition.getSourceId());
             IOProvider provider = IOProviderFactory.getProvider(decodeDestination(sourceDefinition, privateKey));
             byte[] keyData = provider.download(PUBLICKEY_FILENAME);
-            return ENCRYPTION_KEY_READER.readValue(keyData);
+            try {
+                return EncryptionIdentity.restoreFromString(new String(keyData, StandardCharsets.UTF_8));
+            } catch (GeneralSecurityException e) {
+                throw new IOException(e);
+            }
         } finally {
             serviceManager.setSourceId(oldSourceId);
         }
@@ -81,8 +86,9 @@ public class SourcesPut extends BaseWrap {
                                             ServiceManager serviceManager,
                                             SourceResponse sourceDefinition,
                                             String identity,
-                                            EncryptionKey.PrivateKey privateKey) throws IOException {
-        BackupDestination destination = decodeDestination(sourceDefinition, privateKey);
+                                            EncryptionIdentity.PrivateIdentity privateIdentity) throws IOException {
+        IdentityKeys.PrivateKeys privateKeys = privateIdentity.getEncryptionIdentity().getPrimaryKeys().getPrivateKeys(privateIdentity);
+        BackupDestination destination = decodeDestination(sourceDefinition, privateKeys);
 
         File privateKeyFile = getDefaultEncryptionFileName(InstanceFactory
                 .getInstance(CommandLine.class));
@@ -96,19 +102,18 @@ public class SourcesPut extends BaseWrap {
                 // Need to download the full public key from the source since the service key does not contain
                 // additional keys.
 
-                EncryptionKey.PrivateKey fullPrivateKey;
-                if (privateKey.getParent().getEncryptedAdditionalKeys() != null) {
-                    fullPrivateKey = privateKey;
+                EncryptionIdentity.PrivateIdentity fullPrivateIdentity;
+
+                if (privateIdentity.getEncryptionIdentity().getAdditionalKeys() != null) {
+                    fullPrivateIdentity = privateIdentity;
                 } else {
-                    EncryptionKey fullEncryptionKey = getEncryptionKey(serviceManager, sourceDefinition, privateKey);
-                    fullPrivateKey = fullEncryptionKey.getPrivateKey(password);
+                    EncryptionIdentity fullEncryptionKey = getEncryptionKey(serviceManager, sourceDefinition, privateKeys);
+                    fullPrivateIdentity = fullEncryptionKey.getPrivateIdentity(password);
                 }
 
-                config = downloadRemoteConfiguration(destination, fullPrivateKey);
+                config = downloadRemoteConfiguration(destination, privateKeys);
 
-                try (FileOutputStream writer = new FileOutputStream(privateKeyFile)) {
-                    writer.write(ENCRYPTION_KEY_WRITER.writeValueAsBytes(fullPrivateKey.getParent().publicOnly()));
-                }
+                ChangePasswordCommand.saveKeyFile(privateKeyFile, fullPrivateIdentity.getEncryptionIdentity());
 
                 updateConfiguration(config, true, true, true);
             } catch (Exception exc) {
@@ -187,7 +192,7 @@ public class SourcesPut extends BaseWrap {
                 if (request.getSourceId() == null) {
                     throw new ApiException(400, "Bad request");
                 }
-                EncryptionKey existingKey = encryptionKey();
+                EncryptionIdentity existingKey = encryptionIdentity();
 
                 SourceResponse sourceDefinition = serviceManager.call(null, new ServiceManager.ApiFunction<SourceResponse>() {
                     @Override
@@ -213,16 +218,16 @@ public class SourcesPut extends BaseWrap {
                 } else {
                     if (sourceDefinition.getDestination() != null && sourceDefinition.getEncryptionMode() != null
                             && sourceDefinition.getKey() != null) {
-                        EncryptionKey encryptionKey = ENCRYPTION_KEY_READER.readValue(sourceDefinition.getKey());
-                        EncryptionKey.PrivateKey privateKey;
+                        EncryptionIdentity encryptionKey = EncryptionIdentity.restoreFromString(sourceDefinition.getKey());
+                        EncryptionIdentity.PrivateIdentity privateIdentity;
                         try {
-                            privateKey = encryptionKey.getPrivateKey(request.getPassword());
+                            privateIdentity = encryptionKey.getPrivateIdentity(request.getPassword());
                         } catch (Exception exc) {
                             return messageJson(403, "Invalid password provided");
                         }
 
                         if (restoreFromSource(request.getName(), request.getPassword(), serviceManager,
-                                sourceDefinition, identity, privateKey)) {
+                                sourceDefinition, identity, privateIdentity)) {
                             return messageJson(200, "Started rebuild");
                         } else {
                             return messageJson(500, "Failed to download configuration");

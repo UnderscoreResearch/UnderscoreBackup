@@ -39,9 +39,7 @@ public final class ErrorCorrectorFactory {
 
     public static boolean hasCorrector(String ec) {
         Class<? extends ErrorCorrector> clz = correctors.get(ec);
-        if (clz == null)
-            return false;
-        return true;
+        return clz != null;
     }
 
     public static ErrorCorrector getCorrector(String ec) {

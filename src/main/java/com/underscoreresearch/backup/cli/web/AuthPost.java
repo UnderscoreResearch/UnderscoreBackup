@@ -28,9 +28,9 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.encryption.x25519.X25519;
+import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
 
 @Slf4j
 public class AuthPost extends BaseWrap {
@@ -89,7 +89,7 @@ public class AuthPost extends BaseWrap {
             String hash = ApiAuth.EndpointInfo.computeHash(method, authPath, nonce, Hash.encodeBytes(sharedKey));
             String authHeader = publicKey + " " + nonce + " " + hash;
             try {
-                String publicHash = ApiAuth.EndpointInfo.computeHash(method, authPath, nonce, InstanceFactory.getInstance(EncryptionKey.class).getPublicKey());
+                String publicHash = ApiAuth.EndpointInfo.computeHash(method, authPath, nonce, InstanceFactory.getInstance(EncryptionIdentity.class).getPrivateHash());
                 authHeader += " " + publicHash;
             } catch (Exception e) {
                 log.info("No public key found so assuming no UI authentication is needed");
@@ -137,6 +137,7 @@ public class AuthPost extends BaseWrap {
         private String publicKey;
         private String keySalt;
         private String keyData;
+        private boolean needKeyUpgrade;
     }
 
     private static class Implementation extends BaseImplementation {
@@ -151,9 +152,10 @@ public class AuthPost extends BaseWrap {
                 authResponse.setPublicKey(publicKey);
 
                 if (ApiAuth.getInstance().needAuthentication()) {
-                    EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
+                    EncryptionIdentity key = InstanceFactory.getInstance(EncryptionIdentity.class);
                     authResponse.setKeySalt(key.getSalt());
                     authResponse.setKeyData(key.getKeyData());
+                    authResponse.needKeyUpgrade = key.needKeyUnpack();
                 }
 
                 return jsonResponse(new RsWithStatus(new RsText(RESPONSE_WRITER.writeValueAsString(authResponse)), 200));

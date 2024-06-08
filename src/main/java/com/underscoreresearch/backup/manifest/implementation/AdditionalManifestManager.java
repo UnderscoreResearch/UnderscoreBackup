@@ -8,6 +8,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONF
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,9 +26,9 @@ import org.apache.commons.cli.ParseException;
 
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.io.RateLimitController;
@@ -73,14 +74,18 @@ public class AdditionalManifestManager {
     }
 
     public void uploadConfigurationData(String filename, byte[] data, byte[] unencryptedData,
-                                        Encryptor encryptor, EncryptionKey encryptionKey,
-                                        Runnable success) {
+                                        Encryptor encryptor, IdentityKeys encryptionKey,
+                                        Runnable success) throws IOException {
         for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
             byte[] useData = data;
             if (encryptor != null) {
                 Encryptor neededEncryptor = EncryptorFactory.getEncryptor(entry.getValue().getDestination().getEncryption());
                 if (neededEncryptor != encryptor) {
-                    useData = neededEncryptor.encryptBlock(null, unencryptedData, encryptionKey);
+                    try {
+                        useData = neededEncryptor.encryptBlock(null, unencryptedData, encryptionKey);
+                    } catch (GeneralSecurityException e) {
+                        throw new IOException(e);
+                    }
                 }
             }
             uploadConfigurationData(filename, useData, entry.getValue(), success);
@@ -100,7 +105,7 @@ public class AdditionalManifestManager {
         }));
     }
 
-    public void uploadConfiguration(BackupConfiguration configuration, EncryptionKey encryptionKey) throws IOException {
+    public void uploadConfiguration(BackupConfiguration configuration, IdentityKeys identityKeys) throws IOException {
         if (configuration.getManifest() != null && configuration.getManifest().getAdditionalDestinations() != null) {
             BackupConfiguration copy = configuration.toBuilder()
                     .manifest(configuration.getManifest().toBuilder().build())
@@ -113,8 +118,13 @@ public class AdditionalManifestManager {
                         .filter(s -> !s.equals(entry.getKey())).collect(Collectors.toList()));
                 byte[] rawData = compressConfigData(BACKUP_CONFIGURATION_WRITER.writeValueAsBytes(copy));
                 Encryptor encryptor = EncryptorFactory.getEncryptor(entry.getValue().getDestination().getEncryption());
-                byte[] data = encryptor.encryptBlock(null, rawData, encryptionKey);
-                uploadConfigurationData(CONFIGURATION_FILENAME, data, rawData, encryptor, encryptionKey, null);
+                byte[] data = new byte[0];
+                try {
+                    data = encryptor.encryptBlock(null, rawData, identityKeys);
+                } catch (GeneralSecurityException e) {
+                    throw new IOException(e);
+                }
+                uploadConfigurationData(CONFIGURATION_FILENAME, data, rawData, encryptor, identityKeys, null);
             }
         }
     }
@@ -173,6 +183,7 @@ public class AdditionalManifestManager {
                 try {
                     uploadCount.wait();
                 } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
                 }
             }
         }

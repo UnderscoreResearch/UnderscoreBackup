@@ -7,6 +7,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +25,9 @@ import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 
 @Slf4j
 public class WindowsState extends MachineState {
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm")
+            .withZone(ZoneId.systemDefault());
+
     public WindowsState(boolean pauseOnBattery) {
         super(pauseOnBattery);
     }
@@ -66,10 +73,15 @@ public class WindowsState extends MachineState {
                     .exec(new String[]{
                             "wmic", "process", "where", String.format("processid=%d", ProcessHandle.current().pid()), "CALL", "setpriority", "idle"
                     });
-            if (process.waitFor() != 0) {
-                throw new IOException();
+            try {
+                if (process.waitFor() != 0) {
+                    throw new IOException();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted changing process to low priority", e);
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             log.warn("Can't change process to low priority", e);
         }
     }
@@ -87,8 +99,19 @@ public class WindowsState extends MachineState {
 
             ServiceManagerImpl.downloadRelease(response, download, tempFile);
 
-            executeUpdateProcess(new String[]{"cmd", "/c", "start", "\"Underscore Backup Installer\"", "/b", tempFile.toString(),
-                    "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/LOG=\"" + tempFile + ".log\""});
+            String command = String.format("'%s' /verysilent /suppressmsgboxes /norestart /sp- /log='%s.log'",
+                    tempFile, tempFile);
+
+            // Schedule the upgrade to run in two minutes using the Windows scheduler and with
+            // admin privileges.
+            String twoMinutes = TIME_FORMATTER.format(Instant.now().plus(Duration.ofMinutes(2)));
+            executeUpdateProcess(new String[]{"schtasks",
+                    "/create", "/sc", "once", "/f",
+                    "/tr", command,
+                    "/tn", "Underscore Backup Upgrade",
+                    "/st", twoMinutes,
+                    "/rl", "HIGHEST",
+                    "/ru", "SYSTEM"});
         }
     }
 

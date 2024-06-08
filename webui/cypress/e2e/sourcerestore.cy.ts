@@ -35,7 +35,7 @@ it('sourcerestore', function () {
             '      "endpointUri": "' + backupLocation + '"\n' +
             '    },\n' +
             '    "share": {\n' +
-            '      "type": "FILE", "encryption": "AES256", "errorCorrection": "NONE",\n' +
+            '      "type": "FILE", "encryption": "PQC", "errorCorrection": "NONE",\n' +
             '      "endpointUri": "' + shareLocation + '"\n' +
             '    }\n' +
             '  },\n' +

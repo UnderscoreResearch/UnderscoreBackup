@@ -25,6 +25,7 @@ public class ShutdownCommand extends SimpleCommand {
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException exc) {
+                    Thread.currentThread().interrupt();
                     log.error("Interrupted while waiting for shutdown", exc);
                 }
                 try {

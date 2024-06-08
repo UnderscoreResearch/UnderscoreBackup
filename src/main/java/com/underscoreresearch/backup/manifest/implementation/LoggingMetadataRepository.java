@@ -1,4 +1,4 @@
-package com.underscoreresearch.backup.manifest;
+package com.underscoreresearch.backup.manifest.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableSortedMap;
@@ -46,6 +46,10 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
+import com.underscoreresearch.backup.manifest.BaseManifestManager;
+import com.underscoreresearch.backup.manifest.LogConsumer;
+import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.manifest.ShareManifestManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.manifest.model.PushActivePath;
 import com.underscoreresearch.backup.model.BackupActiveFile;
@@ -501,9 +505,9 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
                 && block.getStorage().get(0).hasAdditionalStorageProperties()) {
             Map<String, BackupBlockAdditional> additionalBlocks = new HashMap<>();
             for (BackupBlockStorage storage : block.getStorage()) {
-                for (Map.Entry<EncryptionKey, Map<String, String>> entry
+                for (Map.Entry<IdentityKeys, Map<String, String>> entry
                         : storage.getAdditionalStorageProperties().entrySet()) {
-                    BackupBlockAdditional additional = additionalBlocks.computeIfAbsent(entry.getKey().getPublicKey(),
+                    BackupBlockAdditional additional = additionalBlocks.computeIfAbsent(entry.getKey().getKeyIdentifier(),
                             (key) -> BackupBlockAdditional.builder().used(false).publicKey(key).hash(block.getHash())
                                     .properties(new ArrayList<>())
                                     .build());

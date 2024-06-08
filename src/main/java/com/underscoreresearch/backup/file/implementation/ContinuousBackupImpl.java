@@ -37,6 +37,7 @@ import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 import com.underscoreresearch.backup.utils.state.MachineState;
@@ -117,6 +118,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
             try {
                 condition.await();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.warn("Interrupted while waiting for shutdown", e);
             }
         }
@@ -227,6 +229,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                     try {
                         Thread.sleep(INTERNET_WAIT);
                     } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         log.warn("Failed to wait for internet connection", e);
                     }
                 }
@@ -356,6 +359,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
                         try {
                             condition.await();
                         } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                             log.warn("Failed to wait", e);
                         }
                     }
@@ -376,18 +380,20 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         }
 
         private boolean flushAndWait(long nextFlush, long next) {
-            if (nextFlush == 0 || (next > 0 && nextFlush > next)) {
-                waitNext(next);
-                return false;
-            }
             try {
+                if (nextFlush == 0 || (next > 0 && nextFlush > next)) {
+                    waitNext(next);
+                    return false;
+                }
                 if (!condition.awaitUntil(new Date(nextFlush))) {
                     debug(() -> log.debug("Uploading pending small files"));
                     fileConsumer.flushAssignments();
                     waitNext(next);
                     return true;
                 }
+            } catch (ProcessingStoppedException ignored) {
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.warn("Interrupted while waiting for next file", e);
             }
             return false;
@@ -396,13 +402,13 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         private void waitNext(long next) {
             try {
                 if (next > 0) {
-                    if (!condition.awaitUntil(new Date(next))) {
-                        throw new InterruptedException();
-                    }
+                    if (!condition.awaitUntil(new Date(next)))
+                        throw new ProcessingStoppedException();
                 } else {
                     condition.await();
                 }
             } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
             }
         }
     }

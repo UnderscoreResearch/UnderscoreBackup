@@ -9,8 +9,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.SystemUtils;
@@ -70,13 +70,38 @@ public class UIHandler {
             uiManager.openFolder(path);
     }
 
-    public static Closeable registerTask(String message) {
-        var task = new CloseableTask(message);
+    public static Closeable registerTask(String message, boolean active) {
+        var task = new CloseableTask(message, active);
         synchronized (activeTasks) {
             activeTasks.add(task);
         }
         updateTooltip();
         return task;
+    }
+
+    public static boolean isActive() {
+        synchronized (activeTasks) {
+            if (InstanceFactory.isShutdown())
+                return true;
+            if (!activeTasks.isEmpty()) {
+                return activeTasks.getLast().isActive();
+            }
+            return false;
+        }
+    }
+
+    public static String getActiveTaskMessage() {
+        synchronized (activeTasks) {
+            if (!activeTasks.isEmpty()) {
+                CloseableTask lastTask = activeTasks.getLast();
+                if (lastTask.isActive())
+                    return lastTask.getMessage();
+            }
+            if (InstanceFactory.isShutdown()) {
+                return "Reloading configuration or shutting down";
+            }
+            return null;
+        }
     }
 
     private static void updateTooltip() {
@@ -107,9 +132,10 @@ public class UIHandler {
     }
 
     @Getter
-    @AllArgsConstructor
+    @RequiredArgsConstructor
     private static class CloseableTask implements Closeable {
-        private String message;
+        private final String message;
+        private final boolean active;
 
         @Override
         public void close() throws IOException {

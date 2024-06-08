@@ -22,8 +22,12 @@ then
   (cd build/x86 && tar xzf amazon-corretto-21-x64-macos-jdk.tar.gz)
 fi
 
-export OLD_PATH=$PATH
-export OLD_JAVA_HOME=$JAVA_HOME
+rm -rf build/image
+rm -rf build/runtime
+rm -rf build/jre
+./gradlew runtime
+cp -r build/image "build/installer/Underscore Backup.app/Contents/daemon/$ARCHITECTURE"
+
 export JAVA_HOME=`pwd`/build/x86/amazon-corretto-21.jdk/Contents/Home
 export PATH=$JAVA_HOME/bin:$PATH
 rm -rf build/image
@@ -31,14 +35,6 @@ rm -rf build/runtime
 rm -rf build/jre
 arch --arch x86_64 ./gradlew runtime
 cp -r build/image "build/installer/Underscore Backup.app/Contents/daemon/x86_64"
-
-export JAVA_HOME=$OLD_JAVA_HOME
-export PATH=$OLD_PATH
-rm -rf build/image
-rm -rf build/runtime
-rm -rf build/jre
-./gradlew runtime
-cp -r build/image "build/installer/Underscore Backup.app/Contents/daemon/$ARCHITECTURE"
 
 (
   cd "build/installer/Underscore Backup.app/Contents/daemon/arm64/lib"
@@ -54,27 +50,6 @@ cp -r build/image "build/installer/Underscore Backup.app/Contents/daemon/$ARCHIT
 )
 
 export CERT_NAME="Developer ID Application: Underscore Research LLC"
-
-for jar in "build/installer/Underscore Backup.app/Contents/daemon/"*/lib/jffi-*-native.jar
-do
-  echo "Signing binaries in $jar"
-  rm -rf build/repack
-  mkdir build/repack
-  (
-    cd build/repack
-    jar xf "../../$jar"
-    rm -f "../../$jar"
-    for lib in jni/*/*.jnilib
-    do
-      if [[ ! -L "$lib" ]]
-      then
-        echo "Signing library $lib"
-        codesign --timestamp --force -s "$CERT_NAME" "$lib"
-      fi
-    done
-    jar cmf0 META-INF/MANIFEST.MF "../../$jar" *
-  )
-done
 
 for jar in "build/installer/Underscore Backup.app/Contents/daemon/"*/lib/argon2-jvm-[0-9]*.jar
 do

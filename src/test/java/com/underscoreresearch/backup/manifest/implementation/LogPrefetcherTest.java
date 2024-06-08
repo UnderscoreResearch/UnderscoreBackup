@@ -13,7 +13,7 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import com.google.common.base.Stopwatch;
-import com.underscoreresearch.backup.encryption.NoneEncryptor;
+import com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 class LogPrefetcherTest {

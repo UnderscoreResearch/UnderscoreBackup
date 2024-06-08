@@ -1,4 +1,7 @@
-package com.underscoreresearch.backup.encryption;
+package com.underscoreresearch.backup.encryption.encryptors;
+
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.NON_PADDED_GCM;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.PADDED_GCM;
 
 import javax.crypto.spec.GCMParameterSpec;
 import java.security.spec.AlgorithmParameterSpec;
@@ -7,8 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AesEncryptorGcm extends AesEncryptorFormat {
-    public static final byte PADDED_GCM = 2;
-    public static final byte NON_PADDED_GCM = 1;
     private static final String ENCRYPTION_ALGORITHM = "AES/GCM/NoPadding";
 
     @Override

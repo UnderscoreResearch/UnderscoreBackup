@@ -7,7 +7,7 @@ import org.apache.commons.cli.CommandLine;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -24,7 +24,7 @@ public class ActivateSharesCommand extends Command {
 
         ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
-                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(getPassword()));
+                InstanceFactory.getInstance(EncryptionIdentity.class).getPrivateIdentity(getPassword()));
         repository.flushLogging();
         manifestManager.shutdown();
         repository.close();

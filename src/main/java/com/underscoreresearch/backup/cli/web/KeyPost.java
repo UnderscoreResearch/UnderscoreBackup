@@ -13,7 +13,7 @@ import org.takes.Response;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 
 @Slf4j
 public class KeyPost extends BaseWrap {
@@ -47,7 +47,7 @@ public class KeyPost extends BaseWrap {
                     }
                 }
 
-                InstanceFactory.getInstance(EncryptionKey.class);
+                InstanceFactory.getInstance(EncryptionIdentity.class);
                 return encryptResponse(req, WRITER.writeValueAsString(new KeyResponse(true)));
             } catch (Exception exc) {
                 log.warn("Failed to get key");

@@ -72,6 +72,7 @@ public class AwtFileUIManager extends AwtUIManager {
                     key.reset();
                 }
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
         }

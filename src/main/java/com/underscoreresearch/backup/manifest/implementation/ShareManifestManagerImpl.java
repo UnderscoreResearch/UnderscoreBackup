@@ -21,7 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
@@ -47,12 +48,13 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
                                     ServiceManager serviceManager,
                                     String installationIdentity,
                                     boolean forceIdentity,
-                                    EncryptionKey publicKey,
+                                    EncryptionIdentity encryptionIdentity,
+                                    IdentityKeys keys,
                                     boolean activated,
                                     BackupActivatedShare activatedShare,
                                     UploadScheduler uploadScheduler) {
         super(configuration, manifestDestination, manifestLocation, rateLimitController, serviceManager,
-                installationIdentity, forceIdentity, publicKey, uploadScheduler);
+                installationIdentity, forceIdentity, encryptionIdentity, keys, uploadScheduler);
         this.activated = activated;
         this.activatedShare = activatedShare;
     }
@@ -71,7 +73,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
 
     @Override
     protected String getShare() {
-        return getPublicKey().getPublicKey();
+        return getIdentityKeys().getKeyIdentifier();
     }
 
     @Override
@@ -128,7 +130,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
                         .stream()
                         .filter(entry -> activatedShare.getUsedDestinations().contains(entry.getKey()))
                         .map(entry -> Map.entry(entry.getKey(), entry.getValue().strippedDestination(getServiceManager().getSourceId(),
-                                getPublicKey().getPublicKey())))
+                                getShare())))
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
                 .properties(getConfiguration().getProperties())
                 .build();
@@ -144,7 +146,7 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     }
 
     private void saveShareFile() throws IOException {
-        File configLocation = Paths.get(InstanceFactory.getInstance(MANIFEST_LOCATION), "shares", getPublicKey().getPublicKey(),
+        File configLocation = Paths.get(InstanceFactory.getInstance(MANIFEST_LOCATION), "shares", getShare(),
                 SHARE_CONFIG_FILE).toFile();
         createDirectory(configLocation.getParentFile(), true);
         BACKUP_ACTIVATED_SHARE_WRITER.writeValue(
@@ -163,10 +165,10 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
     }
 
     @Override
-    public void updateEncryptionKeys(EncryptionKey.PrivateKey privateKey) throws IOException {
+    public void updateEncryptionKeys(EncryptionIdentity.PrivateIdentity privateKey) throws IOException {
         if (getServiceManager().getToken() != null && getServiceManager().getSourceId() != null && activatedShare.getShare().getTargetEmail() != null) {
             activatedShare.setUpdatedEncryption(getServiceManager().updateShareEncryption(privateKey,
-                    getPublicKey().getPublicKey(),
+                    getShare(),
                     activatedShare.getShare()));
         } else {
             activatedShare.setUpdatedEncryption(true);

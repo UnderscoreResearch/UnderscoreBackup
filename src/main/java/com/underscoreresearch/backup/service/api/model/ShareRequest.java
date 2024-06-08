@@ -15,19 +15,13 @@ package com.underscoreresearch.backup.service.api.model;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.StringJoiner;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.StringJoiner;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.annotation.JsonValue;
-import com.underscoreresearch.backup.service.api.model.SharePrivateKeys;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -35,240 +29,240 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * ShareRequest
  */
 @JsonPropertyOrder({
-  ShareRequest.JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH,
-  ShareRequest.JSON_PROPERTY_NAME,
-  ShareRequest.JSON_PROPERTY_DESTINATION,
-  ShareRequest.JSON_PROPERTY_PRIVATE_KEYS
+        ShareRequest.JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH,
+        ShareRequest.JSON_PROPERTY_NAME,
+        ShareRequest.JSON_PROPERTY_DESTINATION,
+        ShareRequest.JSON_PROPERTY_PRIVATE_KEYS
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ShareRequest {
-  public static final String JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH = "targetAccountEmailHash";
-  private String targetAccountEmailHash;
+    public static final String JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH = "targetAccountEmailHash";
+    public static final String JSON_PROPERTY_NAME = "name";
+    public static final String JSON_PROPERTY_DESTINATION = "destination";
+    public static final String JSON_PROPERTY_PRIVATE_KEYS = "privateKeys";
+    private String targetAccountEmailHash;
+    private String name;
+    private String destination;
+    private List<SharePrivateKeys> privateKeys = new ArrayList<>();
 
-  public static final String JSON_PROPERTY_NAME = "name";
-  private String name;
-
-  public static final String JSON_PROPERTY_DESTINATION = "destination";
-  private String destination;
-
-  public static final String JSON_PROPERTY_PRIVATE_KEYS = "privateKeys";
-  private List<SharePrivateKeys> privateKeys = new ArrayList<>();
-
-  public ShareRequest() { 
-  }
-
-  public ShareRequest targetAccountEmailHash(String targetAccountEmailHash) {
-    this.targetAccountEmailHash = targetAccountEmailHash;
-    return this;
-  }
-
-   /**
-   * Target account of email hash (Base64 URL encoded).
-   * @return targetAccountEmailHash
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getTargetAccountEmailHash() {
-    return targetAccountEmailHash;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setTargetAccountEmailHash(String targetAccountEmailHash) {
-    this.targetAccountEmailHash = targetAccountEmailHash;
-  }
-
-
-  public ShareRequest name(String name) {
-    this.name = name;
-    return this;
-  }
-
-   /**
-   * Name of share.
-   * @return name
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_NAME)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getName() {
-    return name;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_NAME)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setName(String name) {
-    this.name = name;
-  }
-
-
-  public ShareRequest destination(String destination) {
-    this.destination = destination;
-    return this;
-  }
-
-   /**
-   * Base64 URL encoding of encrypted destination of share.
-   * @return destination
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_DESTINATION)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public String getDestination() {
-    return destination;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_DESTINATION)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setDestination(String destination) {
-    this.destination = destination;
-  }
-
-
-  public ShareRequest privateKeys(List<SharePrivateKeys> privateKeys) {
-    this.privateKeys = privateKeys;
-    return this;
-  }
-
-  public ShareRequest addPrivateKeysItem(SharePrivateKeys privateKeysItem) {
-    if (this.privateKeys == null) {
-      this.privateKeys = new ArrayList<>();
-    }
-    this.privateKeys.add(privateKeysItem);
-    return this;
-  }
-
-   /**
-   * List of private keys to the destination encrypted by different public keys.
-   * @return privateKeys
-  **/
-  @jakarta.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_PRIVATE_KEYS)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-  public List<SharePrivateKeys> getPrivateKeys() {
-    return privateKeys;
-  }
-
-
-  @JsonProperty(JSON_PROPERTY_PRIVATE_KEYS)
-  @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setPrivateKeys(List<SharePrivateKeys> privateKeys) {
-    this.privateKeys = privateKeys;
-  }
-
-
-  /**
-   * Return true if this ShareRequest object is equal to o.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    ShareRequest shareRequest = (ShareRequest) o;
-    return Objects.equals(this.targetAccountEmailHash, shareRequest.targetAccountEmailHash) &&
-        Objects.equals(this.name, shareRequest.name) &&
-        Objects.equals(this.destination, shareRequest.destination) &&
-        Objects.equals(this.privateKeys, shareRequest.privateKeys);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(targetAccountEmailHash, name, destination, privateKeys);
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("class ShareRequest {\n");
-    sb.append("    targetAccountEmailHash: ").append(toIndentedString(targetAccountEmailHash)).append("\n");
-    sb.append("    name: ").append(toIndentedString(name)).append("\n");
-    sb.append("    destination: ").append(toIndentedString(destination)).append("\n");
-    sb.append("    privateKeys: ").append(toIndentedString(privateKeys)).append("\n");
-    sb.append("}");
-    return sb.toString();
-  }
-
-  /**
-   * Convert the given object to string with each line indented by 4 spaces
-   * (except the first line).
-   */
-  private String toIndentedString(Object o) {
-    if (o == null) {
-      return "null";
-    }
-    return o.toString().replace("\n", "\n    ");
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @return URL query string
-   */
-  public String toUrlQueryString() {
-    return toUrlQueryString(null);
-  }
-
-  /**
-   * Convert the instance into URL query string.
-   *
-   * @param prefix prefix of the query string
-   * @return URL query string
-   */
-  public String toUrlQueryString(String prefix) {
-    String suffix = "";
-    String containerSuffix = "";
-    String containerPrefix = "";
-    if (prefix == null) {
-      // style=form, explode=true, e.g. /pet?name=cat&type=manx
-      prefix = "";
-    } else {
-      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-      prefix = prefix + "[";
-      suffix = "]";
-      containerSuffix = "]";
-      containerPrefix = "[";
+    public ShareRequest() {
     }
 
-    StringJoiner joiner = new StringJoiner("&");
-
-    // add `targetAccountEmailHash` to the URL query string
-    if (getTargetAccountEmailHash() != null) {
-      joiner.add(String.format("%stargetAccountEmailHash%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getTargetAccountEmailHash()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    public ShareRequest targetAccountEmailHash(String targetAccountEmailHash) {
+        this.targetAccountEmailHash = targetAccountEmailHash;
+        return this;
     }
 
-    // add `name` to the URL query string
-    if (getName() != null) {
-      joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getName()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+    /**
+     * Target account of email hash (Base64 URL encoded).
+     *
+     * @return targetAccountEmailHash
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getTargetAccountEmailHash() {
+        return targetAccountEmailHash;
     }
 
-    // add `destination` to the URL query string
-    if (getDestination() != null) {
-      joiner.add(String.format("%sdestination%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getDestination()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+
+    @JsonProperty(JSON_PROPERTY_TARGET_ACCOUNT_EMAIL_HASH)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setTargetAccountEmailHash(String targetAccountEmailHash) {
+        this.targetAccountEmailHash = targetAccountEmailHash;
     }
 
-    // add `privateKeys` to the URL query string
-    if (getPrivateKeys() != null) {
-      for (int i = 0; i < getPrivateKeys().size(); i++) {
-        if (getPrivateKeys().get(i) != null) {
-          joiner.add(getPrivateKeys().get(i).toUrlQueryString(String.format("%sprivateKeys%s%s", prefix, suffix,
-          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+
+    public ShareRequest name(String name) {
+        this.name = name;
+        return this;
+    }
+
+    /**
+     * Name of share.
+     *
+     * @return name
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_NAME)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getName() {
+        return name;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_NAME)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setName(String name) {
+        this.name = name;
+    }
+
+
+    public ShareRequest destination(String destination) {
+        this.destination = destination;
+        return this;
+    }
+
+    /**
+     * Base64 URL encoding of encrypted destination of share.
+     *
+     * @return destination
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_DESTINATION)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public String getDestination() {
+        return destination;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_DESTINATION)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setDestination(String destination) {
+        this.destination = destination;
+    }
+
+
+    public ShareRequest privateKeys(List<SharePrivateKeys> privateKeys) {
+        this.privateKeys = privateKeys;
+        return this;
+    }
+
+    public ShareRequest addPrivateKeysItem(SharePrivateKeys privateKeysItem) {
+        if (this.privateKeys == null) {
+            this.privateKeys = new ArrayList<>();
         }
-      }
+        this.privateKeys.add(privateKeysItem);
+        return this;
     }
 
-    return joiner.toString();
-  }
+    /**
+     * List of private keys to the destination encrypted by different public keys.
+     *
+     * @return privateKeys
+     **/
+    @jakarta.annotation.Nonnull
+    @JsonProperty(JSON_PROPERTY_PRIVATE_KEYS)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+    public List<SharePrivateKeys> getPrivateKeys() {
+        return privateKeys;
+    }
+
+
+    @JsonProperty(JSON_PROPERTY_PRIVATE_KEYS)
+    @JsonInclude(value = JsonInclude.Include.ALWAYS)
+    public void setPrivateKeys(List<SharePrivateKeys> privateKeys) {
+        this.privateKeys = privateKeys;
+    }
+
+
+    /**
+     * Return true if this ShareRequest object is equal to o.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ShareRequest shareRequest = (ShareRequest) o;
+        return Objects.equals(this.targetAccountEmailHash, shareRequest.targetAccountEmailHash) &&
+                Objects.equals(this.name, shareRequest.name) &&
+                Objects.equals(this.destination, shareRequest.destination) &&
+                Objects.equals(this.privateKeys, shareRequest.privateKeys);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(targetAccountEmailHash, name, destination, privateKeys);
+    }
+
+    @Override
+    public String toString() {
+        String sb = "class ShareRequest {\n" +
+                "    targetAccountEmailHash: " + toIndentedString(targetAccountEmailHash) + "\n" +
+                "    name: " + toIndentedString(name) + "\n" +
+                "    destination: " + toIndentedString(destination) + "\n" +
+                "    privateKeys: " + toIndentedString(privateKeys) + "\n" +
+                "}";
+        return sb;
+    }
+
+    /**
+     * Convert the given object to string with each line indented by 4 spaces
+     * (except the first line).
+     */
+    private String toIndentedString(Object o) {
+        if (o == null) {
+            return "null";
+        }
+        return o.toString().replace("\n", "\n    ");
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @return URL query string
+     */
+    public String toUrlQueryString() {
+        return toUrlQueryString(null);
+    }
+
+    /**
+     * Convert the instance into URL query string.
+     *
+     * @param prefix prefix of the query string
+     * @return URL query string
+     */
+    public String toUrlQueryString(String prefix) {
+        String suffix = "";
+        String containerSuffix = "";
+        String containerPrefix = "";
+        if (prefix == null) {
+            // style=form, explode=true, e.g. /pet?name=cat&type=manx
+            prefix = "";
+        } else {
+            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+            prefix = prefix + "[";
+            suffix = "]";
+            containerSuffix = "]";
+            containerPrefix = "[";
+        }
+
+        StringJoiner joiner = new StringJoiner("&");
+
+        // add `targetAccountEmailHash` to the URL query string
+        if (getTargetAccountEmailHash() != null) {
+            joiner.add(String.format("%stargetAccountEmailHash%s=%s", prefix, suffix, URLEncoder.encode(getTargetAccountEmailHash(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `name` to the URL query string
+        if (getName() != null) {
+            joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(getName(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `destination` to the URL query string
+        if (getDestination() != null) {
+            joiner.add(String.format("%sdestination%s=%s", prefix, suffix, URLEncoder.encode(getDestination(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
+        }
+
+        // add `privateKeys` to the URL query string
+        if (getPrivateKeys() != null) {
+            for (int i = 0; i < getPrivateKeys().size(); i++) {
+                if (getPrivateKeys().get(i) != null) {
+                    joiner.add(getPrivateKeys().get(i).toUrlQueryString(String.format("%sprivateKeys%s%s", prefix, suffix,
+                            "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
+                }
+            }
+        }
+
+        return joiner.toString();
+    }
 }
 

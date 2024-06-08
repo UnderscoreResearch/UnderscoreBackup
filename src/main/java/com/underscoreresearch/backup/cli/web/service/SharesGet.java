@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web.service;
 
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
@@ -18,7 +19,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
 import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 
@@ -47,12 +48,12 @@ public class SharesGet extends BaseWrap {
         public Response actualAct(Request req) throws Exception {
 
             try {
-                EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
+                EncryptionIdentity key = encryptionIdentity();
                 ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
                 final List<ShareResponse> shares = serviceManager.getShares();
                 ListSharesResponse ret = new ListSharesResponse(shares.stream()
                         .filter((share) -> share.getPrivateKeys().stream()
-                                .anyMatch((privateKey) -> privateKey.getPublicKey().equals(key.getSharingPublicKey())))
+                                .anyMatch((privateKey) -> privateKey.getPublicKey().equals(key.getSharingKeys().getPublicKeyString()) || privateKey.getPublicKey().equals(key.getSharingKeys().getKeyIdentifier())))
                         .map(share -> new PublicShareResponse(share.getSourceId() + "." + share.getShareId(), share.getName()))
                         .collect(Collectors.toList()));
                 return encryptResponse(req, WRITER.writeValueAsString(ret));

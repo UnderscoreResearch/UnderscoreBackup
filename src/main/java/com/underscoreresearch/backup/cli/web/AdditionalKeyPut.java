@@ -1,7 +1,10 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
+import java.security.GeneralSecurityException;
 
 import lombok.Data;
 
@@ -10,7 +13,8 @@ import org.takes.Response;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
 public class AdditionalKeyPut extends BaseWrap {
@@ -22,13 +26,15 @@ public class AdditionalKeyPut extends BaseWrap {
 
     @Data
     public static class ExternalEncryptionKey {
+        private String keyHash;
         private String publicKey;
         private String privateKey;
 
-        public ExternalEncryptionKey(EncryptionKey key) {
+        public ExternalEncryptionKey(IdentityKeys key, EncryptionIdentity.PrivateIdentity privateIdentity) throws GeneralSecurityException {
             if (key != null) {
-                publicKey = key.getPublicKey();
-                privateKey = key.getPrivateKey(null).getDisplayPrivateKey();
+                keyHash = key.getPublicKeyHash();
+                publicKey = key.getPublicKeyString();
+                privateKey = key.getPrivateKeyString(privateIdentity);
             }
         }
     }
@@ -38,26 +44,33 @@ public class AdditionalKeyPut extends BaseWrap {
         public Response actualAct(Request req) throws Exception {
             AdditionalPrivateKeyRequest request = AdditionalPrivateKeyRequest.decodePrivateKeyRequest(req);
 
-            EncryptionKey.PrivateKey masterKey;
+            EncryptionIdentity masterKey = encryptionIdentity();
+            EncryptionIdentity.PrivateIdentity privateIdentity;
             try {
-                masterKey = InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey(request.getPassword());
+                privateIdentity = masterKey.getPrivateIdentity(request.getPassword());
             } catch (Exception exc) {
                 return messageJson(403, "Invalid password provided");
             }
 
-            EncryptionKey key;
+            IdentityKeys key;
             if (request.getPrivateKey() != null) {
-                key = EncryptionKey.createWithPrivateKey(request.getPrivateKey());
-                if (!masterKey.getAdditionalKeyManager()
-                        .addNewKey(key, InstanceFactory.getInstance(ManifestManager.class))) {
-                    return encryptResponse(req, WRITER.writeValueAsString(new ExternalEncryptionKey(null)));
+                key = IdentityKeys.fromString(request.getPrivateKey(), privateIdentity);
+                if (!key.hasPrivateKey()) {
+                    return messageJson(400, "Not a private key");
+                }
+                try {
+                    masterKey.getIdentityKeyForHash(key.getKeyIdentifier());
+                    return encryptResponse(req, WRITER.writeValueAsString(new ExternalEncryptionKey(null, null)));
+                } catch (IndexOutOfBoundsException exc) {
+                    // Should end up here if key doesn't already exist.
                 }
             } else {
-                key = masterKey.getAdditionalKeyManager()
-                        .generateNewKey(InstanceFactory.getInstance(ManifestManager.class));
+                key = IdentityKeys.createIdentityKeys(privateIdentity);
             }
+            masterKey.getAdditionalKeys().add(key);
+            InstanceFactory.getInstance(ManifestManager.class).updateKeyData(masterKey);
 
-            return encryptResponse(req, WRITER.writeValueAsString(new ExternalEncryptionKey(key)));
+            return encryptResponse(req, WRITER.writeValueAsString(new ExternalEncryptionKey(key, privateIdentity)));
         }
 
         @Override

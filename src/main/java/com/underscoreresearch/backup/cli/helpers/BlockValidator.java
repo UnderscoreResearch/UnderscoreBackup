@@ -32,6 +32,7 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 
@@ -67,73 +68,73 @@ public class BlockValidator implements ManualStatusLogger {
         manifestManager.setDisabledFlushing(true);
         try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
             totalSteps.set(repository.getFileCount());
-            files.stream().forEach((file) -> {
-                if (InstanceFactory.isShutdown())
-                    throw new RuntimeException(new InterruptedException());
+            try {
+                files.stream().forEach((file) -> {
+                    if (InstanceFactory.isShutdown())
+                        throw new ProcessingStoppedException();
 
-                processedSteps.incrementAndGet();
-                if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
-                    lastHeartbeat = stopwatch.elapsed();
-                    log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
-                }
-                lastProcessed = file;
+                    processedSteps.incrementAndGet();
+                    if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
+                        lastHeartbeat = stopwatch.elapsed();
+                        log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
+                    }
+                    lastProcessed = file;
 
-                if (file.getLocations() != null) {
-                    AtomicLong maximumSize = new AtomicLong();
-                    List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
-                        for (BackupFilePart part : location.getParts()) {
-                            try {
-                                if (!validateHash(repository, part.getBlockHash(), maximumSize, maxBlockSize)) {
+                    if (file.getLocations() != null) {
+                        AtomicLong maximumSize = new AtomicLong();
+                        List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
+                            for (BackupFilePart part : location.getParts()) {
+                                try {
+                                    if (!validateHash(repository, part.getBlockHash(), maximumSize, maxBlockSize)) {
+                                        return false;
+                                    }
+                                } catch (IOException e) {
+                                    log.error("Failed to read block \"" + part.getBlockHash() + "\"", e);
                                     return false;
                                 }
-                            } catch (IOException e) {
-                                log.error("Failed to read block \"" + part.getBlockHash() + "\"", e);
+                            }
+                            if (maximumSize.get() < file.getLength()) {
+                                log.error("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
+                                        readableSize(maximumSize.get()), readableSize(file.getLength()));
                                 return false;
                             }
-                        }
-                        if (maximumSize.get() < file.getLength()) {
-                            log.error("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
-                                    readableSize(maximumSize.get()), readableSize(file.getLength()));
-                            return false;
-                        }
-                        return true;
-                    }).collect(Collectors.toList());
+                            return true;
+                        }).collect(Collectors.toList());
 
-                    try {
-                        if (validCollections.size() != file.getLocations().size()) {
-                            if (validCollections.size() == 0) {
-                                log.error("Storage for \"{}\" does no longer exist",
-                                        PathNormalizer.physicalPath(file.getPath()));
-                                repository.deleteFile(file);
-                            } else {
-                                log.warn("At least one location for \"{}\" no longer exists",
-                                        PathNormalizer.physicalPath(file.getPath()));
-                                file.setLocations(validCollections);
-                                repository.addFile(file);
+                        try {
+                            if (validCollections.size() != file.getLocations().size()) {
+                                if (validCollections.isEmpty()) {
+                                    log.error("Storage for \"{}\" does no longer exist",
+                                            PathNormalizer.physicalPath(file.getPath()));
+                                    repository.deleteFile(file);
+                                } else {
+                                    log.warn("At least one location for \"{}\" no longer exists",
+                                            PathNormalizer.physicalPath(file.getPath()));
+                                    file.setLocations(validCollections);
+                                    repository.addFile(file);
+                                }
                             }
+                        } catch (IOException e) {
+                            log.error("Failed to delete missing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                         }
-                    } catch (IOException e) {
-                        log.error("Failed to delete missing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                     }
+                });
+
+                blockRefresher.waitForCompletion();
+
+                if (blockRefresher.getRefreshedBlocks() > 0) {
+                    log.info("Completed block validation and refreshed {} blocks",
+                            readableNumber(blockRefresher.getRefreshedBlocks()));
+                } else {
+                    log.info("Completed block validation");
                 }
-            });
-
-            blockRefresher.waitForCompletion();
-
-            if (blockRefresher.getRefreshedBlocks() > 0) {
-                log.info("Completed block validation and refreshed {} blocks",
-                        readableNumber(blockRefresher.getRefreshedBlocks()));
-            } else {
-                log.info("Completed block validation");
-            }
-        } catch (RuntimeException exc) {
-            manifestManager.setDisabledFlushing(false);
-            if (exc.getCause() instanceof InterruptedException) {
+            } catch (ProcessingStoppedException exc) {
+                manifestManager.setDisabledFlushing(false);
                 blockRefresher.waitForCompletion();
                 log.info("Cancelled processing");
-            } else {
-                throw exc;
             }
+        } catch (Throwable e) {
+            manifestManager.setDisabledFlushing(false);
         }
     }
 

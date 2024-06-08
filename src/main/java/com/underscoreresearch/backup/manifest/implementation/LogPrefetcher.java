@@ -5,36 +5,42 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
 import com.underscoreresearch.backup.encryption.Encryptor;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class LogPrefetcher {
 
+    private static final long MAX_WAIT = 10;
     private final LinkedBlockingDeque<String> logFiles;
     private final Downloader downloadData;
     private final Encryptor encryptor;
-    private final EncryptionKey.PrivateKey privateKey;
+    private final IdentityKeys.PrivateKeys privateKey;
     private final ExecutorService executor;
     private final Integer maxConcurrency;
     private final Map<String, Holder> data = new HashMap<>();
+    private final HashSet<String> syncCompletions = new HashSet<>();
     private final AtomicBoolean stop = new AtomicBoolean(false);
-    private final AtomicReference<Exception> error = new AtomicReference<>();
+    private final AtomicReference<Throwable> error = new AtomicReference<>();
 
-    public LogPrefetcher(List<String> logFiles, BackupConfiguration configuration, Downloader downloadData, Encryptor encryptor, EncryptionKey.PrivateKey privateKey) {
+    public LogPrefetcher(List<String> logFiles, BackupConfiguration configuration, Downloader downloadData,
+                         Encryptor encryptor, IdentityKeys.PrivateKeys privateKey) {
         this.logFiles = new LinkedBlockingDeque<String>(logFiles);
         this.downloadData = downloadData;
         this.encryptor = encryptor;
@@ -52,53 +58,66 @@ public class LogPrefetcher {
                         while (true) {
                             try {
                                 synchronized (data) {
-                                    while (data.size() > maxConcurrency) {
+                                    while (data.size() > maxConcurrency && !shouldComplete()) {
                                         try {
                                             data.wait();
                                         } catch (InterruptedException e) {
-                                            error.set(e);
+                                            Thread.currentThread().interrupt();
+                                            setError(e);
                                             return;
                                         }
                                     }
                                 }
-                                String finalFile = logFiles.removeFirst();
-                                if (stop.get() || error.get() != null) {
+                                if (shouldComplete()) {
                                     return;
                                 }
+                                String finalFile = logFiles.removeFirst();
 
                                 debug(() -> log.debug("Fetching log file \"{}\"", finalFile));
                                 try {
                                     byte[] fileData = downloadData.downloadFile(finalFile);
                                     byte[] unencryptedData = encryptor.decodeBlock(null, fileData, privateKey);
-                                    synchronized (data) {
-                                        data.put(finalFile, new Holder(unencryptedData));
-                                        data.notifyAll();
-                                    }
+                                    addResult(finalFile, new Holder(unencryptedData));
                                 } catch (Exception exc) {
-                                    synchronized (data) {
-                                        data.put(finalFile, new Holder(exc));
-                                        data.notifyAll();
-                                    }
+                                    addResult(finalFile, new Holder(exc));
                                 }
                             } catch (NoSuchElementException exc) {
                                 return;
                             }
                         }
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         synchronized (data) {
-                            error.set(e);
-                            data.notifyAll();
+                            setError(e);
                         }
                     }
                 });
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             synchronized (data) {
-                error.set(e);
-                data.notifyAll();
+                setError(e);
             }
             executor.shutdownNow();
         }
+    }
+
+    private void addResult(String finalFile, Holder holder) {
+        synchronized (data) {
+            if (syncCompletions.contains(finalFile)) {
+                log.info("Discarded log file \"{}\" as it was downloaded synchronously", finalFile);
+                return;
+            }
+            data.put(finalFile, holder);
+            data.notifyAll();
+        }
+    }
+
+    private void setError(Throwable e) {
+        error.set(e);
+        data.notifyAll();
+    }
+
+    private boolean shouldComplete() {
+        return stop.get() || error.get() != null;
     }
 
     public void stop() {
@@ -116,15 +135,24 @@ public class LogPrefetcher {
         synchronized (data) {
             throwError();
             Holder ret = data.remove(logId);
+            Stopwatch stopwatch = Stopwatch.createStarted();
             while (ret == null) {
                 try {
                     debug(() -> log.debug("Waiting for log file \"{}\"", logId));
-                    data.wait();
+                    data.wait(1000);
                 } catch (InterruptedException e) {
-                    error.set(e);
+                    Thread.currentThread().interrupt();
+                    setError(e);
                 }
                 throwError();
                 ret = data.remove(logId);
+                if (ret == null && stopwatch.elapsed(TimeUnit.SECONDS) > MAX_WAIT) {
+                    log.warn("Waited unsuccessfully for log file \"{}\" for {} seconds, downloading synchronously", logId, MAX_WAIT);
+                    //noinspection ResultOfMethodCallIgnored
+                    logFiles.remove(logId);
+                    syncCompletions.add(logId);
+                    ret = new Holder(downloadData.downloadFile(logId));
+                }
             }
             data.notifyAll();
             if (ret.exc != null) {
@@ -137,7 +165,7 @@ public class LogPrefetcher {
     }
 
     private void throwError() throws IOException {
-        Exception e = error.get();
+        Throwable e = error.get();
         if (e instanceof IOException ioException)
             throw ioException;
         if (e instanceof RuntimeException runtimeException)
@@ -152,13 +180,13 @@ public class LogPrefetcher {
 
     private static class Holder {
         private byte[] data;
-        private Exception exc;
+        private Throwable exc;
 
         public Holder(byte[] data) {
             this.data = data;
         }
 
-        public Holder(Exception exc) {
+        public Holder(Throwable exc) {
             this.exc = exc;
         }
     }

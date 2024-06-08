@@ -1,6 +1,11 @@
-package com.underscoreresearch.backup.encryption;
+package com.underscoreresearch.backup.encryption.encryptors;
 
-import static com.underscoreresearch.backup.encryption.AesEncryptor.applyKeyData;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.NON_PADDED_GCM;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.NON_PADDED_GCM_STABLE;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.PADDED_GCM;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.PADDED_GCM_STABLE;
+import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -8,21 +13,25 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.HashSha3;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.encryption.PublicKeyMethod;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 @Slf4j
 public class AesEncryptorGcmStable extends AesEncryptorGcm {
-    public static final byte PADDED_GCM_STABLE = 4;
-    public static final byte NON_PADDED_GCM_STABLE = 3;
 
     @Override
-    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, EncryptionKey key) {
+    public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, IdentityKeys key) throws GeneralSecurityException {
         if (storage == null) {
             throw new IllegalArgumentException();
         }
@@ -31,18 +40,16 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         // However, we never ever use the same key to encrypt more than one message so it should be sage.
         byte[] iv = new byte[getIvSize()];
 
-        EncryptionKey privateKey = EncryptionKey.generateKeys();
-        storage.addProperty(PUBLIC_KEY, privateKey.getPublicKey());
-        byte[] combinedKey = EncryptionKey.combinedSecret(privateKey.getPrivateKey(null), key);
+        byte[] combinedKey = createKeySecret(storage, key);
 
         HashSha3 hashSha3 = new HashSha3();
         hashSha3.addBytes(data);
         byte[] encryptionKey = hashSha3.getHashBytes();
 
-        byte[] keyData = AesEncryptor.applyKeyData(encryptionKey, combinedKey);
+        byte[] keyData = BaseAesEncryptor.applyKeyData(encryptionKey, combinedKey);
         storage.addProperty(KEY_DATA, Hash.encodeBytes(keyData));
 
-        applyAdditionalStorageKeyData(encryptionKey, storage, privateKey);
+        applyAdditionalStorageKeyData(encryptionKey, storage);
 
         SecretKeySpec secretKeySpec = new SecretKeySpec(encryptionKey, KEY_ALGORITHM);
         try {
@@ -68,21 +75,23 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         }
     }
 
-    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset, EncryptionKey.PrivateKey key) {
+    protected byte[] createKeySecret(BackupBlockStorage storage, IdentityKeys key) throws GeneralSecurityException {
+        IdentityKeys.EncryptionParameters parameters = key.getEncryptionParameters(KEY_TYPES_X25519);
+        byte[] combinedKey = parameters.getSecret();
+
+        storage.addProperty(X25519_KEY, Hash.encodeBytes(parameters.getKeys().get(X25519_KEY).getEncapsulation()));
+        return combinedKey;
+    }
+
+    @Override
+    public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset, IdentityKeys.PrivateKeys key) throws GeneralSecurityException {
         if (storage == null) {
             throw new IllegalArgumentException();
         }
         byte[] iv = new byte[getIvSize()];
 
-        EncryptionKey publicKey = new EncryptionKey();
+        byte[] encryptionKey = recreateKeySecret(storage, key);
 
-        publicKey.setPublicKey(storage.getProperties().get(PUBLIC_KEY));
-
-        if (key.getPrivateKey() == null) {
-            throw new IllegalStateException("Missing private key for decryption");
-        }
-
-        byte[] encryptionKey = EncryptionKey.combinedSecret(key, publicKey);
         encryptionKey = applyKeyData(storage, encryptionKey);
 
         SecretKeySpec secretKeySpec = new SecretKeySpec(encryptionKey, KEY_ALGORITHM);
@@ -96,6 +105,11 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
                  InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException("Failed to load AES", e);
         }
+    }
+
+    protected byte[] recreateKeySecret(BackupBlockStorage storage, IdentityKeys.PrivateKeys key) throws GeneralSecurityException {
+        return key.recreateSecret(Map.of(X25519_KEY,
+                new PublicKeyMethod.EncapsulatedKey(Hash.decodeBytes(storage.getProperties().get(X25519_KEY)))));
     }
 
     public void backfillEncryption(BackupBlockStorage storage, byte[] encryptedData, int offset) {
@@ -114,7 +128,7 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         throw new IllegalArgumentException("Unknown AES padding format");
     }
 
-    private byte convertFormat(byte format) {
+    protected byte convertFormat(byte format) {
         return switch (format) {
             case PADDED_GCM -> PADDED_GCM_STABLE;
             case NON_PADDED_GCM -> NON_PADDED_GCM_STABLE;

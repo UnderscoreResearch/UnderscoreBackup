@@ -8,11 +8,13 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.INST
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +28,8 @@ import com.underscoreresearch.backup.cli.ConfigurationValidator;
 import com.underscoreresearch.backup.cli.PasswordReader;
 import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
@@ -46,37 +49,47 @@ import com.underscoreresearch.backup.service.api.model.SourceResponse;
 @CommandPlugin(value = "change-password", description = "Change the password of an existing key",
         needConfiguration = false, readonlyRepository = false)
 public class ChangePasswordCommand extends Command {
-    public static String changePrivateKeyPassword(CommandLine commandLine, String oldPassword, String newPassword) throws IOException {
-        EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
+    public static String changePrivateKeyPassword(CommandLine commandLine, String oldPassword, String newPassword) throws IOException, GeneralSecurityException {
+        EncryptionIdentity oldIdentity = InstanceFactory.getInstance(EncryptionIdentity.class);
 
-        EncryptionKey encryptionKey = EncryptionKey.changeEncryptionPassword(oldPassword, newPassword, key);
+        EncryptionIdentity newIdentity = oldIdentity.changeEncryptionPassword(oldPassword, newPassword, false);
 
+        return saveKeyFile(commandLine, newIdentity);
+    }
+
+    public static String saveKeyFile(CommandLine commandLine, EncryptionIdentity newIdentity) throws IOException {
         File keyFile = getDefaultEncryptionFileName(commandLine);
 
-        ENCRYPTION_KEY_WRITER.writeValue(keyFile,
-                encryptionKey.publicOnly());
+        String file = saveKeyFile(keyFile, newIdentity);
+        if (InstanceFactory.hasConfiguration(false)) {
+            InstanceFactory.getInstance(ManifestManager.class).updateKeyData(newIdentity);
+        }
+
+        return file;
+    }
+
+    public static String saveKeyFile(File keyFile, EncryptionIdentity newIdentity) throws IOException {
+        try (FileOutputStream stream = new FileOutputStream(keyFile)) {
+            newIdentity.writeKey(EncryptionIdentity.KeyFormat.PUBLIC, stream);
+        }
 
         ConfigurationPost.setOwnerOnlyPermissions(keyFile);
-
-        if (InstanceFactory.hasConfiguration(false)) {
-            InstanceFactory.getInstance(ManifestManager.class).updateKeyData(encryptionKey);
-        }
 
         return keyFile.getAbsolutePath();
     }
 
     public static void generateNewPrivateKey(ManifestManager manifestManager, MetadataRepository repository,
-                                             File fileName, String oldPassword, String newPassword) throws IOException {
+                                             File fileName, String oldPassword, String newPassword) throws IOException,
+            GeneralSecurityException {
         BackupConfiguration configuration = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
         ConfigurationValidator.validateConfiguration(configuration, false, false);
 
-        EncryptionKey oldPublicKey = InstanceFactory.getInstance(EncryptionKey.class);
-        EncryptionKey.PrivateKey oldPrivateKey = oldPublicKey.getPrivateKey(oldPassword);
+        EncryptionIdentity oldIdentity = InstanceFactory.getInstance(EncryptionIdentity.class);
 
         // Make sure we have flushed all existing log files.
         manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
 
-        EncryptionKey newKey = EncryptionKey.changeEncryptionPasswordWithNewPrivateKey(newPassword, oldPrivateKey);
+        EncryptionIdentity newIdentity = oldIdentity.changeEncryptionPassword(oldPassword, newPassword, true);
 
         // Generate a new key in memory and then rewrite all the backup metadata with the new key.
         repository.open(RepositoryOpenMode.READ_WRITE);
@@ -89,8 +102,8 @@ public class ChangePasswordCommand extends Command {
                 InstanceFactory.getInstance(INSTALLATION_IDENTITY),
                 repository,
                 fileName,
-                newKey,
-                oldPrivateKey,
+                newIdentity,
+                oldIdentity.getPrivateKeys(oldPassword),
                 null,
                 InstanceFactory.getInstance(AdditionalManifestManager.class),
                 InstanceFactory.getInstance(UploadScheduler.class));
@@ -183,7 +196,7 @@ public class ChangePasswordCommand extends Command {
     private static class ChangePrivateKeyManifestManager extends ManifestManagerImpl {
         private final File keyFile;
         private final MetadataRepository repository;
-        private final EncryptionKey.PrivateKey oldPrivateKey;
+        private final IdentityKeys.PrivateKeys oldPrivateKey;
 
         public ChangePrivateKeyManifestManager(BackupConfiguration configuration,
                                                String manifestLocation,
@@ -192,13 +205,13 @@ public class ChangePasswordCommand extends Command {
                                                String installationIdentity,
                                                MetadataRepository repository,
                                                File keyFile,
-                                               EncryptionKey publicKey,
-                                               EncryptionKey.PrivateKey oldPrivateKey,
+                                               EncryptionIdentity publicKey,
+                                               IdentityKeys.PrivateKeys oldPrivateKey,
                                                BackupStatsLogger statsLogger,
                                                AdditionalManifestManager additionalManifestManager,
-                                               UploadScheduler uploadScheduler) throws IOException {
+                                               UploadScheduler uploadScheduler) {
             super(configuration, manifestLocation, rateLimitController, serviceManager,
-                    installationIdentity, null, false, publicKey, statsLogger,
+                    installationIdentity, null, false, publicKey, publicKey.getPrimaryKeys(), statsLogger,
                     additionalManifestManager, uploadScheduler);
 
             this.keyFile = keyFile;
@@ -228,9 +241,16 @@ public class ChangePasswordCommand extends Command {
         protected BackupBlock optimizeBlock(BackupBlock block) throws IOException {
             List<BackupBlockStorage> newStorage;
             if (block.getStorage() != null) {
-                newStorage = block.getStorage().stream()
-                        .map(storage -> getEncryptor().reKeyStorage(storage.toBuilder().build(),
-                                oldPrivateKey, getPublicKey())).toList();
+                newStorage = new ArrayList<>();
+                for (BackupBlockStorage storage : block.getStorage()) {
+                    try {
+                        newStorage.add(getEncryptor().reKeyStorage(storage.toBuilder().build(),
+                                oldPrivateKey,
+                                getEncryptionIdentity().getPrimaryKeys()));
+                    } catch (GeneralSecurityException e) {
+                        throw new IOException(e);
+                    }
+                }
             } else {
                 newStorage = null;
             }
@@ -249,15 +269,14 @@ public class ChangePasswordCommand extends Command {
             // The new key and configuration is written once all the new logs are written with the new key, but
             // before we delete all the old files. In case of a failure you will still have all the logs which
             // means you can recover from the failure even though you might get errors on the results.
-            ENCRYPTION_KEY_WRITER.writeValue(keyFile,
-                    getPublicKey().publicOnly());
+            saveKeyFile(keyFile, getEncryptionIdentity());
             ConfigurationPost.setOwnerOnlyPermissions(keyFile);
             repository.installTemporaryBlocks();
 
             uploadConfigData(CONFIGURATION_FILENAME,
                     InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8),
                     true, null);
-            uploadPublicKey(getPublicKey());
+            uploadPublicKey(getEncryptionIdentity());
 
             completeUploads();
 
@@ -270,7 +289,7 @@ public class ChangePasswordCommand extends Command {
                 log.info("Waiting 20 seconds for eventual consistency");
                 Thread.sleep(20000);
             } catch (InterruptedException e) {
-                Thread.interrupted();
+                Thread.currentThread().interrupt();
             }
         }
     }

@@ -15,6 +15,7 @@ import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
 
@@ -61,13 +62,18 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
                 completionPromise.completed(provider.upload(suggestedPath, data));
                 totalSize.addAndGet(data.length);
                 totalCount.incrementAndGet();
+            } catch (ProcessingStoppedException exc) {
+                log.error("Upload cancelled for \"" + suggestedPath + "\" because of shutdown");
+                completionPromise.completed(null);
             } catch (Throwable exc) {
                 log.error("Upload failed for \"" + suggestedPath + "\"", exc);
                 completionPromise.completed(null);
             }
         };
 
-        schedule(runnable);
+        if (!schedule(runnable)) {
+            completionPromise.completed(null);
+        }
     }
 
     @Override

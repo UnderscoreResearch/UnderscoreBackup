@@ -10,7 +10,7 @@ import org.takes.Response;
 
 import com.underscoreresearch.backup.cli.commands.GenerateKeyCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 
 @Slf4j
 public class GenerateKeyPut extends BaseWrap {
@@ -26,7 +26,7 @@ public class GenerateKeyPut extends BaseWrap {
             try {
                 // Need to check that key doesn't already exist before doing this.
                 try {
-                    InstanceFactory.getInstance(EncryptionKey.class);
+                    InstanceFactory.getInstance(EncryptionIdentity.class);
                     return messageJson(400, "Already have encryption key generated");
                 } catch (Exception ignored) {
                 }

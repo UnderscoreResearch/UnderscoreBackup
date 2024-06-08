@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.encryption;
 
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -69,14 +70,16 @@ public final class EncryptorFactory {
         encryptors.put(encryption, holder);
     }
 
-    public static byte[] encryptBlock(String encryption, BackupBlockStorage storage, byte[] data, EncryptionKey key) {
+    public static byte[] encryptBlock(String encryption, BackupBlockStorage storage, byte[] data, IdentityKeys key)
+            throws GeneralSecurityException {
         if (storage != null) {
             storage.setEncryption(encryption);
         }
         return getEncryptor(encryption).encryptBlock(storage, data, key);
     }
 
-    public static byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, EncryptionKey.PrivateKey key) {
+    public static byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, IdentityKeys.PrivateKeys key)
+            throws GeneralSecurityException {
         return getEncryptor(storage.getEncryption()).decodeBlock(storage, encryptedData, key);
     }
 

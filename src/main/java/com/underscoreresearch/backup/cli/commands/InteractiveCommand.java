@@ -31,7 +31,7 @@ import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.cli.web.WebServer;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOUtils;
@@ -49,7 +49,7 @@ public class InteractiveCommand extends Command {
         if (InstanceFactory.getAdditionalSource() == null && InstanceFactory.hasConfiguration(false)) {
             BackupConfiguration configuration = InstanceFactory.getInstance(BackupConfiguration.class);
             try {
-                InstanceFactory.getInstance(EncryptionKey.class);
+                InstanceFactory.getInstance(EncryptionIdentity.class);
             } catch (Exception exc) {
                 log.info("No encryption key available");
                 return;
@@ -101,6 +101,7 @@ public class InteractiveCommand extends Command {
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.warn("Failed to wait", e);
             }
         }
@@ -112,7 +113,7 @@ public class InteractiveCommand extends Command {
             IOUtils.waitForInternet(() -> {
                 manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
                 return null;
-            });
+            }, true);
         } catch (Exception e) {
             log.error("Failed to initialize manifest", e);
         }
@@ -166,7 +167,7 @@ public class InteractiveCommand extends Command {
             file.deleteOnExit();
 
             try {
-                InstanceFactory.getInstance(EncryptionKey.class);
+                InstanceFactory.getInstance(EncryptionIdentity.class);
             } catch (Exception exc) {
                 if (configuration.getManifest() != null
                         && configuration.getManifest().getInteractiveBackup() != null
@@ -210,6 +211,7 @@ public class InteractiveCommand extends Command {
             }
             InstanceFactory.shutdown();
             InstanceFactory.waitForShutdown();
+            log.info("Shutdown completed");
             System.exit(0);
         } else {
             Thread.sleep(Integer.MAX_VALUE);

@@ -8,11 +8,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -35,10 +37,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.cli.commands.BackupCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.encryption.NoneEncryptor;
+import com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
@@ -48,7 +50,6 @@ import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
 import com.underscoreresearch.backup.manifest.LogConsumer;
-import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
@@ -77,17 +78,17 @@ class ManifestManagerImplTest {
     private File tempDir;
     private File backupDir;
     private File shareDir;
-    private EncryptionKey sharePrivateKey;
-    private EncryptionKey publicKey;
+    private EncryptionIdentity sharePrivateKey;
+    private EncryptionIdentity publicKey;
     private UploadScheduler uploadScheduler;
     private IOProvider ioProvider;
 
     @BeforeEach
-    public void setup() throws IOException {
+    public void setup() throws IOException, GeneralSecurityException {
         tempDir = Files.createTempDirectory("test").toFile();
         backupDir = Files.createTempDirectory("backup").toFile();
         shareDir = Files.createTempDirectory("share").toFile();
-        sharePrivateKey = EncryptionKey.generateKeyWithPassword("testkey");
+        sharePrivateKey = EncryptionIdentity.generateKeyWithPassword("testkey");
         File sourceFile = new File(System.getProperty("user.dir"), "src");
 
         BackupDestination shareDestination = BackupDestination.builder()
@@ -112,7 +113,7 @@ class ManifestManagerImplTest {
                         .roots(Lists.newArrayList(BackupSetRoot.builder()
                                 .path(sourceFile.getAbsolutePath()).build()))
                         .build()))
-                .shares(ImmutableMap.of(sharePrivateKey.getPublicKey(), BackupShare.builder()
+                .shares(ImmutableMap.of(sharePrivateKey.getPrimaryKeys().getKeyIdentifier(), BackupShare.builder()
                         .contents(BackupFileSpecification.builder()
                                 .roots(Lists.newArrayList(BackupSetRoot.builder()
                                         .path(new File(sourceFile, "main").getAbsolutePath()).build()))
@@ -136,7 +137,10 @@ class ManifestManagerImplTest {
 
         initializeFactory();
 
-        ioProvider.upload(PUBLICKEY_FILENAME, new ObjectMapper().writeValueAsBytes(publicKey.publicOnlyHash()));
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            publicKey.writeKey(EncryptionIdentity.KeyFormat.UPLOAD, output);
+            ioProvider.upload(PUBLICKEY_FILENAME, output.toByteArray());
+        }
 
         IOProviderFactory.injectProvider(configuration.getDestinations().get("TEST"), ioProvider);
         uploadScheduler = new UploadSchedulerImpl(4, Mockito.mock(RateLimitController.class));
@@ -148,14 +152,14 @@ class ManifestManagerImplTest {
                 "-m", tempDir.getPath(),
                 "--encryption-key-data", PUBLIC_KEY_DATA}, null, null);
 
-        publicKey = InstanceFactory.getInstance(EncryptionKey.class);
+        publicKey = InstanceFactory.getInstance(EncryptionIdentity.class);
     }
 
     @Test
-    public void testUploadConfig() throws IOException {
+    public void testUploadConfig() throws IOException, GeneralSecurityException {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any(), any());
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), rateLimitController, serviceManager,
-                "id", null, false, publicKey,
+                "id", null, false, publicKey, publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
         manifestManager.initialize(Mockito.mock(LogConsumer.class), true);
         manifestManager.addLogEntry("doh", "doh");
@@ -164,7 +168,7 @@ class ManifestManagerImplTest {
     }
 
     @Test
-    public void testUploadPending() throws IOException {
+    public void testUploadPending() throws IOException, GeneralSecurityException {
         File file = Paths.get(tempDir.getPath(), "logs", "2020-02-02-22-00-22.222222").toFile();
         file.getParentFile().mkdirs();
         try (FileOutputStream stream = new FileOutputStream(file)) {
@@ -172,6 +176,7 @@ class ManifestManagerImplTest {
         }
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(),
                 rateLimitController, serviceManager, "id", null, false, publicKey,
+                publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
         manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
         manifestManager.addLogEntry("doh", "doh");
@@ -186,6 +191,7 @@ class ManifestManagerImplTest {
     public void testDelayedUpload() throws IOException, InterruptedException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(),
                 rateLimitController, serviceManager, "id", null, false, publicKey,
+                publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
@@ -200,9 +206,10 @@ class ManifestManagerImplTest {
     }
 
     @Test
-    public void testLoggingUpdateAndReplay() throws IOException {
+    public void testLoggingUpdateAndReplay() throws IOException, GeneralSecurityException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(),
                 rateLimitController, serviceManager, "id", null, false, publicKey,
+                publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
@@ -227,6 +234,7 @@ class ManifestManagerImplTest {
 
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(),
                 rateLimitController, serviceManager, "id", null, false, publicKey,
+                publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
         manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false), "test");
@@ -286,7 +294,7 @@ class ManifestManagerImplTest {
         repository.open(RepositoryOpenMode.READ_WRITE);
         manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
-                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey("test"));
+                InstanceFactory.getInstance(EncryptionIdentity.class).getPrivateIdentity("test"));
 
         BackupCommand.executeBackup(false);
 
@@ -303,7 +311,7 @@ class ManifestManagerImplTest {
         manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), false);
         BackupCommand.executeBackup(false);
         manifestManager.activateShares(InstanceFactory.getInstance(LogConsumer.class),
-                InstanceFactory.getInstance(EncryptionKey.class).getPrivateKey("test"));
+                InstanceFactory.getInstance(EncryptionIdentity.class).getPrivateIdentity("test"));
 
         manifestManager.shutdown();
         InstanceFactory.shutdown();
@@ -315,9 +323,9 @@ class ManifestManagerImplTest {
         // Just want to make sure we have a few more blocks to delete.
         repository = InstanceFactory.getInstance(MetadataRepository.class);
         repository.addAdditionalBlock(
-                BackupBlockAdditional.builder().publicKey(sharePrivateKey.getPublicKey()).hash("a").build());
+                BackupBlockAdditional.builder().publicKey(sharePrivateKey.getPrimaryKeys().getKeyIdentifier()).hash("a").build());
         repository.addAdditionalBlock(
-                BackupBlockAdditional.builder().publicKey(sharePrivateKey.getPublicKey()).hash("b").build());
+                BackupBlockAdditional.builder().publicKey(sharePrivateKey.getPrimaryKeys().getKeyIdentifier()).hash("b").build());
 
         manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);

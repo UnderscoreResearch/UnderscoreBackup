@@ -61,7 +61,7 @@ public class FileIOProvider implements IOIndex {
             stream.write(data, 0, data.length);
         }
 
-        debug(() -> log.debug("Wrote \"{}\" ({})", file.toString(), readableSize(data.length)));
+        debug(() -> log.debug("Wrote \"{}\" ({})", file, readableSize(data.length)));
 
         return key;
     }
@@ -71,7 +71,7 @@ public class FileIOProvider implements IOIndex {
         File file = getFile(key);
         try (FileInputStream stream = new FileInputStream(file)) {
             byte[] data = IOUtils.readAllBytes(stream);
-            debug(() -> log.debug("Read \"{}\" ({})", file.toString(), readableSize(data.length)));
+            debug(() -> log.debug("Read \"{}\" ({})", file, readableSize(data.length)));
             return data;
         }
     }

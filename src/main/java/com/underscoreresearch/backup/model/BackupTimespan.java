@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.Period;
-import java.time.temporal.ChronoUnit;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -70,9 +69,9 @@ public class BackupTimespan {
             case MONTHS -> now.minus(Period.ofMonths((int) duration));
             case WEEKS -> now.minus(Period.ofWeeks((int) duration));
             case DAYS -> now.minus(Period.ofDays((int) duration));
-            case HOURS -> now.minus(duration, ChronoUnit.HOURS);
-            case MINUTES -> now.minus(duration, ChronoUnit.MINUTES);
-            case SECONDS -> now.minus(duration, ChronoUnit.SECONDS);
+            case HOURS -> now.minusHours(duration);
+            case MINUTES -> now.minusMinutes(duration);
+            case SECONDS -> now.minusSeconds(duration);
             default -> throw new IllegalArgumentException("Unknown time unit: " + unit);
         };
     }

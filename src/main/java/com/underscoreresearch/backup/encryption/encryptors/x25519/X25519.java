@@ -14,7 +14,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-package com.underscoreresearch.backup.encryption.x25519;
+package com.underscoreresearch.backup.encryption.encryptors.x25519;
 
 import java.security.InvalidKeyException;
 import java.security.SecureRandom;
@@ -52,7 +52,7 @@ import java.util.Arrays;
  * </pre>
  */
 public final class X25519 {
-    private static SecureRandom random = new SecureRandom();
+    private static final SecureRandom random = new SecureRandom();
 
     /**
      * Returns a 32-byte private key for Curve25519.

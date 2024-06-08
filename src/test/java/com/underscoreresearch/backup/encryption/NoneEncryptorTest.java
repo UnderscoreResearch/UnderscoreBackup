@@ -2,11 +2,14 @@ package com.underscoreresearch.backup.encryption;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor;
 
 class NoneEncryptorTest {
     private NoneEncryptor encryptor;
@@ -17,7 +20,7 @@ class NoneEncryptorTest {
     }
 
     @Test
-    public void basic() {
+    public void basic() throws GeneralSecurityException {
         SecureRandom random = new SecureRandom();
         for (int i = 1; i < 256; i++) {
             byte[] data = new byte[i];

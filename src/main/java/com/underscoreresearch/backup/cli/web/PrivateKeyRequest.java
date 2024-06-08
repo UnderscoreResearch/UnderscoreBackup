@@ -16,8 +16,10 @@ import org.takes.Request;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 
 @Data
 @AllArgsConstructor
@@ -41,10 +43,21 @@ public class PrivateKeyRequest {
     }
 
     public static boolean validatePassword(String password) {
-        EncryptionKey encryptionKey = InstanceFactory.getInstance(EncryptionKey.class);
+        EncryptionIdentity encryptionKey = InstanceFactory.getInstance(EncryptionIdentity.class);
 
         try {
-            encryptionKey.getPrivateKey(password);
+            boolean needKeyUnpack = encryptionKey.needKeyUnpack();
+            EncryptionIdentity.PrivateIdentity identity = encryptionKey.getPrivateIdentity(password);
+            if (Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource()) && needKeyUnpack) {
+                log.info("Upgraded key file to new format");
+                encryptionKey.unpackKeys(identity);
+                InstanceFactory.getInstance(ManifestManager.class).updateKeyData(encryptionKey);
+
+                if (Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource()))
+                    InstanceFactory.reloadConfiguration(InteractiveCommand::startBackupIfAvailable);
+                else
+                    InstanceFactory.reloadConfigurationWithSource();
+            }
             return true;
         } catch (Exception exc) {
             log.warn("Failed to validate key", exc);

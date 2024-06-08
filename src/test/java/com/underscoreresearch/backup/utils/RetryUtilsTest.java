@@ -1,14 +1,18 @@
 package com.underscoreresearch.backup.utils;
 
+import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_RETRIES;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.cli.ParseException;
+import org.hamcrest.Matchers;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import com.google.common.base.Stopwatch;
 
 class RetryUtilsTest {
     @Test
@@ -27,7 +31,7 @@ class RetryUtilsTest {
     @Test
     public void firstTrySucceed() throws Exception {
         AtomicInteger integer = new AtomicInteger();
-        assertThat(RetryUtils.retry(() -> integer.incrementAndGet(), null), Is.is(1));
+        assertThat(RetryUtils.retry(integer::incrementAndGet, null), Is.is(1));
     }
 
     @Test
@@ -45,13 +49,16 @@ class RetryUtilsTest {
     @Test
     public void failAfterRetry() {
         AtomicInteger integer = new AtomicInteger();
+        Stopwatch stopwatch = Stopwatch.createStarted();
         Assertions.assertThrows(ParseException.class, () -> {
-            RetryUtils.retry(() -> {
+            RetryUtils.retry(DEFAULT_RETRIES, 5, () -> {
                 integer.incrementAndGet();
                 throw new ParseException("");
-            }, (exc) -> (exc instanceof ParseException));
+            }, (exc) -> (exc instanceof ParseException), false);
         });
-        assertThat(integer.get(), Is.is(6));
+        assertThat(stopwatch.elapsed().toMillis(), Matchers.greaterThanOrEqualTo(2555L));
+        assertThat(stopwatch.elapsed().toMillis(), Matchers.lessThanOrEqualTo(4000L));
+        assertThat(integer.get(), Is.is(10));
     }
 
     @Test

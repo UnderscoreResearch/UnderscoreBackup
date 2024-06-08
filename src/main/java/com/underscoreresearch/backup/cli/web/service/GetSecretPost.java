@@ -7,12 +7,9 @@ import static com.underscoreresearch.backup.cli.web.service.SourcesPut.getEncryp
 import static com.underscoreresearch.backup.cli.web.service.SourcesPut.restoreFromSource;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.CLIENT_ID;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
@@ -28,12 +25,13 @@ import org.takes.Response;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.commands.ChangePasswordCommand;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.GetSecretRequest;
@@ -47,14 +45,6 @@ public class GetSecretPost extends BaseWrap {
 
     public GetSecretPost() {
         super(new Implementation());
-    }
-
-    public static EncryptionKey encryptionKey() {
-        try {
-            return InstanceFactory.getInstance(EncryptionKey.class);
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     @Data
@@ -102,34 +92,30 @@ public class GetSecretPost extends BaseWrap {
                     return encryptResponse(req, WRITER.writeValueAsString(new GetSecretPostResponse(ret.getAvailable(), false)));
                 }
 
-                EncryptionKey key = ENCRYPTION_KEY_READER.readValue(ret.getSecret());
-                EncryptionKey newKey = EncryptionKey.changeEncryptionPassword(request.getEmail(), request.getPassword(), key);
+                EncryptionIdentity secretKey = EncryptionIdentity.restoreFromString(ret.getSecret());
+                EncryptionIdentity newKey = secretKey.changeEncryptionPassword(request.getEmail(), request.getPassword(), false);
 
                 final SourceResponse sourceResponse = serviceManager.call(request.getRegion(), (api) -> api.getSource(request.getSourceId()));
 
-                EncryptionKey sourceKey;
+                EncryptionIdentity sourceKey;
                 try {
-                    sourceKey = getEncryptionKey(serviceManager, sourceResponse, newKey.getPrivateKey(request.getPassword()));
-                    if (!sourceKey.getPublicKeyHash().equals(newKey.getPublicKeyHash())) {
+                    sourceKey = getEncryptionKey(serviceManager, sourceResponse, newKey.getPrivateKeys(request.getPassword()));
+                    if (!sourceKey.getPrimaryKeys().equals(newKey.getPrimaryKeys())) {
                         log.error("Restored key does not match existing public key");
                         return messageJson(500, "Key mismatch with restore");
                     }
                 } catch (Exception exception) {
+                    log.warn("Invalid restore key", exception);
                     return messageJson(500, "Invalid key for restore");
                 }
 
-                newKey.setEncryptedAdditionalKeys(sourceKey.getEncryptedAdditionalKeys());
-                newKey.setSharingPublicKey(sourceKey.getSharingPublicKey());
-                newKey.setBlockHashSalt(sourceKey.getBlockHashSalt());
-                newKey.setBlockHashSaltEncrypted(sourceKey.getBlockHashSaltEncrypted());
+                newKey.copyAdditionalData(sourceKey);
 
                 if (InstanceFactory.hasConfiguration(true)) {
                     File privateKeyFile = getDefaultEncryptionFileName(InstanceFactory
                             .getInstance(CommandLine.class));
 
-                    try (FileOutputStream writer = new FileOutputStream(privateKeyFile)) {
-                        writer.write(ENCRYPTION_KEY_WRITER.writeValueAsBytes(newKey.publicOnly()));
-                    }
+                    ChangePasswordCommand.saveKeyFile(privateKeyFile, newKey);
 
                     InstanceFactory.reloadConfiguration(
                             InteractiveCommand::startBackupIfAvailable);
@@ -140,7 +126,7 @@ public class GetSecretPost extends BaseWrap {
                         serviceManager,
                         sourceResponse,
                         InstanceFactory.getInstance(CommandLineModule.INSTALLATION_IDENTITY),
-                        newKey.getPrivateKey(request.getPassword()))) {
+                        newKey.getPrivateIdentity(request.getPassword()))) {
                     return encryptResponse(req, WRITER.writeValueAsString(new GetSecretPostResponse(true, true)));
                 } else {
                     return messageJson(400, "Failed to start rebuild");

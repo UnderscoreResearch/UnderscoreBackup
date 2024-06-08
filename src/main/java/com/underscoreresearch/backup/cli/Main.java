@@ -21,7 +21,7 @@ import com.google.inject.ProvisionException;
 import com.google.inject.spi.Message;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.model.BackupConfiguration;
@@ -107,9 +107,9 @@ public final class Main {
                 Command commandInstance = InstanceFactory.getInstance(command);
 
                 if (commandDef.needPrivateKey()) {
-                    EncryptionKey key = InstanceFactory.getInstance(EncryptionKey.class);
+                    EncryptionIdentity key = InstanceFactory.getInstance(EncryptionIdentity.class);
                     String password = EncryptionModule.getPassword();
-                    key.getPrivateKey(password);
+                    key.getPrivateIdentity(password);
                     commandInstance.setPassword(password);
                 }
 

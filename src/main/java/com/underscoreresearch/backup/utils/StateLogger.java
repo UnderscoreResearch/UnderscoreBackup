@@ -3,12 +3,18 @@ package com.underscoreresearch.backup.utils;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -20,11 +26,15 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class StateLogger implements StatusLogger {
+    // Bumping this because we want it to not trigger specifically for internet brownouts.
+    public static final Duration INACTVITY_DURATION = Duration.ofMinutes(30);
     private static final String OLD_KEYWORD = " Old ";
     private final AtomicLong lastHeapUsage = new AtomicLong();
     private final AtomicLong lastHeapUsageMax = new AtomicLong();
@@ -33,6 +43,8 @@ public class StateLogger implements StatusLogger {
     private final boolean debugMemory;
     private final List<ManualStatusLogger> additionalLoggers = new ArrayList<>();
     private List<ManualStatusLogger> loggers;
+    private String activityHash;
+    private Instant lastActivityHash;
 
     public StateLogger(boolean debugMemory) {
         this.debugMemory = debugMemory;
@@ -105,7 +117,75 @@ public class StateLogger implements StatusLogger {
             log.debug("Current CPU usage {}", state.getCpuUsage());
         });
 
-        debug(() -> printLogStatus((type) -> type != Type.LOG, log::debug));
+        detectDeadlock();
+    }
+
+    private void detectDeadlock() {
+        boolean isActive = UIHandler.isActive();
+        if (isActive) {
+            String newActivityHash;
+            try {
+                List<StatusLine> logItems = logData((type) -> type != Type.LOG).stream()
+                        .filter(this::includeProgressItem).toList();
+
+                try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                    try (DataOutputStream writer = new DataOutputStream(out)) {
+                        logItems.forEach(item -> {
+                            if (includeProgressItem(item)) {
+                                try {
+                                    writer.write(item.getCode().getBytes(StandardCharsets.UTF_8));
+                                    if (item.getValue() != null) {
+                                        writer.writeLong(item.getValue());
+                                    } else {
+                                        writer.writeUTF(item.getValueString());
+                                    }
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                            debug(() -> log.debug(item.toString()));
+                        });
+                    }
+                    newActivityHash = Hash.hash(out.toByteArray());
+                }
+                if (newActivityHash.equals(activityHash)) {
+                    if (lastActivityHash.plus(INACTVITY_DURATION).isBefore(Instant.now())) {
+                        StringBuilder sb = new StringBuilder("Detected potential deadlock: " + UIHandler.getActiveTaskMessage());
+                        LogUtil.dumpAllStackTrace(sb);
+                        log.error(sb.toString());
+                        if (!LogUtil.isDebug()) {
+                            logItems.forEach(item -> log.info(item.toString()));
+                        }
+                        activityHash = "";
+                    }
+                } else if (!"".equals(activityHash)) {
+                    activityHash = newActivityHash;
+                    lastActivityHash = Instant.now();
+                }
+            } catch (Throwable e) {
+                log.error("Failed calculating progress", e);
+            }
+        } else {
+            activityHash = null;
+            debug(() -> printLogStatus((type) -> type != Type.LOG, log::debug));
+        }
+    }
+
+    private boolean includeProgressItem(StatusLine item) {
+        if (item.getCode().endsWith("_DURATION") ||
+                item.getCode().endsWith("_THROUGHPUT") ||
+                item.getCode().startsWith("SCHEDULED_BACKUP_")) {
+            return false;
+        }
+
+        return switch (item.getCode()) {
+            case "HEAP_MEMORY",
+                 "HEAP_AFTER_GC",
+                 "HEAP_FULL_GC",
+                 "MEMORY_HIGH",
+                 "REPOSITORY_INFO_TIMESTAMP" -> false;
+            default -> item.getValue() != null || item.getValueString() != null;
+        };
     }
 
     public void logInfo() {

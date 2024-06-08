@@ -2,7 +2,7 @@ package com.underscoreresearch.backup.manifest;
 
 import java.io.IOException;
 
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.model.BackupActivatedShare;
 
 public interface ShareManifestManager extends BaseManifestManager {
@@ -13,5 +13,5 @@ public interface ShareManifestManager extends BaseManifestManager {
 
     BackupActivatedShare getActivatedShare();
 
-    void updateEncryptionKeys(EncryptionKey.PrivateKey privateKey) throws IOException;
+    void updateEncryptionKeys(EncryptionIdentity.PrivateIdentity privateKey) throws IOException;
 }

@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.cli.web;
 import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,12 +50,14 @@ public class OptimizePost extends BaseWrap {
                                 if (!thread.isAlive())
                                     return;
                             } catch (InterruptedException ignored) {
+                                Thread.currentThread().interrupt();
                             }
                             log.info("Waiting for rebuild to get to a checkpoint");
                             do {
                                 try {
                                     thread.join();
                                 } catch (InterruptedException ignored) {
+                                    Thread.currentThread().interrupt();
                                 }
                             } while (thread.isAlive());
                         }

@@ -27,10 +27,7 @@ public class LinuxState extends MachineState {
         try {
             try (BufferedReader reader = new BufferedReader(new FileReader(new File("/sys/class/power_supply/AC/online")))) {
                 String line = reader.readLine();
-                if (line != null && line.startsWith("0")) {
-                    return true;
-                }
-                return false;
+                return line != null && line.startsWith("0");
             }
         } catch (IOException exc) {
             return false;
@@ -84,10 +81,15 @@ public class LinuxState extends MachineState {
                     .exec(new String[]{
                             "renice", "+10", "-p", Long.toString(ProcessHandle.current().pid())
                     });
-            if (process.waitFor() != 0) {
-                throw new IOException();
+            try {
+                if (process.waitFor() != 0) {
+                    throw new IOException();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted changing process to low priority", e);
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             log.warn("Can't change process to low priority", e);
         }
     }

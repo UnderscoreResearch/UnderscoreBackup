@@ -41,7 +41,7 @@ import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
 import com.underscoreresearch.backup.cli.helpers.BlockRefresher;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
 import com.underscoreresearch.backup.file.FileConsumer;
@@ -66,10 +66,10 @@ import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
 import com.underscoreresearch.backup.manifest.LogConsumer;
-import com.underscoreresearch.backup.manifest.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.implementation.AdditionalManifestManager;
+import com.underscoreresearch.backup.manifest.implementation.LoggingMetadataRepository;
 import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.StateLogger;
@@ -143,9 +143,9 @@ public class BackupModule extends AbstractModule {
                                                           MetadataRepository metadataRepository,
                                                           FileBlockUploader fileBlockUploader,
                                                           FileSystemAccess fileSystemAccess,
-                                                          EncryptionKey encryptionKey) {
+                                                          EncryptionIdentity identity) {
         return new ZipSmallBlockAssignment(fileBlockUploader, blockDownloader, metadataRepository, fileSystemAccess,
-                encryptionKey,
+                identity,
                 configuration.getProperty("smallFileBlockAssignment.maximumSize", DEFAULT_SMALL_FILE_MAXIMUM_SIZE),
                 configuration.getProperty("smallFileBlockAssignment.targetSize", DEFAULT_SMALL_FILE_TARGET_SIZE));
     }
@@ -157,9 +157,9 @@ public class BackupModule extends AbstractModule {
                                                                        MetadataRepository metadataRepository,
                                                                        FileBlockUploader fileBlockUploader,
                                                                        FileSystemAccess fileSystemAccess,
-                                                                       EncryptionKey encryptionKey) {
+                                                                       EncryptionIdentity identity) {
         return new EncryptedSmallBlockAssignment(fileBlockUploader, blockDownloader, metadataRepository, fileSystemAccess,
-                encryptionKey,
+                identity,
                 configuration.getProperty("smallFileBlockAssignment.maximumSize", DEFAULT_SMALL_FILE_MAXIMUM_SIZE),
                 configuration.getProperty("smallFileBlockAssignment.targetSize", DEFAULT_SMALL_FILE_TARGET_SIZE));
     }
@@ -189,8 +189,9 @@ public class BackupModule extends AbstractModule {
                                                    MetadataRepository repository,
                                                    UploadScheduler uploadScheduler,
                                                    ManifestManager manifestManager,
-                                                   EncryptionKey key) {
-        return new FileBlockUploaderImpl(configuration, repository, uploadScheduler, manifestManager, key);
+                                                   EncryptionIdentity encryptionIdentity) {
+        return new FileBlockUploaderImpl(configuration, repository, uploadScheduler, manifestManager,
+                encryptionIdentity);
     }
 
     @Provides
@@ -218,10 +219,10 @@ public class BackupModule extends AbstractModule {
                                                                      BlockDownloader blockDownloader,
                                                                      FileSystemAccess fileSystemAccess,
                                                                      MachineState machineState,
-                                                                     EncryptionKey encryptionKey) {
+                                                                     EncryptionIdentity identity) {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
         return new GzipLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
-                metadataRepository, machineState, encryptionKey, maxSize);
+                metadataRepository, machineState, identity, maxSize);
     }
 
     @Provides
@@ -242,10 +243,10 @@ public class BackupModule extends AbstractModule {
                                                                    BlockDownloader blockDownloader,
                                                                    FileSystemAccess fileSystemAccess,
                                                                    MachineState machineState,
-                                                                   EncryptionKey encryptionKey) {
+                                                                   EncryptionIdentity identity) {
         int maxSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
         return new RawLargeFileBlockAssignment(fileBlockUploader, blockDownloader, fileSystemAccess,
-                metadataRepository, machineState, encryptionKey, maxSize);
+                metadataRepository, machineState, identity, maxSize);
     }
 
     @Singleton
@@ -256,7 +257,7 @@ public class BackupModule extends AbstractModule {
                                                              ServiceManager serviceManager,
                                                              @Named(INSTALLATION_IDENTITY) String installationIdentity,
                                                              @Named(ADDITIONAL_SOURCE) String source,
-                                                             EncryptionKey encryptionKey,
+                                                             EncryptionIdentity encryptionIdentity,
                                                              CommandLine commandLine,
                                                              BackupStatsLogger statsLogger,
                                                              AdditionalManifestManager additionalManifestManager,
@@ -269,7 +270,8 @@ public class BackupModule extends AbstractModule {
                 installationIdentity,
                 source,
                 commandLine.hasOption(FORCE),
-                encryptionKey,
+                encryptionIdentity,
+                encryptionIdentity.getPrimaryKeys(),
                 statsLogger,
                 additionalManifestManager,
                 uploadScheduler);
@@ -365,9 +367,10 @@ public class BackupModule extends AbstractModule {
                                          UploadScheduler uploadScheduler,
                                          BackupConfiguration configuration,
                                          ManifestManager manifestManager,
-                                         MetadataRepository repository) {
+                                         MetadataRepository repository,
+                                         EncryptionIdentity encryptionIdentity) {
         return new BlockRefresher(threads, fileDownloader, uploadScheduler, configuration, repository,
-                manifestManager);
+                manifestManager, encryptionIdentity);
     }
 
     @Singleton

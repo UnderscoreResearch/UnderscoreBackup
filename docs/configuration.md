@@ -95,8 +95,8 @@ The destinations item is a map where the key is the unique identifier for the de
 the following keys.
 
 * **type** - The type of destination. Supported values are `UB`, `FILE`, `SMB`, `DROPBOX`, and `S3`.
-* **encryption** - Encryption to use for data stored at this location. Supported values are `NONE`
-  and `AES256`. If not specified defaults to `AES256`.
+* **encryption** - Encryption to use for data stored at this location. Supported values are `NONE`, `AES256` and `PQC`. 
+  If not specified defaults to `PQC`.
 * **errorCorrection** - Error correction to use. Can be either `RS` for Reed Solomon parity or `NONE` for no error
   correction. If not specified defaults to `NONE`.
 * **endpointUri** - Endpoint URI. Where the root of this destination is located.

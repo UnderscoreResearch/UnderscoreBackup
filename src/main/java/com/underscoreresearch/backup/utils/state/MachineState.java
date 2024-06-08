@@ -74,6 +74,7 @@ public class MachineState {
                         try {
                             Thread.sleep(MINIMUM_WAIT.toMillis());
                         } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                             log.warn("Failed to wait", e);
                         }
                         if (InstanceFactory.isShutdown()) {
@@ -144,6 +145,7 @@ public class MachineState {
             try {
                 log.info("Update process exited with exit code {}", process.waitFor());
             } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
             }
         }, "UpgradeExit").start();
         new Thread(() -> printOutput("error output", process.getErrorStream()), "UpdateError").start();

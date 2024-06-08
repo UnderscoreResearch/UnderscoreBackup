@@ -4,6 +4,7 @@ import base64url from "base64url";
 import argon2 from "./argon2";
 import {base32} from "rfc4648";
 import aesjs from "aes-js";
+import {sha3_256} from "js-sha3";
 import crypto from "crypto";
 
 // Bunch of API interfaces.
@@ -248,7 +249,8 @@ let apiSharedKey: string | undefined = undefined;
 let apiSharedKeyBytes: Uint8Array | undefined = undefined;
 let keySalt: string | undefined = undefined;
 let keyData: string | undefined = undefined;
-let encryptionPublicKey: string | undefined = undefined;
+let needKeyUpgrade: boolean = false;
+let sharedEncryptionKey: string | undefined = undefined;
 let hasSuccessfulAuth = false;
 let authAwaits: (() => void)[] = [];
 let nonce = 1;
@@ -290,6 +292,7 @@ export async function fetchAuth() {
     if (json.keySalt) {
         keySalt = json.keySalt;
         keyData = json.keyData;
+        needKeyUpgrade = json.needKeyUpgrade
     }
 }
 
@@ -321,7 +324,27 @@ async function authCompleted(wait: boolean): Promise<boolean> {
     return true;
 }
 
+function calculateSHA256(data: Buffer) {
+    const digest = crypto.createHash('sha256').update(data).digest();
+    return base64url(digest).replace("=", "");
+}
+
+function calculateSHA3(data: Buffer) {
+    const digest = Buffer.from(sha3_256.arrayBuffer(data));
+    return base64url(digest).replace("=", "");
+}
+
 export async function submitPrivateKeyPassword(password: string) {
+    if (needKeyUpgrade) {
+        await performFetch("encryption-key", {
+            method: 'POST',
+            body: JSON.stringify({
+                "password": password
+            })
+        }, false, true);
+        await fetchAuth();
+    }
+
     if (keySalt) {
         let argonData = await argon2.hash({
             pass: password,
@@ -347,26 +370,16 @@ export async function submitPrivateKeyPassword(password: string) {
             data = argonData.hash;
         }
 
-        data[0] = (data[0] | 7);
-        data[31] = (data[31] & 63);
-        data[31] = (data[31] | 128);
-
-        const encryptionKeySecret = generateKeyPair(data);
-        encryptionPublicKey = base32.stringify(Buffer.from(encryptionKeySecret.public), {pad: false});
+        sharedEncryptionKey = calculateSHA3(data);
     } else {
-        encryptionPublicKey = undefined;
+        sharedEncryptionKey = undefined;
     }
     postAwaits();
 }
 
 export async function needPrivateKeyPassword(wait: boolean): Promise<boolean> {
     const completedAuth = await authCompleted(wait);
-    return !completedAuth || (!!keySalt && !encryptionPublicKey);
-}
-
-function calculateSHA256(data: Buffer) {
-    const digest = crypto.createHash('sha256').update(data).digest();
-    return base64url(digest).replace("=", "");
+    return !completedAuth || (!!keySalt && !sharedEncryptionKey);
 }
 
 function createSignedHash(method: string, api: string, sharedKey: string, currentNonce: number) {
@@ -377,8 +390,8 @@ function createSignedHash(method: string, api: string, sharedKey: string, curren
 function generateAuthHeader(method: string, api: string) {
     const currentNonce = ++nonce
     const key = createSignedHash(method, api, apiSharedKey as string, currentNonce);
-    if (encryptionPublicKey) {
-        const encryptionKey = createSignedHash(method, api, encryptionPublicKey as string, currentNonce);
+    if (sharedEncryptionKey) {
+        const encryptionKey = createSignedHash(method, api, sharedEncryptionKey as string, currentNonce);
         return `${publicKey} ${currentNonce} ${key} ${encryptionKey}`;
     } else {
         return `${publicKey} ${currentNonce} ${key}`;
@@ -409,8 +422,8 @@ function encryptData(data: string) {
     };
 }
 
-export async function performFetch(api: string, init?: RequestInit, silentError?: boolean) {
-    if (await needPrivateKeyPassword(!silentError)) {
+export async function performFetch(api: string, init?: RequestInit, silentError?: boolean, overrideNeedPrivateKey?: boolean): Promise<Response | undefined | null> {
+    if (!overrideNeedPrivateKey && await needPrivateKeyPassword(!silentError)) {
         return null;
     }
 
@@ -443,8 +456,8 @@ export async function performFetch(api: string, init?: RequestInit, silentError?
             fetchAuth().then(() => {
                 postAwaits();
             });
-            if (encryptionPublicKey) {
-                encryptionPublicKey = undefined;
+            if (sharedEncryptionKey) {
+                sharedEncryptionKey = undefined;
                 if (!hasSuccessfulAuth)
                     reportError("Invalid password");
             }

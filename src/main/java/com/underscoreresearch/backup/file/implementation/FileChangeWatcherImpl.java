@@ -131,6 +131,7 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                 try {
                     condition.await();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn("Interrupted while waiting for file change watcher to stop", e);
                 }
             }
@@ -178,6 +179,7 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
                         try {
                             condition.await();
                         } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                             log.warn("Error while waiting for execution queue to free up", e);
                         }
                     }

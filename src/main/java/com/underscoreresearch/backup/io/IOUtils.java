@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.utils.PausedStatusLogger;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 
 @Slf4j
 public final class IOUtils {
@@ -67,7 +68,11 @@ public final class IOUtils {
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("HEAD");
                     connection.setConnectTimeout(10000);
+                    connection.setUseCaches(false);
                     connection.connect();
+                    if (connection.getResponseCode() != 200) {
+                        throw new IOException();
+                    }
                     break;
                 } catch (Exception exc) {
                     if (3 == i || !(exc instanceof IOException)) {
@@ -84,14 +89,14 @@ public final class IOUtils {
         }
     }
 
-    public static <T> T waitForInternet(Callable<T> callable) throws Exception {
+    public static <T> T waitForInternet(Callable<T> callable, boolean immediateFailOnShutdown) throws Exception {
         for (int i = 0; true; i++) {
+            if (immediateFailOnShutdown)
+                failOnShutdown();
             try {
-                if (InstanceFactory.isShutdown()) {
-                    throw new InterruptedException("Shutting down");
-                }
                 return callable.call();
             } catch (Exception exc) {
+                failOnShutdown();
                 if (!IOUtils.hasInternet()) {
                     boolean clearFlag = false;
                     try (Closeable ignore = PausedStatusLogger.startPause("Paused until internet access is restored")) {
@@ -108,9 +113,10 @@ public final class IOUtils {
                             try {
                                 Thread.sleep(INTERNET_WAIT);
                             } catch (InterruptedException ignored) {
-                                Thread.interrupted();
+                                Thread.currentThread().interrupt();
                             }
                             i++;
+                            failOnShutdown();
                         } while (!IOUtils.hasInternet());
                     } finally {
                         if (clearFlag) {
@@ -127,6 +133,11 @@ public final class IOUtils {
                 }
             }
         }
+    }
+
+    private static void failOnShutdown() {
+        if (InstanceFactory.isShutdown())
+            throw new ProcessingStoppedException("Shutting down");
     }
 
     public static void createDirectory(File file, boolean warning) {

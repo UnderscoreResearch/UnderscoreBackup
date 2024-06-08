@@ -7,13 +7,13 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.PRIVATE_KEY_SEED;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.getDefaultUserManifestLocation;
-import static com.underscoreresearch.backup.utils.SerializationUtils.ENCRYPTION_KEY_READER;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.security.InvalidKeyException;
+import java.security.GeneralSecurityException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.lang.SystemUtils;
@@ -24,7 +24,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.underscoreresearch.backup.cli.PasswordReader;
-import com.underscoreresearch.backup.encryption.EncryptionKey;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.io.IOUtils;
 
 public class EncryptionModule extends AbstractModule {
@@ -76,16 +76,17 @@ public class EncryptionModule extends AbstractModule {
     @Provides
     @Singleton
     @Named(ROOT_KEY)
-    public EncryptionKey rootEncryptionKeyEncryption(@Named(ENCRYPTION_KEY_DATA) String keyData,
-                                                     @Named(KEY_FILE_NAME) String rootKeyFile,
-                                                     CommandLine commandLine) throws IOException, InvalidKeyException {
-        EncryptionKey encryptionKey;
+    public EncryptionIdentity rootEncryptionKeyEncryption(@Named(ENCRYPTION_KEY_DATA) String keyData,
+                                                          @Named(KEY_FILE_NAME) String rootKeyFile,
+                                                          CommandLine commandLine) throws IOException, GeneralSecurityException {
+        EncryptionIdentity encryptionKey;
         if (!Strings.isNullOrEmpty(keyData) && !commandLine.hasOption(ADDITIONAL_KEY)) {
-            encryptionKey = EncryptionKey.createWithKeyData(keyData);
+            encryptionKey = EncryptionIdentity.restoreFromString(keyData);
         } else {
 
             try (FileInputStream inputStream = new FileInputStream(rootKeyFile)) {
-                encryptionKey = ENCRYPTION_KEY_READER.readValue(IOUtils.readAllBytes(inputStream));
+                encryptionKey = EncryptionIdentity.restoreFromString(
+                        new String(IOUtils.readAllBytes(inputStream), StandardCharsets.UTF_8));
             }
         }
 
@@ -94,14 +95,15 @@ public class EncryptionModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public EncryptionKey encryptionKey(@Named(ENCRYPTION_KEY_DATA) String keyData,
-                                       @Named(KEY_FILE_NAME) String rootKeyFile,
-                                       @Named(MANIFEST_LOCATION) String manifestLocation,
-                                       @Named(ADDITIONAL_SOURCE) String source,
-                                       CommandLine commandLine) throws IOException, InvalidKeyException {
-        EncryptionKey encryptionKey;
+    public EncryptionIdentity encryptionKey(@Named(ENCRYPTION_KEY_DATA) String keyData,
+                                            @Named(KEY_FILE_NAME) String rootKeyFile,
+                                            @Named(MANIFEST_LOCATION) String manifestLocation,
+                                            @Named(ADDITIONAL_SOURCE) String source,
+                                            @Named(ROOT_KEY) EncryptionIdentity rootEncryptionKey,
+                                            CommandLine commandLine) throws IOException, GeneralSecurityException {
+        EncryptionIdentity encryptionKey;
         if (!Strings.isNullOrEmpty(keyData) && Strings.isNullOrEmpty(source) && !commandLine.hasOption(ADDITIONAL_KEY)) {
-            encryptionKey = EncryptionKey.createWithKeyData(keyData);
+            encryptionKey = EncryptionIdentity.restoreFromString(keyData);
         } else {
             String keyFile;
             if (!Strings.isNullOrEmpty(source)) {
@@ -111,7 +113,12 @@ public class EncryptionModule extends AbstractModule {
             }
 
             try (FileInputStream inputStream = new FileInputStream(keyFile)) {
-                encryptionKey = ENCRYPTION_KEY_READER.readValue(IOUtils.readAllBytes(inputStream));
+                encryptionKey = EncryptionIdentity.restoreFromString(
+                        new String(IOUtils.readAllBytes(inputStream), StandardCharsets.UTF_8));
+            }
+
+            if (encryptionKey.getSalt() == null) {
+                encryptionKey = rootEncryptionKey.copyWithPublicPrimaryKey(encryptionKey.getPrimaryKeys());
             }
         }
 

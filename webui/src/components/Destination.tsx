@@ -234,7 +234,8 @@ function SharedProperties(props: {
                                     props.onChange(newState);
                                 }}>
                                 <MenuItem value={"NONE"}>None</MenuItem>
-                                <MenuItem value={"AES256"}>AES 256</MenuItem>
+                                <MenuItem value={"AES256"}>Elliptic Curve (X25519)</MenuItem>
+                                <MenuItem value={"PQC"}>Post Quantum (X25519 & Kyber Crystals)</MenuItem>
                             </Select>
                         </FormControl>
                     </Grid>
@@ -325,7 +326,7 @@ function SharedProperties(props: {
 function LocalFileDestination(props: DestinationProps) {
     const [state, setState] = React.useState({
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "" as string,
-        encryption: props.destination.encryption ? props.destination.encryption : "AES256" as string,
+        encryption: props.destination.encryption ? props.destination.encryption : "PQC" as string,
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
         maxRetention: props.destination.maxRetention,
         limits: props.destination.limits
@@ -400,7 +401,7 @@ function DropboxDestination(props: DestinationProps) {
         accessToken: props.destination.principal ? props.destination.principal : "",
         refreshToken: props.destination.credential ? props.destination.credential : "",
         maxRetention: props.destination.maxRetention,
-        encryption: props.destination.encryption ? props.destination.encryption : "AES256",
+        encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         limits: props.destination.limits
     });
@@ -542,7 +543,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
     const [state, setState] = React.useState(() => ({
         region: props.destination.endpointUri ? props.destination.endpointUri : "",
         maxRetention: props.destination.maxRetention,
-        encryption: props.destination.encryption ? props.destination.encryption : "AES256",
+        encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         autoDetecting: false,
         limits: props.destination.limits
@@ -672,7 +673,7 @@ function WindowsShareDestination(props: DestinationProps) {
         password: props.destination.credential ? props.destination.credential : "",
         domain: props.destination.properties && props.destination.properties["domain"] ? props.destination.properties["domain"] : "WORKSPACE",
         maxRetention: props.destination.maxRetention,
-        encryption: props.destination.encryption ? props.destination.encryption : "AES256",
+        encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         limits: props.destination.limits
     });
@@ -977,7 +978,7 @@ function createS3State(props: DestinationProps, region: string, apiEndpoint?: st
         accessKeyId: props.destination.principal ? props.destination.principal : "",
         secretAccessKey: props.destination.credential ? props.destination.credential : "",
         maxRetention: props.destination.maxRetention,
-        encryption: props.destination.encryption ? props.destination.encryption : "AES256" as string,
+        encryption: props.destination.encryption ? props.destination.encryption : "PQC" as string,
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
         region: region,
         apiEndpoint: apiEndpoint,
