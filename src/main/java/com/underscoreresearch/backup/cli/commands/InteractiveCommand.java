@@ -210,6 +210,7 @@ public class InteractiveCommand extends Command {
             }
             InstanceFactory.shutdown();
             InstanceFactory.waitForShutdown();
+            log.info("Shutdown completed");
             System.exit(0);
         } else {
             Thread.sleep(Integer.MAX_VALUE);

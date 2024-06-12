@@ -39,6 +39,9 @@ import org.takes.Response;
 import org.takes.rs.RsText;
 import org.takes.rs.RsWithStatus;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -455,9 +458,19 @@ public class ServiceManagerImpl implements ServiceManager {
                         request.setName(share.getName());
 
                         for (String key : keys.getPublicKeys()) {
-                            request.addPrivateKeysItem(new SharePrivateKeys().publicKey(key).encryptedKey(
+                            String x25519publicKey = key;
+                            if (key.contains("{")) {
+                                NewShareKey newKey = MAPPER.readValue(key, NewShareKey.class);
+                                if (newKey.keys != null && newKey.keys.x25519 != null && newKey.keys.x25519.key != null) {
+                                    x25519publicKey = Hash.encodeBytes(Hash.decodeBytes64(newKey.keys.x25519.key));
+                                } else {
+                                    log.error("Could not find public key for sharing key");
+                                    continue;
+                                }
+                            }
+                            request.addPrivateKeysItem(new SharePrivateKeys().publicKey(x25519publicKey).encryptedKey(
                                     Hash.encodeBytes64(EncryptorFactory.encryptBlock(AES_ENCRYPTION, null,
-                                            sharePrivateKey, EncryptionKey.createWithPublicKey(key)))));
+                                            sharePrivateKey, EncryptionKey.createWithPublicKey(x25519publicKey)))));
                         }
 
                         callApi(null, (api) -> api.updateShare(getSourceId(), shareId, request));
@@ -519,5 +532,22 @@ public class ServiceManagerImpl implements ServiceManager {
         private ReleaseResponse lastRelease;
         private String sourceId;
         private String sourceName;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class NewShareKey {
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        private static class Keys {
+            @JsonIgnoreProperties(ignoreUnknown = true)
+            private static class PublicKey {
+                @JsonProperty("u")
+                private String key;
+            }
+
+            @JsonProperty("p")
+            private PublicKey x25519;
+        }
+        @JsonProperty("k")
+        private Keys keys;
     }
 }

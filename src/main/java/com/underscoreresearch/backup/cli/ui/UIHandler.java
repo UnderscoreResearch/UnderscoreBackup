@@ -81,6 +81,8 @@ public class UIHandler {
 
     public static boolean isActive() {
         synchronized (activeTasks) {
+            if (InstanceFactory.isShutdown())
+                return true;
             if (!activeTasks.isEmpty()) {
                 return activeTasks.getLast().isActive();
             }
@@ -94,6 +96,9 @@ public class UIHandler {
                 CloseableTask lastTask = activeTasks.getLast();
                 if (lastTask.isActive())
                     return lastTask.getMessage();
+            }
+            if (InstanceFactory.isShutdown()) {
+                return "Reloading configuration or shutting down";
             }
             return null;
         }

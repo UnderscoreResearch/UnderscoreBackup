@@ -67,7 +67,11 @@ public final class IOUtils {
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("HEAD");
                     connection.setConnectTimeout(10000);
+                    connection.setUseCaches(false);
                     connection.connect();
+                    if (connection.getResponseCode() != 200) {
+                        throw new IOException();
+                    }
                     break;
                 } catch (Exception exc) {
                     if (3 == i || !(exc instanceof IOException)) {

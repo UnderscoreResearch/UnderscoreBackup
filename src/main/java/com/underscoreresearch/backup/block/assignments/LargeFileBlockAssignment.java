@@ -94,7 +94,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
                 try {
                     length = access.readData(file.getPath(), buffer, start, size);
                 } catch (IOException exc) {
-                    log.warn("Failed to read file \"{}\": {}", PathNormalizer.physicalPath(file.getPath()),
+                    log.warn("Failed to read file \"{}\": \u200E{}\u200E", PathNormalizer.physicalPath(file.getPath()),
                             exc.getMessage());
                     completionFuture.completed(null);
                     return true;

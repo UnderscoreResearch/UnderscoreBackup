@@ -89,7 +89,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
                     return true;
                 }
             } catch (IOException exc) {
-                log.warn("Failed to read file \"{}\": {}", PathNormalizer.physicalPath(file.getPath()), exc.getMessage());
+                log.warn("Failed to read file \"{}\": \u200E{}\u200E", PathNormalizer.physicalPath(file.getPath()), exc.getMessage());
                 completionFuture.completed(null);
                 return true;
             }
