@@ -229,7 +229,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                             }
                         }
                         scheduledRestart = false;
-                    } catch (Exception exc) {
+                    } catch (Throwable exc) {
                         log.error("Failed processing set \"{}\"", set.getId(), exc);
                         rescheduleCompletedSet(i, set);
                         i++;

@@ -94,7 +94,7 @@ class ManifestManagerImplTest {
         BackupDestination shareDestination = BackupDestination.builder()
                 .type("FILE")
                 .endpointUri(shareDir.getAbsolutePath())
-                .encryption("NONE")
+                .encryption("AES256")
                 .errorCorrection("NONE")
                 .build();
 

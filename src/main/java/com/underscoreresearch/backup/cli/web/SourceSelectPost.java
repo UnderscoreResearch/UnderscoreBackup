@@ -46,6 +46,7 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.io.IOProviderFactory;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -75,14 +76,16 @@ public class SourceSelectPost extends BaseWrap {
 
                 byte[] decryptedKey = encryptor.decodeBlock(null, BaseEncoding.base64Url().decode(keys.getEncryptedKey()),
                         sharePrivateKey.getPrivateKeys(privateKey));
-                if (decryptedKey.length > 53) { // 53 is the length of the string base32 encoded private key prepended by =
+                if (decryptedKey.length != 32) { // 32 is the length of the x25519 private key of old shares.
                     try (ByteArrayInputStream inputStream = new ByteArrayInputStream(decryptedKey)) {
                         try (GZIPInputStream gzipStream = new GZIPInputStream(inputStream)) {
                             decryptedKey = gzipStream.readAllBytes();
                         }
                     }
+                    usedPrivateKey = IdentityKeys.fromString(new String(decryptedKey, StandardCharsets.UTF_8), privateKey);
+                } else {
+                    usedPrivateKey = IdentityKeys.fromString("=" + Hash.encodeBytes(decryptedKey), privateKey);
                 }
-                usedPrivateKey = IdentityKeys.fromString(new String(decryptedKey, StandardCharsets.UTF_8), privateKey);
                 try {
                     encryptionIdentity.getIdentityKeysForPublicIdentity(usedPrivateKey);
                 } catch (IndexOutOfBoundsException exc) {

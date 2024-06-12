@@ -168,7 +168,7 @@ function ShareItem(props: {
                 ...props.share,
                 contents: expandRoots(props.share.contents, props.backendState) as BackupFileSpecification
             },
-            serviceSharing: (!!props.backendState.serviceSourceId) as boolean,
+            serviceSharing: (!!props.backendState.serviceSourceId && (props.share.targetEmail || !props.exists)) as boolean,
             generatingKey: false,
             encryptionKey: props.encryptionKey,
             destinationValid: true,

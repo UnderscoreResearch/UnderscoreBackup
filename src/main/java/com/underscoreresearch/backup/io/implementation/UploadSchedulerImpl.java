@@ -63,7 +63,7 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
                 totalSize.addAndGet(data.length);
                 totalCount.incrementAndGet();
             } catch (ProcessingStoppedException exc) {
-                log.error("Upload cancelled for \"" + suggestedPath + "\" because of shutdown");
+                log.warn("Upload cancelled for \"" + suggestedPath + "\" because of shutdown");
                 completionPromise.completed(null);
             } catch (Throwable exc) {
                 log.error("Upload failed for \"" + suggestedPath + "\"", exc);

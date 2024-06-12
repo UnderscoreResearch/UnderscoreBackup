@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli;
 
+import static com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor.NONE_ENCRYPTION;
 import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
 import static com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector.NONE;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
@@ -55,6 +56,9 @@ public class ConfigurationValidator {
     }
 
     private static void validateShares(BackupConfiguration configuration) {
+        boolean allowNonPqcShares = configuration.getDestinations().values().stream().anyMatch((destination) ->
+                !PQC_ENCRYPTION.equals(destination.getEncryption()));
+
         if (configuration.getShares() != null) {
             validateUniqueness("Shares", configuration.getShares().keySet());
             for (Map.Entry<String, BackupShare> entry : configuration.getShares().entrySet()) {
@@ -65,6 +69,14 @@ public class ConfigurationValidator {
                 }
                 if (invalidFilenameValue(entry.getValue().getName())) {
                     throw new IllegalArgumentException("Share has missing or invalid name");
+                }
+                if (!allowNonPqcShares && !PQC_ENCRYPTION.equals(entry.getValue().getDestination().getEncryption())) {
+                    throw new IllegalArgumentException("Share \"" + entry.getValue().getName() +
+                            "\" destination must use PQC encryption because your destinations do");
+                }
+                if (entry.getValue().getDestination().getEncryption().equals(NONE_ENCRYPTION)) {
+                    throw new IllegalArgumentException("Share \"" + entry.getValue().getName() +
+                            "\" destination must use encryption");
                 }
                 try {
                     if (entry.getKey().length() != 52)
@@ -195,7 +207,7 @@ public class ConfigurationValidator {
     }
 
     private static void validateDestinations(BackupConfiguration configuration) {
-        if (configuration.getDestinations() == null || configuration.getDestinations().size() == 0) {
+        if (configuration.getDestinations() == null || configuration.getDestinations().isEmpty()) {
             throw new IllegalArgumentException("No destinations are defined");
         }
 

@@ -3,6 +3,7 @@ package com.underscoreresearch.backup.manifest.implementation;
 import static com.underscoreresearch.backup.cli.web.BaseWrap.jsonResponse;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.encryption.IdentityKeys.KYBER_KEY;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
 import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
@@ -110,7 +111,7 @@ public class ServiceManagerImpl implements ServiceManager {
 
     private static String getShareDestinationString(String sourceId, BackupShare share, IdentityKeys publicKey) throws IOException {
         try {
-            return Hash.encodeBytes64(EncryptorFactory.encryptBlock(PQC_ENCRYPTION, null,
+            return Hash.encodeBytes64(EncryptorFactory.encryptBlock(share.getDestination().getEncryption(), null,
                     BACKUP_DESTINATION_WRITER.writeValueAsBytes(share.getDestination().strippedDestination(sourceId, publicKey.getKeyIdentifier())), publicKey));
         } catch (GeneralSecurityException e) {
             throw new IOException(e);
@@ -444,25 +445,39 @@ public class ServiceManagerImpl implements ServiceManager {
         try {
             final String targetAccountHash = Hash.hash64(share.getTargetEmail().getBytes(StandardCharsets.UTF_8));
             final ShareResponse response = callApi(null, (api) -> api.getShare(getSourceId(), shareId));
-            final ListSharingKeysResponse keys = callApi(null, (api) -> api.listSharingKeys(new ListSharingKeysRequest().
-                    targetAccountEmailHash(targetAccountHash)));
+            final List<IdentityKeys> keys = callApi(null, (api) -> api.listSharingKeys(new ListSharingKeysRequest().
+                    targetAccountEmailHash(targetAccountHash))).getPublicKeys().stream().map(key -> {
+                try {
+                    return IdentityKeys.fromString(key, null);
+                } catch (GeneralSecurityException e) {
+                    throw new RuntimeException(e);
+                }
+            }).toList();
 
-            if (keys.getPublicKeys().stream().anyMatch(publicKey ->
-                    response.getPrivateKeys().stream().noneMatch(entry -> entry.getPublicKey().equals(publicKey)))) {
+            if (keys.stream().filter(key -> supportsEncryption(share, key)).anyMatch(publicKey ->
+                    response.getPrivateKeys().stream().noneMatch(entry -> entry.getPublicKey().equals(publicKey.getKeyIdentifier())))) {
 
                 if (privateIdentity != null) {
                     IdentityKeys shareKey = privateIdentity.getEncryptionIdentity().getIdentityKeyForHash(shareId);
                     if (shareKey != null) {
                         byte[] sharePrivateKey;
-                        try {
-                            try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
-                                try (GZIPOutputStream gzip = new GZIPOutputStream(stream)) {
-                                    gzip.write(shareKey.getPrivateKeyString(privateIdentity).getBytes(StandardCharsets.UTF_8));
+                        if (share.getDestination().getEncryption().equals(PQC_ENCRYPTION)) {
+                            try {
+                                try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
+                                    try (GZIPOutputStream gzip = new GZIPOutputStream(stream)) {
+                                        gzip.write(shareKey.getPrivateKeyString(privateIdentity).getBytes(StandardCharsets.UTF_8));
+                                    }
+                                    sharePrivateKey = stream.toByteArray();
                                 }
-                                sharePrivateKey = stream.toByteArray();
+                            } catch (GeneralSecurityException e) {
+                                throw new IOException(e);
                             }
-                        } catch (GeneralSecurityException e) {
-                            throw new IOException(e);
+                        } else {
+                            try {
+                                sharePrivateKey = shareKey.getPrivateKeys(privateIdentity).getPrivateKey(X25519_KEY).getPrivateKey();
+                            } catch (GeneralSecurityException e) {
+                                throw new IOException(e);
+                            }
                         }
 
                         String destination = getShareDestinationString(getSourceId(), share, shareKey);
@@ -471,12 +486,11 @@ public class ServiceManagerImpl implements ServiceManager {
                         request.setTargetAccountEmailHash(targetAccountHash);
                         request.setName(share.getName());
 
-                        for (String key : keys.getPublicKeys()) {
+                        for (IdentityKeys identityKey : keys) {
                             try {
-                                IdentityKeys identityKey = IdentityKeys.fromString(key, null);
-                                if (identityKey.getKeys().containsKey(KYBER_KEY)) {
+                                if (supportsEncryption(share, identityKey)) {
                                     request.addPrivateKeysItem(new SharePrivateKeys().publicKey(identityKey.getKeyIdentifier()).encryptedKey(
-                                            Hash.encodeBytes64(EncryptorFactory.encryptBlock(PQC_ENCRYPTION, null,
+                                            Hash.encodeBytes64(EncryptorFactory.encryptBlock(share.getDestination().getEncryption(), null,
                                                     sharePrivateKey, identityKey))));
                                 } else {
                                     log.warn("Skipping source because it is not a PQC enabled key");
@@ -502,6 +516,10 @@ public class ServiceManagerImpl implements ServiceManager {
             }
             throw new IOException(e);
         }
+    }
+
+    private static boolean supportsEncryption(BackupShare share, IdentityKeys identityKey) {
+        return !share.getDestination().getEncryption().equals(PQC_ENCRYPTION) || identityKey.getKeys().containsKey(KYBER_KEY);
     }
 
     @Override

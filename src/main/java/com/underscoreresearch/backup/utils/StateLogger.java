@@ -189,7 +189,11 @@ public class StateLogger implements StatusLogger {
     }
 
     public void logInfo() {
-        printLogStatus((type) -> type != Type.LOG, log::info);
+        try {
+            printLogStatus((type) -> type != Type.LOG, log::info);
+        } catch (Exception exc) {
+            log.error("Failed logging status", exc);
+        }
     }
 
     public void reset() {

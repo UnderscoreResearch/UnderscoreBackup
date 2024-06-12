@@ -45,8 +45,8 @@ export interface DestinationProps {
     manifestDestination?: boolean,
     sourceDestination?: boolean,
     shareDestination?: boolean,
-    children?: React.ReactNode
-    postElement?: JSX.Element
+    children?: React.ReactNode,
+    postElement?: JSX.Element,
 }
 
 export interface S3DestinationProps extends DestinationProps {
@@ -233,7 +233,9 @@ function SharedProperties(props: {
                                     setState(newState);
                                     props.onChange(newState);
                                 }}>
-                                <MenuItem value={"NONE"}>None</MenuItem>
+                                {!props.shareDestination &&
+                                    <MenuItem value={"NONE"}>None</MenuItem>
+                                }
                                 <MenuItem value={"AES256"}>Elliptic Curve (X25519)</MenuItem>
                                 <MenuItem value={"PQC"}>Post Quantum (X25519 & Kyber Crystals)</MenuItem>
                             </Select>
