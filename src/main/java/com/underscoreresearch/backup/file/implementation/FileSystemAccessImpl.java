@@ -5,7 +5,7 @@ import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
 import java.io.File;
 import java.io.IOException;
@@ -207,11 +207,11 @@ public class FileSystemAccessImpl implements FileSystemAccess, ManualStatusLogge
     @Override
     public List<StatusLine> status() {
         synchronized (processedFiles) {
-            if (processedFiles.get() > 0) {
+            if (processedFiles.get() > 0 && activePath != null) {
                 return Lists.newArrayList(new StatusLine(getClass(), "READING_DIRECTORY",
                         String.format("Reading directory \"%s\"", activePath), processedFiles.get(),
-                        readableSize(processedFiles.get()) + " / "
-                                + readableSize(activeFiles)));
+                        readableNumber(processedFiles.get()) + " / "
+                                + readableNumber(activeFiles)));
             }
             return EMPTY_LIST;
         }

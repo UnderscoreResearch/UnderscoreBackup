@@ -1,7 +1,7 @@
 Serverless backup solution with client side encryption with the following features.
 
-* Public-key based encryption allows continuously running backups that can only be read with a key not available on the
-  server running the backup.
+* Public-key based Post Quantum encryption allows continuously running backups that can only be read with a key not 
+  available on the server running the backup.
 
 * Ties into [a free service](https://underscorebackup.com/) that helps coordination of your backup sources, optional
   encryption key recovery, and coordination of sharing of backup data. However, all online services are optional, and
@@ -55,12 +55,15 @@ It should launch a web page that will guide you through the initial setup proces
 where it is not possible to launch a browser the first log entry should list the URL you need to go to interact with
 the software manually.
 
-## Disaster has struck and my entire filesystem is gone. How do I restore it?
+## Disaster has struck and my entire filesystem is gone. How do I start restoring files?
 
-Start by installing Underscore Backup from scratch. Simply reinstall the application and in the setup point it to the
+Start by installing Underscore Backup from scratch. Start by reinstalling the application.
+
+If you are using the service to manage configuration connect to the service and simply choose the old existing source
+and adopt it to start rebuilding the local repository. If you are not using the service simply point it to the
 destination that you used for your repository metadata. The setup wizard will detect that an installation exists there
-and
-rebuild the local repository and allow you to start a restore of your files.
+and rebuild the local repository. Once the local repository is restored you can start restoring any files you need
+from your old backup.
 
 ## Using the command line
 
