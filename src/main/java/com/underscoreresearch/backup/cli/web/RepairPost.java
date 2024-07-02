@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.REPAIRING_REPOSITORY_OPERATION;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -13,6 +14,7 @@ import org.takes.Response;
 
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -26,13 +28,11 @@ public class RepairPost extends BaseWrap {
         super(new Implementation());
     }
 
-    public static void executeAsyncOperation(Runnable runnable, BiConsumer<Thread, Boolean> shutdownHook, String name) {
+    public static void executeAsyncOperation(Runnable runnable, BiConsumer<Thread, Boolean> shutdownHook, String taskName, String name) {
         AtomicBoolean started = new AtomicBoolean(false);
-        AtomicBoolean threadStarted = new AtomicBoolean(false);
         AtomicBoolean completed = new AtomicBoolean(false);
         Thread thread = new Thread(() -> {
             try {
-                threadStarted.set(true);
                 runnable.run();
             } catch (Exception exc) {
                 log.error("Repository operation failed", exc);
@@ -57,9 +57,11 @@ public class RepairPost extends BaseWrap {
         InstanceFactory.addOrderedCleanupHook(() -> shutdownHook.accept(thread, completed.get()));
 
         thread.start();
-        while (!threadStarted.get()) {
+        while (!completed.get()) {
+            if (taskName.equals(UIHandler.getActiveTaskMessage()))
+                break;
             try {
-                Thread.sleep(1);
+                Thread.sleep(10);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("Failed to wait", e);
@@ -101,6 +103,7 @@ public class RepairPost extends BaseWrap {
                             } while (thread.isAlive());
                         }
                     },
+                    REPAIRING_REPOSITORY_OPERATION,
                     "RepositoryRepair");
         } else {
             executeRepair(manifestManager, logConsumer, repository, password);

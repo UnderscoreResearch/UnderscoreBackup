@@ -49,6 +49,9 @@ import com.underscoreresearch.backup.service.api.model.SourceResponse;
 @CommandPlugin(value = "change-password", description = "Change the password of an existing key",
         needConfiguration = false, readonlyRepository = false)
 public class ChangePasswordCommand extends Command {
+
+    public static final String RE_KEY_OPERATION_NAME = "Re-keying log";
+
     public static String changePrivateKeyPassword(CommandLine commandLine, String oldPassword, String newPassword) throws IOException, GeneralSecurityException {
         EncryptionIdentity oldIdentity = InstanceFactory.getInstance(EncryptionIdentity.class);
 
@@ -228,7 +231,7 @@ public class ChangePasswordCommand extends Command {
         }
 
         protected void startOptimizeOperation() {
-            startOperation("Re-keying log");
+            startOperation(RE_KEY_OPERATION_NAME);
         }
 
         @Override

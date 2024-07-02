@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
@@ -48,6 +50,8 @@ public class BlockValidator implements ManualStatusLogger {
     private final AtomicLong totalSteps = new AtomicLong();
     private Duration lastHeartbeat;
     private BackupFile lastProcessed;
+    public static String VALIDATE_BLOCKS_TASK = "Upgrading metadata repository";
+
 
     public BlockValidator(MetadataRepository repository, BackupConfiguration configuration,
                           ManifestManager manifestManager, BlockRefresher blockRefresher, int maxBlockSize) {
@@ -66,75 +70,77 @@ public class BlockValidator implements ManualStatusLogger {
 
         log.info("Validating all blocks of files");
         manifestManager.setDisabledFlushing(true);
-        try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
-            totalSteps.set(repository.getFileCount());
-            try {
-                files.stream().forEach((file) -> {
-                    if (InstanceFactory.isShutdown())
-                        throw new ProcessingStoppedException();
+        try (Closeable ignored = UIHandler.registerTask(VALIDATE_BLOCKS_TASK, true)) {
+            try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
+                totalSteps.set(repository.getFileCount());
+                try {
+                    files.stream().forEach((file) -> {
+                        if (InstanceFactory.isShutdown())
+                            throw new ProcessingStoppedException();
 
-                    processedSteps.incrementAndGet();
-                    if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
-                        lastHeartbeat = stopwatch.elapsed();
-                        log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
-                    }
-                    lastProcessed = file;
+                        processedSteps.incrementAndGet();
+                        if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
+                            lastHeartbeat = stopwatch.elapsed();
+                            log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
+                        }
+                        lastProcessed = file;
 
-                    if (file.getLocations() != null) {
-                        AtomicLong maximumSize = new AtomicLong();
-                        List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
-                            for (BackupFilePart part : location.getParts()) {
-                                try {
-                                    if (!validateHash(repository, part.getBlockHash(), maximumSize, maxBlockSize)) {
+                        if (file.getLocations() != null) {
+                            AtomicLong maximumSize = new AtomicLong();
+                            List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
+                                for (BackupFilePart part : location.getParts()) {
+                                    try {
+                                        if (!validateHash(repository, part.getBlockHash(), maximumSize, maxBlockSize)) {
+                                            return false;
+                                        }
+                                    } catch (IOException e) {
+                                        log.error("Failed to read block \"" + part.getBlockHash() + "\"", e);
                                         return false;
                                     }
-                                } catch (IOException e) {
-                                    log.error("Failed to read block \"" + part.getBlockHash() + "\"", e);
+                                }
+                                if (maximumSize.get() < file.getLength()) {
+                                    log.error("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
+                                            readableSize(maximumSize.get()), readableSize(file.getLength()));
                                     return false;
                                 }
-                            }
-                            if (maximumSize.get() < file.getLength()) {
-                                log.error("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
-                                        readableSize(maximumSize.get()), readableSize(file.getLength()));
-                                return false;
-                            }
-                            return true;
-                        }).collect(Collectors.toList());
+                                return true;
+                            }).collect(Collectors.toList());
 
-                        try {
-                            if (validCollections.size() != file.getLocations().size()) {
-                                if (validCollections.isEmpty()) {
-                                    log.error("Storage for \"{}\" does no longer exist",
-                                            PathNormalizer.physicalPath(file.getPath()));
-                                    repository.deleteFile(file);
-                                } else {
-                                    log.warn("At least one location for \"{}\" no longer exists",
-                                            PathNormalizer.physicalPath(file.getPath()));
-                                    file.setLocations(validCollections);
-                                    repository.addFile(file);
+                            try {
+                                if (validCollections.size() != file.getLocations().size()) {
+                                    if (validCollections.isEmpty()) {
+                                        log.error("Storage for \"{}\" does no longer exist",
+                                                PathNormalizer.physicalPath(file.getPath()));
+                                        repository.deleteFile(file);
+                                    } else {
+                                        log.warn("At least one location for \"{}\" no longer exists",
+                                                PathNormalizer.physicalPath(file.getPath()));
+                                        file.setLocations(validCollections);
+                                        repository.addFile(file);
+                                    }
                                 }
+                            } catch (IOException e) {
+                                log.error("Failed to delete missing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                             }
-                        } catch (IOException e) {
-                            log.error("Failed to delete missing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                         }
+                    });
+
+                    blockRefresher.waitForCompletion();
+
+                    if (blockRefresher.getRefreshedBlocks() > 0) {
+                        log.info("Completed block validation and refreshed {} blocks",
+                                readableNumber(blockRefresher.getRefreshedBlocks()));
+                    } else {
+                        log.info("Completed block validation");
                     }
-                });
-
-                blockRefresher.waitForCompletion();
-
-                if (blockRefresher.getRefreshedBlocks() > 0) {
-                    log.info("Completed block validation and refreshed {} blocks",
-                            readableNumber(blockRefresher.getRefreshedBlocks()));
-                } else {
-                    log.info("Completed block validation");
+                } catch (ProcessingStoppedException exc) {
+                    manifestManager.setDisabledFlushing(false);
+                    blockRefresher.waitForCompletion();
+                    log.info("Cancelled processing");
                 }
-            } catch (ProcessingStoppedException exc) {
+            } catch (Throwable e) {
                 manifestManager.setDisabledFlushing(false);
-                blockRefresher.waitForCompletion();
-                log.info("Cancelled processing");
             }
-        } catch (Throwable e) {
-            manifestManager.setDisabledFlushing(false);
         }
     }
 

@@ -67,6 +67,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     private static final String LOCK_FILE = "access.lock";
     private static final String INFO_STORE = "info.json";
     private static final Map<String, LockingMetadataRepository> openRepositories = new HashMap<>();
+    public static final String COMPACT_TASK = "Upgrading metadata repository";
     private final String dataPath;
     private final boolean replayOnly;
     private final int defaultVersion;
@@ -876,23 +877,25 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void compact() throws IOException {
         try (UpdateLock ignored = new UpdateLock()) {
             try (RepositoryLock ignored2 = new OpenLock()) {
-                ensureOpen(false);
+                try (Closeable ignored3 = UIHandler.registerTask(COMPACT_TASK, true)) {
+                    ensureOpen(false);
 
-                MetadataRepositoryStorage oldStorage = storage;
+                    MetadataRepositoryStorage oldStorage = storage;
 
-                MetadataRepositoryStorage newStorage = createStorageRevision();
-                oldStorage.open(RepositoryOpenMode.READ_ONLY);
-                try {
-                    new RepositoryUpgrader(oldStorage, newStorage).upgrade();
-                    oldStorage.close();
+                    MetadataRepositoryStorage newStorage = createStorageRevision();
+                    oldStorage.open(RepositoryOpenMode.READ_ONLY);
+                    try {
+                        new RepositoryUpgrader(oldStorage, newStorage).upgrade();
+                        oldStorage.close();
 
-                    installStorageRevision(newStorage);
-                } catch (CancellationException exc) {
-                    log.warn("Repository migration cancelled", exc);
-                    cancelStorageRevision(newStorage);
-                } catch (Throwable exc) {
-                    cancelStorageRevision(newStorage);
-                    log.error("Failed defrag operation", exc);
+                        installStorageRevision(newStorage);
+                    } catch (CancellationException exc) {
+                        log.warn("Repository migration cancelled", exc);
+                        cancelStorageRevision(newStorage);
+                    } catch (Throwable exc) {
+                        cancelStorageRevision(newStorage);
+                        log.error("Failed defrag operation", exc);
+                    }
                 }
             }
         }

@@ -11,6 +11,8 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -122,34 +124,48 @@ public class StateLogger implements StatusLogger {
 
     private void detectDeadlock() {
         boolean isActive = UIHandler.isActive();
+        debug(() -> log.debug(isActive ? "Currently active" : "Not active"));
         if (isActive) {
             String newActivityHash;
             try {
                 List<StatusLine> logItems = logData((type) -> type != Type.LOG).stream()
                         .filter(this::includeProgressItem).toList();
 
-                try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                    try (DataOutputStream writer = new DataOutputStream(out)) {
-                        logItems.forEach(item -> {
-                            if (includeProgressItem(item)) {
-                                try {
-                                    writer.write(item.getCode().getBytes(StandardCharsets.UTF_8));
-                                    if (item.getValue() != null) {
-                                        writer.writeLong(item.getValue());
-                                    } else {
-                                        writer.writeUTF(item.getValueString());
-                                    }
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-                            debug(() -> log.debug(item.toString()));
-                        });
+
+                ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+                long[] threadIds = bean.findDeadlockedThreads(); // Returns null if no threads are deadlocked.
+
+                if (threadIds != null) {
+                    StringBuilder sb = new StringBuilder();
+                    for (long threadId : threadIds) {
+                        sb.append(threadId).append(" ");
                     }
-                    newActivityHash = Hash.hash(out.toByteArray());
+                    newActivityHash = Hash.hash(sb.toString().getBytes(StandardCharsets.UTF_8));
+                } else {
+                    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                        try (DataOutputStream writer = new DataOutputStream(out)) {
+                            logItems.forEach(item -> {
+                                if (includeProgressItem(item)) {
+                                    try {
+                                        writer.write(item.getCode().getBytes(StandardCharsets.UTF_8));
+                                        if (item.getValue() != null) {
+                                            writer.writeLong(item.getValue());
+                                        } else {
+                                            writer.writeUTF(item.getValueString());
+                                        }
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }
+                                debug(() -> log.debug(item.toString()));
+                            });
+                        }
+                        newActivityHash = Hash.hash(out.toByteArray());
+                    }
                 }
+
                 if (newActivityHash.equals(activityHash)) {
-                    if (lastActivityHash.plus(INACTVITY_DURATION).isBefore(Instant.now())) {
+                    if (threadIds != null && lastActivityHash.plus(INACTVITY_DURATION).isBefore(Instant.now())) {
                         StringBuilder sb = new StringBuilder("Detected potential deadlock: " + UIHandler.getActiveTaskMessage());
                         LogUtil.dumpAllStackTrace(sb);
                         log.error(sb.toString());

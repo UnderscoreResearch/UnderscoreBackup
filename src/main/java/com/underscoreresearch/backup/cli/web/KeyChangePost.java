@@ -129,6 +129,7 @@ public class KeyChangePost extends BaseWrap {
                                 log.error("Failed to close repository", e);
                             }
                         },
+                        ChangePasswordCommand.RE_KEY_OPERATION_NAME,
                         "PasswordChange");
             } else {
                 ChangePasswordCommand.changePrivateKeyPassword(InstanceFactory.getInstance(CommandLine.class),

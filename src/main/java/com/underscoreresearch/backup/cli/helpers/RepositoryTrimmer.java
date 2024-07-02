@@ -66,6 +66,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     private static final int MINIMUM_FILES_FOR_DIRECTORY = 50;
     private static final double MINIMUM_RATIO_DIRECTORY_DIFF = 0.75;
     private static final BackupDirectory EMPTY_DIRECTORY = BackupDirectory.builder().files(new TreeSet<>()).build();
+    public static final String TRIMMING_REPOSITORY_TASK = "Trimming repository";
     private final MetadataRepository metadataRepository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
@@ -178,7 +179,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         File tempFile = File.createTempFile("block", ".db");
 
         manifestManager.setDisabledFlushing(true);
-        try (Closeable ignored2 = UIHandler.registerTask("Trimming repository", true)) {
+        try (Closeable ignored2 = UIHandler.registerTask(TRIMMING_REPOSITORY_TASK, true)) {
             deleteFile(tempFile);
 
             Statistics statistics = new Statistics();

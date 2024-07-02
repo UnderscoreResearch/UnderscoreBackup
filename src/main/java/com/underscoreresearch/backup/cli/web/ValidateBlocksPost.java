@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.helpers.BlockValidator.VALIDATE_BLOCKS_TASK;
 import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
 
 import java.io.IOException;
@@ -41,6 +42,7 @@ public class ValidateBlocksPost extends BaseWrap {
                             log.error("Failed to validate blocks", e);
                         }
                     },
+                    VALIDATE_BLOCKS_TASK,
                     "ValidateBlocks");
             return messageJson(200, "Validating block storage");
         }

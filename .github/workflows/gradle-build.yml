@@ -26,6 +26,7 @@ jobs:
 
     steps:
       - uses: act10ns/slack@v2
+        continue-on-error: true
         with:
           webhook-url: ${{ secrets.SLACK_HOOK }}
           status: STARTING
@@ -117,6 +118,7 @@ jobs:
           overwrite: true
 
       - uses: act10ns/slack@v2
+        continue-on-error: true
         with:
           webhook-url: ${{ secrets.SLACK_HOOK }}
           status: ${{ job.status }}

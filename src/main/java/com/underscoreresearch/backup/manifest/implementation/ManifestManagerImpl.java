@@ -98,6 +98,8 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     public final static String CONFIGURATION_FILENAME = "configuration.json";
     private static final String UPLOAD_PENDING = "Upload pending";
     private static final long EVENTUAL_CONSISTENCY_TIMEOUT_MS = 20 * 1000;
+    public static final String OPTIMIZING_LOG_OPERATION = "Optimizing log";
+    public static final String REPAIRING_REPOSITORY_OPERATION = "Repairing repository";
 
     private final String source;
     private final BackupStatsLogger statsLogger;
@@ -324,7 +326,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
             storeIdentity();
         } else {
-            startOperation("Repairing repository");
+            startOperation(REPAIRING_REPOSITORY_OPERATION);
             validateIdentity();
         }
 
@@ -743,7 +745,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     }
 
     protected void startOptimizeOperation() {
-        startOperation("Optimizing log");
+        startOperation(OPTIMIZING_LOG_OPERATION);
     }
 
     @Override

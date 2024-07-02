@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
+import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.COMPACT_TASK;
 
 import java.io.IOException;
 
@@ -36,6 +37,7 @@ public class DefragPost extends BaseWrap {
                             log.error("Failed to close repository", e);
                         }
                     },
+                    COMPACT_TASK,
                     "DefragRepository");
             return messageJson(200, "Defragging repository");
         }

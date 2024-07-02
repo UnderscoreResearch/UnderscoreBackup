@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.OPTIMIZING_LOG_OPERATION;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -67,6 +68,7 @@ public class OptimizePost extends BaseWrap {
                             log.error("Failed to close repository", e);
                         }
                     },
+                    OPTIMIZING_LOG_OPERATION,
                     "OptimizingLogs");
             return messageJson(200, "Optimizing logs");
         }

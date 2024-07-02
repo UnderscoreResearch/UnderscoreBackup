@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.web;
 
+import static com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer.TRIMMING_REPOSITORY_TASK;
 import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
 
 import java.io.IOException;
@@ -43,6 +44,7 @@ public class TrimPost extends BaseWrap {
                             log.error("Failed to close repository", e);
                         }
                     },
+                    TRIMMING_REPOSITORY_TASK,
                     "TrimRepository");
             return messageJson(200, "Optimizing repository");
         }
