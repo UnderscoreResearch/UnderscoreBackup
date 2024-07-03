@@ -57,6 +57,7 @@ import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.service.SubscriptionLackingException;
 import com.underscoreresearch.backup.utils.AccessLock;
 
 @Slf4j
@@ -312,6 +313,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
             rateLimitController.acquireUploadPermits(manifestDestination, data.length);
             getProvider().upload(IDENTITY_MANIFEST_LOCATION, data);
+        } catch (SubscriptionLackingException e) {
+            throw new RuntimeException(e.getMessage(), e);
         } catch (IOException e) {
             throw new RuntimeException(String.format("Failed to save identity to target: %s", e.getMessage()), e);
         }

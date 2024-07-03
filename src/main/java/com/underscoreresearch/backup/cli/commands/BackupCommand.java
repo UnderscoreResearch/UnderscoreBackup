@@ -16,6 +16,7 @@ import com.underscoreresearch.backup.file.ScannerScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.service.SubscriptionLackingException;
 import com.underscoreresearch.backup.utils.StateLogger;
 
 @CommandPlugin(value = "backup", description = "Run backup operation continuously",
@@ -34,6 +35,8 @@ public class BackupCommand extends SimpleCommand {
             }, true);
         } catch (Exception exc) {
             if (exc.getCause() instanceof ParseException)
+                log.error(exc.getCause().getMessage());
+            else if (exc.getCause() instanceof SubscriptionLackingException)
                 log.error(exc.getCause().getMessage());
             else {
                 log.error("Failed to start backup: " + exc.getMessage(), exc);
@@ -89,7 +92,11 @@ public class BackupCommand extends SimpleCommand {
                 debug(() -> log.debug("Backup scheduler shutdown"));
             }
         } catch (Exception e) {
-            log.error("Failed to initialize manifest", e);
+            if (e.getCause() instanceof SubscriptionLackingException subscriptionLackingException) {
+                log.error(subscriptionLackingException.getMessage() + " Failed to initialize manifest");
+            } else {
+                log.error("Failed to initialize manifest", e);
+            }
         }
     }
 

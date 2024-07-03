@@ -2,8 +2,10 @@ package com.underscoreresearch.backup.io.implementation;
 
 import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.IDENTITY_MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.extractApiMessage;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.RetryUtils.retry;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -32,12 +35,15 @@ import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.service.SubscriptionLackingException;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.DownloadUrl;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
+import com.underscoreresearch.backup.service.api.model.MessageResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 import com.underscoreresearch.backup.service.api.model.UploadUrl;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.RetryUtils;
 
 @IOPlugin(UB_TYPE)
@@ -127,6 +133,8 @@ public class UnderscoreBackupProvider implements IOIndex {
         } catch (ApiException e) {
             if (e.getCode() == 404)
                 throw new IOException("Source no longer exists in service");
+            if (e.getCode() == 402)
+                throw new SubscriptionLackingException(extractApiMessage(e));
             if (e.getCode() == 401 || e.getCode() == 403)
                 throw new IOException("Authorization to service is missing or invalid");
             throw new IOException(e);
@@ -233,7 +241,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                 }
                 return null;
             }, this::retrySignedException);
-        } catch (IOException e) {
+        } catch (IOException | ProcessingStoppedException e) {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -305,7 +313,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                 }
                 return ret;
             }, this::retrySignedException);
-        } catch (IOException e) {
+        } catch (IOException | ProcessingStoppedException e) {
             throw e;
         } catch (Exception e) {
             throw new IOException(e);

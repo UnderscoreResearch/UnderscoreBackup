@@ -27,6 +27,7 @@ import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.RetryUtils;
 
 @IOPlugin(DROPBOX_TYPE)
@@ -60,6 +61,8 @@ public class DropboxIOProvider implements IOIndex {
             return result.getEntries().stream().map(Metadata::getName).collect(Collectors.toList());
         } catch (ListFolderErrorException e) {
             return Lists.newArrayList();
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException("Failed to list folder", e);
         }
@@ -83,6 +86,8 @@ public class DropboxIOProvider implements IOIndex {
                 }
                 return null;
             }, null);
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
         } catch (Exception exc) {
             throw new IOException(exc);
         }
@@ -97,6 +102,8 @@ public class DropboxIOProvider implements IOIndex {
                     return IOUtils.readAllBytes(file.getInputStream());
                 }
             }, (e) -> !(e instanceof DownloadErrorException));
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
         } catch (Exception exc) {
             throw new IOException(exc);
         }
@@ -106,6 +113,8 @@ public class DropboxIOProvider implements IOIndex {
     public void delete(String key) throws IOException {
         try {
             RetryUtils.retry(() -> clientV2.files().deleteV2(getFullPath(key)), null);
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException(String.format("Failed to delete \"%s\"", root + key), e);
         }

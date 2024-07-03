@@ -38,6 +38,7 @@ import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.service.SubscriptionLackingException;
 import com.underscoreresearch.backup.utils.StateLogger;
 
 @CommandPlugin(value = "interactive", description = "Run interactive interface",
@@ -115,7 +116,11 @@ public class InteractiveCommand extends Command {
                 return null;
             }, true);
         } catch (Exception e) {
-            log.error("Failed to initialize manifest", e);
+            if (e.getCause() instanceof SubscriptionLackingException subscriptionLackingException) {
+                log.error(subscriptionLackingException.getMessage() + " Failed to initialize manifest");
+            } else {
+                log.error("Failed to initialize manifest", e);
+            }
         }
     }
 

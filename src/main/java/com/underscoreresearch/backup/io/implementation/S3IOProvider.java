@@ -17,6 +17,7 @@ import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.RetryUtils;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -127,6 +128,8 @@ S3IOProvider implements IOIndex, Closeable {
                     break;
                 }
             }
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException("Failed to list key prefix \"" + rootedKey + "\"", e);
         }
@@ -151,6 +154,8 @@ S3IOProvider implements IOIndex, Closeable {
                 debug(() -> log.debug("Uploaded \"{}/{}\" ({})", bucket, rootedKey, readableSize(data.length)));
                 return null;
             }, null);
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException("Failed to upload object \"" + rootedKey + "\"", e);
         }
@@ -175,6 +180,8 @@ S3IOProvider implements IOIndex, Closeable {
                     return !s3Exception.awsErrorDetails().errorCode().equals("NoSuchKey");
                 return true;
             });
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException("Failed to download object \"" + rootedKey + "\"", e);
         }
@@ -195,6 +202,8 @@ S3IOProvider implements IOIndex, Closeable {
                     throw exc;
                 }
             }, null);
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
         } catch (Exception e) {
             throw new IOException("Failed to download object \"" + rootedKey + "\"", e);
         }
@@ -210,7 +219,7 @@ S3IOProvider implements IOIndex, Closeable {
         try {
             ListObjectsV2Response response = client.listObjectsV2(initialRequest);
             if (readonly) {
-                if (response.contents().size() == 0) {
+                if (response.contents().isEmpty()) {
                     throw new IOException("No contents in read only S3 location");
                 }
             }

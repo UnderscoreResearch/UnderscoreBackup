@@ -1,8 +1,10 @@
 package com.underscoreresearch.backup.io.implementation;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.extractApiMessage;
 import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -14,6 +16,8 @@ import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
+import com.underscoreresearch.backup.service.SubscriptionLackingException;
+import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.StateLogger;
@@ -64,6 +68,9 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
                 totalCount.incrementAndGet();
             } catch (ProcessingStoppedException exc) {
                 log.warn("Upload cancelled for \"" + suggestedPath + "\" because of shutdown");
+                completionPromise.completed(null);
+            } catch (SubscriptionLackingException exc) {
+                log.error(exc.getMessage() + " Upload failed for \"" + suggestedPath + "\" failed.");
                 completionPromise.completed(null);
             } catch (Throwable exc) {
                 log.error("Upload failed for \"" + suggestedPath + "\"", exc);

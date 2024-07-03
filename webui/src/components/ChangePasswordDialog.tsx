@@ -56,13 +56,17 @@ export default function ChangePasswordDialog(props: ChangePasswordDialogProps) {
                 DisplayMessage("Missing new password");
             } else if (state.password !== state.passwordConfirm) {
                 DisplayMessage("Password does not match");
-            } else if (await changeEncryptionKey(state.oldPassword, state.password, state.regeneratePrivateKey, state.saveSecret, state.secretRegion, state.email)) {
-                if (!state.regeneratePrivateKey) {
-                    await appContext.update(state.password);
-                } else {
-                    await appContext.update();
-                }
-                close()
+            } else {
+                await appContext.busyOperation(async () => {
+                    if (await changeEncryptionKey(state.oldPassword, state.password, state.regeneratePrivateKey, state.saveSecret, state.secretRegion, state.email)) {
+                        if (!state.regeneratePrivateKey) {
+                            await appContext.update(state.password);
+                        } else {
+                            await appContext.update();
+                        }
+                        close()
+                    }
+                });
             }
         } catch (e: any) {
             DisplayMessage(e.toString());
