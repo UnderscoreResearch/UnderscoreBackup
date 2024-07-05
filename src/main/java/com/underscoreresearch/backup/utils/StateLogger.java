@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -47,6 +48,7 @@ public class StateLogger implements StatusLogger {
     private List<ManualStatusLogger> loggers;
     private String activityHash;
     private Instant lastActivityHash;
+    private static AtomicInteger loggingDebug = new AtomicInteger();
 
     public StateLogger(boolean debugMemory) {
         this.debugMemory = debugMemory;
@@ -70,7 +72,24 @@ public class StateLogger implements StatusLogger {
         }
     }
 
-    public void logDebug() {
+    public static void logDebug() {
+        try {
+            if (loggingDebug.getAndIncrement() == 0) {
+                try {
+                    StateLogger state = InstanceFactory.getInstance(StateLogger.class);
+                    state.logDebugInternal();
+                } finally {
+                    loggingDebug.set(0);
+                }
+            } else if (loggingDebug.get() == 2) {
+                logDeadlock();
+            }
+        } catch (Throwable exc) {
+            log.error("Failed watchdog", exc);
+        }
+    }
+
+    public void logDebugInternal() {
         initialize();
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
         MemoryUsage memHeapUsage = memoryMXBean.getHeapMemoryUsage();
@@ -166,9 +185,7 @@ public class StateLogger implements StatusLogger {
 
                 if (newActivityHash.equals(activityHash)) {
                     if (threadIds != null && lastActivityHash.plus(INACTVITY_DURATION).isBefore(Instant.now())) {
-                        StringBuilder sb = new StringBuilder("Detected potential deadlock: " + UIHandler.getActiveTaskMessage());
-                        LogUtil.dumpAllStackTrace(sb);
-                        log.error(sb.toString());
+                        logDeadlock();
                         if (!LogUtil.isDebug()) {
                             logItems.forEach(item -> log.info(item.toString()));
                         }
@@ -185,6 +202,14 @@ public class StateLogger implements StatusLogger {
             activityHash = null;
             debug(() -> printLogStatus((type) -> type != Type.LOG, log::debug));
         }
+    }
+
+    private static void logDeadlock() {
+        StringBuilder sb = new StringBuilder(
+                "Detected potential deadlock: " +
+                        (UIHandler.isActive() ? UIHandler.getActiveTaskMessage() : "Not active"));
+        LogUtil.dumpAllStackTrace(sb);
+        log.error(sb.toString());
     }
 
     private boolean includeProgressItem(StatusLine item) {

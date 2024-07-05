@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.cli.web.BaseWrap.messageJson;
 
+import java.io.Closeable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -13,6 +14,8 @@ import org.takes.misc.Href;
 import org.takes.rq.RqHref;
 import org.takes.rq.RqMethod;
 
+import com.underscoreresearch.backup.cli.ui.UIHandler;
+
 @Slf4j
 public abstract class ExclusiveImplementation extends BaseImplementation {
     private static final Lock lock = new ReentrantLock();
@@ -22,7 +25,7 @@ public abstract class ExclusiveImplementation extends BaseImplementation {
     public final Response act(Request req) throws Exception {
         if (lock.tryLock()) {
             busyMessage = getBusyMessage();
-            try {
+            try (Closeable ignore = UIHandler.registerTask(busyMessage, true)) {
                 return super.act(req);
             } finally {
                 busyMessage = null;

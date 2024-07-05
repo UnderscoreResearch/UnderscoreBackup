@@ -114,7 +114,9 @@ public final class Main {
                 }
 
                 scheduledThreadPoolExecutor.scheduleAtFixedRate(() -> {
-                            InstanceFactory.getInstance(StateLogger.class).logDebug();
+                            Thread thread = new Thread(StateLogger::logDebug, "StateLogger");
+                            thread.setDaemon(true);
+                            thread.start();
                         }, 1, 1,
                         TimeUnit.MINUTES);
 
