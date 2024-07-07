@@ -40,6 +40,7 @@ import com.underscoreresearch.backup.utils.StatusLine;
 
 @Slf4j
 public class BlockValidator implements ManualStatusLogger {
+    public static String VALIDATE_BLOCKS_TASK = "Upgrading metadata repository";
     private final MetadataRepository repository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
@@ -50,7 +51,6 @@ public class BlockValidator implements ManualStatusLogger {
     private final AtomicLong totalSteps = new AtomicLong();
     private Duration lastHeartbeat;
     private BackupFile lastProcessed;
-    public static String VALIDATE_BLOCKS_TASK = "Upgrading metadata repository";
 
 
     public BlockValidator(MetadataRepository repository, BackupConfiguration configuration,

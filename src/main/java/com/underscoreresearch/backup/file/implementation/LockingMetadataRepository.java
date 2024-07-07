@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
@@ -30,7 +29,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
@@ -53,12 +51,14 @@ import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 import com.underscoreresearch.backup.utils.AccessLock;
+import com.underscoreresearch.backup.utils.SingleTaskScheduler;
 
 @Slf4j
 public class LockingMetadataRepository implements MetadataRepository {
     public static final long MINIMUM_WAIT_UPDATE_MS = 2000;
     public static final int MAPDB_STORAGE = 1;
     public static final int MAPDB_STORAGE_VERSIONED = 4;
+    public static final String COMPACT_TASK = "Upgrading metadata repository";
     private static final ObjectReader REPOSITORY_INFO_READER
             = MAPPER.readerFor(RepositoryInfo.class);
     private static final ObjectWriter REPOSITORY_INFO_WRITER
@@ -67,7 +67,6 @@ public class LockingMetadataRepository implements MetadataRepository {
     private static final String LOCK_FILE = "access.lock";
     private static final String INFO_STORE = "info.json";
     private static final Map<String, LockingMetadataRepository> openRepositories = new HashMap<>();
-    public static final String COMPACT_TASK = "Upgrading metadata repository";
     private final String dataPath;
     private final boolean replayOnly;
     private final int defaultVersion;
@@ -81,7 +80,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     private RepositoryInfo repositoryInfo;
     private AccessLock fileLock;
     private boolean explicitRequested = false;
-    private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
+    private SingleTaskScheduler taskScheduler;
 
     public LockingMetadataRepository(String dataPath, boolean replayOnly) {
         this(dataPath, replayOnly, getDefaultVersion());
@@ -168,13 +167,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         storage = createStorage(repositoryInfo.version, repositoryInfo.revision);
 
         if (openMode != RepositoryOpenMode.READ_ONLY) {
-            if (scheduledThreadPoolExecutor == null) {
-                scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1,
-                        new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
+            if (taskScheduler == null) {
+                taskScheduler = new SingleTaskScheduler(getClass().getSimpleName());
                 if (storage.needPeriodicCommits()) {
-                    scheduledThreadPoolExecutor.scheduleAtFixedRate(this::commit, 30, 30, TimeUnit.SECONDS);
+                    taskScheduler.scheduleAtFixedRate(this::commit, 30, 30, TimeUnit.SECONDS);
                 }
-                scheduledThreadPoolExecutor.scheduleAtFixedRate(this::checkAccessRequest, 1, 1, TimeUnit.SECONDS);
+                taskScheduler.scheduleAtFixedRate(this::checkAccessRequest, 1, 1, TimeUnit.SECONDS);
             }
         }
     }
@@ -273,9 +271,9 @@ public class LockingMetadataRepository implements MetadataRepository {
         try (UpdateLock ignored = new UpdateLock()) {
             try (RepositoryLock ignored2 = new OpenLock()) {
                 if (open) {
-                    if (scheduledThreadPoolExecutor != null) {
-                        scheduledThreadPoolExecutor.shutdownNow();
-                        scheduledThreadPoolExecutor = null;
+                    if (taskScheduler != null) {
+                        taskScheduler.shutdownNow();
+                        taskScheduler = null;
                     }
 
                     closeAllDataFiles();
@@ -308,9 +306,9 @@ public class LockingMetadataRepository implements MetadataRepository {
         try (UpdateLock ignored = new UpdateLock()) {
             try (OpenLock ignored2 = new OpenLock()) {
                 try (RepositoryLock ignored3 = new RepositoryLock()) {
-                    if (scheduledThreadPoolExecutor != null) {
-                        scheduledThreadPoolExecutor.shutdownNow();
-                        scheduledThreadPoolExecutor = null;
+                    if (taskScheduler != null) {
+                        taskScheduler.shutdownNow();
+                        taskScheduler = null;
                     }
 
                     closeAllDataFiles();

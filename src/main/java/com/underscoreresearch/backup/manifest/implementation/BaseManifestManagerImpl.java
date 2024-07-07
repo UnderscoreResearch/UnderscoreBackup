@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -59,6 +58,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.service.SubscriptionLackingException;
 import com.underscoreresearch.backup.utils.AccessLock;
+import com.underscoreresearch.backup.utils.SingleTaskScheduler;
 
 @Slf4j
 public abstract class BaseManifestManagerImpl implements BaseManifestManager {
@@ -88,8 +88,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final AtomicInteger uploadCount = new AtomicInteger();
     private final AtomicInteger uploadSubmissionCount = new AtomicInteger();
     private final AtomicBoolean currentlyClosingLog = new AtomicBoolean();
-    private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
-            new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
+    private final SingleTaskScheduler executor = new SingleTaskScheduler(getClass().getSimpleName());
     @Getter(AccessLevel.PROTECTED)
     private final EncryptionIdentity encryptionIdentity;
     @Getter(AccessLevel.PROTECTED)

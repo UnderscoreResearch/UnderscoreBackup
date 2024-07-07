@@ -5,7 +5,6 @@ import static com.underscoreresearch.backup.manifest.implementation.BaseManifest
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.extractApiMessage;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.RetryUtils.retry;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -40,7 +38,6 @@ import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.DownloadUrl;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
-import com.underscoreresearch.backup.service.api.model.MessageResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
 import com.underscoreresearch.backup.service.api.model.UploadUrl;
 import com.underscoreresearch.backup.utils.ProcessingStoppedException;

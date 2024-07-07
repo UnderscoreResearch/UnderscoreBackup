@@ -27,7 +27,7 @@ public class RetryUtils {
                 } else {
                     return callCallable(callable);
                 }
-            } catch (InterruptedException|ProcessingStoppedException exc) {
+            } catch (InterruptedException | ProcessingStoppedException exc) {
                 throw exc;
             } catch (Exception exc) {
                 Exception thrownException;

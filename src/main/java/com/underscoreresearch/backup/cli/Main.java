@@ -4,7 +4,6 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.SOUR
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -16,7 +15,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import com.google.common.base.Strings;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.ProvisionException;
 import com.google.inject.spi.Message;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
@@ -25,13 +23,13 @@ import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.utils.SingleTaskScheduler;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public final class Main {
-    public static ScheduledThreadPoolExecutor scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1,
-            new ThreadFactoryBuilder().setNameFormat("StateLogger-%d").build());
+    public static SingleTaskScheduler taskScheduler = new SingleTaskScheduler("StateLogger");
 
     public static void help() {
         HelpFormatter formatter = new HelpFormatter();
@@ -113,7 +111,7 @@ public final class Main {
                     commandInstance.setPassword(password);
                 }
 
-                scheduledThreadPoolExecutor.scheduleAtFixedRate(() -> {
+                taskScheduler.scheduleAtFixedRate(() -> {
                             Thread thread = new Thread(StateLogger::logDebug, "StateLogger");
                             thread.setDaemon(true);
                             thread.start();

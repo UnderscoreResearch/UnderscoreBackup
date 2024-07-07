@@ -23,7 +23,6 @@ import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -35,7 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
@@ -65,6 +63,7 @@ import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
+import com.underscoreresearch.backup.utils.SingleTaskScheduler;
 
 @Slf4j
 public class LoggingMetadataRepository implements MetadataRepository, LogConsumer {
@@ -75,8 +74,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     private final Map<String, LogReader> decoders;
     private final Map<String, PendingActivePath> pendingActivePaths = new HashMap<>();
     private final Set<String> missingActivePaths = new HashSet<>();
-    private final ScheduledThreadPoolExecutor activePathSubmitters = new ScheduledThreadPoolExecutor(1,
-            new ThreadFactoryBuilder().setNameFormat("LoggingMetadataRepository-%d").build());
+    private final SingleTaskScheduler activePathSubmitters = new SingleTaskScheduler("LoggingMetadataRepository");
     private final Map<String, ShareManifestManager> shareManagers;
     @Getter
     @Setter

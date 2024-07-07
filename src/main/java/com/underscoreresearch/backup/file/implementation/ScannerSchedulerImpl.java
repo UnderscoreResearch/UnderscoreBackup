@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -29,7 +28,6 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
@@ -49,6 +47,7 @@ import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import com.underscoreresearch.backup.utils.SingleTaskScheduler;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.MachineState;
 
@@ -59,8 +58,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     private final BackupConfiguration configuration;
     private final FileScanner scanner;
     private final MetadataRepository repository;
-    private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
-            new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
+    private final SingleTaskScheduler executor = new SingleTaskScheduler(getClass().getSimpleName());
     private final RepositoryTrimmer trimmer;
     private final StateLogger stateLogger;
     private final boolean[] pendingSets;

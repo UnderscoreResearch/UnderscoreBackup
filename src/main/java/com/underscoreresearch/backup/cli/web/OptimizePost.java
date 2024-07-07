@@ -4,7 +4,6 @@ import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOpera
 import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.OPTIMIZING_LOG_OPERATION;
 
 import java.io.IOException;
-import java.util.ArrayList;
 
 import lombok.extern.slf4j.Slf4j;
 

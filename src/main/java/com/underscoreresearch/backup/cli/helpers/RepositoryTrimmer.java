@@ -63,10 +63,10 @@ import com.underscoreresearch.backup.utils.StatusLine;
 
 @Slf4j
 public class RepositoryTrimmer implements ManualStatusLogger {
+    public static final String TRIMMING_REPOSITORY_TASK = "Trimming repository";
     private static final int MINIMUM_FILES_FOR_DIRECTORY = 50;
     private static final double MINIMUM_RATIO_DIRECTORY_DIFF = 0.75;
     private static final BackupDirectory EMPTY_DIRECTORY = BackupDirectory.builder().files(new TreeSet<>()).build();
-    public static final String TRIMMING_REPOSITORY_TASK = "Trimming repository";
     private final MetadataRepository metadataRepository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;

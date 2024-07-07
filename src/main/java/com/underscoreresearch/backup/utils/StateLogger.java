@@ -11,20 +11,17 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
-import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.TemporalAmount;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -41,7 +38,7 @@ public class StateLogger implements StatusLogger {
     // Bumping this because we want it to not trigger specifically for internet brownouts.
     public static final Duration INACTVITY_DURATION = Duration.ofMinutes(30);
     private static final String OLD_KEYWORD = " Old ";
-    private static final TemporalAmount MINIMUM_WAIT_DEBUG = Duration.ofSeconds(30);
+    private static AtomicInteger loggingDebug = new AtomicInteger();
     private final AtomicLong lastHeapUsage = new AtomicLong();
     private final AtomicLong lastHeapUsageMax = new AtomicLong();
     private final AtomicLong lastMemoryAfterGCUse = new AtomicLong();
@@ -51,8 +48,6 @@ public class StateLogger implements StatusLogger {
     private List<ManualStatusLogger> loggers;
     private String activityHash;
     private Instant lastActivityHash;
-    private static AtomicInteger loggingDebug = new AtomicInteger();
-    private static AtomicReference<Instant> lastLoggingDebug = new AtomicReference<>(Instant.now());
 
     public StateLogger(boolean debugMemory) {
         this.debugMemory = debugMemory;
@@ -78,14 +73,6 @@ public class StateLogger implements StatusLogger {
 
     public static void logDebug() {
         try {
-            // Sometimes awaking after sleep we can get multiple calls very quickly so we need to rate limit
-            // here.
-            Instant now = Instant.now();
-            if (lastLoggingDebug.get().plus(MINIMUM_WAIT_DEBUG).isAfter(now)) {
-                return;
-            }
-            lastLoggingDebug.set(now);
-
             if (loggingDebug.getAndIncrement() == 0) {
                 try {
                     StateLogger state = InstanceFactory.getInstance(StateLogger.class);
@@ -99,6 +86,14 @@ public class StateLogger implements StatusLogger {
         } catch (Throwable exc) {
             log.error("Failed watchdog", exc);
         }
+    }
+
+    private static void logDeadlock() {
+        StringBuilder sb = new StringBuilder(
+                "Detected potential deadlock: " +
+                        (UIHandler.isActive() ? UIHandler.getActiveTaskMessage() : "Not active"));
+        LogUtil.dumpAllStackTrace(sb);
+        log.error(sb.toString());
     }
 
     public void logDebugInternal() {
@@ -217,14 +212,6 @@ public class StateLogger implements StatusLogger {
                     printLogStatus((type) -> type != Type.LOG, log::debug);
             });
         }
-    }
-
-    private static void logDeadlock() {
-        StringBuilder sb = new StringBuilder(
-                "Detected potential deadlock: " +
-                        (UIHandler.isActive() ? UIHandler.getActiveTaskMessage() : "Not active"));
-        LogUtil.dumpAllStackTrace(sb);
-        log.error(sb.toString());
     }
 
     private boolean includeProgressItem(StatusLine item) {

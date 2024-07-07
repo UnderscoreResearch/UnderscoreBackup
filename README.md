@@ -1,6 +1,6 @@
 Serverless backup solution with client side encryption with the following features.
 
-* Public-key based Post Quantum encryption allows continuously running backups that can only be read with a key not 
+* Public-key based Post Quantum encryption allows continuously running backups that can only be read with a key not
   available on the server running the backup.
 
 * Ties into [a free service](https://underscorebackup.com/) that helps coordination of your backup sources, optional

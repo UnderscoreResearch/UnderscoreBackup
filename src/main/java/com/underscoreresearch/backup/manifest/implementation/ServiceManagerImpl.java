@@ -64,7 +64,6 @@ import com.underscoreresearch.backup.service.api.model.DeleteTokenRequest;
 import com.underscoreresearch.backup.service.api.model.GenerateTokenRequest;
 import com.underscoreresearch.backup.service.api.model.GetSubscriptionResponse;
 import com.underscoreresearch.backup.service.api.model.ListSharingKeysRequest;
-import com.underscoreresearch.backup.service.api.model.ListSharingKeysResponse;
 import com.underscoreresearch.backup.service.api.model.MessageResponse;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
@@ -187,6 +186,18 @@ public class ServiceManagerImpl implements ServiceManager {
             try (InputStream stream = connection.getInputStream()) {
                 IOUtils.copyStream(stream, outputStream);
             }
+        }
+    }
+
+    private static boolean supportsEncryption(BackupShare share, IdentityKeys identityKey) {
+        return !share.getDestination().getEncryption().equals(PQC_ENCRYPTION) || identityKey.getKeys().containsKey(KYBER_KEY);
+    }
+
+    public static String extractApiMessage(ApiException e) {
+        try {
+            return MAPPER.readValue(e.getResponseBody(), MessageResponse.class).getMessage();
+        } catch (JsonProcessingException exc) {
+            return e.getResponseBody();
         }
     }
 
@@ -517,18 +528,6 @@ public class ServiceManagerImpl implements ServiceManager {
                 return false;
             }
             throw new IOException(e);
-        }
-    }
-
-    private static boolean supportsEncryption(BackupShare share, IdentityKeys identityKey) {
-        return !share.getDestination().getEncryption().equals(PQC_ENCRYPTION) || identityKey.getKeys().containsKey(KYBER_KEY);
-    }
-
-    public static String extractApiMessage(ApiException e) {
-        try {
-            return MAPPER.readValue(e.getResponseBody(), MessageResponse.class).getMessage();
-        } catch (JsonProcessingException exc) {
-            return e.getResponseBody();
         }
     }
 
