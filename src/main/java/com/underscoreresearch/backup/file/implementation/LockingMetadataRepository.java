@@ -58,6 +58,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public static final long MINIMUM_WAIT_UPDATE_MS = 2000;
     public static final int MAPDB_STORAGE = 1;
     public static final int MAPDB_STORAGE_VERSIONED = 4;
+    public static final int MAPDB_STORAGE_LEAF_STORAGE = 5;
     public static final String COMPACT_TASK = "Upgrading metadata repository";
     private static final ObjectReader REPOSITORY_INFO_READER
             = MAPPER.readerFor(RepositoryInfo.class);
@@ -93,7 +94,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     public static int getDefaultVersion() {
-        return MAPDB_STORAGE_VERSIONED;
+        return MAPDB_STORAGE_LEAF_STORAGE;
     }
 
     public static void closeAllRepositories() {
@@ -179,7 +180,7 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     private MetadataRepositoryStorage createStorage(int version, int revision) {
         return switch (version) {
-            case MAPDB_STORAGE, MAPDB_STORAGE_VERSIONED ->
+            case MAPDB_STORAGE, MAPDB_STORAGE_VERSIONED, MAPDB_STORAGE_LEAF_STORAGE ->
                     new MapdbMetadataRepositoryStorage(dataPath, version, revision, repositoryInfo.alternateBlockTable);
             default -> throw new IllegalArgumentException("Unsupported repository version");
         };
@@ -745,12 +746,11 @@ public class LockingMetadataRepository implements MetadataRepository {
     public void upgradeStorage() throws IOException {
         if (shouldUpgrade() &&
                 !repositoryInfo.errorsDetected && !repositoryInfo.stopSaving) {
-            forceUpgrade();
+            performUpgrade();
         }
     }
 
-    @VisibleForTesting
-    void forceUpgrade() throws IOException {
+    private void performUpgrade() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock()) {
             try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository", true)) {
                 RepositoryOpenMode originalOpenMode = openMode;
@@ -785,12 +785,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     private boolean shouldUpgrade() {
-        if (repositoryInfo.version != getDefaultVersion()) {
-            // Special case where we don't need to force an upgrade because they are the same except
-            // for the location.
-            return repositoryInfo.version != MAPDB_STORAGE;
-        }
-        return false;
+        return repositoryInfo.version != getDefaultVersion();
     }
 
     @Override

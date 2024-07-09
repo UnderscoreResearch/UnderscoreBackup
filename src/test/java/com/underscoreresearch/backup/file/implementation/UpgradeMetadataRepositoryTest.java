@@ -11,6 +11,6 @@ public class UpgradeMetadataRepositoryTest extends LockingMetadataRepositoryTest
 
     @Override
     protected void halfwayUpgrade() throws IOException {
-        repository.forceUpgrade();
+        repository.upgradeStorage();
     }
 }

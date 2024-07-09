@@ -89,9 +89,9 @@ public class StateLogger implements StatusLogger {
     }
 
     private static void logDeadlock() {
+        String message = UIHandler.getActiveTaskMessage();
         StringBuilder sb = new StringBuilder(
-                "Detected potential deadlock: " +
-                        (UIHandler.isActive() ? UIHandler.getActiveTaskMessage() : "Not active"));
+                "Detected potential deadlock: " + (message != null ? message : "Not active"));
         LogUtil.dumpAllStackTrace(sb);
         log.error(sb.toString());
     }
@@ -149,7 +149,7 @@ public class StateLogger implements StatusLogger {
     }
 
     private void detectDeadlock() {
-        boolean isActive = UIHandler.isActive();
+        boolean isActive = UIHandler.isLongActive();
         debug(() -> log.debug(isActive ? "Currently active" : "Not active"));
         if (isActive) {
             String newActivityHash;

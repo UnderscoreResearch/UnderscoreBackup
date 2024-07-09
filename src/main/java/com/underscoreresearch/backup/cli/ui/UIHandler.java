@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.SystemUtils;
@@ -23,6 +22,7 @@ public class UIHandler {
 
     private static final Duration MINIMUM_WAIT_DURATION = Duration.ofSeconds(20);
     private static final List<CloseableTask> activeTasks = new ArrayList<>();
+    private static final Duration MINIMUM_ACTIVE = Duration.ofSeconds(30);
     private static Instant lastMessage;
     private static UIManager uiManager;
 
@@ -79,12 +79,15 @@ public class UIHandler {
         return task;
     }
 
-    public static boolean isActive() {
+    public static boolean isLongActive() {
         synchronized (activeTasks) {
             if (InstanceFactory.isShutdown())
                 return true;
             if (!activeTasks.isEmpty()) {
-                return activeTasks.getLast().isActive();
+                CloseableTask task = activeTasks.getLast();
+                if (Instant.now().plus(MINIMUM_ACTIVE).isBefore(task.getStarted())) {
+                    return task.isActive();
+                }
             }
             return false;
         }
@@ -132,10 +135,16 @@ public class UIHandler {
     }
 
     @Getter
-    @RequiredArgsConstructor
     private static class CloseableTask implements Closeable {
         private final String message;
         private final boolean active;
+        private final Instant started;
+
+        private CloseableTask(String message, boolean active) {
+            this.message = message;
+            this.active = active;
+            this.started = Instant.now();
+        }
 
         @Override
         public void close() throws IOException {
