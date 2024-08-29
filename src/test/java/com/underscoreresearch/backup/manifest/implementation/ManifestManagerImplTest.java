@@ -276,6 +276,7 @@ class ManifestManagerImplTest {
                         case "directory":
                         case "lastDirectory":
                         case "hasActivePath":
+                        case "acquireLock":
                         case "flushLogging":
                         case "lastSyncedLogFile":
                         case "setLastSyncedLogFile":

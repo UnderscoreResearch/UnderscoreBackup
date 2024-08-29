@@ -619,7 +619,7 @@ function getBackupDownloadLink(file: string, added: number): string {
     const firstPathPart = file.substring(0, ind);
     const secondPath = file.substring(ind + 1);
 
-    return baseApi + "backup-download/"
+    return "backup-download/"
         + encodeURIComponent(firstPathPart) + "/" + encodeURIComponent(secondPath) + "?timestamp="
         + added;
 }
@@ -628,10 +628,10 @@ export function downloadBackupFile(file: string, added: number, password: string
     const request = new XMLHttpRequest();
 
     request.responseType = "blob";
-    request.open("post", getBackupDownloadLink(file, added), true);
+    const url = getBackupDownloadLink(file, added);
+    request.open("post", baseApi + url, true);
     request.setRequestHeader('content-type', 'x-application/encrypted-json');
-    request.setRequestHeader('x-keyexchange', generateAuthHeader("POST",
-        "backup-download/" + encodeURIComponent(file) + "/" + encodeURIComponent(added.toString())));
+    request.setRequestHeader('x-keyexchange', generateAuthHeader("POST", url));
     const data = encryptData(JSON.stringify({
         "password": password
     }));
@@ -647,6 +647,8 @@ export function downloadBackupFile(file: string, added: number, password: string
             anchor.download = file;
             document.body.appendChild(anchor);
             anchor.click();
+        } else if (this.status >= 400) {
+            DisplayMessage("Download failed", "error");
         }
     }
 }

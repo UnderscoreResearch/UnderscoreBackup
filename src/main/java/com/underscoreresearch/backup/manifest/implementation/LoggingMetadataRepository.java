@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import lombok.AccessLevel;
@@ -178,7 +179,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     private void submitPendingActivePaths(Duration age) {
         Instant expired = Instant.now().minus(age);
 
-        synchronized (pendingActivePaths) {
+        try (CloseableLock ignored = acquireLock()) {
             HashSet<String> entriesToRemove = new HashSet<>();
 
             for (Map.Entry<String, PendingActivePath> entry : pendingActivePaths.entrySet()) {
@@ -619,7 +620,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
 
     @Override
     public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
-        synchronized (pendingActivePaths) {
+        try (CloseableLock ignored = acquireLock()) {
             String fullPath = setId + PATH_SEPARATOR + path;
 
             if (!pendingActivePaths.containsKey(fullPath) && !repository.hasActivePath(setId, path))
@@ -641,7 +642,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public void popActivePath(String setId, String path) throws IOException {
         String fullPath = setId + PATH_SEPARATOR + path;
-        synchronized (pendingActivePaths) {
+        try (CloseableLock ignore = acquireLock()) {
             pendingActivePaths.remove(fullPath);
             if (!missingActivePaths.remove(fullPath)) {
                 repository.popActivePath(setId, path);
@@ -677,7 +678,7 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     }
 
     private void flushActivePaths() {
-        synchronized (pendingActivePaths) {
+        try (CloseableLock ignored = acquireLock()) {
             submitPendingActivePaths(Duration.ofMillis(0));
             pendingActivePaths.clear();
             missingActivePaths.clear();
