@@ -21,7 +21,9 @@ import org.takes.tk.TkWrap;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.DownloadScheduler;
+import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupFile;
 
 @Slf4j
@@ -69,8 +71,15 @@ public class BackupDownloadPost extends TkWrap {
 
                 DownloadScheduler scheduler = InstanceFactory.getInstance(DownloadScheduler.class);
                 File tempfile = File.createTempFile("temp", null);
-                scheduler.scheduleDownload(file, tempfile.getAbsolutePath(), password);
-                scheduler.waitForCompletion();
+                MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+                repository.open(RepositoryOpenMode.READ_ONLY);
+                try {
+                    scheduler.scheduleDownload(file, tempfile.getAbsolutePath(), password);
+                    scheduler.waitForCompletion();
+                } finally {
+                    repository.close();
+                    scheduler.shutdown();
+                }
                 tempfile.deleteOnExit();
                 Thread thread = new Thread(() -> {
                     try {
