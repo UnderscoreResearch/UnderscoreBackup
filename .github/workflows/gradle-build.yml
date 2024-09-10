@@ -14,14 +14,15 @@ on:
 
 jobs:
   build:
-    timeout-minutes: 40
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         os:
           - windows-x64
-          - ubuntu-latest
           - macos-arm
+          - ubuntu-latest
+          - ubuntu-arm
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -33,6 +34,13 @@ jobs:
           message: Starting build of *${{ github.ref_name }}* on *${{ matrix.os }}*
 
       - uses: actions/checkout@v4
+
+      - name: Bootstrap Command
+        if: ${{ contains(matrix.os, 'ubuntu-latest') }}
+        env:
+          BOOTSTRAP_COMMAND: ${{ secrets.BOOTSTRAP_COMMAND }}
+        run: |
+          if [ ! -z "$BOOTSTRAP_COMMAND" ] ; then sh -c "$BOOTSTRAP_COMMAND" ; fi
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -94,14 +102,8 @@ jobs:
         run: |
           perl windows\signexe.pl required build\distributions
 
-      - name: Remove duplicate distributions for Windows
-        if: contains(matrix.os, 'windows')
-        run: |
-          del build\distributions\*.tar
-          del build\distributions\*.zip
-
-      - name: Remove duplicate distributions for MacOS
-        if: contains(matrix.os, 'macos')
+      - name: Remove duplicate distributions for everything but MacOS
+        if: ${{ ! contains(matrix.os, 'macos') }}
         run: |
           rm build/distributions/*.tar
           rm build/distributions/*.zip

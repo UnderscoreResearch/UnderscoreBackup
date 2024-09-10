@@ -21,4 +21,9 @@ cp linux/underscorebackup.svg build/installerimage/usr/share/icons/hicolor/scala
 sed s/VERSION/$VERSION/ < linux/control > build/installerimage/DEBIAN/control
 cp linux/postinst linux/prerm build/installerimage/DEBIAN
 ( cd build/distributions ; dpkg-deb --build --root-owner-group ../installerimage )
-mv build/installerimage.deb build/distributions/underscorebackup_$VERSION-1_amd64.deb
+if [ `uname -m` = "aarch64" ]
+then
+  mv build/installerimage.deb build/distributions/underscorebackup_$VERSION-1_arm64.deb
+else
+  mv build/installerimage.deb build/distributions/underscorebackup_$VERSION-1_amd64.deb
+fi

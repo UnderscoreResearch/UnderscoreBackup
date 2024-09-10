@@ -57,12 +57,14 @@ the software manually.
 
 ## Disaster has struck and my entire filesystem is gone. How do I start restoring files?
 
-Start by installing Underscore Backup from scratch. Start by reinstalling the application.
+Start by installing Underscore Backup from scratch.
 
 If you are using the service to manage configuration connect to the service and simply choose the old existing source
-and adopt it to start rebuilding the local repository. If you are not using the service simply point it to the
+and adopt it to start rebuilding the local repository. If you are not using the service then point it to the
 destination that you used for your repository metadata. The setup wizard will detect that an installation exists there
-and rebuild the local repository. Once the local repository is restored you can start restoring any files you need
+and rebuild the local repository.
+
+Once the local repository is restored you can start restoring any files you need
 from your old backup.
 
 ## Using the command line
