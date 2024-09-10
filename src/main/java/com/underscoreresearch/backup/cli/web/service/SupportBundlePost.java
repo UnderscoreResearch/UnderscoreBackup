@@ -12,6 +12,7 @@ import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTI
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -23,6 +24,7 @@ import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.underscoreresearch.backup.utils.LogUtil;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -68,46 +70,52 @@ public class SupportBundlePost extends BaseWrap {
 
     private static class Implementation extends ExclusiveImplementation {
         private static boolean createSupportBundle(GenerateSupportBundleRequest request, File f) {
-            try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f))) {
-                String manifestLocation = InstanceFactory.getInstance(MANIFEST_LOCATION);
+            try (Closeable ignore3 = UIHandler.registerTask("Generating support bundle", false)) {
+                try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f))) {
+                    StringBuilder sb = new StringBuilder("Support bundle stack trace dump: ");
+                    LogUtil.dumpAllStackTrace(sb);
+                    log.info(sb.toString());
 
-                if (request.includeConfig) {
-                    BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+                    String manifestLocation = InstanceFactory.getInstance(MANIFEST_LOCATION);
 
-                    addZipFile(out, "config.json", (str) -> BACKUP_CONFIGURATION_WRITER.writeValue(str, config.strippedCopy()));
+                    if (request.includeConfig) {
+                        BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
 
-                    processShareConfigs(out, manifestLocation);
-                }
+                        addZipFile(out, "config.json", (str) -> BACKUP_CONFIGURATION_WRITER.writeValue(str, config.strippedCopy()));
 
-                if (request.includeLogs) {
-                    String baseFileName;
-                    try {
-                        baseFileName = InstanceFactory.getInstance(LOG_FILE);
-                        addZipFile(out, new File(baseFileName));
-                        for (int i = 1; i < 9; i++) {
-                            addZipFile(out, new File(baseFileName + "." + i + ".gz"));
-                        }
-                    } catch (Exception exc) {
-                        // Can't find a log filename. I guess we don't want logs.
-                        log.error("Failed to include all log files", exc);
+                        processShareConfigs(out, manifestLocation);
                     }
-                }
 
-                if (request.includeMetadata) {
-                    final MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
-                    try (CloseableLock ignore = repository.acquireUpdateLock()) {
-                        try (CloseableLock ignore2 = repository.acquireLock()) {
-                            repository.close();
-                            addZipFile(out, new File(InstanceFactory.getInstance(REPOSITORY_DB_PATH)));
+                    if (request.includeLogs) {
+                        String baseFileName;
+                        try {
+                            baseFileName = InstanceFactory.getInstance(LOG_FILE);
+                            addZipFile(out, new File(baseFileName));
+                            for (int i = 1; i < 9; i++) {
+                                addZipFile(out, new File(baseFileName + "." + i + ".gz"));
+                            }
+                        } catch (Exception exc) {
+                            // Can't find a log filename. I guess we don't want logs.
+                            log.error("Failed to include all log files", exc);
                         }
                     }
-                }
 
-                if (request.includeKey) {
-                    addZipFile(out, new File(InstanceFactory.getInstance(KEY_FILE_NAME)));
+                    if (request.includeMetadata) {
+                        final MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+                        try (CloseableLock ignore = repository.acquireUpdateLock()) {
+                            try (CloseableLock ignore2 = repository.acquireLock()) {
+                                repository.close();
+                                addZipFile(out, new File(InstanceFactory.getInstance(REPOSITORY_DB_PATH)));
+                            }
+                        }
+                    }
+
+                    if (request.includeKey) {
+                        addZipFile(out, new File(InstanceFactory.getInstance(KEY_FILE_NAME)));
+                    }
+                    log.info("Generated support bundle at \"{}\"", f.getAbsolutePath());
+                    return true;
                 }
-                log.info("Generated support bundle at \"{}\"", f.getAbsolutePath());
-                return true;
             } catch (Exception e) {
                 log.error("Failed to generate support bundle", e);
                 return false;
