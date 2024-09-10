@@ -37,8 +37,9 @@ import com.underscoreresearch.backup.utils.state.MachineState;
 public class StateLogger implements StatusLogger {
     // Bumping this because we want it to not trigger specifically for internet brownouts.
     public static final Duration INACTVITY_DURATION = Duration.ofMinutes(30);
+    private static final Duration MAX_DEADLOCK_DURATION = Duration.ofSeconds(70);
     private static final String OLD_KEYWORD = " Old ";
-    private static AtomicInteger loggingDebug = new AtomicInteger();
+    private static final AtomicInteger loggingDebug = new AtomicInteger();
     private final AtomicLong lastHeapUsage = new AtomicLong();
     private final AtomicLong lastHeapUsageMax = new AtomicLong();
     private final AtomicLong lastMemoryAfterGCUse = new AtomicLong();
@@ -48,6 +49,7 @@ public class StateLogger implements StatusLogger {
     private List<ManualStatusLogger> loggers;
     private String activityHash;
     private Instant lastActivityHash;
+    private Instant lastDeadlockCheck;
 
     public StateLogger(boolean debugMemory) {
         this.debugMemory = debugMemory;
@@ -149,9 +151,11 @@ public class StateLogger implements StatusLogger {
     }
 
     private void detectDeadlock() {
+        Instant now = Instant.now();
         boolean isActive = UIHandler.isLongActive();
         debug(() -> log.debug(isActive ? "Currently active" : "Not active"));
-        if (isActive) {
+        // We only do this if we are not sleeping (IE we get a ping here at least once a minute.
+        if (lastDeadlockCheck != null && lastDeadlockCheck.plus(MAX_DEADLOCK_DURATION).isAfter(now) && isActive) {
             String newActivityHash;
             try {
                 List<StatusLine> logItems = InstanceFactory.hasConfiguration(true) ?
@@ -212,6 +216,7 @@ public class StateLogger implements StatusLogger {
                     printLogStatus((type) -> type != Type.LOG, log::debug);
             });
         }
+        lastDeadlockCheck = Instant.now();
     }
 
     private boolean includeProgressItem(StatusLine item) {
