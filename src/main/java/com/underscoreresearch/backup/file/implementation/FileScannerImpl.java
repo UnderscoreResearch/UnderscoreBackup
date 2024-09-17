@@ -446,7 +446,8 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                     Set<String> includedPaths = pending.includedPaths();
                     if (currentPath.endsWith(PATH_SEPARATOR)) {
                         BackupDirectory directory = repository.directory(currentPath, null, false);
-                        if (!includedPaths.isEmpty() || directory != null) {
+                        if (((directory == null && !includedPaths.isEmpty()) ||
+                                (directory != null && (directory.getDeleted() != null || !directory.getFiles().equals(includedPaths))))) {
                             long timestamp;
                             if (directory != null && directory.getDeleted() == null && includedPaths.containsAll(directory.getFiles())) {
                                 timestamp = directory.getAdded();
