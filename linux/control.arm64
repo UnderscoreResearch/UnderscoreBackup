@@ -1,0 +1,6 @@
+Package: underscorebackup
+Version: VERSION-1
+Architecture: arm64
+Maintainer: Underscore Research <support@underscoreresearch.com>
+Description: Serverless backup solution with client side encryption.
+Depends: libc6, fswatch (>= 1.0.0)

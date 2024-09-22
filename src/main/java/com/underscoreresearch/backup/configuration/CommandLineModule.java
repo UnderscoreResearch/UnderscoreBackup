@@ -4,12 +4,17 @@ import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAU
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
+import static java.lang.System.getenv;
+import static java.lang.System.setErr;
+import static java.util.prefs.Preferences.systemRoot;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -19,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.prefs.Preferences;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -130,10 +136,51 @@ public class CommandLineModule extends AbstractModule {
         throw new ParseException("Failed to derive date from parameter: \"" + commandLine.getOptionValue(TIMESTAMP) + "\"");
     }
 
+    private static boolean isRunningAsAdministrator()
+    {
+        Preferences preferences = systemRoot();
+
+        synchronized (System.err)
+        {
+            setErr(new PrintStream(new OutputStream()
+            {
+                @Override
+                public void write(int b)
+                {
+                }
+            }));
+
+            try
+            {
+                preferences.put("foo", "bar");
+                preferences.remove("foo");
+                preferences.flush();
+                return true;
+            } catch (Exception exception)
+            {
+                return false;
+            } finally
+            {
+                setErr(System.err);
+            }
+        }
+    }
+
     public static String getDefaultUserManifestLocation() {
         File userDir = new File(System.getProperty("user.home"));
         File configDir;
         if (SystemUtils.IS_OS_WINDOWS) {
+            if (isRunningAsAdministrator()) {
+                final String systemRoot = getenv("SYSTEMROOT");
+                if (!Strings.isNullOrEmpty(systemRoot)) {
+                    configDir = new File(systemRoot, "System32\\config\\systemprofile\\AppData\\Local\\UnderscoreBackup");
+                    if (configDir.exists() && configDir.canRead() && configDir.canWrite()) {
+                        log.info("Using system profile directory since running as administrator");
+                        return configDir.getAbsolutePath();
+                    }
+                }
+            }
+
             String localAppData = System.getenv("LOCALAPPDATA");
             if (Strings.isNullOrEmpty(localAppData)) {
                 localAppData = new File(userDir, "AppData\\Local").toString();

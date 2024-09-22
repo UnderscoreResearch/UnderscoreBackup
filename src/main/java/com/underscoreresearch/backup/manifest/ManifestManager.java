@@ -10,10 +10,11 @@ public interface ManifestManager extends BaseManifestManager {
 
     void replayLog(LogConsumer consumer, String password) throws IOException;
 
+    void setRepairingRepository(boolean repairingRepository);
+
     void repairRepository(LogConsumer logConsumer, String password) throws IOException;
 
     boolean optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer, boolean force) throws IOException;
-
 
     void setDisabledFlushing(boolean disabledFlushing);
 

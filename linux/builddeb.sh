@@ -18,7 +18,12 @@ cp linux/underscorebackupupgrade build/installerimage/etc/cron.daily
 cp linux/underscorebackup.desktop build/installerimage/usr/share/applications/
 cp linux/underscorebackup.svg build/installerimage/usr/share/icons/hicolor/scalable/apps/
 
-sed s/VERSION/$VERSION/ < linux/control > build/installerimage/DEBIAN/control
+if [ `uname -m` = "aarch64" ]
+then
+  sed s/VERSION/$VERSION/ < linux/control.arm64 > build/installerimage/DEBIAN/control
+else
+  sed s/VERSION/$VERSION/ < linux/control.amd64 > build/installerimage/DEBIAN/control
+fi
 cp linux/postinst linux/prerm build/installerimage/DEBIAN
 ( cd build/distributions ; dpkg-deb --build --root-owner-group ../installerimage )
 if [ `uname -m` = "aarch64" ]

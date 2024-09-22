@@ -23,7 +23,6 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.DownloadScheduler;
-import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupFile;
 
 @Slf4j

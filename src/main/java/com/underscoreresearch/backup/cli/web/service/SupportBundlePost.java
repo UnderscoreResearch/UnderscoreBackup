@@ -24,7 +24,6 @@ import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.underscoreresearch.backup.utils.LogUtil;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +42,7 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupActivatedShare;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.utils.LogUtil;
 
 @Slf4j
 public class SupportBundlePost extends BaseWrap {
@@ -72,9 +72,6 @@ public class SupportBundlePost extends BaseWrap {
         private static boolean createSupportBundle(GenerateSupportBundleRequest request, File f) {
             try (Closeable ignore3 = UIHandler.registerTask("Generating support bundle", false)) {
                 try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f))) {
-                    StringBuilder sb = new StringBuilder("Support bundle stack trace dump: ");
-                    LogUtil.dumpAllStackTrace(sb);
-                    log.info(sb.toString());
 
                     String manifestLocation = InstanceFactory.getInstance(MANIFEST_LOCATION);
 
@@ -183,6 +180,15 @@ public class SupportBundlePost extends BaseWrap {
 
         private static void addZipFile(ZipOutputStream out, File file) throws IOException {
             addZipFile(out, file, file.getName());
+        }
+
+        @Override
+        public Response act(Request req) throws Exception {
+            StringBuilder sb = new StringBuilder("Support bundle stack trace dump: ");
+            LogUtil.dumpAllStackTrace(sb);
+            log.info(sb.toString());
+
+            return super.act(req);
         }
 
         @Override

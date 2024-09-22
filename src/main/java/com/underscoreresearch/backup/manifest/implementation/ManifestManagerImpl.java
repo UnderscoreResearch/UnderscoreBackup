@@ -117,6 +117,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     @Getter
     @Setter
     private ManifestManager dependentManager;
+    private boolean repairingRepository;
 
     public ManifestManagerImpl(BackupConfiguration configuration,
                                String manifestLocation,
@@ -183,7 +184,9 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                             }
                         }
                         if (data != null) {
-                            processLogInputStream(logConsumer, new ByteArrayInputStream(data));
+                            if (!repairingRepository) {
+                                processLogInputStream(logConsumer, new ByteArrayInputStream(data));
+                            }
                             uploadLogFile(file.getAbsolutePath(), data);
                         }
                         processedFiles.incrementAndGet();
@@ -434,6 +437,11 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     @Override
     public void replayLog(LogConsumer consumer, String password) throws IOException {
         replayLog(true, consumer, password, null, true);
+    }
+
+    @Override
+    public void setRepairingRepository(boolean repairingRepository) {
+        this.repairingRepository = repairingRepository;
     }
 
     protected void processLogInputStream(LogConsumer consumer, InputStream inputStream) throws IOException {
