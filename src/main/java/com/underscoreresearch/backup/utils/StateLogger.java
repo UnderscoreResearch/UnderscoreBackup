@@ -82,7 +82,7 @@ public class StateLogger implements StatusLogger {
                 } finally {
                     loggingDebug.set(0);
                 }
-            } else if (loggingDebug.get() == 2) {
+            } else if (loggingDebug.get() == 5) {
                 logDeadlock();
             }
         } catch (Throwable exc) {

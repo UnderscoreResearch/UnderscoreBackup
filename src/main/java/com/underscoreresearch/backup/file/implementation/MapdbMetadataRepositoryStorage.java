@@ -212,7 +212,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
     @Override
     public boolean needExclusiveCommitLock() {
-        return false;
+        return true;
     }
 
     @Override
