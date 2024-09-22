@@ -22,7 +22,7 @@ public abstract class ExclusiveImplementation extends BaseImplementation {
     private static String busyMessage;
 
     @Override
-    public final Response act(Request req) throws Exception {
+    public Response act(Request req) throws Exception {
         if (lock.tryLock()) {
             busyMessage = getBusyMessage();
             try (Closeable ignore = UIHandler.registerTask(busyMessage, true)) {

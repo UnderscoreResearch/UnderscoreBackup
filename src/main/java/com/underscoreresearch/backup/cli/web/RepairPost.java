@@ -115,6 +115,7 @@ public class RepairPost extends BaseWrap {
                                       MetadataRepository repository,
                                       String password) {
         try {
+            manifestManager.setRepairingRepository(true);
             if (Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource())) {
                 manifestManager.initialize(logConsumer, true);
             }
@@ -122,6 +123,7 @@ public class RepairPost extends BaseWrap {
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
+            manifestManager.setRepairingRepository(false);
             try {
                 repository.close();
             } catch (IOException e) {
