@@ -166,6 +166,8 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    private static boolean notifyAdministrator;
+
     public static String getDefaultUserManifestLocation() {
         File userDir = new File(System.getProperty("user.home"));
         File configDir;
@@ -175,7 +177,10 @@ public class CommandLineModule extends AbstractModule {
                 if (!Strings.isNullOrEmpty(systemRoot)) {
                     configDir = new File(systemRoot, "System32\\config\\systemprofile\\AppData\\Local\\UnderscoreBackup");
                     if (configDir.exists() && configDir.canRead() && configDir.canWrite()) {
-                        log.info("Using system profile directory since running as administrator");
+                        if (!notifyAdministrator) {
+                            log.info("Using system profile directory since running as administrator");
+                            notifyAdministrator = true;
+                        }
                         return configDir.getAbsolutePath();
                     }
                 }

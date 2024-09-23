@@ -248,14 +248,19 @@ public class LockingMetadataRepository implements MetadataRepository {
             if (!requestLock.tryLock(true)) {
                 LockingMetadataRepository.log.info("Detected request for access to metadata from other process");
 
-                MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
-                repository.flushLogging();
+                try (CloseableLock ignored = acquireUpdateLock()) {
+                    try (RepositoryLock ignored2 = new OpenLock()) {
+                        MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
+                        repository.flushLogging();
 
-                close();
+                        close();
 
-                requestLock.lock(true);
-                requestLock.close();
-                open(openMode);
+                        requestLock.lock(true);
+                        requestLock.close();
+
+                        open(openMode);
+                    }
+                }
                 LockingMetadataRepository.log.info("Metadata access restored from other process");
             } else {
                 requestLock.close();
