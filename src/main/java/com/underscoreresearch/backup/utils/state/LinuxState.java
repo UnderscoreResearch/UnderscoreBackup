@@ -37,10 +37,22 @@ public class LinuxState extends MachineState {
     @Override
     public ReleaseFileItem getDistribution(List<ReleaseFileItem> files) {
         Optional<ReleaseFileItem> ret;
+
+        String arch = System.getProperty("os.arch");
+        String rpmSearch;
+        String debSearch;
+        if ("aarch64".equals(arch)) {
+            rpmSearch = ".aarch64.rpm";
+            debSearch = "_arm64.deb";
+        } else {
+            rpmSearch = ".x86_64.rpm";
+            debSearch = "_amd64.deb";
+        }
+
         if (new File("/usr/bin/dpkg").exists())
-            ret = files.stream().filter(file -> file.getName().endsWith(".deb")).findAny();
+            ret = files.stream().filter(file -> file.getName().endsWith(debSearch)).findAny();
         else
-            ret = files.stream().filter(file -> file.getName().endsWith(".rpm")).findAny();
+            ret = files.stream().filter(file -> file.getName().endsWith(rpmSearch)).findAny();
         return ret.orElse(null);
     }
 
