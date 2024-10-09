@@ -218,13 +218,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                                     backupStatsLogger.updateStats(statistics, !fileOnly);
                                     trimmer.resetStatus();
                                 }
-                                i++;
                             } else {
                                 while (!shutdown && !scheduledRestart && !IOUtils.hasInternet()) {
                                     Thread.sleep(1000);
                                 }
-                                i = 0;
                             }
+                            i = 0;
                         }
                         scheduledRestart = false;
                     } catch (Throwable exc) {
@@ -314,7 +313,9 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 }
             }
         }
+        lock.lock();
         pendingSets[i] = false;
+        lock.unlock();
     }
 
     private void checkNewVersion() {
@@ -341,10 +342,15 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     }
 
     private boolean shouldOnlyDoFileTrim() {
-        for (boolean set : pendingSets) {
-            if (set) {
-                return true;
+        lock.lock();
+        try {
+            for (boolean set : pendingSets) {
+                if (set) {
+                    return true;
+                }
             }
+        } finally {
+            lock.unlock();
         }
 
         if (!Strings.isNullOrEmpty(configuration.getManifest().getTrimSchedule())) {
