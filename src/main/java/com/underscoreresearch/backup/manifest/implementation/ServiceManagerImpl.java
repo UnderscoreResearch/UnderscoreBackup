@@ -268,7 +268,7 @@ public class ServiceManagerImpl implements ServiceManager {
     }
 
     @Override
-    public ReleaseResponse checkVersion() {
+    public ReleaseResponse checkVersion(boolean forceCheck) {
         try {
             ReleaseResponse release;
             if (PRE_RELEASE.matcher(VersionCommand.getVersion()).find())
@@ -296,7 +296,7 @@ public class ServiceManagerImpl implements ServiceManager {
                     }
                 });
             String lastVersion;
-            if (data.getLastRelease() != null) {
+            if (data.getLastRelease() != null && !forceCheck) {
                 lastVersion = data.getLastRelease().getVersion();
             } else {
                 lastVersion = VersionCommand.getVersion();

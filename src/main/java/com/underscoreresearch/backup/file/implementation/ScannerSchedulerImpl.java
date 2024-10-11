@@ -31,6 +31,7 @@ import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
+import com.underscoreresearch.backup.cli.web.service.VersionCheckGet;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
@@ -321,22 +322,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
     private void checkNewVersion() {
         if (checkVersion && !shutdown) {
             if (configuration.getManifest().getVersionCheck() == null || configuration.getManifest().getVersionCheck()) {
-                ReleaseResponse version = InstanceFactory.getInstance(ServiceManager.class).checkVersion();
-                if (version != null) {
-                    UIHandler.displayInfoMessage(String.format("New version %s available:\n\n%s",
-                            version.getVersion(), version.getName()));
-                    if (configuration.getManifest().getAutomaticUpgrade() == null || configuration.getManifest().getAutomaticUpgrade()) {
-                        MachineState state = InstanceFactory.getInstance(MachineState.class);
-                        if (state.supportsAutomaticUpgrade()) {
-                            try {
-                                log.info("Upgrading to version {}", version.getVersion());
-                                state.upgrade(version);
-                            } catch (IOException e) {
-                                log.warn("Failed to upgrade to version {}", version.getVersion(), e);
-                            }
-                        }
-                    }
-                }
+                VersionCheckGet.checkNewVersion(false);
             }
         }
     }

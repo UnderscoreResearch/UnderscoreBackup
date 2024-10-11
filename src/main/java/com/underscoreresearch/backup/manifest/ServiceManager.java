@@ -13,7 +13,7 @@ import com.underscoreresearch.backup.service.api.model.ShareResponse;
 public interface ServiceManager {
     boolean activeSubscription() throws IOException;
 
-    ReleaseResponse checkVersion();
+    ReleaseResponse checkVersion(boolean forceCheck);
 
     ReleaseResponse newVersion();
 
