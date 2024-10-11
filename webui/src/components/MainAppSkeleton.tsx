@@ -30,7 +30,14 @@ import Menu from "@mui/material/Menu";
 import MenuIcon from "@mui/icons-material/Menu";
 import SupportBundleDialog from "./SupportBundleDialog";
 import PasswordDialog from "./PasswordDialog";
-import {defragRepository, optimizeRepository, repairRepository, trimRepository, validateBlocks} from "../api";
+import {
+    defragRepository,
+    makeApiCall,
+    optimizeRepository,
+    repairRepository,
+    trimRepository,
+    validateBlocks
+} from "../api";
 import {useActivity} from "../utils/ActivityContext";
 import {DisplayState} from "../utils/DisplayState";
 import ConfirmationDialog, {ConfirmationDialogProps} from "./ConfirmationDialog";
@@ -348,7 +355,10 @@ export function MainAppSkeleton(props: MainAppSkeletonProps) {
                     </MenuItem>
                     <Divider>Support</Divider>
                     <MenuItem title={"Generate support bundle"} onClick={() => setShowSupportBundle(true)}>
-                        Support Bundle
+                        Support bundle
+                    </MenuItem>
+                    <MenuItem title={"Check new version"} onClick={() => makeApiCall("service/version")}>
+                        Check new version
                     </MenuItem>
                     <MenuItem onClick={() => window.open("https://underscorebackup.com")}>
                         About Underscore Backup
