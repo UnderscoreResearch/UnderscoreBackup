@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.ParseException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
@@ -225,7 +226,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected List<File> existingLogFiles() throws IOException {
-        File parent = Paths.get(manifestLocation, "logs").toFile();
+        File parent = Paths.get(manifestLocation, LOG_ROOT).toFile();
         if (parent.isDirectory()) {
             String[] files = parent.list();
             if (files != null) {
@@ -528,7 +529,13 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         String filename;
         filename = createLogFilename();
 
-        createDirectory(new File(filename).getParentFile(), true);
+        File parentFile = new File(filename).getParentFile();
+        createDirectory(parentFile, true);
+        try {
+            ConfigurationPost.setOwnerOnlyPermissions(parentFile);
+        } catch (IOException e) {
+            log.warn("Failed to set owner only permissions on logs directory", e);
+        }
 
         currentLogLock = new AccessLock(filename);
         lastLogFilename = filename;

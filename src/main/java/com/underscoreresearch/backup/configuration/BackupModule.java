@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.configuration;
 
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_SOURCE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
@@ -41,6 +42,7 @@ import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
 import com.underscoreresearch.backup.cli.helpers.BlockRefresher;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
+import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
@@ -62,6 +64,7 @@ import com.underscoreresearch.backup.file.implementation.PermissionFileSystemAcc
 import com.underscoreresearch.backup.file.implementation.PosixPermissionManager;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.file.implementation.WindowsFileSystemAccess;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
@@ -314,6 +317,11 @@ public class BackupModule extends AbstractModule {
             metadataRoot = Paths.get(manifestLocation, "db").toFile();
         }
         createDirectory(metadataRoot, true);
+        try {
+            ConfigurationPost.setOwnerOnlyPermissions(metadataRoot);
+        } catch (IOException e) {
+            log.warn("Failed to set owner only permissions on metadata directory", e);
+        }
         return metadataRoot.toString();
     }
 
