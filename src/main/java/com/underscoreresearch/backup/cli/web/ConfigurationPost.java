@@ -183,6 +183,9 @@ public class ConfigurationPost extends BaseWrap {
 
             set.add(PosixFilePermission.OWNER_READ);
             set.add(PosixFilePermission.OWNER_WRITE);
+            if (file.isDirectory()) {
+                set.add(PosixFilePermission.OWNER_EXECUTE);
+            }
 
             Files.setPosixFilePermissions(file.toPath(), set);
         }

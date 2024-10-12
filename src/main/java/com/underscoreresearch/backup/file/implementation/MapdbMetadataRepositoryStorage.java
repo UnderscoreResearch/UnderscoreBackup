@@ -100,7 +100,6 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private static final String UPDATED_FILES_STORE = "updatedfiles.db";
     private static final String UPDATED_PENDING_FILES_STORE = "updatedpendingfiles.db";
     private static final long MAX_WRITES = 50000;
-    private static final String DELETED_MARKER = "";
     private final String dataPath;
     private final int revision;
     private final int version;
