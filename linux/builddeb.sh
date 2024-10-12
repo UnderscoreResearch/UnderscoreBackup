@@ -13,6 +13,7 @@ mkdir -p build/installerimage/etc/cron.daily
 mkdir -p build/installerimage/DEBIAN
 mv build/jpackage/underscorebackup/* build/installerimage/opt/underscorebackup
 cp README.md build/installerimage/opt/underscorebackup
+cp linux/servicelauncher build/installerimage/opt/underscorebackup/bin
 cp linux/underscorebackup.service build/installerimage/etc/systemd/system/underscorebackup.service
 cp linux/underscorebackupupgrade build/installerimage/etc/cron.daily
 cp linux/underscorebackup.desktop build/installerimage/usr/share/applications/

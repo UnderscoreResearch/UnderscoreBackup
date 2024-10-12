@@ -1,0 +1,5 @@
+#!/bin/sh
+
+[ -f /etc/default/underscorebackup ] && . /etc/default/underscorebackup
+
+${UNDERSCOREBACKUP_BIN:-exec /opt/underscorebackup/bin/servicelauncher} ${UNDERSCOREBACKUP_OPTS:-interactive service}

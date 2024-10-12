@@ -16,6 +16,7 @@ mkdir -p build/rpm/SPECS
 mv build/jpackage/underscorebackup/bin build/installerimage/opt/underscorebackup
 mv build/jpackage/underscorebackup/lib build/installerimage/opt/underscorebackup
 cp README.md build/installerimage/opt/underscorebackup
+cp linux/servicelauncher build/installerimage/opt/underscorebackup/bin
 cp linux/underscorebackupupgrade build/installerimage/etc/cron.daily
 cp linux/underscorebackup.service build/installerimage/etc/systemd/system/underscorebackup.service
 cp linux/underscorebackup.desktop build/installerimage/usr/share/applications/
