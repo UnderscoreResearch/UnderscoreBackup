@@ -224,7 +224,7 @@ public class LockingMetadataRepository implements MetadataRepository {
                 }
             }
         }
-        double time = Math.ceil(stopwatch.elapsed(TimeUnit.SECONDS) * 10) / 10;
+        double time = Math.ceil(stopwatch.elapsed(TimeUnit.MILLISECONDS) / 100.0) / 10;
         if (time >= 3) {
             log.warn("Committed {} changes in {} seconds", changes, time);
         }

@@ -45,7 +45,7 @@ public class BackupFilesDelete extends BaseWrap {
             MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
 
             try (CloseableLock ignored = repository.acquireLock()) {
-                log.info("Manually deleting contents of \"{}\"", path);
+                log.info("Manually deleting contents of \"{}\"", PathNormalizer.physicalPath(path));
                 // We only need to delete all references to the file or directory itself and then let the trim operation
                 // do the rest. That's when the blocks get deleted anyway.
                 BackupFile file = repository.file(path, null);
