@@ -228,7 +228,7 @@ public class LockingMetadataRepository implements MetadataRepository {
         if (time >= 10) {
             log.warn("Committed {} changes in {} seconds", changes, time);
         } else {
-            log.debug("Committed {} changes in {} seconds", changes, time);
+            debug(() -> log.debug("Committed {} changes in {} seconds", changes, time));
         }
     }
 
