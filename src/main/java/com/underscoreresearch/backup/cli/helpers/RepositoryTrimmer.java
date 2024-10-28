@@ -4,6 +4,7 @@ import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.model.BackupActivePath.findParent;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
 import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
@@ -279,6 +280,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             AtomicReference<BackupDirectory> lastDirectory = new AtomicReference<>();
             AtomicReference<Long> lastTimestamp = new AtomicReference<>();
             List<BackupDirectory> deletions = new ArrayList<>();
+            List<BackupDirectory> remaining = new ArrayList<>();
             directories.stream().forEach((directory) -> {
                 if (InstanceFactory.isShutdown())
                     throw new ProcessingStoppedException();
@@ -302,19 +304,23 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                         lastDirectory.get().getFiles().clear();
                         deletions.add(lastDirectory.get());
                     } else {
-                        lastTimestamp.set(processMergedDirectories(false, lastDirectory.get(), deletions, lastTimestamp.get(), statistics));
+                        processMergedDirectories(false, lastDirectory.get(), deletions, null, lastTimestamp.get(), statistics);
+                        remaining.add(lastDirectory.get());
+                        lastTimestamp.set(lastDirectory.get().getAdded());
                     }
                 } else {
                     if (lastDirectory.get() != null) {
-                        processMergedDirectories(true, lastDirectory.get(), deletions, lastTimestamp.get(), statistics);
+                        processMergedDirectories(true, lastDirectory.get(), deletions, remaining, lastTimestamp.get(), statistics);
                     }
+                    deletions.clear();
+                    remaining.clear();
                     lastTimestamp.set(null);
                 }
                 lastDirectory.set(directory);
                 lastProcessed = directory.getPath();
             });
             if (lastDirectory.get() != null) {
-                processMergedDirectories(true, lastDirectory.get(), deletions, lastTimestamp.get(), statistics);
+                processMergedDirectories(true, lastDirectory.get(), deletions, remaining, lastTimestamp.get(), statistics);
             }
 
             lastProcessed = null;
@@ -325,7 +331,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         }
     }
 
-    private long processMergedDirectories(boolean last, BackupDirectory directory, List<BackupDirectory> deletions, Long laterVersion, Statistics statistics) {
+    private void processMergedDirectories(boolean last, BackupDirectory directory, List<BackupDirectory> deletions, List<BackupDirectory> remaining, Long laterVersion, Statistics statistics) {
         HashSet<String> deletedPaths = new HashSet<>();
 
         Long searchVersion = laterVersion != null ? laterVersion - 1 : null;
@@ -370,34 +376,49 @@ public class RepositoryTrimmer implements ManualStatusLogger {
             }
         }
 
-        if (changed) {
-            directory.getFiles().removeAll(deletedPaths);
+        directory.getFiles().removeAll(deletedPaths);
+
+        if (last && directory.getFiles().isEmpty()) {
             try {
-                if (last && directory.getFiles().isEmpty()) {
-                    deleteDirectory(directory, statistics);
-                    if (laterVersion == null) {
-                        statistics.addDeletedDirectory();
-                    }
-                } else {
-                    metadataRepository.addDirectory(directory);
-                    statistics.addDirectoryVersion();
+                deleteDirectory(directory, statistics);
+                if (laterVersion == null) {
+                    statistics.addDeletedDirectory();
                 }
+
                 for (BackupDirectory delDirectory : deletions) {
                     deleteDirectory(delDirectory, statistics);
                 }
-            } catch (IOException e) {
-                log.error("Failed to merge directories at path \"{}\"", PathNormalizer.physicalPath(directory.getPath()));
+                deletions.clear();
+
+                if (!remaining.isEmpty()) {
+                    BackupDirectory newLast = remaining.removeLast();
+                    Long newLaterVersion = remaining.isEmpty() ? null : remaining.getLast().getAdded();
+                    processMergedDirectories(true, newLast, deletions, remaining, newLaterVersion, statistics);
+                }
+            } catch (IOException exc) {
+                log.error("Failed to delete directories at path \"{}\" from \u200E{}\u200E", PathNormalizer.physicalPath(directory.getPath()),
+                        formatTimestamp(directory.getAdded()));
             }
-            deletions.clear();
         } else {
-            statistics.addDirectoryVersion();
-        }
+            if (changed) {
+                try {
+                    metadataRepository.addDirectory(directory);
+                    statistics.addDirectoryVersion();
 
-        if (last && !(directory.getFiles().isEmpty() && laterVersion == null)) {
-            statistics.addDirectory();
+                    for (BackupDirectory delDirectory : deletions) {
+                        deleteDirectory(delDirectory, statistics);
+                    }
+                } catch (IOException e) {
+                    log.error("Failed to merge directories at path \"{}\"", PathNormalizer.physicalPath(directory.getPath()));
+                }
+                deletions.clear();
+            } else {
+                statistics.addDirectoryVersion();
+            }
+            if (last) {
+                statistics.addDirectory();
+            }
         }
-
-        return directory.getAdded();
     }
 
     private boolean trimActivePaths() throws IOException {
@@ -542,8 +563,9 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     }
 
     private void deleteDirectory(BackupDirectory directory, Statistics statistics) throws IOException {
-        debug(() -> log.debug("Removing \"" + PathNormalizer.physicalPath(directory.getPath()) + "\" from "
-                + LogUtil.formatTimestamp(directory.getAdded())));
+        debug(() -> log.debug("Removing \"{}\" from \u200E{}\u200E",
+                PathNormalizer.physicalPath(directory.getPath()),
+                LogUtil.formatTimestamp(directory.getAdded())));
         metadataRepository.deleteDirectory(directory.getPath(), directory.getAdded());
         statistics.addDeletedDirectoryVersion();
     }
@@ -803,6 +825,10 @@ public class RepositoryTrimmer implements ManualStatusLogger {
 
         private synchronized void addDeletedBlockPartReference() {
             this.deletedBlockPartReferences++;
+        }
+
+        private synchronized void removeDirectoryVersion() {
+            this.directoryVersions--;
         }
     }
 }

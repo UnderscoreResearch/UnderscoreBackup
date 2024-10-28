@@ -137,4 +137,9 @@ public class DropboxIOProvider implements IOIndex {
             throw new IOException("Failed to access Dropbox", e);
         }
     }
+
+    @Override
+    public boolean hasConsistentWrites() {
+        return true;
+    }
 }

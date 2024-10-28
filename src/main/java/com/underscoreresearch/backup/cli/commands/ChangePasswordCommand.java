@@ -17,6 +17,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.underscoreresearch.backup.io.IOIndex;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -289,8 +290,10 @@ public class ChangePasswordCommand extends Command {
         @Override
         protected void awaitEventualConsistency() {
             try {
-                log.info("Waiting 20 seconds for eventual consistency");
-                Thread.sleep(20000);
+                if (!((IOIndex)getProvider()).hasConsistentWrites()) {
+                    log.info("Waiting 20 seconds for eventual consistency");
+                    Thread.sleep(20000);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }

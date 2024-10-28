@@ -15,4 +15,8 @@ public interface IOIndex extends IOProvider {
     default List<String> availableLogs(String lastSyncedFile, boolean all) throws IOException {
         return Utils.getListOfLogFiles(lastSyncedFile, this, all);
     }
+
+    default boolean hasConsistentWrites() {
+        return false;
+    }
 }

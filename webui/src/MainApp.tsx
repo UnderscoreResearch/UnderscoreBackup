@@ -29,7 +29,7 @@ interface MainAppState {
     restoreDestination?: string,
     restoreTimestamp?: Date,
     restoreSource?: string,
-    restoreIncludeDeleted: boolean,
+    restoreIncludeDeleted?: boolean,
     restoreSkipPermissions?: boolean
 }
 
@@ -448,6 +448,7 @@ export default function MainApp() {
                                  restoreSource: newState.source,
                                  restoreOverwrite: newState.overwrite,
                                  restoreTimestamp: newState.timestamp,
+                                 restoreIncludeDeleted: newState.includeDeleted,
                                  restoreSkipPermissions: newState.skipPermissions
                              }))}
                          timestamp={state.restoreTimestamp}/>}/>

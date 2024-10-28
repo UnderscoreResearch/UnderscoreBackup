@@ -787,8 +787,10 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
     protected void awaitEventualConsistency(long milliseconds) {
         try {
-            log.info("Waiting {} seconds for log file eventual consistency", milliseconds / 1000);
-            Thread.sleep(milliseconds);
+            if (!((IOIndex)getProvider()).hasConsistentWrites()) {
+                log.info("Waiting {} seconds for log file eventual consistency", milliseconds / 1000);
+                Thread.sleep(milliseconds);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Failed to wait for eventual consistency", e);

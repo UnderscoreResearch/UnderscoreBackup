@@ -1,6 +1,6 @@
 import {StatusLine} from "../api";
 import * as React from "react";
-import {LinearProgress, TableCell, TableRow} from "@mui/material";
+import {LinearProgress, TableCell, TableRow, Tooltip} from "@mui/material";
 import './StatusRow.css'
 import {useTheme} from "../utils/Theme";
 
@@ -25,7 +25,8 @@ function trimValueIfNeeded(props: StatusRowProps) {
         if (props.row.valueString.length > 50) {
             const match = /((\/|\\)[^\\\/]*.{40})$/.exec(props.row.valueString);
             if (match && match[1].length !== props.row.valueString.length) {
-                return "..." + match[1];
+                const shorthand = "..." + match[1];
+                return <Tooltip title={props.row.valueString}><div>{shorthand}</div></Tooltip>;
             }
         }
     }
@@ -37,7 +38,8 @@ function trimDescriptionIfNeeded(props: StatusRowProps) {
         if (props.row.message.length > 50) {
             const match = /^(\S+).*?((\/|\\)[^\\\/]*.{40})$/.exec(props.row.message);
             if (match) {
-                return match[1] + " ..." + match[2];
+                const shorthand = match[1] + " ..." + match[2];
+                return <Tooltip title={props.row.message}><div>{shorthand}</div></Tooltip>;
             }
         }
     }

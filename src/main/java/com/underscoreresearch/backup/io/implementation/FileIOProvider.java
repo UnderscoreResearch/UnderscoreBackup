@@ -101,4 +101,9 @@ public class FileIOProvider implements IOIndex {
             }
         }
     }
+
+    @Override
+    public boolean hasConsistentWrites() {
+        return true;
+    }
 }

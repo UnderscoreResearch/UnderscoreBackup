@@ -147,13 +147,18 @@ public class SMBIOProvider implements IOIndex, Closeable {
             if (parent.endsWith("\\"))
                 parent = parent.substring(0, parent.length() - 1);
 
-            if (parent.length() > 0 && !getShare().folderExists(parent)) {
+            if (!parent.isEmpty() && !getShare().folderExists(parent)) {
                 createParent(parentPath(parent));
                 getShare().mkdir(parent);
             }
         } catch (SMBRuntimeException exc) {
             throw new IOException("Failed to create directory", exc);
         }
+    }
+
+    @Override
+    public boolean hasConsistentWrites() {
+        return true;
     }
 
     @Override
