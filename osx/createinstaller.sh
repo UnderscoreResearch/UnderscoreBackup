@@ -51,7 +51,9 @@ cp -r build/image "build/installer/Underscore Backup.app/Contents/daemon/x86_64"
 
 export CERT_NAME="Developer ID Application: Underscore Research LLC"
 
-for jar in "build/installer/Underscore Backup.app/Contents/daemon/"*/lib/argon2-jvm-[0-9]*.jar
+for jar in "build/installer/Underscore Backup.app/Contents/daemon/"*/lib/argon2-jvm-[0-9]*.jar \
+    "build/installer/Underscore Backup.app/Contents/daemon/"*/lib/lz4-*.jar \
+    "build/installer/Underscore Backup.app/Contents/daemon/"*/lib/jna-*.jar
 do
   echo "Signing binaries in $jar"
   rm -rf build/repack
@@ -60,7 +62,7 @@ do
     cd build/repack
     jar xf "../../$jar"
     rm -f "../../$jar"
-    for lib in */*.dylib
+    for lib in `find . -name "*.jnilib" -o -name "*.dylib"`
     do
       if [[ ! -L "$lib" ]]
       then

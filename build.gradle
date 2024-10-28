@@ -19,7 +19,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '3.0.3.10'
+version '3.0.3.11'
 def releaseType = 'rc'
 
 def archiveName = 'underscorebackup'
@@ -175,7 +175,7 @@ dependencies {
             'io.swagger:swagger-annotations:1.6.14',
             'jakarta.annotation:jakarta.annotation-api:2.1.1',
             'javax.xml.bind:jaxb-api:2.3.1',
-            'net.java.dev.jna:jna:5.14.0',
+            'net.java.dev.jna:jna:5.15.0',
             'org.apache.commons:commons-lang3:3.14.0',
             'org.apache.logging.log4j:log4j-api:2.23.1',
             'org.apache.logging.log4j:log4j-core:2.23.1',
