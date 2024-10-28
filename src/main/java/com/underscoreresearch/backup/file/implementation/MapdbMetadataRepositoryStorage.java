@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MAPDB_STORAGE_LEAF_STORAGE;
 import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MINIMUM_WAIT_UPDATE_MS;
 import static com.underscoreresearch.backup.io.IOUtils.clearTempFiles;
 import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
@@ -129,6 +130,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
     private HTreeMap<String, Long> updatedFilesMap;
     private boolean alternateBlockTable;
     private RepositoryOpenMode openMode;
+    private boolean useLeafNodes;
 
     public MapdbMetadataRepositoryStorage(String dataPath, int version, int revision, boolean alternateBlockTable) {
         if (nonVersionedPath(version, revision)) {
@@ -143,6 +145,8 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
             }
             this.revision = revision;
             this.version = version;
+            if (version == MAPDB_STORAGE_LEAF_STORAGE)
+                this.useLeafNodes = true;
         }
         this.alternateBlockTable = alternateBlockTable;
     }
@@ -151,8 +155,10 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         return revision == 0 && version <= 1;
     }
 
-    private static TreeOrSink openTreeMap(DB db, DB.TreeMapMaker<Object[], byte[]> maker) {
+    private static TreeOrSink openTreeMap(DB db, DB.TreeMapMaker<Object[], byte[]> maker, boolean largeValues) {
         maker.counterEnable();
+        if (largeValues)
+            maker.valuesOutsideNodesEnable();
         if (db.nameCatalogLoad().isEmpty()) {
             return new TreeOrSink(maker.createFromSink());
         }
@@ -242,22 +248,22 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
         blockMap = openHashMap(blockDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         additionalBlockMap = openTreeMap(additionalBlockDb, additionalBlockDb.treeMap(ADDITIONAL_BLOCK_STORE)
                 .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
-                .valueSerializer(Serializer.BYTE_ARRAY));
+                .valueSerializer(Serializer.BYTE_ARRAY), false);
         fileMap = openTreeMap(fileDb, fileDb.treeMap(FILE_STORE)
                 .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
-                .valueSerializer(Serializer.BYTE_ARRAY));
+                .valueSerializer(Serializer.BYTE_ARRAY), useLeafNodes);
         directoryMap = openTreeMap(directoryDb, directoryDb.treeMap(FILE_STORE)
                 .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.LONG))
-                .valueSerializer(Serializer.BYTE_ARRAY));
+                .valueSerializer(Serializer.BYTE_ARRAY), useLeafNodes);
         activePathMap = openTreeMap(activePathDb, activePathDb.treeMap(ACTIVE_PATH_STORE)
                 .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
-                .valueSerializer(Serializer.BYTE_ARRAY));
+                .valueSerializer(Serializer.BYTE_ARRAY), useLeafNodes);
         partsMap = openTreeMap(partsDb, partsDb.treeMap(FILE_STORE)
                 .keySerializer(new SerializerArrayTuple(Serializer.STRING, Serializer.STRING))
-                .valueSerializer(Serializer.BYTE_ARRAY));
+                .valueSerializer(Serializer.BYTE_ARRAY), false);
         updatedPendingFilesMap = openTreeMap(updatedPendingFilesDb, updatedPendingFilesDb.treeMap(UPDATED_PENDING_FILES_STORE)
                 .keySerializer(new SerializerArrayTuple(Serializer.LONG, Serializer.STRING))
-                .valueSerializer(Serializer.BYTE_ARRAY));
+                .valueSerializer(Serializer.BYTE_ARRAY), useLeafNodes);
         pendingSetMap = openHashMap(pendingSetDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         partialFileMap = openHashMap(partialFileDb.hashMap(BLOCK_STORE, Serializer.STRING, Serializer.BYTE_ARRAY));
         updatedFilesMap = openHashMap(updatedFilesDb.hashMap(UPDATED_FILES_STORE, Serializer.STRING, Serializer.LONG));
@@ -1341,7 +1347,7 @@ public class MapdbMetadataRepositoryStorage implements MetadataRepositoryStorage
 
             map = openTreeMap(getDb(), getDb().treeMap("map")
                     .keySerializer(new SerializerArrayTuple(Serializer.BYTE_ARRAY))
-                    .valueSerializer(Serializer.BYTE_ARRAY));
+                    .valueSerializer(Serializer.BYTE_ARRAY), false);
         }
 
         @Override
