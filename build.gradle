@@ -19,8 +19,8 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '3.0.3.11'
-def releaseType = 'rc'
+version '3.0.3.12'
+def releaseType = ''
 
 def archiveName = 'underscorebackup'
 def edition = ''
