@@ -197,13 +197,14 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     public void commit() {
-        Stopwatch stopwatch = Stopwatch.createStarted();
+        Stopwatch stopwatch = null;
         int changes = mutatingChanges.get();
         if (storage != null) {
             if (storage.needExclusiveCommitLock()) {
                 try (UpdateLock ignored = new UpdateLock(false)) {
                     try (RepositoryLock ignored2 = new OpenLock()) {
                         try {
+                            stopwatch = Stopwatch.createStarted();
                             storage.commit();
                         } catch (Exception exc) {
                             log.error("Failed to commit", exc);
@@ -215,6 +216,7 @@ public class LockingMetadataRepository implements MetadataRepository {
             } else {
                 openLock.lock();
                 try {
+                    stopwatch = Stopwatch.createStarted();
                     storage.commit();
                 } catch (Exception exc) {
                     log.error("Failed to commit", exc);
@@ -223,12 +225,14 @@ public class LockingMetadataRepository implements MetadataRepository {
                     openLock.unlock();
                 }
             }
-        }
-        double time = Math.ceil(stopwatch.elapsed(TimeUnit.MILLISECONDS) / 100.0) / 10;
-        if (time >= 10) {
-            log.warn("Committed {} changes in {} seconds", changes, time);
-        } else {
-            debug(() -> log.debug("Committed {} changes in {} seconds", changes, time));
+            if (stopwatch != null) {
+                double time = Math.ceil(stopwatch.elapsed(TimeUnit.MILLISECONDS) / 100.0) / 10;
+                if (time >= 10) {
+                    log.warn("Committed {} changes in {} seconds", changes, time);
+                } else {
+                    debug(() -> log.debug("Committed {} changes in {} seconds", changes, time));
+                }
+            }
         }
     }
 
