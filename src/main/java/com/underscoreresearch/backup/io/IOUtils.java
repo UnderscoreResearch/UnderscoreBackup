@@ -57,17 +57,26 @@ public final class IOUtils {
     }
 
     public static boolean hasInternet() {
-        try {
-            if (internetSuccessfulUntil != null && Instant.now().isBefore(internetSuccessfulUntil)) {
-                return true;
-            }
+        if (internetSuccessfulUntil != null && Instant.now().isBefore(internetSuccessfulUntil)) {
+            return true;
+        }
 
+        if (internalHasInternet()) {
+            internetSuccessfulUntil = Instant.now().plus(INTERNET_SUCCESS_CACHE);
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean internalHasInternet() {
+        try {
             for (int i = 0; true; i++) {
                 try {
                     URL url = new URI("http://www.example.com").toURL();
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("HEAD");
                     connection.setConnectTimeout(10000);
+                    connection.setReadTimeout(10000);
                     connection.setUseCaches(false);
                     connection.connect();
                     if (connection.getResponseCode() != 200) {
@@ -82,7 +91,6 @@ public final class IOUtils {
                 }
             }
 
-            internetSuccessfulUntil = Instant.now().plus(INTERNET_SUCCESS_CACHE);
             return true;
         } catch (Exception e) {
             return false;

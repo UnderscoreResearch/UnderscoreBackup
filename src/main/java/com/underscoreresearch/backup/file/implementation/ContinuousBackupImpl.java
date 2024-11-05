@@ -218,7 +218,7 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
             processedFiles.incrementAndGet();
             processedSize.addAndGet(backupFile.getLength());
             if (!success) {
-                while (!IOUtils.hasInternet() && !shutdown) {
+                while (!shutdown && !IOUtils.hasInternet()) {
                     lock.lock();
                     if (!pause) {
                         log.warn("Lost internet connection, pausing continuous backup");
