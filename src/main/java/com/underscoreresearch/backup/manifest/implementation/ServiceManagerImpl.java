@@ -229,7 +229,7 @@ public class ServiceManagerImpl implements ServiceManager {
             createDirectory(file.getParentFile(), true);
             WRITER.writeValue(getDataFile(), data);
             if (!exists)
-                ConfigurationPost.setOwnerOnlyPermissions(file);
+                IOUtils.setOwnerOnlyPermissions(file);
         } catch (IOException exc) {
             throw new RuntimeException(exc);
         }

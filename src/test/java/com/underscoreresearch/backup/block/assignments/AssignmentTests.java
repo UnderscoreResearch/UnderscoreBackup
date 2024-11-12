@@ -61,8 +61,9 @@ class AssignmentTests {
         registerPart = false;
         set.setDestinations(Lists.newArrayList("destination"));
 
-        Mockito.when(repository.block("block"))
-                .thenReturn(BackupBlock.builder()
+        Mockito.when(repository.block(Mockito.anyString()))
+                .thenAnswer((t) -> BackupBlock.builder()
+                        .hash(t.getArgument(0))
                         .storage(Lists.newArrayList(BackupBlockStorage.builder().destination("destination").build()))
                         .build());
 
@@ -321,8 +322,8 @@ class AssignmentTests {
     @Test
     public void encryptedUploadDownload() throws InterruptedException, IOException {
         BlockDownloader downloader = Mockito.mock(BlockDownloader.class);
-        Mockito.when(downloader.downloadBlock(Mockito.anyString(), Mockito.eq("pwd"))).thenAnswer((t) ->
-                uploadedData.get(t.getArgument(0)));
+        Mockito.when(downloader.downloadBlock(Mockito.any(), Mockito.eq("pwd"))).thenAnswer((t) ->
+                uploadedData.get(((BackupBlock)t.getArgument(0)).getHash()));
         SmallFileBlockAssignment fileBlockAssignment = new EncryptedSmallBlockAssignment(uploader,
                 downloader, repository, access, encryptionKey, 150, 300);
         expectedFormat = "ENC";

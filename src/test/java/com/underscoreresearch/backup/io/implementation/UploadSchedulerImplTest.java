@@ -229,6 +229,11 @@ public class UploadSchedulerImplTest {
         }
 
         @Override
+        public boolean exists(String key) throws IOException {
+            return false;
+        }
+
+        @Override
         public void delete(String key) throws IOException {
 
         }

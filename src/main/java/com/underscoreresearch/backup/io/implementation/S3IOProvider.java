@@ -34,6 +34,8 @@ import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -42,8 +44,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 @IOPlugin(S3_TYPE)
 @Slf4j
-public class
-S3IOProvider implements IOIndex, Closeable {
+public class S3IOProvider implements IOIndex, Closeable {
     public static final String S3_TYPE = "S3";
     private final S3Client client;
     private final String root;
@@ -54,7 +55,8 @@ S3IOProvider implements IOIndex, Closeable {
                 destination.getCredential());
 
         S3ClientBuilder builder = S3Client.builder()
-                .overrideConfiguration(ClientOverrideConfiguration.builder().retryPolicy(RetryPolicy.none()).build())
+                .overrideConfiguration(ClientOverrideConfiguration.builder()
+                        .retryStrategy(s -> s.maxAttempts(1)).build())
                 .credentialsProvider(StaticCredentialsProvider.create(credentials));
 
         String endpoint = destination.getProperty("apiEndpoint", null);
@@ -188,6 +190,31 @@ S3IOProvider implements IOIndex, Closeable {
     }
 
     @Override
+    public boolean exists(String key) throws IOException {
+        String rootedKey = getRootedKey(key);
+
+        try {
+            boolean ret = RetryUtils.retry(() -> {
+                try {
+                    final HeadObjectResponse response = client.headObject(HeadObjectRequest.builder()
+                            .bucket(bucket).key(rootedKey).build());
+                    return response.deleteMarker() == null || !response.deleteMarker();
+                } catch (S3Exception exc) {
+                    if (exc.awsErrorDetails().errorCode().equals("NoSuchKey"))
+                        return false;
+                    throw exc;
+                }
+            }, null);
+            debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
+            return ret;
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Failed to download object \"" + rootedKey + "\"", e);
+        }
+    }
+
+    @Override
     public void delete(String key) throws IOException {
         String rootedKey = getRootedKey(key);
 
@@ -202,6 +229,7 @@ S3IOProvider implements IOIndex, Closeable {
                     throw exc;
                 }
             }, null);
+            debug(() -> log.debug("Deleted \"{}\"", key));
         } catch (IOException | ProcessingStoppedException e) {
             throw e;
         } catch (Exception e) {

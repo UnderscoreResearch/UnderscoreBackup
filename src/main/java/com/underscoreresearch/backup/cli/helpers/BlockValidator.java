@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
@@ -44,7 +46,7 @@ public class BlockValidator implements ManualStatusLogger {
     private final MetadataRepository repository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
-    private final BlockRefresher blockRefresher;
+    private final DestinationBlockProcessor destinationBlockProcessor;
     private final int maxBlockSize;
     private final Stopwatch stopwatch = Stopwatch.createUnstarted();
     private final AtomicLong processedSteps = new AtomicLong();
@@ -54,98 +56,108 @@ public class BlockValidator implements ManualStatusLogger {
 
 
     public BlockValidator(MetadataRepository repository, BackupConfiguration configuration,
-                          ManifestManager manifestManager, BlockRefresher blockRefresher, int maxBlockSize) {
+                          ManifestManager manifestManager, DestinationBlockProcessor destinationBlockProcessor,
+                          int maxBlockSize) {
         StateLogger.addLogger(this);
 
         this.repository = repository;
         this.configuration = configuration;
         this.manifestManager = manifestManager;
-        this.blockRefresher = blockRefresher;
+        this.destinationBlockProcessor = destinationBlockProcessor;
         this.maxBlockSize = maxBlockSize;
     }
 
-    public void validateBlocks() throws IOException {
+    public void validateBlocks(boolean validateDestination) throws IOException {
         stopwatch.start();
         lastHeartbeat = Duration.ZERO;
 
         log.info("Validating all blocks of files");
         manifestManager.setDisabledFlushing(true);
         try (Closeable ignored = UIHandler.registerTask(VALIDATE_BLOCKS_TASK, true)) {
-            try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
-                totalSteps.set(repository.getFileCount());
-                try {
-                    files.stream().forEach((file) -> {
-                        if (InstanceFactory.isShutdown())
-                            throw new ProcessingStoppedException();
+            validateBlocksInternal(validateDestination);
 
-                        processedSteps.incrementAndGet();
-                        if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
-                            lastHeartbeat = stopwatch.elapsed();
-                            log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
-                        }
-                        lastProcessed = file;
-
-                        if (file.getLocations() != null) {
-                            AtomicLong maximumSize = new AtomicLong();
-                            List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
-                                for (BackupFilePart part : location.getParts()) {
-                                    try {
-                                        if (!validateHash(repository, part.getBlockHash(), maximumSize, maxBlockSize)) {
-                                            return false;
-                                        }
-                                    } catch (IOException e) {
-                                        log.error("Failed to read block \"" + part.getBlockHash() + "\"", e);
-                                        return false;
-                                    }
-                                }
-                                if (maximumSize.get() < file.getLength()) {
-                                    log.error("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
-                                            readableSize(maximumSize.get()), readableSize(file.getLength()));
-                                    return false;
-                                }
-                                return true;
-                            }).collect(Collectors.toList());
-
-                            try {
-                                if (validCollections.size() != file.getLocations().size()) {
-                                    if (validCollections.isEmpty()) {
-                                        log.error("Storage for \"{}\" does no longer exist",
-                                                PathNormalizer.physicalPath(file.getPath()));
-                                        repository.deleteFile(file);
-                                    } else {
-                                        log.warn("At least one location for \"{}\" no longer exists",
-                                                PathNormalizer.physicalPath(file.getPath()));
-                                        file.setLocations(validCollections);
-                                        repository.addFile(file);
-                                    }
-                                }
-                            } catch (IOException e) {
-                                log.error("Failed to delete missing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
-                            }
-                        }
-                    });
-
-                    blockRefresher.waitForCompletion();
-
-                    if (blockRefresher.getRefreshedBlocks() > 0) {
-                        log.info("Completed block validation and refreshed {} blocks",
-                                readableNumber(blockRefresher.getRefreshedBlocks()));
-                    } else {
-                        log.info("Completed block validation");
-                    }
-                } catch (ProcessingStoppedException exc) {
-                    manifestManager.setDisabledFlushing(false);
-                    blockRefresher.waitForCompletion();
-                    log.info("Cancelled processing");
-                }
-            } catch (Throwable e) {
-                manifestManager.setDisabledFlushing(false);
+            if (validateDestination && destinationBlockProcessor.getMissingBlocks() > 0) {
+                log.error("Found {} missing blocks in destinations. Checking if any files are now invalid",
+                        readableNumber(destinationBlockProcessor.getMissingBlocks()));
+                validateBlocksInternal(false);
+            } else if (destinationBlockProcessor.getRefreshedBlocks() > 0) {
+                log.info("Completed block validation and refreshed {} blocks",
+                        readableNumber(destinationBlockProcessor.getRefreshedBlocks()));
+            } else {
+                log.info("Completed block validation");
             }
         }
     }
 
+    private void validateBlocksInternal(boolean validateDestination) {
+        try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
+            totalSteps.set(repository.getFileCount());
+            try {
+                files.stream().forEach((file) -> {
+                    if (InstanceFactory.isShutdown())
+                        throw new ProcessingStoppedException();
+
+                    processedSteps.incrementAndGet();
+                    if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
+                        lastHeartbeat = stopwatch.elapsed();
+                        log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
+                    }
+                    lastProcessed = file;
+
+                    if (file.getLocations() != null) {
+                        AtomicLong maximumSize = new AtomicLong();
+                        List<BackupLocation> validCollections = file.getLocations().stream().filter(location -> {
+                            for (BackupFilePart part : location.getParts()) {
+                                try {
+                                    if (!validateHash(repository, part.getBlockHash(), maximumSize, maxBlockSize,
+                                            validateDestination)) {
+                                        return false;
+                                    }
+                                } catch (IOException e) {
+                                    log.error("Failed to read block \"" + part.getBlockHash() + "\"", e);
+                                    return false;
+                                }
+                            }
+                            if (maximumSize.get() < file.getLength()) {
+                                log.error("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
+                                        readableSize(maximumSize.get()), readableSize(file.getLength()));
+                                return false;
+                            }
+                            return true;
+                        }).collect(Collectors.toList());
+
+                        try {
+                            if (validCollections.size() != file.getLocations().size()) {
+                                if (validCollections.isEmpty()) {
+                                    log.error("Storage for \"{}\" does no longer exist removing from repository",
+                                            PathNormalizer.physicalPath(file.getPath()));
+                                    repository.deleteFile(file);
+                                } else {
+                                    log.warn("At least one location for \"{}\" no longer exists",
+                                            PathNormalizer.physicalPath(file.getPath()));
+                                    file.setLocations(validCollections);
+                                    repository.addFile(file);
+                                }
+                            }
+                        } catch (IOException e) {
+                            log.error("Failed to delete missing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
+                        }
+                    }
+                });
+            } catch (ProcessingStoppedException exc) {
+                manifestManager.setDisabledFlushing(false);
+                destinationBlockProcessor.waitForCompletion();
+                log.info("Cancelled processing");
+            }
+        } catch (Throwable e) {
+            manifestManager.setDisabledFlushing(false);
+        }
+
+        destinationBlockProcessor.waitForCompletion();
+    }
+
     private boolean validateHash(MetadataRepository repository, String blockHash, AtomicLong maximumSize,
-                                 int maxBlockSize) throws IOException {
+                                 int maxBlockSize, boolean validateDestination) throws IOException {
         BackupBlock block = repository.block(blockHash);
         if (block == null) {
             log.error("Block hash \"{}\" does not exist", blockHash);
@@ -157,19 +169,19 @@ public class BlockValidator implements ManualStatusLogger {
                 return false;
             } else {
                 for (String hash : block.getHashes()) {
-                    validateHash(repository, hash, maximumSize, maxBlockSize);
+                    validateHash(repository, hash, maximumSize, maxBlockSize, validateDestination);
                 }
             }
         } else {
             if (maximumSize != null) {
                 maximumSize.addAndGet(maxBlockSize);
             }
-            return validateBlockStorage(block);
+            return validateBlockStorage(block, validateDestination);
         }
         return true;
     }
 
-    private boolean validateBlockStorage(BackupBlock block) {
+    private boolean validateBlockStorage(BackupBlock block, boolean validateDestination) {
         boolean anyChange = false;
         List<BackupBlockStorage> needsRefresh = null;
         for (int i = 0; i < block.getStorage().size(); ) {
@@ -200,6 +212,12 @@ public class BlockValidator implements ManualStatusLogger {
             BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
             if (destination == null) {
                 log.error("Block \"{}\" referencing missing destination \"{}\"", block.getHash(), storage.getDestination());
+            } else if (validateDestination) {
+                try {
+                    destinationBlockProcessor.validateBlockStorage(block, block.getStorage());
+                } catch (IOException e) {
+                    log.error("Failed to validate block storage \"{}\"", block.getHash(), e);
+                }
             } else if (destination.getMaxRetention() != null) {
                 long created;
                 if (storage.getCreated() != null)
@@ -217,9 +235,9 @@ public class BlockValidator implements ManualStatusLogger {
             i++;
         }
         if (anyChange || needsRefresh != null) {
-            if (needsRefresh != null && needsRefresh.size() > 0) {
+            if (needsRefresh != null && !needsRefresh.isEmpty()) {
                 try {
-                    if (!blockRefresher.refreshStorage(block, needsRefresh)) {
+                    if (!destinationBlockProcessor.refreshStorage(block, needsRefresh)) {
                         if (anyChange) {
                             repository.addBlock(block);
                         }
@@ -229,7 +247,7 @@ public class BlockValidator implements ManualStatusLogger {
                 }
             } else {
                 try {
-                    if (block.getStorage().size() > 0) {
+                    if (!block.getStorage().isEmpty()) {
                         repository.addBlock(block);
                         return true;
                     } else {
@@ -241,7 +259,7 @@ public class BlockValidator implements ManualStatusLogger {
                 }
             }
         }
-        return block.getStorage().size() > 0;
+        return !block.getStorage().isEmpty();
     }
 
     @Override
@@ -266,11 +284,11 @@ public class BlockValidator implements ManualStatusLogger {
                                         + readableNumber(totalSteps.get()) + " steps"
                                         + readableEta(processedSteps.get(), totalSteps.get(),
                                         Duration.ofMillis(elapsedMilliseconds))));
-                if (blockRefresher.getRefreshedBlocks() > 0) {
+                if (destinationBlockProcessor.getRefreshedBlocks() > 0) {
                     ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH", "Refreshed storage blocks",
-                            blockRefresher.getRefreshedBlocks(), readableNumber(blockRefresher.getRefreshedBlocks())));
+                            destinationBlockProcessor.getRefreshedBlocks(), readableNumber(destinationBlockProcessor.getRefreshedBlocks())));
                     ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH_SIZE", "Refreshed storage uploaded",
-                            blockRefresher.getRefreshedUploadSize(), readableSize(blockRefresher.getRefreshedUploadSize())));
+                            destinationBlockProcessor.getRefreshedUploadSize(), readableSize(destinationBlockProcessor.getRefreshedUploadSize())));
                 }
                 lastProcessedPath(getClass(), ret, lastProcessed, "VALIDATE_PROCESSED_PATH");
                 return ret;

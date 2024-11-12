@@ -1,6 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_SOURCE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
@@ -20,6 +19,7 @@ import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.underscoreresearch.backup.io.IOUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -39,10 +39,9 @@ import com.underscoreresearch.backup.block.assignments.LargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.RawLargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.ZipSmallBlockAssignment;
 import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
-import com.underscoreresearch.backup.cli.helpers.BlockRefresher;
+import com.underscoreresearch.backup.cli.helpers.DestinationBlockProcessor;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
-import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
@@ -64,7 +63,6 @@ import com.underscoreresearch.backup.file.implementation.PermissionFileSystemAcc
 import com.underscoreresearch.backup.file.implementation.PosixPermissionManager;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.file.implementation.WindowsFileSystemAccess;
-import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
@@ -232,10 +230,10 @@ public class BackupModule extends AbstractModule {
     @Singleton
     public BlockValidator blockValidator(MetadataRepository repository,
                                          BackupConfiguration configuration,
-                                         BlockRefresher blockRefresher,
+                                         DestinationBlockProcessor destinationBlockProcessor,
                                          ManifestManager manifestManager) {
         int maxBlockSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
-        return new BlockValidator(repository, configuration, manifestManager, blockRefresher, maxBlockSize);
+        return new BlockValidator(repository, configuration, manifestManager, destinationBlockProcessor, maxBlockSize);
     }
 
     @Provides
@@ -318,7 +316,7 @@ public class BackupModule extends AbstractModule {
         }
         createDirectory(metadataRoot, true);
         try {
-            ConfigurationPost.setOwnerOnlyPermissions(metadataRoot);
+            IOUtils.setOwnerOnlyPermissions(metadataRoot);
         } catch (IOException e) {
             log.warn("Failed to set owner only permissions on metadata directory", e);
         }
@@ -370,15 +368,15 @@ public class BackupModule extends AbstractModule {
 
     @Singleton
     @Provides
-    public BlockRefresher blockRefresher(@Named(DOWNLOAD_THREADS) int threads,
-                                         BlockDownloader fileDownloader,
-                                         UploadScheduler uploadScheduler,
-                                         BackupConfiguration configuration,
-                                         ManifestManager manifestManager,
-                                         MetadataRepository repository,
-                                         EncryptionIdentity encryptionIdentity) {
-        return new BlockRefresher(threads, fileDownloader, uploadScheduler, configuration, repository,
-                manifestManager, encryptionIdentity);
+    public DestinationBlockProcessor blockRefresher(@Named(DOWNLOAD_THREADS) int threads,
+                                                    BlockDownloader fileDownloader,
+                                                    UploadScheduler uploadScheduler,
+                                                    BackupConfiguration configuration,
+                                                    ManifestManager manifestManager,
+                                                    MetadataRepository repository,
+                                                    EncryptionIdentity encryptionIdentity) {
+        return new DestinationBlockProcessor(threads, fileDownloader, uploadScheduler,
+                configuration, repository, manifestManager, encryptionIdentity);
     }
 
     @Singleton

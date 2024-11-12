@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.utils;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FULL_PATH;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
@@ -220,5 +221,18 @@ public final class LogUtil {
             return Arrays.copyOfRange(stackTrace, first, last + 1);
         }
         return null;
+    }
+
+    private static Boolean logContentErrorsAsErrors;
+
+    public static void contentVerificationLogMessage(String message) {
+        if (logContentErrorsAsErrors == null) {
+            logContentErrorsAsErrors = InstanceFactory.getInstance(CommandLine.class).hasOption(FORCE);
+        }
+        if (logContentErrorsAsErrors) {
+            log.error(message);
+        } else {
+            log.warn(message);
+        }
     }
 }

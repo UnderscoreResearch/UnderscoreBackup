@@ -50,6 +50,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
     private final FileBlockUploader uploader;
     @Getter(AccessLevel.PROTECTED)
     private final BlockDownloader blockDownloader;
+    @Getter(AccessLevel.PROTECTED)
     private final MetadataRepository repository;
     private final FileSystemAccess access;
     private final EncryptionIdentity encryptionIdentity;

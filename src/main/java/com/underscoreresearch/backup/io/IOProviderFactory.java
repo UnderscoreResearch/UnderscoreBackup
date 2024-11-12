@@ -113,6 +113,11 @@ public final class IOProviderFactory {
                     }
 
                     @Override
+                    public boolean exists(String key) throws IOException {
+                        return actualProvider.exists(key);
+                    }
+
+                    @Override
                     public void delete(String key) throws IOException {
                         throw new IOException(String.format("Cant delete data from \"%s\"", InstanceFactory.getAdditionalSource()));
                     }
@@ -137,6 +142,11 @@ public final class IOProviderFactory {
                     @Override
                     public byte[] download(String key) throws IOException {
                         return actualProvider.download(key);
+                    }
+
+                    @Override
+                    public boolean exists(String key) throws IOException {
+                        return actualProvider.exists(key);
                     }
 
                     @Override

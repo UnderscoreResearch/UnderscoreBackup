@@ -26,6 +26,7 @@ import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.model.BackupBlock;
 
 @Slf4j
 @BlockFormatPlugin(FORMAT)
@@ -85,8 +86,14 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
             this.hash = hash;
             try {
                 blockEntries = new HashMap<>();
+
+                BackupBlock block = getRepository().block(hash);
+                if (block == null) {
+                    throw new IOException(String.format("Trying to get unknown block \"%s\"", hash));
+                }
+
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(getBlockDownloader()
-                        .downloadBlock(hash, password))) {
+                        .downloadBlock(block, password))) {
                     try (ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
                         ZipEntry ze;
                         while ((ze = zipInputStream.getNextEntry()) != null) {

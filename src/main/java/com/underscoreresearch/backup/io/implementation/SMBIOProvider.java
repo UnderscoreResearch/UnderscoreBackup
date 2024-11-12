@@ -183,6 +183,15 @@ public class SMBIOProvider implements IOIndex, Closeable {
     }
 
     @Override
+    public boolean exists(String key) throws IOException {
+        String physicalKey = physicalPath(key);
+
+        boolean ret = getShare().fileExists(root + physicalKey);
+        debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
+        return ret;
+    }
+
+    @Override
     public void delete(String key) throws IOException {
         String physicalKey = physicalPath(key);
         try {
@@ -199,6 +208,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
                     break;
                 }
             }
+            debug(() -> log.debug("Deleted \"{}\"", key));
         } catch (SMBRuntimeException exc) {
             throw new IOException("Failed to delete file", exc);
         }

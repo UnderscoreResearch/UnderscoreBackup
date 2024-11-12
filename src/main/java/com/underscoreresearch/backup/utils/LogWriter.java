@@ -1,6 +1,5 @@
 package com.underscoreresearch.backup.utils;
 
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.LOG_FILE;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
@@ -22,6 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
+import com.underscoreresearch.backup.io.IOUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.logging.log4j.core.Appender;
@@ -136,7 +136,7 @@ public class LogWriter extends AbstractAppender {
                     stream = new FileOutputStream(fileName, true);
 
                     if (!exists) {
-                        setOwnerOnlyPermissions(new File(fileName));
+                        IOUtils.setOwnerOnlyPermissions(new File(fileName));
                     }
                 }
             } catch (IOException e) {
@@ -202,7 +202,7 @@ public class LogWriter extends AbstractAppender {
         }
 
         try {
-            setOwnerOnlyPermissions(new File(baseFileName + ".1.gz"));
+            IOUtils.setOwnerOnlyPermissions(new File(baseFileName + ".1.gz"));
         } catch (IOException e) {
             unPostedLogs.add(() -> log.error("Failed to set compressed log file read only"));
         }

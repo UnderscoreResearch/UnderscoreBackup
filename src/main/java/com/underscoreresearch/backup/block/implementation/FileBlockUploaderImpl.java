@@ -25,6 +25,7 @@ import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupBlockUploadCompletion;
 import com.underscoreresearch.backup.model.BackupCompletion;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupData;
@@ -69,51 +70,83 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
                             String blockHash,
                             String format,
                             BackupCompletion completionFuture) {
-        if (activatedShares == null) {
-            synchronized (this) {
-                if (activatedShares == null) {
-                    activatedShares = manifestManager.getActivatedShares().keySet();
-                }
-            }
-        }
-
-        BackupBlock block = BackupBlock.builder()
-                .format(format)
-                .hash(blockHash)
-                .created(Instant.now().toEpochMilli())
-                .storage(new ArrayList<>())
-                .build();
-
-        Set<String> neededDestinations = Sets.newHashSet(set.getDestinations());
+        BackupBlock existingBlock;
+        Set<String> neededDestinations;
         try {
+            neededDestinations = Sets.newHashSet(set.getDestinations());
             try {
-                BackupBlock existingBlock = repository.block(blockHash);
-                if (existingBlock != null) {
-                    boolean usable = true;
-                    for (String destinationName : neededDestinations) {
-                        if (existingBlock.getStorage().stream().noneMatch(t -> t.getDestination().equals(destinationName))) {
-                            usable = false;
-                        }
-                    }
-                    if (!usable) {
-                        if (existingBlock.getFormat().equals(format)) {
-                            existingBlock.getStorage().forEach(t -> {
-                                neededDestinations.remove(t.getDestination());
-                                block.getStorage().add(t);
-                            });
-                        } else {
-                            existingBlock.getStorage().forEach(t -> neededDestinations.add(t.getDestination()));
-                        }
+                existingBlock = repository.block(blockHash);
+            } catch (IOException e) {
+                log.warn("Failed to fetch block definition \"" + blockHash + "\"", e);
+                existingBlock = null;
+            }
 
-                        // Only keep destinations that are used by any sets in the configuration.
-                        neededDestinations.retainAll(usedDestinations);
-                    } else {
-                        completionFuture.completed(true);
+            uploadBlock(neededDestinations, existingBlock, unencryptedData, blockHash, format, (block, success) -> {
+                if (block != null) {
+                    try {
+                        repository.addBlock(block);
+                    } catch (IOException e) {
+                        log.error("Failed to save block \"" + blockHash + "\"", e);
+                        completionFuture.completed(false);
                         return;
                     }
                 }
-            } catch (IOException e) {
-                log.warn("Failed to fetch block definition \"" + blockHash + "\"", e);
+                completionFuture.completed(success);
+            });
+        } catch (Throwable e) {
+            log.error("Failed to fetch block definition \"" + blockHash + "\"", e);
+            completionFuture.completed(false);
+            return;
+        }
+    }
+
+    @Override
+    public void uploadBlock(Set<String> neededDestinations,
+                            BackupBlock existingBlock,
+                            BackupData unencryptedData,
+                            String blockHash,
+                            String format,
+                            BackupBlockUploadCompletion completionFuture) {
+        try {
+
+            if (activatedShares == null) {
+                synchronized (this) {
+                    if (activatedShares == null) {
+                        activatedShares = manifestManager.getActivatedShares().keySet();
+                    }
+                }
+            }
+
+            BackupBlock block = BackupBlock.builder()
+                    .format(format)
+                    .hash(blockHash)
+                    .created(Instant.now().toEpochMilli())
+                    .storage(new ArrayList<>())
+                    .build();
+
+            if (existingBlock != null) {
+                boolean usable = true;
+                for (String destinationName : neededDestinations) {
+                    if (existingBlock.getStorage().stream().noneMatch(t -> t.getDestination().equals(destinationName))) {
+                        usable = false;
+                    }
+                }
+                if (!usable) {
+                    if (existingBlock.getFormat().equals(format)) {
+                        existingBlock.getStorage().forEach(t -> {
+                            neededDestinations.remove(t.getDestination());
+                            block.getStorage().add(t);
+                        });
+                    } else {
+                        existingBlock.getStorage().forEach(t -> neededDestinations.add(t.getDestination()));
+                    }
+
+                    // Only keep destinations that are used by any sets in the configuration.
+                    neededDestinations.retainAll(usedDestinations);
+                } else {
+                    completionFuture.completed(null, true);
+                    return;
+                }
             }
 
             Set<BackupUploadCompletion> completions = new HashSet<>();
@@ -155,18 +188,12 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
                             synchronized (completions) {
                                 completions.remove(this);
 
-                                if (canComplete.get() && completions.size() == 0) {
-                                    try {
-                                        if (storage.getParts().stream().anyMatch(Objects::isNull)) {
-                                            completionFuture.completed(false);
-                                        } else {
-                                            totalBlocks.incrementAndGet();
-                                            repository.addBlock(block);
-                                            completionFuture.completed(true);
-                                        }
-                                    } catch (IOException e) {
-                                        log.error("Failed to save block \"" + blockHash + "\"", e);
-                                        completionFuture.completed(false);
+                                if (canComplete.get() && completions.isEmpty()) {
+                                    if (storage.getParts().stream().anyMatch(Objects::isNull)) {
+                                        completionFuture.completed(null, false);
+                                    } else {
+                                        totalBlocks.incrementAndGet();
+                                        completionFuture.completed(block, true);
                                     }
                                 }
                             }
@@ -183,15 +210,15 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
 
             synchronized (completions) {
                 canComplete.set(true);
-                if (completions.size() == 0) {
+                if (completions.isEmpty()) {
                     totalBlocks.incrementAndGet();
-                    repository.addBlock(block);
-                    completionFuture.completed(true);
+                    completionFuture.completed(block, true);
                 }
             }
+
         } catch (Throwable e) {
             log.error("Failed to save block \"" + blockHash + "\"", e);
-            completionFuture.completed(false);
+            completionFuture.completed(null, false);
         }
     }
 

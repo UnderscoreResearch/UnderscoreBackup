@@ -119,4 +119,26 @@ public class WindowsState extends MachineState {
     public FileChangePoller createPoller() throws IOException {
         return new WindowsFileChangePoller();
     }
+
+    @Override
+    public void setOwnerOnlyPermissions(File file) throws IOException {
+        try {
+            Process process = Runtime.getRuntime().exec(new String[]{
+                    "icacls",
+                    file.getCanonicalPath(),
+                    "/inheritance:d",
+                    "/grant:r",
+                    System.getProperty("user.name") + ":(OI)(CI)F"
+            });
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new IOException();
+            }
+        } catch (IOException e) {
+            throw new IOException(String.format("Failed to set owner only permissions for \"%s\"", file.getCanonicalPath()), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 }

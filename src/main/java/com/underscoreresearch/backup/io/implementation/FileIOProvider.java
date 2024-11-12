@@ -77,6 +77,14 @@ public class FileIOProvider implements IOIndex {
     }
 
     @Override
+    public boolean exists(String key) throws IOException {
+        File file = getFile(key);
+        boolean exist = file.exists();
+        debug(() -> log.debug("Exists \"{}\" ({})", file, exist));
+        return exist;
+    }
+
+    @Override
     public void delete(String key) throws IOException {
         File file = getFile(key);
         deleteFileException(file);
@@ -90,6 +98,7 @@ public class FileIOProvider implements IOIndex {
             }
             parent = parent.getParentFile();
         }
+        debug(() -> log.debug("Deleted \"{}\"", key));
     }
 
     @Override

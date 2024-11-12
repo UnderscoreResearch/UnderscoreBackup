@@ -163,7 +163,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         // Lots of log files so lets go through all the pages.
         List<String> ret = Lists.newArrayList(response.getFiles());
         do {
-            response = callRetry((api) -> api.listLogFiles(getSourceId(), ret.get(ret.size() - 1), shareId));
+            response = callRetry((api) -> api.listLogFiles(getSourceId(), ret.getLast(), shareId));
             ret.addAll(response.getFiles());
         } while (Boolean.FALSE.equals(response.getCompleted()));
         return ret;
@@ -267,18 +267,8 @@ public class UnderscoreBackupProvider implements IOIndex {
         // the service only has eventual consistency.
         final String useKey = normalizeKey(key);
 
-        if (IDENTITY_MANIFEST_LOCATION.equals(key)) {
-            String identityKey = String.format("%s/%s", getSourceId(), region);
-            if (cachedIdentityTimeout != null) {
-                debug(() -> log.debug("Identity cache check \"{}\" \"{}\" until {}", region, getSourceId(), cachedIdentityTimeout));
-                synchronized (this) {
-                    if (identityKey.equals(cachedIdentityKey) && Instant.now().isBefore(cachedIdentityTimeout)) {
-                        debug(() -> log.debug("Downloading cached \"" + useKey + "\""));
-                        return cachedIdentity;
-                    }
-                }
-            }
-        }
+        if (validateCachedIdentity(useKey))
+            return cachedIdentity;
         debug(() -> log.debug("Downloading \"" + useKey + "\""));
 
         try {
@@ -317,12 +307,52 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    private boolean validateCachedIdentity(String key) {
+        if (IDENTITY_MANIFEST_LOCATION.equals(key)) {
+            String identityKey = String.format("%s/%s", getSourceId(), region);
+            if (cachedIdentityTimeout != null) {
+                debug(() -> log.debug("Identity cache check \"{}\" \"{}\" until {}", region, getSourceId(), cachedIdentityTimeout));
+                synchronized (this) {
+                    if (identityKey.equals(cachedIdentityKey) && Instant.now().isBefore(cachedIdentityTimeout)) {
+                        debug(() -> log.debug("Downloading cached \"" + key + "\""));
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean exists(String key) throws IOException {
+        final String useKey = normalizeKey(key);
+
+        try {
+            boolean ret;
+            if (validateCachedIdentity(useKey)) {
+                ret = true;
+            } else {
+                ret = RetryUtils.retry(() -> {
+                    // Will throw exception if not exists.
+                    callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
+                    return true;
+                }, this::retrySignedException);
+                debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
+            }
+            return ret;
+        } catch (IOException | ProcessingStoppedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
+    }
+
     @Override
     public void delete(String key) throws IOException {
         final String useKey = normalizeKey(key);
-        debug(() -> log.debug("Deleting \"" + useKey + "\""));
 
         callRetry((api) -> api.deleteFile(getSourceId(), useKey, shareId));
+        debug(() -> log.debug("Deleted \"{}\"", key));
     }
 
     @Override

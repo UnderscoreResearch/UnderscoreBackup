@@ -56,9 +56,9 @@ class RetryUtilsTest {
                 throw new ParseException("");
             }, (exc) -> (exc instanceof ParseException), false);
         });
-        assertThat(stopwatch.elapsed().toMillis(), Matchers.greaterThanOrEqualTo(2555L));
-        assertThat(stopwatch.elapsed().toMillis(), Matchers.lessThanOrEqualTo(4000L));
-        assertThat(integer.get(), Is.is(10));
+        assertThat(stopwatch.elapsed().toMillis(), Matchers.greaterThanOrEqualTo(1280L));
+        assertThat(stopwatch.elapsed().toMillis(), Matchers.lessThanOrEqualTo(2600L));
+        assertThat(integer.get(), Is.is(9));
     }
 
     @Test

@@ -383,7 +383,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                         .optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class), false);
                 stateLogger.reset();
                 if (!repository.isErrorsDetected()) {
-                    InstanceFactory.getInstance(BlockValidator.class).validateBlocks();
+                    InstanceFactory.getInstance(BlockValidator.class).validateBlocks(false);
                     stateLogger.reset();
                 }
             }

@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -27,7 +28,6 @@ import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.ConfigurationValidator;
 import com.underscoreresearch.backup.cli.PasswordReader;
-import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
@@ -77,7 +77,7 @@ public class ChangePasswordCommand extends Command {
             newIdentity.writeKey(EncryptionIdentity.KeyFormat.PUBLIC, stream);
         }
 
-        ConfigurationPost.setOwnerOnlyPermissions(keyFile);
+        IOUtils.setOwnerOnlyPermissions(keyFile);
 
         return keyFile.getAbsolutePath();
     }
@@ -274,7 +274,7 @@ public class ChangePasswordCommand extends Command {
             // before we delete all the old files. In case of a failure you will still have all the logs which
             // means you can recover from the failure even though you might get errors on the results.
             saveKeyFile(keyFile, getEncryptionIdentity());
-            ConfigurationPost.setOwnerOnlyPermissions(keyFile);
+            IOUtils.setOwnerOnlyPermissions(keyFile);
             repository.installTemporaryBlocks();
 
             uploadConfigData(CONFIGURATION_FILENAME,

@@ -39,7 +39,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.ParseException;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.cli.web.ConfigurationPost;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
@@ -532,7 +531,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         File parentFile = new File(filename).getParentFile();
         createDirectory(parentFile, true);
         try {
-            ConfigurationPost.setOwnerOnlyPermissions(parentFile);
+            IOUtils.setOwnerOnlyPermissions(parentFile);
         } catch (IOException e) {
             log.warn("Failed to set owner only permissions on logs directory", e);
         }

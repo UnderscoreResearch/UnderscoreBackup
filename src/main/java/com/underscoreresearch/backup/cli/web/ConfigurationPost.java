@@ -15,15 +15,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.SystemUtils;
+import com.underscoreresearch.backup.io.IOUtils;
 import org.takes.Request;
 import org.takes.Response;
 
@@ -86,7 +84,7 @@ public class ConfigurationPost extends BaseWrap {
         }
 
         if (!exists)
-            setOwnerOnlyPermissions(file);
+            IOUtils.setOwnerOnlyPermissions(file);
     }
 
     /**
@@ -174,21 +172,7 @@ public class ConfigurationPost extends BaseWrap {
         File configFile = new File(InstanceFactory.getInstance(SOURCE_CONFIG_LOCATION));
         createDirectory(configFile.getParentFile(), true);
         BACKUP_CONFIGURATION_WRITER.writeValue(configFile, configuration);
-        setOwnerOnlyPermissions(configFile);
-    }
-
-    public static void setOwnerOnlyPermissions(File file) throws IOException {
-        if (!SystemUtils.IS_OS_WINDOWS) {
-            HashSet<PosixFilePermission> set = new HashSet<PosixFilePermission>();
-
-            set.add(PosixFilePermission.OWNER_READ);
-            set.add(PosixFilePermission.OWNER_WRITE);
-            if (file.isDirectory()) {
-                set.add(PosixFilePermission.OWNER_EXECUTE);
-            }
-
-            Files.setPosixFilePermissions(file.toPath(), set);
-        }
+        IOUtils.setOwnerOnlyPermissions(configFile);
     }
 
     private static class Implementation extends ExclusiveImplementation {

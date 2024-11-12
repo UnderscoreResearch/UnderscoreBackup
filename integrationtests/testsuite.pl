@@ -7,6 +7,7 @@ use File::Find qw(finddepth);
 use File::Compare;
 use IPC::Open2;
 use POSIX qw(strftime);
+use File::Basename;
 
 my $originalRoot = getcwd();
 my $parentRoot = shift(@ARGV);
@@ -14,6 +15,8 @@ my $parentRoot = shift(@ARGV);
 if (!$parentRoot) {
     die;
 }
+
+$| = 1;
 
 my $FIRST_PASSWORD = "bYisMYVs9Qdw";
 my $SECOND_PASSWORD = "KqNK4bFj8ZTc";
@@ -26,17 +29,40 @@ if (!$underscoreBackup) {
     die;
 }
 
-sub cleanPath {
-    my ($dir) = @_;
+my $onlyZapFile;
 
-    print "Cleaning $dir\n";
+sub zapFile {
+    if (!-l && -d _) {
+        rmdir($File::Find::name);
+    }
+    else {
+        unlink($File::Find::name);
+    }
+}
+
+sub cleanPath {
+    my ($dir, $file) = @_;
+
+    $onlyZapFile = $file;
+
+    sub zapWithFile {
+        if (!$onlyZapFile || $onlyZapFile eq basename($File::Find::name)) {
+            &zapFile();
+        }
+    }
+
+    if ($file) {
+        print "Cleaning $file from $dir\n";
+    } else {
+        print "Cleaning $dir\n";
+    }
     chdir($originalRoot);
     if (!-d $dir) {
         mkdir($dir) || die;
     } else {
         chdir($dir);
 
-        finddepth { wanted => \&zapFile, no_chdir => 1 }, $dir;
+        finddepth { wanted => \&zapWithFile, no_chdir => 1 }, $dir;
         if (!-d $dir) {
             mkdir($dir) || die;
         }
@@ -169,15 +195,6 @@ sub generateData {
     }
 }
 
-sub zapFile {
-    if (!-l && -d _) {
-        rmdir($File::Find::name);
-    }
-    else {
-        unlink($File::Find::name);
-    }
-}
-
 sub prepareTestPath {
     chdir($root);
     finddepth { wanted => \&zapFile, no_chdir => 1 }, $testRoot;
@@ -204,15 +221,20 @@ sub findConfigLocation() {
     return $config;
 }
 
-sub executeUnderscoreBackupParameters {
+sub executeUnderscoreBackupJustPathParameters {
     return (
         $underscoreBackup,
         "-k", $keyFile,
         "-c", $configFile,
         "-m", $appRoot,
-        "--log-file", $logFile,
-        "-f", "-R", "-d"
+        "--log-file", $logFile
     )
+};
+
+sub executeUnderscoreBackupParameters {
+    my @path = &executeUnderscoreBackupJustPathParameters();
+    push(@path, "-f", "-R", "-d");
+    return @path;
 };
 
 
@@ -228,26 +250,42 @@ sub executeUnderscoreBackupWithOutput {
 sub executeUnderscoreBackupStdinNoCheck {
     my $input = shift(@_);
     chdir($root);
-    my @args = &executeUnderscoreBackupParameters();
-    push(@args, @_);
+    my $lastArg = pop(@_);
+    my @args;
+    if ($lastArg ne "NO_DEFAULT") {
+        push(@args, &executeUnderscoreBackupParameters());
+        push(@args, @_);
+        push(@args, $lastArg);
+    } else {
+        push(@args, &executeUnderscoreBackupJustPathParameters());
+        push(@args, @_);
+    }
     print "Executing " . join(" ", @args) . "\n";
 
-    if ($input) {
-        my $pid = open2('>&STDOUT', my $chld_in, @args);
+    my $pid = open2(my $child_out, my $child_in, @args);
 
+    if ($input) {
         for my $line (split(/\n/, $input)) {
-            syswrite($chld_in, $line . "\n");
+            syswrite($child_in, $line . "\n");
             sleep(5);
         }
-        waitpid($pid, 0);
-        if ($? != 0) {
-            die "Failed executing: $?";
+    }
+
+    while(<$child_out>) {
+        if (!/DEBUG\s+(FileIOProvider|ConfigurationValidator|FileScannerImpl|FileConsumerImpl|DownloadSchedulerImpl|FileSystemAccessImpl)\:/) {
+            chomp;
+            print "$_\n";
         }
-        close $chld_in;
     }
-    elsif (system(@args) != 0) {
-        die "Failed executing ".join(" ", @args).": $?";
+
+    waitpid($pid, 0);
+
+    if ($? != 0) {
+        die "Failed executing: $?";
     }
+
+    close $child_out;
+    close $child_in;
 }
 
 sub executeUnderscoreBackupStdin {
@@ -694,6 +732,8 @@ print "Other source tests\n";
 &executeUnderscoreBackup("rebuild-repository", "--password", $FIRST_PASSWORD, "--source", "same");
 &executeUnderscoreBackup("repair-repository", "--password", $FIRST_PASSWORD, "--source", "same");
 &executeUnderscoreBackup("defrag-repository", "--source", "same");
+&prepareTestPath();
+&generateData(6, 0);
 &executeUnderscoreBackup("restore", "/", "=", "--password", $FIRST_PASSWORD);
 &executeUnderscoreBackup("ls", "/", "--full-path", "--source", "same");
 &executeUnderscoreBackup("history", "--source", "same", File::Spec->catdir(File::Spec->catdir($testRoot, "a"), "0"));
@@ -712,13 +752,15 @@ print "Random bits and ends\n";
 
 &executeUnderscoreBackup("history", File::Spec->catdir(File::Spec->catdir($testRoot, "a"), "0"));
 &executeUnderscoreBackup("download-config", "--password", $FIRST_PASSWORD);
-&executeUnderscoreBackup("validate-blocks");
+&executeUnderscoreBackup("validate-blocks", "NO_DEFAULT");
 &executeUnderscoreBackup("backfill-metadata", "--password", $FIRST_PASSWORD);
 
 &executeUnderscoreBackup("ls", "/");
 &executeUnderscoreBackup("ls", "/", "--full-path");
 &executeUnderscoreBackup("search", "a");
 
+&prepareTestPath();
+&generateData(6, 0);
 &executeUnderscoreBackup("optimize-log");
 &executeUnderscoreBackup("restore", "/", "=", "--password", $FIRST_PASSWORD);
 &executeUnderscoreBackup("rebuild-repository", "--password", $FIRST_PASSWORD);
@@ -775,35 +817,44 @@ print "Test incremental updating\n";
 
 undef @completionTimestamp;
 &prepareRunPath('', ",\"maxRetention\": {\"unit\": \"SECONDS\", \"duration\": 30}, \"errorCorrection\": \"RS\"");
-&prepareTestPath();
 
 print "Generation 1 incremental\n";
+&prepareTestPath();
 &generateData(1);
 &executeUnderscoreBackup("backup");
 push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
+
 print "Generation 2 incremental\n";
+&prepareTestPath();
 &generateData(2);
 &executeUnderscoreBackup("backup");
 push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
+
 print "Generation 3 incremental\n";
+&prepareTestPath();
 &generateData(3);
 &executeUnderscoreBackup("backup");
 push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
+
 print "Generation 4 incremental\n";
+&prepareTestPath();
 &generateData(4);
 &executeUnderscoreBackup("backup");
 push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
+
 print "Generation 5 incremental\n";
+&prepareTestPath();
 &generateData(5);
 &executeUnderscoreBackup("backup");
 push(@completionTimestamp, strftime("%Y-%m-%d %H:%M:%S", localtime(time() + 1)));
 sleep($DELAY);
 
 print "Generation 6 incremental\n";
+&prepareTestPath();
 &generateData(6);
 &executeUnderscoreBackup("backup");
 
@@ -820,7 +871,6 @@ print "Generation 6 incremental\n";
 &generateData(4, 1);
 &executeUnderscoreBackup("restore", "--password", $FIRST_PASSWORD, "-t", $completionTimestamp[3], "/", "=");
 &prepareTestPath();
-
 &generateData(5, 1);
 &executeUnderscoreBackup("restore", "--password", $FIRST_PASSWORD, "-t", $completionTimestamp[4], "/", "=");
 
@@ -836,6 +886,14 @@ print "Test changing password\n";
 
 &prepareTestPath();
 &generateData(6, 1);
+&executeUnderscoreBackupStdin($SECOND_PASSWORD, "restore", "/", "=");
+
+print "Test recovery of missing data in destination\n";
+
+&cleanPath($backupRoot2, "1");
+&cleanPath($backupRoot2, "2");
+&cleanPath($backupRoot2, "3");
+&executeUnderscoreBackup("validate-blocks");
 &executeUnderscoreBackupStdin($SECOND_PASSWORD, "restore", "/", "=");
 
 print "Completed final test execution\n";

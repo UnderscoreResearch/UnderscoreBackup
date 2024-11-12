@@ -53,6 +53,11 @@ public class MemoryIOProvider implements IOProvider, IOIndex {
     }
 
     @Override
+    public boolean exists(String key) throws IOException {
+        return contents.containsKey(key);
+    }
+
+    @Override
     public void delete(String key) throws IOException {
         contents.remove(key);
     }

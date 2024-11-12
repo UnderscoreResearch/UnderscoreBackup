@@ -2,12 +2,16 @@ package com.underscoreresearch.backup.utils.state;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -161,5 +165,17 @@ public class MachineState {
         String output = data.toString(StandardCharsets.UTF_8);
         if (!output.isBlank())
             log.warn("Update process {}:\n{}", name, output);
+    }
+
+    public void setOwnerOnlyPermissions(File file) throws IOException {
+        HashSet<PosixFilePermission> set = new HashSet<PosixFilePermission>();
+
+        set.add(PosixFilePermission.OWNER_READ);
+        set.add(PosixFilePermission.OWNER_WRITE);
+        if (file.isDirectory()) {
+            set.add(PosixFilePermission.OWNER_EXECUTE);
+        }
+
+        Files.setPosixFilePermissions(file.toPath(), set);
     }
 }

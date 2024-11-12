@@ -33,6 +33,7 @@ import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.file.FileSystemAccess;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.model.BackupBlock;
 
 @Slf4j
 @BlockFormatPlugin(FORMAT)
@@ -75,8 +76,14 @@ public class EncryptedSmallBlockAssignment extends SmallFileBlockAssignment impl
             this.hash = hash;
             try {
                 blockEntries = new ArrayList<>();
+
+                BackupBlock block = getRepository().block(hash);
+                if (block == null) {
+                    throw new IOException(String.format("Trying to get unknown block \"%s\"", hash));
+                }
+
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(getBlockDownloader()
-                        .downloadBlock(hash, password))) {
+                        .downloadBlock(block, password))) {
                     try (DataInputStream dataInputStream = new DataInputStream(inputStream)) {
                         while (dataInputStream.available() > 0) {
                             int length = dataInputStream.readInt();

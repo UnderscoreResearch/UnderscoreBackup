@@ -1,5 +1,9 @@
 package com.underscoreresearch.backup.block;
 
+import java.util.Set;
+
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockUploadCompletion;
 import com.underscoreresearch.backup.model.BackupCompletion;
 import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupSet;
@@ -10,4 +14,11 @@ public interface FileBlockUploader {
                      String blockHash,
                      String format,
                      BackupCompletion completionFuture);
+
+    void uploadBlock(Set<String> requiredDestinations,
+                     BackupBlock existingBlock,
+                     BackupData unencryptedData,
+                     String blockHash,
+                     String format,
+                     BackupBlockUploadCompletion completionFuture);
 }

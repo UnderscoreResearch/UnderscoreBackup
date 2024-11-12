@@ -101,7 +101,7 @@ public abstract class BaseBlockAssignment implements FileBlockAssignment, Manual
 
         public Progress(BackupPartialFile partialFile) {
             this.partialFile = partialFile;
-            if (partialFile.getParts() != null && partialFile.getParts().size() > 0) {
+            if (partialFile.getParts() != null && !partialFile.getParts().isEmpty()) {
                 initialCompleted = partialFile.getParts().get(partialFile.getParts().size() - 1).getPosition();
             }
         }

@@ -225,7 +225,7 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
 
     @Override
     public byte[] extractPart(BackupFilePart file, BackupBlock block, String password) throws IOException {
-        return extractPart(file, blockDownloader.downloadBlock(block.getHash(), password));
+        return extractPart(file, blockDownloader.downloadBlock(block, password));
     }
 
     protected abstract byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException;

@@ -9,6 +9,8 @@ public interface UploadScheduler {
 
     void shutdown();
 
+    String suggestedKey(String hash, int index);
+
     void scheduleUpload(BackupDestination destination, String suggestedPath, byte[] data,
                         BackupUploadCompletion completionPromise);
 

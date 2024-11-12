@@ -2,7 +2,6 @@ package com.underscoreresearch.backup.cli.commands;
 
 import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
 import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.setOwnerOnlyPermissions;
 import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.downloadKeyData;
 import static com.underscoreresearch.backup.cli.web.SourceSelectPost.downloadSourceConfig;
 import static com.underscoreresearch.backup.cli.web.SourceSelectPost.validatePrivateKey;
@@ -13,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
+import com.underscoreresearch.backup.io.IOUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.CommandLine;
@@ -46,7 +46,7 @@ public class DownloadConfigCommand extends Command {
         try (FileOutputStream outputStream = new FileOutputStream(keyFile)) {
             outputStream.write(keyData);
         }
-        setOwnerOnlyPermissions(keyFile);
+        IOUtils.setOwnerOnlyPermissions(keyFile);
     }
 
     @Override

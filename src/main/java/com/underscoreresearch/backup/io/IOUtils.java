@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.underscoreresearch.backup.utils.state.MachineState;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -149,7 +150,7 @@ public final class IOUtils {
     }
 
     public static void createDirectory(File file, boolean warning) {
-        if (!file.exists() && !file.mkdirs()) {
+        if (!file.mkdirs() && !file.isDirectory()) {
             if (warning)
                 log.warn("Failed to create directory \"{}\"", file);
             else
@@ -163,6 +164,12 @@ public final class IOUtils {
         } catch (IOException e) {
             log.warn(e.getMessage());
         }
+    }
+
+    public static void setOwnerOnlyPermissions(File file) throws IOException {
+        MachineState state = InstanceFactory.getInstance(MachineState.class);
+
+        state.setOwnerOnlyPermissions(file);
     }
 
     public static void deleteFileException(File file) throws IOException {

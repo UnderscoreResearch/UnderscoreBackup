@@ -36,7 +36,6 @@ import com.underscoreresearch.backup.utils.StatusLine;
 public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloader, ManualStatusLogger {
     private final BackupConfiguration configuration;
     private final RateLimitController rateLimitController;
-    private final MetadataRepository metadataRepository;
     private final EncryptionIdentity encryptionIdentity;
 
     private final AtomicLong totalSize = new AtomicLong();
@@ -54,16 +53,11 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
 
         this.configuration = configuration;
         this.rateLimitController = rateLimitController;
-        this.metadataRepository = metadataRepository;
         this.encryptionIdentity = encryptionIdentity;
     }
 
     @Override
-    public byte[] downloadBlock(String blockHash, String password) throws IOException {
-        BackupBlock block = metadataRepository.block(blockHash);
-        if (block == null) {
-            throw new IOException(String.format("Trying to get unknown block \"%s\"", blockHash));
-        }
+    public byte[] downloadBlock(BackupBlock block, String password) throws IOException {
 
         for (int storageIndex = 0; storageIndex < block.getStorage().size(); storageIndex++) {
             BackupBlockStorage storage = block.getStorage().get(storageIndex);
@@ -76,7 +70,7 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
                 }
             }
         }
-        throw new IOException(String.format("No storage available for block \"%s\"", blockHash));
+        throw new IOException(String.format("No storage available for block \"%s\"", block.getHash()));
     }
 
     public byte[] downloadEncryptedBlockStorage(BackupBlock block, BackupBlockStorage storage) throws IOException {

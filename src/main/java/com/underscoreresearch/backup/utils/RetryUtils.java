@@ -3,6 +3,8 @@ package com.underscoreresearch.backup.utils;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.io.IOUtils;
@@ -10,7 +12,8 @@ import com.underscoreresearch.backup.io.IOUtils;
 @Slf4j
 public class RetryUtils {
     public static final int DEFAULT_BASE = 1000;
-    public static final int DEFAULT_RETRIES = 9; // Bump default retries to 9 which means about 8 minutes.
+    public static final int DEFAULT_RETRIES = -1; // Bump default retries to 9 which means about 8 minutes.
+    private static int defaultRetries = -1;
 
     public static <T> T retry(Callable<T> callable,
                               Function<Exception, Boolean> shouldRetry) throws Exception {
@@ -20,6 +23,21 @@ public class RetryUtils {
     public static <T> T retry(int retries, int retryBase, Callable<T> callable,
                               Function<Exception, Boolean> shouldRetry,
                               boolean waitForInternet) throws Exception {
+        if (retries < 0) {
+            if (defaultRetries < 0) {
+                defaultRetries = 8;
+                try {
+                    BackupConfiguration config = InstanceFactory.getInstance(BackupConfiguration.class);
+                    String retriesStr = config.getProperties().get("defaultRetries");
+                    if (retriesStr != null) {
+                        defaultRetries = Integer.parseInt(retriesStr);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            retries = defaultRetries;
+        }
+
         for (int i = 0; true; i++) {
             try {
                 if (waitForInternet) {

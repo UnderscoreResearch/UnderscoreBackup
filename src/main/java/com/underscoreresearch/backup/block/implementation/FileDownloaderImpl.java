@@ -15,6 +15,7 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.utils.LogUtil;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -74,14 +75,14 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                         if (destinationFile.equals("=")) {
                             originalFile = new File(PathNormalizer.physicalPath(source.getPath()));
                             if (!originalFile.isFile()) {
-                                log.warn("File missing locally \"{}\"", originalFile.getAbsolutePath());
+                                LogUtil.contentVerificationLogMessage(String.format("File missing locally \"%s\"", originalFile.getAbsolutePath()));
                                 originalFile = null;
                             } else if (!originalFile.canRead()) {
-                                log.warn("Can't read file \"{}\" to compare", originalFile.getAbsolutePath());
+                                LogUtil.contentVerificationLogMessage(String.format("Can't read file \"%s\" to compare", originalFile.getAbsolutePath()));
                                 originalFile = null;
                             } else if (originalFile.length() != source.getLength()) {
-                                log.warn("File size does not match \"{}\" ({} in backup, {} locally})", originalFile.getAbsolutePath(),
-                                        readableSize(source.getLength()), readableSize(originalFile.length()));
+                                LogUtil.contentVerificationLogMessage(String.format("File size does not match \"%s\" (\u200E%s\u200E in backup, \u200E%s\u200E locally})", originalFile.getAbsolutePath(),
+                                        readableSize(source.getLength()), readableSize(originalFile.length())));
                                 originalFile = null;
                             }
 
@@ -126,7 +127,7 @@ public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
                                                         if (Files.getLastModifiedTime(originalFile.toPath()).toMillis() == source.getLastChanged())
                                                             throw new IOException(message);
 
-                                                        log.warn(message);
+                                                        LogUtil.contentVerificationLogMessage(message);
                                                         originalStream.close();
                                                         originalStream = null;
                                                         originalFile = null;

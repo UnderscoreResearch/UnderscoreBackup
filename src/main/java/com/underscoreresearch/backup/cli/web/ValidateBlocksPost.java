@@ -2,6 +2,7 @@ package com.underscoreresearch.backup.cli.web;
 
 import static com.underscoreresearch.backup.cli.helpers.BlockValidator.VALIDATE_BLOCKS_TASK;
 import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
+import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
 
 import java.io.IOException;
 
@@ -12,6 +13,7 @@ import org.takes.Response;
 
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 
@@ -29,7 +31,7 @@ public class ValidateBlocksPost extends BaseWrap {
             MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
             executeAsyncOperation(() -> {
                         try {
-                            validator.validateBlocks();
+                            validator.validateBlocks(true);
                         } catch (IOException e) {
                             log.error("Failed to validate blocks", e);
                         }
