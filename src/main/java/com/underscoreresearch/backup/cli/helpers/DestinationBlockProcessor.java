@@ -152,7 +152,8 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                         missingStorage.add(storage);
                     }
                 } catch (Exception e) {
-                    log.error("Failed to validate block \"{}\"", block.getHash());
+                    log.error("Failed to check block at destination \"{}\"", block.getHash());
+                    return;
                 }
             }
             if (!missingStorage.isEmpty()) {
