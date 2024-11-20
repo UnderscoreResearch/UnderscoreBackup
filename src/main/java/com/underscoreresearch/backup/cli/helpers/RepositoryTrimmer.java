@@ -291,10 +291,6 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     log.info("Processing directory \"{}\"", PathNormalizer.physicalPath(directory.getPath()));
                 }
 
-                if (directory.getPath().equals("")) {
-                    return;
-                }
-
                 if (lastDirectory.get() != null && lastDirectory.get().getPath().equals(directory.getPath())) {
                     TreeSet<String> files = new TreeSet<>(directory.getFiles());
                     files.addAll(lastDirectory.get().getFiles());

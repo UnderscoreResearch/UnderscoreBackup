@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import org.apache.commons.lang3.SystemUtils;
 
+import com.google.common.base.Strings;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class PathNormalizer {
 
@@ -52,6 +54,14 @@ public final class PathNormalizer {
     public static String combinePaths(String base, String additional) {
         if (ROOT.equals(base) && SystemUtils.IS_OS_WINDOWS) {
             return additional;
+        }
+        if (Strings.isNullOrEmpty(base)) {
+            if (SystemUtils.IS_OS_WINDOWS)
+                return additional;
+            else if (additional.startsWith(PATH_SEPARATOR))
+                return additional;
+            else
+                return PATH_SEPARATOR + additional;
         }
         if (base.endsWith(PATH_SEPARATOR)) {
             if (additional.startsWith(PATH_SEPARATOR))

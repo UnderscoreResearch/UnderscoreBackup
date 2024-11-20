@@ -41,10 +41,12 @@ const IMPORTANT_CODES = [
     "MEMORY_HIGH",
     "REPOSITORY_ERROR_DETECTED",
     "SHARE_ACTIVATION_NEEDED",
+    "VALIDATE_DESTINATION_BLOCKS",
+    "VALIDATE_STEPS",
+    "VALIDATE_MISSING_DESTINATION_BLOCKS",
     "BACKUP_DURATION",
     "RESTORE_DURATION",
     "TRIMMING_STEPS",
-    "VALIDATE_STEPS",
     "REPLAY_LOG_PROCESSED_FILES",
     "REPAIRING_REPOSITORY_PROCESSED_FILES",
     "DEACTIVATING_SHARES_PROCESSED_STEPS",
@@ -144,6 +146,7 @@ function importantProperties(row: StatusLine, details: boolean): StatusRowProps 
         case "ACTIVATING_SHARES_PROCESSED_STEPS":
         case "OPTIMIZING_LOG_PROCESSED_STEPS":
         case "RE-KEYING_LOG_PROCESSED_STEPS":
+        case "VALIDATE_DESTINATION_BLOCKS":
             if (!details) {
                 props.etaOnly = true;
             }

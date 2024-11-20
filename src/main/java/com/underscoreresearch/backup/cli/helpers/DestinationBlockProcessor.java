@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
@@ -156,12 +157,15 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                     return;
                 }
             }
+            validatedBlocks.getAndIncrement();
             if (!missingStorage.isEmpty()) {
                 if (!availableStorage.isEmpty()) {
                     if (!refreshBlockInternal(block, missingStorage, availableStorage)) {
-                        log.error("Block \"{}\" has missing parts and cannot be restored", block.getHash());
-                        pendingBlockDeletes.add(block);
-                        missingBlocks.getAndIncrement();
+                        if (!InstanceFactory.isShutdown()) {
+                            log.error("Block \"{}\" has missing parts and cannot be restored", block.getHash());
+                            pendingBlockDeletes.add(block);
+                            missingBlocks.getAndIncrement();
+                        }
                     } else {
                         log.warn("Block \"{}\" had missing parts but was restored", block.getHash());
                     }
@@ -170,8 +174,6 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                     pendingBlockDeletes.add(block);
                     missingBlocks.getAndIncrement();
                 }
-            } else {
-                validatedBlocks.getAndIncrement();
             }
         });
     }
@@ -270,6 +272,10 @@ public class DestinationBlockProcessor extends SchedulerImpl {
 
     public long getMissingBlocks() {
         return missingBlocks.get();
+    }
+
+    public long getValidatedBlocks() {
+        return validatedBlocks.get();
     }
 
     public long getRefreshedUploadSize() {

@@ -51,6 +51,7 @@ public class BlockValidator implements ManualStatusLogger {
     private final Stopwatch stopwatch = Stopwatch.createUnstarted();
     private final AtomicLong processedSteps = new AtomicLong();
     private final AtomicLong totalSteps = new AtomicLong();
+    private final AtomicLong totalBlocks = new AtomicLong();
     private Duration lastHeartbeat;
     private BackupFile lastProcessed;
 
@@ -92,6 +93,7 @@ public class BlockValidator implements ManualStatusLogger {
     private void validateBlocksInternal(boolean validateDestination) {
         try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
             totalSteps.set(repository.getFileCount());
+            totalBlocks.set(validateDestination ? repository.getBlockCount() : 0L);
             try {
                 files.stream().forEach((file) -> {
                     if (InstanceFactory.isShutdown())
@@ -276,19 +278,32 @@ public class BlockValidator implements ManualStatusLogger {
             if (elapsedMilliseconds > 0) {
                 long throughput = 1000 * processedSteps.get() / elapsedMilliseconds;
                 List<StatusLine> ret = Lists.newArrayList(
-                        new StatusLine(getClass(), "VALIDATE_THROUGHPUT", "Validating blocks throughput",
-                                throughput, readableNumber(throughput) + " steps/s"),
-                        new StatusLine(getClass(), "VALIDATE_STEPS", "Validating blocks",
+                        new StatusLine(getClass(), "VALIDATE_THROUGHPUT", "Validating files throughput",
+                                throughput, readableNumber(throughput) + " files/s"),
+                        new StatusLine(getClass(), "VALIDATE_STEPS", "Validating file blocks",
                                 processedSteps.get(), totalSteps.get(),
                                 readableNumber(processedSteps.get()) + " / "
-                                        + readableNumber(totalSteps.get()) + " steps"
-                                        + readableEta(processedSteps.get(), totalSteps.get(),
-                                        Duration.ofMillis(elapsedMilliseconds))));
+                                        + readableNumber(totalSteps.get()) + " files"
+                                        + (totalBlocks.get() > 0 ?  "" :
+                                        readableEta(processedSteps.get(), totalSteps.get(), Duration.ofMillis(elapsedMilliseconds)))));
                 if (destinationBlockProcessor.getRefreshedBlocks() > 0) {
                     ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH", "Refreshed storage blocks",
                             destinationBlockProcessor.getRefreshedBlocks(), readableNumber(destinationBlockProcessor.getRefreshedBlocks())));
                     ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH_SIZE", "Refreshed storage uploaded",
                             destinationBlockProcessor.getRefreshedUploadSize(), readableSize(destinationBlockProcessor.getRefreshedUploadSize())));
+                }
+                if (totalBlocks.get() > 0) {
+                    ret.add(new StatusLine(getClass(), "VALIDATE_DESTINATION_BLOCKS", "Validating destination blocks",
+                            destinationBlockProcessor.getValidatedBlocks(), totalBlocks.get(),
+                            readableNumber(destinationBlockProcessor.getValidatedBlocks()) + " / "
+                                    + readableNumber(totalBlocks.get()) + " blocks"
+                                    + readableEta(destinationBlockProcessor.getValidatedBlocks(), totalBlocks.get(),
+                                    Duration.ofMillis(elapsedMilliseconds))));
+                    ret.add(new StatusLine(getClass(), "VALIDATE_BLOCKS_THROUGHPUT", "Validating blocks throughput",
+                                    throughput, readableNumber(1000 * destinationBlockProcessor.getValidatedBlocks() /
+                            elapsedMilliseconds) + " blocks/s"));
+                    ret.add(new StatusLine(getClass(), "VALIDATE_MISSING_DESTINATION_BLOCKS", "Missing destination blocks",
+                            destinationBlockProcessor.getMissingBlocks(), readableNumber(destinationBlockProcessor.getMissingBlocks())));
                 }
                 lastProcessedPath(getClass(), ret, lastProcessed, "VALIDATE_PROCESSED_PATH");
                 return ret;
