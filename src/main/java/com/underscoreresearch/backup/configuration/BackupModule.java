@@ -231,9 +231,11 @@ public class BackupModule extends AbstractModule {
     public BlockValidator blockValidator(MetadataRepository repository,
                                          BackupConfiguration configuration,
                                          DestinationBlockProcessor destinationBlockProcessor,
-                                         ManifestManager manifestManager) {
+                                         ManifestManager manifestManager,
+                                         BackupStatsLogger statsLogger) {
         int maxBlockSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
-        return new BlockValidator(repository, configuration, manifestManager, destinationBlockProcessor, maxBlockSize);
+        return new BlockValidator(repository, configuration, manifestManager, destinationBlockProcessor,
+                statsLogger, maxBlockSize);
     }
 
     @Provides

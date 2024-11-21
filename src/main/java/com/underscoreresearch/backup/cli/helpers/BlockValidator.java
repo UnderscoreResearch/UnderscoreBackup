@@ -27,6 +27,7 @@ import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
@@ -47,6 +48,7 @@ public class BlockValidator implements ManualStatusLogger {
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
     private final DestinationBlockProcessor destinationBlockProcessor;
+    private final BackupStatsLogger backupStatsLogger;
     private final int maxBlockSize;
     private final Stopwatch stopwatch = Stopwatch.createUnstarted();
     private final AtomicLong processedSteps = new AtomicLong();
@@ -58,7 +60,7 @@ public class BlockValidator implements ManualStatusLogger {
 
     public BlockValidator(MetadataRepository repository, BackupConfiguration configuration,
                           ManifestManager manifestManager, DestinationBlockProcessor destinationBlockProcessor,
-                          int maxBlockSize) {
+                          BackupStatsLogger backupStatsLogger, int maxBlockSize) {
         StateLogger.addLogger(this);
 
         this.repository = repository;
@@ -66,6 +68,7 @@ public class BlockValidator implements ManualStatusLogger {
         this.manifestManager = manifestManager;
         this.destinationBlockProcessor = destinationBlockProcessor;
         this.maxBlockSize = maxBlockSize;
+        this.backupStatsLogger = backupStatsLogger;
     }
 
     public void validateBlocks(boolean validateDestination) throws IOException {
@@ -74,6 +77,7 @@ public class BlockValidator implements ManualStatusLogger {
 
         log.info("Validating all blocks of files");
         manifestManager.setDisabledFlushing(true);
+        backupStatsLogger.setDownloadRunning(true);
         try (Closeable ignored = UIHandler.registerTask(VALIDATE_BLOCKS_TASK, true)) {
             validateBlocksInternal(validateDestination);
 
@@ -87,6 +91,8 @@ public class BlockValidator implements ManualStatusLogger {
             } else {
                 log.info("Completed block validation");
             }
+        } finally {
+            backupStatsLogger.setDownloadRunning(false);
         }
     }
 
