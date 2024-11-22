@@ -49,6 +49,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     private final AtomicLong missingBlocks = new AtomicLong();
     private final AtomicLong uploadedSize = new AtomicLong();
     private final long maximumRefreshed;
+    private final boolean noDelete;
     private final ManifestManager manifestManager;
     private final EncryptionIdentity encryptionIdentity;
 
@@ -56,6 +57,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     private CloseableMap<String, Boolean> processedBlockMap;
 
     public DestinationBlockProcessor(int maximumConcurrency,
+                                     boolean noDelete,
                                      BlockDownloader blockDownloader,
                                      UploadScheduler uploadScheduler,
                                      BackupConfiguration configuration,
@@ -69,6 +71,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         this.repository = repository;
         this.manifestManager = manifestManager;
         this.encryptionIdentity = encryptionIdentity;
+        this.noDelete = noDelete;
 
         maximumRefreshed = configuration.getProperty("maximumRefreshedBytes", Long.MAX_VALUE);
     }
@@ -238,19 +241,29 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                         log.error("Failed to refresh storage for block \"{}\"", block.getHash());
                     } else {
                         debug(() -> log.debug("Refreshed storage for block \"{}\"", block.getHash()));
-                        storage.setEc(destination.getErrorCorrection());
-                        storage.setCreated(Instant.now().toEpochMilli());
-                        List<String> originalParts = storage.getParts();
-                        storage.setParts(partList);
 
-                        IOProvider provider = IOProviderFactory.getProvider(destination);
-                        for (String part : originalParts) {
-                            if (!partList.contains(part)) {
-                                provider.delete(part);
+                        BackupBlockStorage updatedStorage;
+                        if (noDelete) {
+                            storage.setCreated(Instant.now().toEpochMilli());
+                            updatedStorage = storage.toBuilder().build();;
+                            block.getStorage().add(updatedStorage);
+                        } else {
+                            List<String> originalParts = storage.getParts();
+
+                            updatedStorage = storage;
+
+                            IOProvider provider = IOProviderFactory.getProvider(destination);
+                            for (String part : originalParts) {
+                                if (!partList.contains(part)) {
+                                    provider.delete(part);
+                                }
                             }
                         }
+                        updatedStorage.setEc(destination.getErrorCorrection());
+                        updatedStorage.setCreated(Instant.now().toEpochMilli());
+                        updatedStorage.setParts(partList);
+                        any = true;
                     }
-                    any = true;
                 } catch (Exception e) {
                     log.error("Failed to refresh data for block \"{}\" on destination \"{}\"", block.getHash(), storage.getDestination());
                 }

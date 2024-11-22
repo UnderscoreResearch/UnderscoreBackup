@@ -625,6 +625,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                         if (isShutdown())
                             throw new CancellationException();
 
+                        processedOperations.incrementAndGet();
                         try {
                             copyRepository.addBlock(optimizeBlock(block));
                         } catch (IOException e) {

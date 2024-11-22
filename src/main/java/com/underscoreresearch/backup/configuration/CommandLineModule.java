@@ -88,7 +88,7 @@ public class CommandLineModule extends AbstractModule {
     public static final String IDENTITY_LOCATION = "IDENTITY_LOCATION";
     public static final String INSTALLATION_IDENTITY = "INSTALLATION_IDENTITY";
     public static final String MANIFEST_LOCATION = "manifest-location";
-    public static final String NO_DELETE_REBUILD = "no-delete-rebuild";
+    public static final String NO_DELETE = "no-delete";
     public static final String DEFAULT_USER_MANIFEST_LOCATION = "DEFAULT_USER_MANIFEST_LOCATION";
     public static final String DEFAULT_MANIFEST_LOCATION = "DEFAULT_MANIFEST_LOCATION";
     public static final String ADDITIONAL_SOURCE = "ADDITIONAL_SOURCE";
@@ -262,7 +262,7 @@ public class CommandLineModule extends AbstractModule {
         options.addOption("d", DEBUG, false, "Enable verbose debugging");
         options.addOption(null, DEVELOPER_MODE, false, "Developer mode");
         options.addOption(null, BIND_ADDRESS, true, "Specify the address to bind UI webserver to (Default localhost)");
-        options.addOption(null, NO_DELETE_REBUILD, false, "Rebuild repository without performing any deletes");
+        options.addOption(null, NO_DELETE, false, "Rebuild or refresh repository without deleting any old data");
         options.addOption("h", HUMAN_READABLE, false, "Display human readable sizes");
         options.addOption("R", RECURSIVE, false, "Process restore or list operation recursively");
         options.addOption(null, FULL_PATH, false, "Display full path");

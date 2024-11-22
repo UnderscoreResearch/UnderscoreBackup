@@ -5,7 +5,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBU
 import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.INSTALLATION_IDENTITY;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE_REBUILD;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
@@ -337,7 +337,7 @@ public class BackupModule extends AbstractModule {
                     manifest,
                     configuration.getShares(),
                     null,
-                    commandLine.hasOption(NO_DELETE_REBUILD));
+                    commandLine.hasOption(NO_DELETE));
         }
         return new LoggingMetadataRepository.Readonly(repository,
                 manifest,
@@ -371,14 +371,15 @@ public class BackupModule extends AbstractModule {
     @Singleton
     @Provides
     public DestinationBlockProcessor blockRefresher(@Named(DOWNLOAD_THREADS) int threads,
+                                                    CommandLine commandLine,
                                                     BlockDownloader fileDownloader,
                                                     UploadScheduler uploadScheduler,
                                                     BackupConfiguration configuration,
                                                     ManifestManager manifestManager,
                                                     MetadataRepository repository,
                                                     EncryptionIdentity encryptionIdentity) {
-        return new DestinationBlockProcessor(threads, fileDownloader, uploadScheduler,
-                configuration, repository, manifestManager, encryptionIdentity);
+        return new DestinationBlockProcessor(threads, commandLine.hasOption(CommandLineModule.NO_DELETE),
+                fileDownloader, uploadScheduler, configuration, repository, manifestManager, encryptionIdentity);
     }
 
     @Singleton
