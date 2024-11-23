@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -294,7 +295,15 @@ public class StateLogger implements StatusLogger {
                             .getSubTypesOf(StatusLogger.class)
                             .stream()
                             .filter(clz -> !Modifier.isAbstract(clz.getModifiers()))
-                            .map(InstanceFactory::getInstance)
+                            .map((clz) -> {
+                                try {
+                                    return InstanceFactory.getInstance(clz);
+                                } catch (Exception e) {
+                                    debug(() -> log.warn("Failed instantiating logger {}", clz.getTypeName(), e));
+                                    return null;
+                                }
+                            })
+                            .filter(Objects::nonNull)
                             .collect(Collectors.toList());
                 } else if (loggers == null) {
                     loggers = new ArrayList<>();

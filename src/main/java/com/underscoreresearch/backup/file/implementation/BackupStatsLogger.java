@@ -258,7 +258,7 @@ public class BackupStatsLogger implements StatusLogger {
                     ret.add(new StatusLine(getClass(), "REPOSITORY_INFO_TOTAL_BLOCK_PARTS",
                             "Total block parts",
                             statistics.getBlockParts(),
-                            readableNumber(statistics.getBlocks())));
+                            readableNumber(statistics.getBlockParts())));
                 }
 
                 if (statistics.getTimestamp() != 0) {
