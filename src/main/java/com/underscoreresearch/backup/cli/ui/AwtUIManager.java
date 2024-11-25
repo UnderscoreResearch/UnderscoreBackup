@@ -62,7 +62,7 @@ public class AwtUIManager implements UIManager {
             });
         }
 
-        MenuItem configure = new MenuItem("Configure...");
+        MenuItem configure = new MenuItem("Open...");
         configure.addActionListener((e) -> launchConfig());
 
         //Add components to pop-up menu

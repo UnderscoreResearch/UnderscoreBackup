@@ -23,7 +23,7 @@
         <customObject id="YLy-65-1bz" customClass="NSFontManager"/>
         <menu autoenablesItems="NO" id="Q5k-jH-vks">
             <items>
-                <menuItem title="Configure..." id="V4k-90-LhR">
+                <menuItem title="Open..." id="V4k-90-LhR">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="configure:" target="Voe-Tx-rLC" id="LMG-Kb-CXA"/>

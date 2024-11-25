@@ -79,11 +79,17 @@ public class BlockValidator implements ManualStatusLogger {
         manifestManager.setDisabledFlushing(true);
         backupStatsLogger.setDownloadRunning(true);
         try (Closeable ignored = UIHandler.registerTask(VALIDATE_BLOCKS_TASK, true)) {
+            totalSteps.set(repository.getFileCount());
+            processedSteps.set(0L);
+            destinationBlockProcessor.resetProgress();
+            totalBlocks.set(validateDestination ? repository.getBlockCount() : 0L);
+
             validateBlocksInternal(validateDestination);
 
             if (validateDestination && destinationBlockProcessor.getMissingBlocks() > 0) {
                 log.error("Found {} missing blocks in destinations. Checking if any files are now invalid",
                         readableNumber(destinationBlockProcessor.getMissingBlocks()));
+                totalSteps.set(totalSteps.get() + repository.getFileCount());
                 validateBlocksInternal(false);
             } else if (destinationBlockProcessor.getRefreshedBlocks() > 0) {
                 log.info("Completed block validation and refreshed {} blocks",
@@ -98,8 +104,6 @@ public class BlockValidator implements ManualStatusLogger {
 
     private void validateBlocksInternal(boolean validateDestination) {
         try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
-            totalSteps.set(repository.getFileCount());
-            totalBlocks.set(validateDestination ? repository.getBlockCount() : 0L);
             try {
                 files.stream().forEach((file) -> {
                     if (InstanceFactory.isShutdown())

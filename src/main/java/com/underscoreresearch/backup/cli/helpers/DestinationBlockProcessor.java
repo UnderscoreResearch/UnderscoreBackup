@@ -165,12 +165,10 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                 if (!availableStorage.isEmpty()) {
                     if (!refreshBlockInternal(block, missingStorage, availableStorage)) {
                         if (!InstanceFactory.isShutdown()) {
-                            log.error("Block \"{}\" has missing parts and cannot be restored", block.getHash());
+                            log.error("Block \"{}\" has missing parts and could not be read", block.getHash());
                             pendingBlockDeletes.add(block);
                             missingBlocks.getAndIncrement();
                         }
-                    } else {
-                        log.warn("Block \"{}\" had missing parts but was restored", block.getHash());
                     }
                 } else {
                     log.error("Block \"{}\" has missing parts and cannot be restored", block.getHash());
@@ -272,7 +270,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                 pendingBlockUpdates.add(block);
                 refreshedBlocks.getAndIncrement();
             }
-            return any;
+            return true;
         } else {
             log.error("Failed to refresh data for block \"{}\"", block.getHash());
             return false;
@@ -330,5 +328,12 @@ public class DestinationBlockProcessor extends SchedulerImpl {
             }
             processedBlockMap = null;
         }
+    }
+
+    public void resetProgress() {
+        refreshedBlocks.set(0L);
+        validatedBlocks.set(0L);
+        missingBlocks.set(0L);
+        uploadedSize.set(0L);
     }
 }
