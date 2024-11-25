@@ -16,6 +16,7 @@ import Sets from "./components/Sets";
 import Shares from "./components/Shares";
 import Sources from "./components/Sources";
 import Settings from "./components/Settings";
+import {DisplayMessage} from "./App";
 
 interface MainAppState {
     destinationValid: boolean,
@@ -148,6 +149,7 @@ export default function MainApp() {
     }
 
     async function startRestoreBusy() {
+        DisplayMessage("Restore started", "info");
         await initiateRestore({
             password: state.password ? state.password : "",
             destination: state.restoreDestination,

@@ -220,6 +220,8 @@ public class RestoreExecutor {
             } else if (destinationFile.length() != file.getLength()) {
                 log.warn("File \"{}\" not of same size as in backup", currentDestination);
                 return false;
+            } else {
+                log.info("Skipping existing file \"{}\"", currentDestination);
             }
         }
         return true;

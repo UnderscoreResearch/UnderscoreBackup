@@ -495,6 +495,8 @@ export default function Restore(props: RestoreProps) {
                                    destination: e.target.value
                                })}
                     />
+                </div>
+                <div style={{display: "flex", alignContent: "center", marginTop: "0.5em"}}>
                     <FormControlLabel control={<Checkbox
                         disabled={state.destination === "-" || state.destination === "="}
                         checked={state.overwrite} onChange={(e) => {
@@ -502,9 +504,18 @@ export default function Restore(props: RestoreProps) {
                             ...state,
                             overwrite: e.target.checked
                         });
-                    }}/>} label="Write over existing files" style={{whiteSpace: "nowrap", marginLeft: "1em"}}/>
-                </div>
-                <div style={{display: "flex", alignContent: "center", marginTop: "0.5em"}}>
+                    }}/>} label="Replace existing files" style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
+                    <FormControlLabel
+                        control={<Checkbox checked={!state.skipPermissions}
+                                           disabled={state.destination === "-" || state.destination === "="}
+                                           onChange={(e) => {
+                                               updateState({
+                                                   ...state,
+                                                   skipPermissions: !e.target.checked
+                                               });
+                                           }
+                                           }/>} label="Restore permissions"
+                        style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
                     <FormControlLabel control={<Checkbox
                         checked={state.destination === "-" || state.destination === "="}
                         id={"onlyVerifyLocal"}
@@ -537,17 +548,7 @@ export default function Restore(props: RestoreProps) {
                                                        destination: "-"
                                                    });
                                                }
-                                           }}/>} label="Compare against local files"
-                        style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
-                    <FormControlLabel
-                        control={<Checkbox checked={!state.skipPermissions}
-                                           onChange={(e) => {
-                                               updateState({
-                                                   ...state,
-                                                   skipPermissions: !e.target.checked
-                                               });
-                                           }
-                                           }/>} label="Restore permissions"
+                                           }}/>} label="Compare against existing files"
                         style={{whiteSpace: "nowrap", marginRight: "1em"}}/>
                 </div>
             </Paper>
