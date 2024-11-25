@@ -454,12 +454,16 @@ public class CommandLineModule extends AbstractModule {
     @Provides
     @Singleton
     @Named(INSTALLATION_IDENTITY)
-    public String getInstallationIdentity(@Named(IDENTITY_LOCATION) String identityLocation) {
+    public String getInstallationIdentity(@Named(IDENTITY_LOCATION) String identityLocation,
+                                          MachineState machineState) {
         File file = new File(identityLocation);
         if (!file.exists()) {
             String identity = UUID.randomUUID().toString();
-            try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
-                writer.write(identity);
+            try {
+                try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+                    writer.write(identity);
+                }
+                machineState.setOwnerOnlyPermissions(file);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to create identity file", e);
             }

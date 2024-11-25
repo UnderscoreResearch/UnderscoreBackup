@@ -1,6 +1,8 @@
 package com.underscoreresearch.backup.utils.state;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
+import static com.underscoreresearch.backup.io.IOUtils.executeProcess;
+import static com.underscoreresearch.backup.io.IOUtils.executeQuietProcess;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -123,22 +125,27 @@ public class WindowsState extends MachineState {
     @Override
     public void setOwnerOnlyPermissions(File file) throws IOException {
         try {
-            Process process = Runtime.getRuntime().exec(new String[]{
+            String username = System.getProperty("user.name");
+            if (!username.endsWith("$")) {
+                String permission = file.isDirectory() ? "(OI)(CI)F" : "F";
+                executeQuietProcess("Owner only permissions", new String[]{
+                        "icacls",
+                        file.getCanonicalPath(),
+                        "/inheritance:d",
+                        "/grant:r",
+                        username + ":" + permission
+                });
+            }
+            executeQuietProcess("Owner only permissions", new String[]{
                     "icacls",
                     file.getCanonicalPath(),
-                    "/inheritance:d",
-                    "/grant:r",
-                    System.getProperty("user.name") + ":(OI)(CI)F"
+                    "/Remove",
+                    "Authenticated Users",
+                    "/Remove",
+                    "Users",
             });
-
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                throw new IOException();
-            }
         } catch (IOException e) {
             throw new IOException(String.format("Failed to set owner only permissions for \"%s\"", file.getCanonicalPath()), e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 }

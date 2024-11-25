@@ -1,5 +1,7 @@
 package com.underscoreresearch.backup.utils.state;
 
+import static com.underscoreresearch.backup.io.IOUtils.executeProcess;
+
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
@@ -143,28 +145,7 @@ public class MachineState {
     }
 
     protected void executeUpdateProcess(String[] cmd) throws IOException {
-        log.info("Upgrading with command: \"{}\"", String.join(" ", cmd));
-        Process process = Runtime.getRuntime().exec(cmd);
-        new Thread(() -> {
-            try {
-                log.info("Update process exited with exit code {}", process.waitFor());
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-            }
-        }, "UpgradeExit").start();
-        new Thread(() -> printOutput("error output", process.getErrorStream()), "UpdateError").start();
-        new Thread(() -> printOutput("output", process.getInputStream()), "UpdateOutput").start();
-    }
-
-    private void printOutput(String name, InputStream errorStream) {
-        ByteArrayOutputStream data = new ByteArrayOutputStream();
-        try {
-            errorStream.transferTo(data);
-        } catch (IOException ignored) {
-        }
-        String output = data.toString(StandardCharsets.UTF_8);
-        if (!output.isBlank())
-            log.warn("Update process {}:\n{}", name, output);
+        executeProcess("Update", cmd);
     }
 
     public void setOwnerOnlyPermissions(File file) throws IOException {

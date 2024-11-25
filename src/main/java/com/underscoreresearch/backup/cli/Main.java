@@ -58,8 +58,6 @@ public final class Main {
             }
         }
 
-        InstanceFactory.initialize(argv, null, null);
-
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
@@ -68,6 +66,8 @@ public final class Main {
         });
 
         try {
+            InstanceFactory.initialize(argv, null, null);
+
             CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
 
             if (commandLine.getArgList().isEmpty()) {

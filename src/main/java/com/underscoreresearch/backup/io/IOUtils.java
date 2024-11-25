@@ -12,6 +12,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
@@ -238,5 +239,39 @@ public final class IOUtils {
             debug(() -> log.debug("Skipping temp file \"{}\"", parent));
             return false;
         }
+    }
+
+    public static Process executeProcess(String kind, String[] cmd) throws IOException {
+        log.info("{} with command: \"{}\"", kind, String.join(" ", cmd));
+        Process process = executeQuietProcess(kind, cmd);
+        new Thread(() -> printOutput(kind, "output", process.getInputStream()), "ProcessOutput").start();
+        return process;
+    }
+
+    public static Process executeQuietProcess(String kind, String[] cmd) throws IOException {
+        Process process = Runtime.getRuntime().exec(cmd);
+        new Thread(() -> {
+            try {
+                int exitCode = process.waitFor();
+                if (exitCode != 0) {
+                    log.info("{} process exited with exit code {}", kind, process.waitFor());
+                }
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+        }, "ProcessExit").start();
+        new Thread(() -> printOutput(kind, "error output", process.getErrorStream()), "ProcessError").start();
+        return process;
+    }
+
+    private static void printOutput(String kind, String name, InputStream errorStream) {
+        ByteArrayOutputStream data = new ByteArrayOutputStream();
+        try {
+            errorStream.transferTo(data);
+        } catch (IOException ignored) {
+        }
+        String output = data.toString(StandardCharsets.UTF_8);
+        if (!output.isBlank())
+            log.warn("{} process {}:\n{}", kind, name, output);
     }
 }

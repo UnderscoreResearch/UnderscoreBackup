@@ -68,7 +68,7 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
             } else {
                 addEvent(events, event);
             }
-            if (errorEvents.size() > 0 && errorEvents.getLast().getExpire().isBefore(Instant.now())) {
+            if (!errorEvents.isEmpty() && errorEvents.getLast().getExpire().isBefore(Instant.now())) {
                 errorEvents.removeLast();
             }
         }
@@ -93,6 +93,7 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
         List<StatusLine> ret = new ArrayList<>();
         ret.addAll(errorEvents);
         ret.addAll(events);
+        ret.sort((a, b) -> ((LogStatusLine)b).getExpire().compareTo(((LogStatusLine)a).getExpire()));
         return ret;
     }
 
