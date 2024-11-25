@@ -22,7 +22,7 @@ public class WindowsFileSystemAccess extends PermissionFileSystemAccess {
     protected boolean isSymbolicLink(Path filePath) {
         try {
             BasicFileAttributes attrs = Files.readAttributes(filePath, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-            return attrs.isDirectory() && attrs.isOther();
+            return (attrs.isDirectory() && attrs.isOther()) || attrs.isSymbolicLink();
         } catch (IOException e) {
             debug(() -> log.debug("Failed to determine symbolic link state of \"{}\"", filePath.toAbsolutePath(), e));
             return true;
