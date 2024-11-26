@@ -177,7 +177,7 @@ public class CommandLineModule extends AbstractModule {
                 if (!Strings.isNullOrEmpty(systemRoot)) {
                     configDir = new File(systemRoot, "System32\\config\\systemprofile\\AppData\\Local\\UnderscoreBackup");
                     if (configDir.exists() && configDir.canRead() && configDir.canWrite()) {
-                        if (!notifyAdministrator) {
+                        if (!notifyAdministrator && InstanceFactory.isInitialized()) {
                             log.info("Using system profile directory since running as administrator");
                             notifyAdministrator = true;
                         }

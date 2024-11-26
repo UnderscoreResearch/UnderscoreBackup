@@ -89,6 +89,11 @@ public class LogWriter extends AbstractAppender {
         Exception initError = null;
 
         if (!initialized) {
+            if (!InstanceFactory.isInitialized()) {
+                unPostedLogs.add(() -> log.error("Logging before properly initialized"));
+                return;
+            }
+
             initialized = true;
             String fileName;
             try {
