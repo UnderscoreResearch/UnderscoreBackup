@@ -232,10 +232,11 @@ public class BackupModule extends AbstractModule {
                                          BackupConfiguration configuration,
                                          DestinationBlockProcessor destinationBlockProcessor,
                                          ManifestManager manifestManager,
-                                         BackupStatsLogger statsLogger) {
+                                         BackupStatsLogger statsLogger,
+                                         @Named(MANIFEST_LOCATION) String manifestLocation) {
         int maxBlockSize = configuration.getProperty("largeBlockAssignment.maximumSize", DEFAULT_LARGE_MAXIMUM_SIZE);
         return new BlockValidator(repository, configuration, manifestManager, destinationBlockProcessor,
-                statsLogger, maxBlockSize);
+                statsLogger, maxBlockSize, manifestLocation);
     }
 
     @Provides

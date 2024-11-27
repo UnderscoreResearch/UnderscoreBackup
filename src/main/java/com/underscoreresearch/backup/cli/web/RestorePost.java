@@ -40,7 +40,6 @@ import com.underscoreresearch.backup.model.BackupSetRoot;
 @Slf4j
 public class RestorePost extends BaseWrap {
     private static final ObjectReader READER = MAPPER.readerFor(BackupRestoreRequest.class);
-    private static final ObjectWriter WRITER = MAPPER.writerFor(com.underscoreresearch.backup.cli.web.KeyPost.KeyResponse.class);
 
     public RestorePost() {
         super(new Implementation());

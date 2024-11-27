@@ -6,7 +6,11 @@ import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,8 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
@@ -28,6 +30,7 @@ import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
@@ -50,6 +53,7 @@ public class BlockValidator implements ManualStatusLogger {
     private final DestinationBlockProcessor destinationBlockProcessor;
     private final BackupStatsLogger backupStatsLogger;
     private final int maxBlockSize;
+    private final String manifestLocation;
     private final Stopwatch stopwatch = Stopwatch.createUnstarted();
     private final AtomicLong processedSteps = new AtomicLong();
     private final AtomicLong totalSteps = new AtomicLong();
@@ -60,7 +64,7 @@ public class BlockValidator implements ManualStatusLogger {
 
     public BlockValidator(MetadataRepository repository, BackupConfiguration configuration,
                           ManifestManager manifestManager, DestinationBlockProcessor destinationBlockProcessor,
-                          BackupStatsLogger backupStatsLogger, int maxBlockSize) {
+                          BackupStatsLogger backupStatsLogger, int maxBlockSize, String manifestLocation) {
         StateLogger.addLogger(this);
 
         this.repository = repository;
@@ -69,6 +73,7 @@ public class BlockValidator implements ManualStatusLogger {
         this.destinationBlockProcessor = destinationBlockProcessor;
         this.maxBlockSize = maxBlockSize;
         this.backupStatsLogger = backupStatsLogger;
+        this.manifestLocation = manifestLocation;
     }
 
     public void validateBlocks(boolean validateDestination) throws IOException {
@@ -78,43 +83,63 @@ public class BlockValidator implements ManualStatusLogger {
         log.info("Validating all blocks of files");
         manifestManager.setDisabledFlushing(true);
         backupStatsLogger.setDownloadRunning(true);
+
+        String ignoreBefore = null;
+        if (validateDestination) {
+            File file = getCancelledCheckpointFile();
+            if (file.exists()) {
+                try (FileInputStream stream = new FileInputStream(file)) {
+                    ignoreBefore = new String(IOUtils.readAllBytes(stream), StandardCharsets.UTF_8);
+                    log.info("Resuming from path \"{}\"", PathNormalizer.physicalPath(ignoreBefore));
+                } catch (IOException e) {
+                    log.error("Failed to read progress file", e);
+                }
+            }
+        }
+
         try (Closeable ignored = UIHandler.registerTask(VALIDATE_BLOCKS_TASK, true)) {
             totalSteps.set(repository.getFileCount());
             processedSteps.set(0L);
             destinationBlockProcessor.resetProgress();
             totalBlocks.set(validateDestination ? repository.getBlockCount() : 0L);
 
-            validateBlocksInternal(validateDestination);
+            validateBlocksInternal(validateDestination, ignoreBefore);
 
-            if (validateDestination && destinationBlockProcessor.getMissingBlocks() > 0) {
-                log.error("Found {} missing blocks in destinations. Checking if any files are now invalid",
-                        readableNumber(destinationBlockProcessor.getMissingBlocks()));
-                totalSteps.set(totalSteps.get() + repository.getFileCount());
-                validateBlocksInternal(false);
-            } else if (destinationBlockProcessor.getRefreshedBlocks() > 0) {
-                log.info("Completed block validation and refreshed {} blocks",
-                        readableNumber(destinationBlockProcessor.getRefreshedBlocks()));
-            } else {
-                log.info("Completed block validation");
+            if (!InstanceFactory.isShutdown()) {
+                if (validateDestination && destinationBlockProcessor.getMissingBlocks() > 0) {
+                    log.error("Found {} missing blocks in destinations. Checking if any files are now invalid",
+                            readableNumber(destinationBlockProcessor.getMissingBlocks()));
+                    totalSteps.set(totalSteps.get() + repository.getFileCount());
+                    validateBlocksInternal(false, null);
+                } else if (destinationBlockProcessor.getRefreshedBlocks() > 0) {
+                    log.info("Completed block validation and refreshed {} blocks",
+                            readableNumber(destinationBlockProcessor.getRefreshedBlocks()));
+                } else {
+                    log.info("Completed block validation");
+                }
             }
         } finally {
             backupStatsLogger.setDownloadRunning(false);
         }
     }
 
-    private void validateBlocksInternal(boolean validateDestination) {
-        try (CloseableStream<BackupFile> files = repository.allFiles(false)) {
+    private void validateBlocksInternal(boolean validateDestination, String ignoreBefore) {
+        try (CloseableStream<BackupFile> files = repository.allFiles(true)) {
             try {
                 files.stream().forEach((file) -> {
+                    processedSteps.incrementAndGet();
+
+                    if (ignoreBefore != null && file.getPath().compareTo(ignoreBefore) < 0) {
+                        return;
+                    }
+
                     if (InstanceFactory.isShutdown())
                         throw new ProcessingStoppedException();
 
-                    processedSteps.incrementAndGet();
                     if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                         lastHeartbeat = stopwatch.elapsed();
                         log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                     }
-                    lastProcessed = file;
 
                     if (file.getLocations() != null) {
                         AtomicLong maximumSize = new AtomicLong();
@@ -155,8 +180,23 @@ public class BlockValidator implements ManualStatusLogger {
                             log.error("Failed to delete missing file \"{}\"", PathNormalizer.physicalPath(file.getPath()));
                         }
                     }
+                    lastProcessed = file;
                 });
+                File file = getCancelledCheckpointFile();
+                if (file.exists() && !file.delete()) {
+                    log.warn("Failed to delete progress file");
+                }
             } catch (ProcessingStoppedException exc) {
+                if (validateDestination && lastProcessed != null) {
+                    File file = getCancelledCheckpointFile();
+                    try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+                        writer.write(lastProcessed.getPath());
+                        log.info("Stored last processed path \"{}\"", lastProcessed.getPath());
+                    } catch (IOException e) {
+                        log.error("Failed to write progress to file", e);
+                    }
+                }
+
                 manifestManager.setDisabledFlushing(false);
                 destinationBlockProcessor.waitForCompletion();
                 log.info("Cancelled processing");
@@ -166,6 +206,10 @@ public class BlockValidator implements ManualStatusLogger {
         }
 
         destinationBlockProcessor.waitForCompletion();
+    }
+
+    private File getCancelledCheckpointFile() {
+        return new File(manifestLocation, "validationrecovery.txt");
     }
 
     private boolean validateHash(MetadataRepository repository, String blockHash, AtomicLong maximumSize,

@@ -68,15 +68,13 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
             } else {
                 addEvent(events, event);
             }
-            if (!errorEvents.isEmpty() && errorEvents.getLast().getExpire().isBefore(Instant.now())) {
-                errorEvents.removeLast();
-            }
         }
     }
 
     private void addEvent(ConcurrentLinkedDeque<LogStatusLine> currentEvents, LogEvent event) {
         while (currentEvents.size() >= MAX_ENTRIES)
             currentEvents.removeLast();
+
         currentEvents.addFirst(new LogStatusLine(event.getSource().getClassName(),
                 event.getLevel().name(),
                 getLayout().toSerializable(event).toString().trim()));
@@ -90,6 +88,13 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
 
     @Override
     public List<StatusLine> status() {
+        while (!errorEvents.isEmpty() && errorEvents.getLast().getExpire().isBefore(Instant.now())) {
+            // Don't remove an error that is newer than the last saved regular log error.
+            if (!events.isEmpty() && errorEvents.getLast().getExpire().isAfter(events.getLast().getExpire()))
+                break;
+            errorEvents.removeLast();
+        }
+
         List<StatusLine> ret = new ArrayList<>();
         ret.addAll(errorEvents);
         ret.addAll(events);

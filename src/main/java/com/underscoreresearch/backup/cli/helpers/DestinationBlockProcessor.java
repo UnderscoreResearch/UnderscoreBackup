@@ -135,6 +135,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         processBlockStorage(block, () -> {
             List<BackupBlockStorage> missingStorage = Lists.newArrayList();
             List<BackupBlockStorage> availableStorage = Lists.newArrayList();
+            validatedBlocks.getAndIncrement();
             for (BackupBlockStorage storage : storages) {
                 BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
                 IOProvider provider = IOProviderFactory.getProvider(destination);
@@ -160,7 +161,6 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                     return;
                 }
             }
-            validatedBlocks.getAndIncrement();
             if (!missingStorage.isEmpty()) {
                 if (!availableStorage.isEmpty()) {
                     if (!refreshBlockInternal(block, missingStorage, availableStorage)) {

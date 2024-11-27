@@ -348,7 +348,8 @@ export function MainAppSkeleton(props: MainAppSkeletonProps) {
                                   [
                                       "Validate that at your backed up files still have valid storage?",
                                       "Performing this operation will ensure that all your backed up files still have at least one valid storage location and also verifies that the required files exist in the destination (The backup contents is not validated though).",
-                                      "This operation can take a considerable amount of time and runs once a month based on default settings except for the destination validations which is only run when this is invoked manually."
+                                      "This operation can take a considerable amount of time and runs once a month based on default settings except for the destination validations which is only run when this is invoked manually.",
+                                      "If you cancel the operation before it completes, it will resume from where it left off the next time it is invoked."
                                   ],
                                   () => executeValidateBlocks())}>
                         Validate storage
