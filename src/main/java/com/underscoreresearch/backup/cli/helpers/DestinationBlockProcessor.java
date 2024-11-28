@@ -157,7 +157,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                         missingStorage.add(storage);
                     }
                 } catch (Exception e) {
-                    log.error("Failed to check block at destination \"{}\"", block.getHash());
+                    log.error("Failed to check block at destination \"{}\"", block.getHash(), e);
                     return;
                 }
             }
@@ -165,13 +165,13 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                 if (!availableStorage.isEmpty()) {
                     if (!refreshBlockInternal(block, missingStorage, availableStorage)) {
                         if (!InstanceFactory.isShutdown()) {
-                            log.error("Block \"{}\" has missing parts and could not be read", block.getHash());
+                            log.warn("Block \"{}\" has missing parts and could not be read", block.getHash());
                             pendingBlockDeletes.add(block);
                             missingBlocks.getAndIncrement();
                         }
                     }
                 } else {
-                    log.error("Block \"{}\" has missing parts and cannot be restored", block.getHash());
+                    log.warn("Block \"{}\" has missing parts and cannot be restored", block.getHash());
                     pendingBlockDeletes.add(block);
                     missingBlocks.getAndIncrement();
                 }
@@ -263,7 +263,8 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                         any = true;
                     }
                 } catch (Exception e) {
-                    log.error("Failed to refresh data for block \"{}\" on destination \"{}\"", block.getHash(), storage.getDestination());
+                    log.error("Failed to refresh data for block \"{}\" on destination \"{}\"",
+                            block.getHash(), storage.getDestination(), e);
                 }
             }
             if (any) {
@@ -300,7 +301,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                 repository.addBlock(updateBlock);
                 debug(() -> log.debug("Updated block \"{}\" with refreshed locations", updateBlock.getHash()));
             } catch (IOException e) {
-                log.error("Failed to save update to block \"{}\"", updateBlock.getHash());
+                log.error("Failed to save update to block \"{}\"", updateBlock.getHash(), e);
             }
         }
         while (!pendingBlockDeletes.isEmpty()) {
@@ -309,7 +310,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                 repository.deleteBlock(deleteBlock);
                 debug(() -> log.debug("Delete block \"{}\" because of missing data in destination", deleteBlock.getHash()));
             } catch (IOException e) {
-                log.error("Failed to delete block \"{}\"", deleteBlock.getHash());
+                log.error("Failed to delete block \"{}\"", deleteBlock.getHash(), e);
             }
         }
     }

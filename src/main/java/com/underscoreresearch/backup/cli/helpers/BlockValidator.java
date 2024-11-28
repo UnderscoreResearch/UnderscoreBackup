@@ -59,6 +59,7 @@ public class BlockValidator implements ManualStatusLogger {
     private final AtomicLong totalSteps = new AtomicLong();
     private final AtomicLong totalBlocks = new AtomicLong();
     private Duration lastHeartbeat;
+    private BackupFile currentlyProcessing;
     private BackupFile lastProcessed;
 
 
@@ -107,7 +108,7 @@ public class BlockValidator implements ManualStatusLogger {
 
             if (!InstanceFactory.isShutdown()) {
                 if (validateDestination && destinationBlockProcessor.getMissingBlocks() > 0) {
-                    log.error("Found {} missing blocks in destinations. Checking if any files are now invalid",
+                    log.warn("Found {} missing blocks in destinations. Checking if any files are now invalid",
                             readableNumber(destinationBlockProcessor.getMissingBlocks()));
                     totalSteps.set(totalSteps.get() + repository.getFileCount());
                     validateBlocksInternal(false, null);
@@ -128,6 +129,7 @@ public class BlockValidator implements ManualStatusLogger {
             try {
                 files.stream().forEach((file) -> {
                     processedSteps.incrementAndGet();
+                    currentlyProcessing = file;
 
                     if (ignoreBefore != null && file.getPath().compareTo(ignoreBefore) < 0) {
                         return;
@@ -151,12 +153,12 @@ public class BlockValidator implements ManualStatusLogger {
                                         return false;
                                     }
                                 } catch (IOException e) {
-                                    log.error("Failed to read block \"" + part.getBlockHash() + "\"", e);
+                                    log.warn("Failed to read block \"" + part.getBlockHash() + "\"", e);
                                     return false;
                                 }
                             }
                             if (maximumSize.get() < file.getLength()) {
-                                log.error("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
+                                log.warn("Not enough blocks to contain entire file size (\u200E{}\u200E < \u200E{}\u200E)",
                                         readableSize(maximumSize.get()), readableSize(file.getLength()));
                                 return false;
                             }
@@ -216,12 +218,12 @@ public class BlockValidator implements ManualStatusLogger {
                                  int maxBlockSize, boolean validateDestination) throws IOException {
         BackupBlock block = repository.block(blockHash);
         if (block == null) {
-            log.error("Block hash \"{}\" does not exist", blockHash);
+            log.warn("Block hash \"{}\" does not exist", blockHash);
             return false;
         }
         if (block.isSuperBlock()) {
             if (block.getHashes() == null) {
-                log.error("Super block \"{}\" is missing hashes", block.getHash());
+                log.warn("Super block \"{}\" is missing hashes", block.getHash());
                 return false;
             } else {
                 for (String hash : block.getHashes()) {
@@ -267,7 +269,7 @@ public class BlockValidator implements ManualStatusLogger {
 
             BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
             if (destination == null) {
-                log.error("Block \"{}\" referencing missing destination \"{}\"", block.getHash(), storage.getDestination());
+                log.warn("Block \"{}\" referencing missing destination \"{}\"", block.getHash(), storage.getDestination());
             } else if (validateDestination) {
                 try {
                     destinationBlockProcessor.validateBlockStorage(block, block.getStorage());
@@ -359,7 +361,7 @@ public class BlockValidator implements ManualStatusLogger {
                     ret.add(new StatusLine(getClass(), "VALIDATE_MISSING_DESTINATION_BLOCKS", "Missing destination blocks",
                             destinationBlockProcessor.getMissingBlocks(), readableNumber(destinationBlockProcessor.getMissingBlocks())));
                 }
-                lastProcessedPath(getClass(), ret, lastProcessed, "VALIDATE_PROCESSED_PATH");
+                lastProcessedPath(getClass(), ret, currentlyProcessing, "VALIDATE_PROCESSED_PATH");
                 return ret;
             }
         }
