@@ -132,6 +132,11 @@ public class RebuildRepositoryCommand extends Command {
             }
         } else {
             executeRebuildLog(manifestManager, logConsumer, repository, password);
+            try {
+                manifestManager.shutdown();
+            } catch (IOException e) {
+                log.error("Failed to shut down log replay", e);
+            }
         }
     }
 

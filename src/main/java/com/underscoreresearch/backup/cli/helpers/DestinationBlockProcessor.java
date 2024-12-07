@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -126,7 +127,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
             return false;
         }
 
-        processBlockStorage(block, () -> refreshBlockInternal(block, storages, block.getStorage()));
+        processBlockStorage(block, () -> refreshBlockInternal(block, storages, null));
 
         return true;
     }
@@ -134,25 +135,28 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     public void validateBlockStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
         processBlockStorage(block, () -> {
             List<BackupBlockStorage> missingStorage = Lists.newArrayList();
-            List<BackupBlockStorage> availableStorage = Lists.newArrayList();
+            Map<BackupBlockStorage, Set<String>> availableStorage = new HashMap<>();
             validatedBlocks.getAndIncrement();
             for (BackupBlockStorage storage : storages) {
                 BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
                 IOProvider provider = IOProviderFactory.getProvider(destination);
                 int exists = 0;
                 try {
+                    Set<String> availableParts = new HashSet<>();
                     for (int i = 0; i < storage.getParts().size(); i++) {
-                        if (provider.exists(storage.getParts().get(i))) {
+                        String part = storage.getParts().get(i);
+                        if (provider.exists(part)) {
+                            availableParts.add(part);
                             exists++;
                         }
                     }
                     if (exists == storage.getParts().size()) {
-                        availableStorage.add(storage);
+                        availableStorage.put(storage, availableParts);
                         debug(() -> log.debug("Validated block \"{}\"", block.getHash()));
                     } else {
                         ErrorCorrector ec = ErrorCorrectorFactory.getCorrector(storage.getEc());
                         if (ec.getMinimumSufficientParts(storage) <= exists) {
-                            availableStorage.add(storage);
+                            availableStorage.put(storage, availableParts);
                         }
                         missingStorage.add(storage);
                     }
@@ -179,11 +183,15 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         });
     }
 
-    private boolean refreshBlockInternal(BackupBlock block, List<BackupBlockStorage> needUpdates, List<BackupBlockStorage> availableData) {
+    private boolean refreshBlockInternal(BackupBlock block, List<BackupBlockStorage> needUpdates, Map<BackupBlockStorage, Set<String>> availableData) {
         byte[] data = null;
-        for (BackupBlockStorage availableStorage : availableData) {
+        for (BackupBlockStorage availableStorage : availableData != null ? availableData.keySet() : needUpdates) {
             try {
-                data = blockDownloader.downloadEncryptedBlockStorage(block, availableStorage);
+                if (availableData != null) {
+                    data = blockDownloader.downloadEncryptedBlockStorage(block, availableStorage, availableData.get(availableStorage));
+                } else {
+                    data = blockDownloader.downloadEncryptedBlockStorage(block, availableStorage, null);
+                }
                 break;
             } catch (IOException e) {
                 log.warn("Failed fetching block from destination \"{}\"", availableStorage.getDestination());

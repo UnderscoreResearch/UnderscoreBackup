@@ -141,6 +141,9 @@ public class BlockValidator implements ManualStatusLogger {
                     if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                         lastHeartbeat = stopwatch.elapsed();
                         log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
+                        if (validateDestination) {
+                            saveCancelledCheckpoint();
+                        }
                     }
 
                     if (file.getLocations() != null) {
@@ -190,13 +193,7 @@ public class BlockValidator implements ManualStatusLogger {
                 }
             } catch (ProcessingStoppedException exc) {
                 if (validateDestination && lastProcessed != null) {
-                    File file = getCancelledCheckpointFile();
-                    try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
-                        writer.write(lastProcessed.getPath());
-                        log.info("Stored last processed path \"{}\"", lastProcessed.getPath());
-                    } catch (IOException e) {
-                        log.error("Failed to write progress to file", e);
-                    }
+                    saveCancelledCheckpoint();
                 }
 
                 manifestManager.setDisabledFlushing(false);
@@ -208,6 +205,16 @@ public class BlockValidator implements ManualStatusLogger {
         }
 
         destinationBlockProcessor.waitForCompletion();
+    }
+
+    private void saveCancelledCheckpoint() {
+        File file = getCancelledCheckpointFile();
+        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+            writer.write(lastProcessed.getPath());
+            log.info("Stored last processed path \"{}\"", lastProcessed.getPath());
+        } catch (IOException e) {
+            log.error("Failed to write progress to file", e);
+        }
     }
 
     private File getCancelledCheckpointFile() {

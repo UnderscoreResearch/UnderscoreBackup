@@ -169,7 +169,7 @@ public class RepositoryBackfiller {
                         try {
                             Encryptor encryptor = EncryptorFactory.getEncryptor(storage.getEncryption());
                             if (!encryptor.validStorage(storage)) {
-                                byte[] data = blockDownloader.downloadEncryptedBlockStorage(block, storage);
+                                byte[] data = blockDownloader.downloadEncryptedBlockStorage(block, storage, null);
                                 encryptor.backfillEncryption(storage, data);
                             }
                         } catch (IOException e) {
@@ -249,7 +249,7 @@ public class RepositoryBackfiller {
             for (BackupBlockStorage storage : block.getStorage()) {
                 try {
                     Encryptor encryptor = EncryptorFactory.getEncryptor(storage.getEncryption());
-                    byte[] data = blockDownloader.downloadEncryptedBlockStorage(block, storage);
+                    byte[] data = blockDownloader.downloadEncryptedBlockStorage(block, storage, null);
                     if (!encryptor.validStorage(storage)) {
                         encryptor.backfillEncryption(storage, data);
                         updateBlock = true;
