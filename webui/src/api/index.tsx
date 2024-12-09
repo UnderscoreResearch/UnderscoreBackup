@@ -89,6 +89,7 @@ export interface BackupDestination {
     endpointUri: string,
     principal?: string,
     credential?: string,
+    maxConnections?: number,
     maxRetention?: BackupTimespan,
     properties?: PropertyMap,
     limits?: BackupLimits

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import com.underscoreresearch.backup.io.ConnectionLimiter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.HttpException;
@@ -56,6 +57,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     private static String cachedIdentityKey;
     private static Instant cachedIdentityTimeout;
     private static byte[] cachedIdentity;
+    private final ConnectionLimiter limiter;
     private String region;
     private String sourceId;
     private String shareId;
@@ -72,6 +74,7 @@ public class UnderscoreBackupProvider implements IOIndex {
             region = parts[0];
             sourceId = parts[1];
         }
+        limiter = new ConnectionLimiter(destination);
     }
 
     public static String getRegion(String endpointUri) {
@@ -120,11 +123,19 @@ public class UnderscoreBackupProvider implements IOIndex {
 
                 @Override
                 public T call(BackupApi api) throws ApiException {
-                    T ret = callable.call(api);
-                    synchronized (verifiedSources) {
-                        verifiedSources.add(getVerifiedKey());
+                    try {
+                        return limiter.call(() -> {
+                            T ret = callable.call(api);
+                            synchronized (verifiedSources) {
+                                verifiedSources.add(getVerifiedKey());
+                            }
+                            return ret;
+                        });
+                    } catch (ApiException|RuntimeException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
                     }
-                    return ret;
                 }
             });
         } catch (ApiException e) {
@@ -205,7 +216,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         debug(() -> log.debug("Uploading \"" + useKey + "\""));
 
         try {
-            RetryUtils.retry(() -> {
+            RetryUtils.retry(() -> limiter.call(() -> {
                 Stopwatch timer = Stopwatch.createStarted();
                 UploadUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
                 if (response.getLocation() != null) {
@@ -237,7 +248,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                     }
                 }
                 return null;
-            }, this::retrySignedException);
+            }), this::retrySignedException);
         } catch (IOException | ProcessingStoppedException e) {
             throw e;
         } catch (Exception e) {
@@ -272,7 +283,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         debug(() -> log.debug("Downloading \"" + useKey + "\""));
 
         try {
-            return RetryUtils.retry(() -> {
+            return RetryUtils.retry(() -> limiter.call(() -> {
                 Stopwatch timer = Stopwatch.createStarted();
                 DownloadUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
                 byte[] ret = s3Retry(() -> {
@@ -299,7 +310,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                     throw new IOException(TIMEOUT_MESSAGE);
                 }
                 return ret;
-            }, this::retrySignedException);
+            }), this::retrySignedException);
         } catch (IOException | ProcessingStoppedException e) {
             throw e;
         } catch (Exception e) {
@@ -332,11 +343,11 @@ public class UnderscoreBackupProvider implements IOIndex {
             if (validateCachedIdentity(useKey)) {
                 ret = true;
             } else {
-                ret = RetryUtils.retry(() -> {
+                ret = RetryUtils.retry(() -> limiter.call(() -> {
                     // Will throw exception if not exists.
                     callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
                     return true;
-                }, this::retrySignedException);
+                }), this::retrySignedException);
                 debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
             }
             return ret;

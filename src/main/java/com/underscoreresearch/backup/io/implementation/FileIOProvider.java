@@ -14,6 +14,7 @@ import java.net.URI;
 import java.nio.file.Paths;
 import java.util.List;
 
+import com.underscoreresearch.backup.io.ConnectionLimiter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Lists;
@@ -28,6 +29,7 @@ import com.underscoreresearch.backup.model.BackupDestination;
 public class FileIOProvider implements IOIndex {
     public static final String FILE_TYPE = "FILE";
     private final String root;
+    private final ConnectionLimiter limiter;
 
     public FileIOProvider(BackupDestination destination) {
         if (!destination.getEndpointUri().contains("://")) {
@@ -36,6 +38,7 @@ public class FileIOProvider implements IOIndex {
             URI uri = URI.create(destination.getEndpointUri());
             root = PathNormalizer.physicalPath(uri.getPath());
         }
+        limiter = new ConnectionLimiter(destination);
     }
 
     private File getFile(String key) {
@@ -43,10 +46,16 @@ public class FileIOProvider implements IOIndex {
     }
 
     @Override
-    public List<String> availableKeys(String prefix) {
+    public List<String> availableKeys(String prefix) throws IOException {
         File file = getFile(prefix);
         if (file.isDirectory()) {
-            return Lists.newArrayList(file.list());
+            try {
+                return Lists.newArrayList(limiter.call(() -> file.list()));
+            } catch (IOException|RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
         return Lists.newArrayList();
     }
@@ -55,10 +64,19 @@ public class FileIOProvider implements IOIndex {
     public String upload(String key, byte[] data) throws IOException {
         File file = getFile(key);
 
-        createDirectory(file.getParentFile(), true);
+        try {
+            limiter.call(() -> {
+                createDirectory(file.getParentFile(), true);
 
-        try (FileOutputStream stream = new FileOutputStream(file)) {
-            stream.write(data, 0, data.length);
+                try (FileOutputStream stream = new FileOutputStream(file)) {
+                    stream.write(data, 0, data.length);
+                }
+                return null;
+            });
+        } catch (IOException|RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
         debug(() -> log.debug("Wrote \"{}\" ({})", file, readableSize(data.length)));
@@ -69,34 +87,57 @@ public class FileIOProvider implements IOIndex {
     @Override
     public byte[] download(String key) throws IOException {
         File file = getFile(key);
-        try (FileInputStream stream = new FileInputStream(file)) {
-            byte[] data = IOUtils.readAllBytes(stream);
-            debug(() -> log.debug("Read \"{}\" ({})", file, readableSize(data.length)));
-            return data;
+        try {
+            return limiter.call(() -> {
+                try (FileInputStream stream = new FileInputStream(file)) {
+                    byte[] data = IOUtils.readAllBytes(stream);
+                    debug(() -> log.debug("Read \"{}\" ({})", file, readableSize(data.length)));
+                    return data;
+                }
+            });
+        } catch (IOException|RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Override
     public boolean exists(String key) throws IOException {
         File file = getFile(key);
-        boolean exist = file.exists();
-        debug(() -> log.debug("Exists \"{}\" ({})", file, exist));
-        return exist;
+        try {
+            boolean exist = limiter.call(() -> file.exists());
+            debug(() -> log.debug("Exists \"{}\" ({})", file, exist));
+            return exist;
+        } catch (IOException | RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void delete(String key) throws IOException {
         File file = getFile(key);
-        deleteFileException(file);
+        try {
+            limiter.call(() -> {
+                deleteFileException(file);
 
-        File parent = file.getParentFile();
-        File root = new File(this.root);
-        while (parent != null && !parent.equals(root) && parent.exists() && parent.list().length == 0) {
-            if (!parent.delete()) {
-                log.warn("Failed to delete directory \"{}\"", parent);
-                return;
-            }
-            parent = parent.getParentFile();
+                File parent = file.getParentFile();
+                File root = new File(this.root);
+                while (parent != null && !parent.equals(root) && parent.exists() && parent.list().length == 0) {
+                    if (!parent.delete()) {
+                        log.warn("Failed to delete directory \"{}\"", parent);
+                        return null;
+                    }
+                    parent = parent.getParentFile();
+                }
+                return null;
+            });
+        } catch (IOException | RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         debug(() -> log.debug("Deleted \"{}\"", key));
     }

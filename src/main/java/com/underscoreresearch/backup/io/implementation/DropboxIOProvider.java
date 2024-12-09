@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.io.ConnectionLimiter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.dropbox.core.DbxDownloader;
@@ -39,6 +40,7 @@ public class DropboxIOProvider implements IOIndex {
     public static final String DROPBOX_TYPE = "DROPBOX";
     private final DbxClientV2 clientV2;
     private final String root;
+    private final ConnectionLimiter limiter;
 
     public DropboxIOProvider(BackupDestination destination) {
         DbxRequestConfig requestConfig = new DbxRequestConfig("Underscore Backup");
@@ -53,13 +55,14 @@ public class DropboxIOProvider implements IOIndex {
             calculatedRoot += "/";
 
         root = calculatedRoot;
+        limiter = new ConnectionLimiter(destination);
     }
 
     @Override
     public List<String> availableKeys(String prefix) throws IOException {
 
         try {
-            ListFolderResult result = RetryUtils.retry(() -> clientV2.files().listFolder(getFullPath(prefix)),
+            ListFolderResult result = RetryUtils.retry(() -> limiter.call(() -> clientV2.files().listFolder(getFullPath(prefix))),
                     (e) -> !(e instanceof ListFolderErrorException));
             return result.getEntries().stream().map(Metadata::getName).collect(Collectors.toList());
         } catch (ListFolderErrorException e) {
@@ -80,7 +83,7 @@ public class DropboxIOProvider implements IOIndex {
     @Override
     public String upload(String key, byte[] data) throws IOException {
         try {
-            RetryUtils.retry(() -> {
+            RetryUtils.retry(limiter.call(() -> () -> {
                 UploadBuilder builder = clientV2.files().uploadBuilder(getFullPath(key));
                 builder.withMode(WriteMode.OVERWRITE);
                 builder.withMute(true);
@@ -88,7 +91,7 @@ public class DropboxIOProvider implements IOIndex {
                     file.uploadAndFinish(new ByteArrayInputStream(data));
                 }
                 return null;
-            }, null);
+            }), null);
         } catch (IOException | ProcessingStoppedException e) {
             throw e;
         } catch (Exception exc) {
@@ -100,11 +103,11 @@ public class DropboxIOProvider implements IOIndex {
     @Override
     public byte[] download(String key) throws IOException {
         try {
-            return RetryUtils.retry(() -> {
+            return RetryUtils.retry(() -> limiter.call(() -> {
                 try (DbxDownloader<FileMetadata> file = clientV2.files().download(getFullPath(key))) {
                     return IOUtils.readAllBytes(file.getInputStream());
                 }
-            }, (e) -> !(e instanceof DownloadErrorException));
+            }), (e) -> !(e instanceof DownloadErrorException));
         } catch (IOException | ProcessingStoppedException e) {
             throw e;
         } catch (Exception exc) {
@@ -115,7 +118,7 @@ public class DropboxIOProvider implements IOIndex {
     @Override
     public boolean exists(String key) throws IOException {
         try {
-            boolean ret = RetryUtils.retry(() -> {
+            boolean ret = RetryUtils.retry(() -> limiter.call(() -> {
                 try {
                     clientV2.files().getMetadata(getFullPath(key));
                     return true;
@@ -128,7 +131,7 @@ public class DropboxIOProvider implements IOIndex {
                     }
                     throw e;
                 }
-            }, (e) -> !(e instanceof DownloadErrorException));
+            }), (e) -> !(e instanceof DownloadErrorException));
             debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
             return ret;
         } catch (IOException | ProcessingStoppedException e) {
@@ -141,7 +144,7 @@ public class DropboxIOProvider implements IOIndex {
     @Override
     public void delete(String key) throws IOException {
         try {
-            RetryUtils.retry(() -> clientV2.files().deleteV2(getFullPath(key)), null);
+            RetryUtils.retry(() -> limiter.call(() -> clientV2.files().deleteV2(getFullPath(key))), null);
             debug(() -> log.debug("Deleted \"{}\"", key));
         } catch (IOException | ProcessingStoppedException e) {
             throw e;

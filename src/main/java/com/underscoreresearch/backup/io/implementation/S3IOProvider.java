@@ -11,6 +11,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.underscoreresearch.backup.io.ConnectionLimiter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.underscoreresearch.backup.io.IOIndex;
@@ -25,7 +26,6 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkException;
-import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -49,6 +49,7 @@ public class S3IOProvider implements IOIndex, Closeable {
     private final S3Client client;
     private final String root;
     private final String bucket;
+    private final ConnectionLimiter limiter;
 
     public S3IOProvider(BackupDestination destination) {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(destination.getPrincipal(),
@@ -82,6 +83,8 @@ public class S3IOProvider implements IOIndex, Closeable {
             root = path;
         }
         bucket = uri.getHost();
+
+        limiter = new ConnectionLimiter(destination);
     }
 
     private String getRootedKey(String key) {
@@ -107,7 +110,7 @@ public class S3IOProvider implements IOIndex, Closeable {
         List<String> ret = new ArrayList<>();
 
         try {
-            ListObjectsV2Response response = RetryUtils.retry(() -> client.listObjectsV2(initialRequest), null);
+            ListObjectsV2Response response = RetryUtils.retry(() -> limiter.call(() -> client.listObjectsV2(initialRequest)), null);
             while (true) {
 
                 for (S3Object obj : response.contents()) {
@@ -125,7 +128,7 @@ public class S3IOProvider implements IOIndex, Closeable {
                 if (response.isTruncated()) {
                     ListObjectsV2Request request = initialRequest.toBuilder()
                             .continuationToken(response.nextContinuationToken()).build();
-                    response = RetryUtils.retry(() -> client.listObjectsV2(request), null);
+                    response = RetryUtils.retry(() -> limiter.call(() -> client.listObjectsV2(request)), null);
                 } else {
                     break;
                 }
@@ -150,12 +153,12 @@ public class S3IOProvider implements IOIndex, Closeable {
                     .build();
             RequestBody body = RequestBody.fromBytes(data);
 
-            RetryUtils.retry(() -> {
+            RetryUtils.retry(() -> limiter.call(() -> {
                 client.putObject(request, body);
 
                 debug(() -> log.debug("Uploaded \"{}/{}\" ({})", bucket, rootedKey, readableSize(data.length)));
                 return null;
-            }, null);
+            }), null);
         } catch (IOException | ProcessingStoppedException e) {
             throw e;
         } catch (Exception e) {
@@ -170,14 +173,14 @@ public class S3IOProvider implements IOIndex, Closeable {
         String rootedKey = getRootedKey(key);
 
         try {
-            return RetryUtils.retry(() -> {
+            return RetryUtils.retry(() -> limiter.call(() -> {
                 try (ResponseInputStream<GetObjectResponse> obj = client.getObject(GetObjectRequest.builder()
                         .bucket(bucket).key(rootedKey).build())) {
                     byte[] data = IOUtils.readAllBytes(obj);
                     debug(() -> log.debug("Downloaded \"{}/{}\" ({})", bucket, rootedKey, readableSize(data.length)));
                     return data;
                 }
-            }, (exc) -> {
+            }), (exc) -> {
                 if (exc instanceof S3Exception s3Exception)
                     return !s3Exception.awsErrorDetails().errorCode().equals("NoSuchKey");
                 return true;
@@ -194,7 +197,7 @@ public class S3IOProvider implements IOIndex, Closeable {
         String rootedKey = getRootedKey(key);
 
         try {
-            boolean ret = RetryUtils.retry(() -> {
+            boolean ret = RetryUtils.retry(() -> limiter.call(() -> {
                 try {
                     final HeadObjectResponse response = client.headObject(HeadObjectRequest.builder()
                             .bucket(bucket).key(rootedKey).build());
@@ -204,7 +207,7 @@ public class S3IOProvider implements IOIndex, Closeable {
                         return false;
                     throw exc;
                 }
-            }, null);
+            }), null);
             debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
             return ret;
         } catch (IOException | ProcessingStoppedException e) {
@@ -219,7 +222,7 @@ public class S3IOProvider implements IOIndex, Closeable {
         String rootedKey = getRootedKey(key);
 
         try {
-            RetryUtils.<Void>retry(() -> {
+            RetryUtils.<Void>retry(() -> limiter.call(() -> {
                 try {
                     client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(rootedKey).build());
                     return null;
@@ -228,7 +231,7 @@ public class S3IOProvider implements IOIndex, Closeable {
                         return null;
                     throw exc;
                 }
-            }, null);
+            }), null);
             debug(() -> log.debug("Deleted \"{}\"", key));
         } catch (IOException | ProcessingStoppedException e) {
             throw e;

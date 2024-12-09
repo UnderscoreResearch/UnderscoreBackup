@@ -13,6 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.io.ConnectionLimiter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Strings;
@@ -48,6 +49,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
     private Connection connection;
     private Session session;
     private DiskShare share;
+    private ConnectionLimiter limiter;
 
     public SMBIOProvider(BackupDestination destination) {
         this.destination = destination;
@@ -67,6 +69,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
 
         host = matcher.group(1);
         shareName = matcher.group(2);
+        limiter = new ConnectionLimiter(destination);
     }
 
     private DiskShare getShare() throws IOException {
@@ -93,16 +96,22 @@ public class SMBIOProvider implements IOIndex, Closeable {
     public List<String> availableKeys(String prefix) throws IOException {
         try {
             String physicalKey = physicalPath(prefix);
-            if (getShare().folderExists(root + physicalKey)) {
-                return getShare().list(root + physicalKey)
-                        .stream()
-                        .map(FileDirectoryQueryableInformation::getFileName)
-                        .filter(t -> !t.equals(".") && !t.equals(".."))
-                        .collect(Collectors.toList());
-            }
-            return Lists.newArrayList();
+            return limiter.call(() -> {
+                if (getShare().folderExists(root + physicalKey)) {
+                    return getShare().list(root + physicalKey)
+                            .stream()
+                            .map(FileDirectoryQueryableInformation::getFileName)
+                            .filter(t -> !t.equals(".") && !t.equals(".."))
+                            .collect(Collectors.toList());
+                }
+                return Lists.newArrayList();
+            });
         } catch (SMBRuntimeException exc) {
             throw new IOException("Failed to list SMB folder", exc);
+        } catch (RuntimeException exc) {
+            throw exc;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -128,18 +137,24 @@ public class SMBIOProvider implements IOIndex, Closeable {
         createParent(root + parent);
 
         try {
-            try (File file = getShare().openFile(root + physicalKey,
-                    EnumSet.of(AccessMask.FILE_WRITE_DATA),
-                    null,
-                    SMB2ShareAccess.ALL,
-                    SMB2CreateDisposition.FILE_OVERWRITE_IF,
-                    null)) {
-                file.write(data, 0);
-            }
+            return limiter.call(() -> {
+                try (File file = getShare().openFile(root + physicalKey,
+                        EnumSet.of(AccessMask.FILE_WRITE_DATA),
+                        null,
+                        SMB2ShareAccess.ALL,
+                        SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                        null)) {
+                    file.write(data, 0);
+                }
+                return key;
+            });
         } catch (SMBRuntimeException exc) {
             throw new IOException("Failed to upload file", exc);
+        } catch (RuntimeException exc) {
+            throw exc;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        return key;
     }
 
     private void createParent(String parent) throws IOException {
@@ -165,20 +180,26 @@ public class SMBIOProvider implements IOIndex, Closeable {
     public byte[] download(String key) throws IOException {
         String physicalKey = physicalPath(key);
         try {
-            try (File file = getShare().openFile(root + physicalKey,
-                    EnumSet.of(AccessMask.FILE_READ_DATA),
-                    null,
-                    SMB2ShareAccess.ALL,
-                    SMB2CreateDisposition.FILE_OPEN,
-                    null)) {
-                try (InputStream stream = file.getInputStream()) {
-                    byte[] data = IOUtils.readAllBytes(stream);
-                    debug(() -> log.debug("Read \"{}\" ({})", key, readableSize(data.length)));
-                    return data;
+            return limiter.call(() -> {
+                try (File file = getShare().openFile(root + physicalKey,
+                        EnumSet.of(AccessMask.FILE_READ_DATA),
+                        null,
+                        SMB2ShareAccess.ALL,
+                        SMB2CreateDisposition.FILE_OPEN,
+                        null)) {
+                    try (InputStream stream = file.getInputStream()) {
+                        byte[] data = IOUtils.readAllBytes(stream);
+                        debug(() -> log.debug("Read \"{}\" ({})", key, readableSize(data.length)));
+                        return data;
+                    }
                 }
-            }
+            });
         } catch (SMBRuntimeException exc) {
             throw new IOException("Failed to download file", exc);
+        } catch (RuntimeException exc) {
+            throw exc;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -186,31 +207,48 @@ public class SMBIOProvider implements IOIndex, Closeable {
     public boolean exists(String key) throws IOException {
         String physicalKey = physicalPath(key);
 
-        boolean ret = getShare().fileExists(root + physicalKey);
-        debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
-        return ret;
+        try {
+            return limiter.call(() -> {
+                boolean ret = getShare().fileExists(root + physicalKey);
+                debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
+                return ret;
+            });
+        } catch (SMBRuntimeException exc) {
+            throw new IOException("Failed to check file", exc);
+        } catch (RuntimeException exc) {
+            throw exc;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void delete(String key) throws IOException {
         String physicalKey = physicalPath(key);
         try {
-            if (getShare().fileExists(root + physicalKey)) {
-                getShare().rm(root + physicalKey);
-            }
-
-            String parent = parentPath(physicalKey);
-            while (!Strings.isNullOrEmpty(parent)) {
-                try {
-                    getShare().rmdir(root + parent, false);
-                    parent = parentPath(physicalKey);
-                } catch (SMBApiException exc) {
-                    break;
+            limiter.call(() -> {
+                if (getShare().fileExists(root + physicalKey)) {
+                    getShare().rm(root + physicalKey);
                 }
-            }
-            debug(() -> log.debug("Deleted \"{}\"", key));
+
+                String parent = parentPath(physicalKey);
+                while (!Strings.isNullOrEmpty(parent)) {
+                    try {
+                        getShare().rmdir(root + parent, false);
+                        parent = parentPath(physicalKey);
+                    } catch (SMBApiException exc) {
+                        break;
+                    }
+                }
+                debug(() -> log.debug("Deleted \"{}\"", key));
+                return null;
+            });
         } catch (SMBRuntimeException exc) {
             throw new IOException("Failed to delete file", exc);
+        } catch (RuntimeException exc) {
+            throw exc;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

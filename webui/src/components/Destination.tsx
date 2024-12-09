@@ -6,10 +6,10 @@ import {
     AccordionDetails,
     AccordionSummary,
     Autocomplete,
-    Button,
+    Button, Checkbox,
     CircularProgress,
     Divider,
-    FormControl,
+    FormControl, FormControlLabel,
     Grid,
     InputLabel,
     Link,
@@ -64,6 +64,7 @@ interface S3DestinationState {
     accessKeyId: string,
     secretAccessKey: string,
     maxRetention: BackupTimespan | undefined,
+    maxConnections: number | undefined,
     encryption: string,
     errorCorrection: string,
     region: string,
@@ -149,6 +150,7 @@ interface SharedState {
     encryption: string,
     errorCorrection: string,
     maxRetention: BackupTimespan | undefined,
+    maxConnections?: number,
     limits: BackupLimits | undefined
 }
 
@@ -163,13 +165,9 @@ function SharedProperties(props: {
     const [state, setState] = React.useState({
         encryption: props.state.encryption,
         errorCorrection: props.state.errorCorrection,
-        maxRetention: props.state.maxRetention,
-        limits: props.state.limits ? props.state.limits : {}
-    } as {
-        encryption: string,
-        errorCorrection: string,
-        maxRetention: BackupTimespan | undefined,
-        limits: BackupLimits
+        maxRetention: props.state.maxRetention as BackupTimespan | undefined,
+        maxConnections: props.state.maxConnections as number | undefined,
+        limits: (props.state.limits ? props.state.limits : {}) as BackupLimits
     });
 
     function updateLimitChange(newState: {
@@ -267,7 +265,7 @@ function SharedProperties(props: {
                         <DividerWithText>Limits</DividerWithText>
                     </Grid>
                     {!props.sourceDestination &&
-                        <Grid item md={6} xs={12}>
+                        <Grid item lg={4} md={6} xs={12}>
                             <SpeedLimit
                                 speed={state.limits.maximumUploadBytesPerSecond}
                                 onChange={(newSpeed) => {
@@ -284,7 +282,7 @@ function SharedProperties(props: {
                         </Grid>
                     }
                     {!props.shareDestination &&
-                        <Grid item md={6} xs={12}>
+                        <Grid item lg={4} md={6} xs={12}>
                             <SpeedLimit
                                 speed={state.limits.maximumDownloadBytesPerSecond}
                                 onChange={(newSpeed) => {
@@ -300,6 +298,35 @@ function SharedProperties(props: {
                                 }} title={"Maximum download speed"}/>
                         </Grid>
                     }
+                    <Grid item lg={4} md={6} xs={12}>
+                        <div style={{display: "flex", alignItems: "center"}}>
+                            <FormControlLabel control={<Checkbox
+                                checked={!!state.maxConnections}
+                                onChange={(e) => {
+                                    const newState = {
+                                        ...state,
+                                        maxConnections: e.target.checked ? 10 : undefined
+                                    }
+                                    setState(newState);
+                                    props.onChange(newState);
+                                }}
+                            />} style={{whiteSpace: "nowrap"}} label={"Limit total connections"}/>
+                            <TextField variant="outlined"
+                                       label="Max connections"
+                                       disabled={!state.maxConnections}
+                                       type={"number"}
+                                       style={{width: "8em"}}
+                                       value={state.maxConnections ?? 10}
+                                       onChange={(e) => {
+                                           const newState = {
+                                               ...state,
+                                               maxConnections: parseInt(e.target.value)
+                                           }
+                                           setState(newState);
+                                           props.onChange(newState);
+                                       }}/>
+                        </div>
+                    </Grid>
                     {!props.sourceDestination && !props.shareDestination &&
                         <Grid item xs={12}>
                             <DividerWithText>Maximum retention</DividerWithText>
@@ -330,6 +357,7 @@ function LocalFileDestination(props: DestinationProps) {
         endpointUri: props.destination.endpointUri ? props.destination.endpointUri : "" as string,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC" as string,
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
+        maxConnections: props.destination.maxConnections,
         maxRetention: props.destination.maxRetention,
         limits: props.destination.limits
     });
@@ -338,6 +366,7 @@ function LocalFileDestination(props: DestinationProps) {
         endpointUri: string
         encryption: string,
         maxRetention: BackupTimespan | undefined,
+        maxConnections: number | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined
     }) {
@@ -348,6 +377,7 @@ function LocalFileDestination(props: DestinationProps) {
                 encryption: newState.encryption,
                 maxRetention: newState.maxRetention,
                 errorCorrection: newState.errorCorrection,
+                maxConnections: newState.maxConnections,
                 limits: newState.limits
             });
         }
@@ -403,6 +433,7 @@ function DropboxDestination(props: DestinationProps) {
         accessToken: props.destination.principal ? props.destination.principal : "",
         refreshToken: props.destination.credential ? props.destination.credential : "",
         maxRetention: props.destination.maxRetention,
+        maxConnections: props.destination.maxConnections,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         limits: props.destination.limits
@@ -417,6 +448,7 @@ function DropboxDestination(props: DestinationProps) {
         refreshToken: string,
         encryption: string,
         maxRetention: BackupTimespan | undefined,
+        maxConnections: number | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined
     }) {
@@ -428,6 +460,7 @@ function DropboxDestination(props: DestinationProps) {
                 credential: newState.refreshToken,
                 encryption: newState.encryption,
                 maxRetention: newState.maxRetention,
+                maxConnections: newState.maxConnections,
                 errorCorrection: newState.errorCorrection,
                 limits: newState.limits
             };
@@ -441,6 +474,7 @@ function DropboxDestination(props: DestinationProps) {
         refreshToken: string,
         encryption: string,
         maxRetention: BackupTimespan | undefined,
+        maxConnections: number | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined
     }) {
@@ -547,6 +581,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
         maxRetention: props.destination.maxRetention,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
+        maxConnections: props.destination.maxConnections,
         autoDetecting: false,
         limits: props.destination.limits
     }));
@@ -558,6 +593,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
         region: string,
         encryption: string,
         maxRetention: BackupTimespan | undefined,
+        maxConnections: number | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined,
         autoDetecting: boolean
@@ -568,6 +604,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
                 endpointUri: newState.region,
                 encryption: newState.encryption,
                 maxRetention: newState.maxRetention,
+                maxConnections: newState.maxConnections,
                 errorCorrection: newState.errorCorrection,
                 limits: newState.limits
             };
@@ -675,6 +712,7 @@ function WindowsShareDestination(props: DestinationProps) {
         password: props.destination.credential ? props.destination.credential : "",
         domain: props.destination.properties && props.destination.properties["domain"] ? props.destination.properties["domain"] : "WORKSPACE",
         maxRetention: props.destination.maxRetention,
+        maxConnections: props.destination.maxConnections,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         limits: props.destination.limits
@@ -686,6 +724,7 @@ function WindowsShareDestination(props: DestinationProps) {
         password: string,
         domain: string,
         maxRetention: BackupTimespan | undefined,
+        maxConnections: number | undefined,
         encryption: string,
         errorCorrection: string,
         limits: BackupLimits | undefined
@@ -704,6 +743,7 @@ function WindowsShareDestination(props: DestinationProps) {
                 encryption: newState.encryption,
                 errorCorrection: newState.errorCorrection,
                 maxRetention: newState.maxRetention,
+                maxConnections: newState.maxConnections,
                 properties: properties,
                 limits: newState.limits
             });
@@ -967,6 +1007,7 @@ function createS3Destination(newState: S3DestinationState, properties?: Property
         credential: newState.secretAccessKey,
         encryption: newState.encryption,
         maxRetention: newState.maxRetention,
+        maxConnections: newState.maxConnections,
         errorCorrection: newState.errorCorrection,
         properties: properties,
         limits: newState.limits
@@ -980,6 +1021,7 @@ function createS3State(props: DestinationProps, region: string, apiEndpoint?: st
         accessKeyId: props.destination.principal ? props.destination.principal : "",
         secretAccessKey: props.destination.credential ? props.destination.credential : "",
         maxRetention: props.destination.maxRetention,
+        maxConnections: props.destination.maxConnections,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC" as string,
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
         region: region,
