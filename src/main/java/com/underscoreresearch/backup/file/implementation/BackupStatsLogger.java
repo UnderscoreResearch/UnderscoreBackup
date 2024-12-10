@@ -208,7 +208,7 @@ public class BackupStatsLogger implements StatusLogger {
     public List<StatusLine> status() {
         List<StatusLine> ret = new ArrayList<>();
 
-        if (InstanceFactory.getInstance(MetadataRepository.class).isErrorsDetected()) {
+        if (InstanceFactory.getInstance(LockingMetadataRepository.class).isErrorsDetected()) {
             ret.add(new StatusLine(getClass(), "REPOSITORY_ERROR_DETECTED", "Detected corruption in local metadata repository",
                     null, InstanceFactory.getAdditionalSourceName()));
         }

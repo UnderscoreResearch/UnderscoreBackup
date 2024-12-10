@@ -285,7 +285,8 @@ export interface CustomSelectProps
     leadingZero?: LeadingZero
     clockFormat?: ClockFormat
     period: PeriodType
-    unit: Unit
+    unit: Unit,
+    placeholder: string
 }
 
 export type SetValueNumbersOrUndefined = Dispatch<SetStateAction<number[] | undefined>>

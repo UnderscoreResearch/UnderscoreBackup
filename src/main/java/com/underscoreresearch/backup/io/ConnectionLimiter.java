@@ -1,13 +1,18 @@
 package com.underscoreresearch.backup.io;
 
+import com.google.common.base.Stopwatch;
 import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public class ConnectionLimiter {
     private final int maximumConnections;
     private final Object lock = new Object();
     private int currentConnections = 0;
+    private final Stopwatch stopwatch = Stopwatch.createStarted();
 
     public ConnectionLimiter(int maximumConnections) {
         this.maximumConnections = maximumConnections;
@@ -27,6 +32,10 @@ public class ConnectionLimiter {
                         Thread.currentThread().interrupt();
                         return;
                     }
+                }
+                if (currentConnections > maximumConnections * 0.75 && stopwatch.elapsed(TimeUnit.MINUTES) > 1) {
+                    log.info("{}/{} connections used", currentConnections, maximumConnections);
+                    stopwatch.reset().start();
                 }
                 currentConnections++;
             }

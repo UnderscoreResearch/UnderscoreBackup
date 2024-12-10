@@ -1,6 +1,6 @@
 import Paper from "@mui/material/Paper";
 import * as React from "react";
-import {Fragment, useEffect} from "react";
+import {Fragment, ReactNode, useEffect} from "react";
 import {
     Accordion,
     AccordionDetails,
@@ -45,8 +45,8 @@ export interface DestinationProps {
     manifestDestination?: boolean,
     sourceDestination?: boolean,
     shareDestination?: boolean,
-    children?: React.ReactNode,
-    postElement?: JSX.Element,
+    children?: ReactNode,
+    postElement?: ReactNode,
 }
 
 export interface S3DestinationProps extends DestinationProps {

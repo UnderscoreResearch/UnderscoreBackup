@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {ReactNode, useEffect} from 'react';
 import {
     Button,
     Checkbox,
@@ -218,7 +218,7 @@ export default function Restore(props: RestoreProps) {
     }
 
     async function fetchTooltipContents(path: string, hasChildren: boolean, updated: (path: string) => void): Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
-        => JSX.Element) | undefined> {
+        => ReactNode) | undefined> {
         let files: BackupFile[] | undefined;
         if (!hasChildren) {
             files = await getBackupVersions(path);

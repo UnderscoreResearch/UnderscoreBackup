@@ -141,7 +141,7 @@ public class BlockValidator implements ManualStatusLogger {
                     if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                         lastHeartbeat = stopwatch.elapsed();
                         log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
-                        if (validateDestination) {
+                        if (validateDestination && lastProcessed != null) {
                             saveCancelledCheckpoint();
                         }
                     }
@@ -223,6 +223,9 @@ public class BlockValidator implements ManualStatusLogger {
 
     private boolean validateHash(MetadataRepository repository, String blockHash, AtomicLong maximumSize,
                                  int maxBlockSize, boolean validateDestination) throws IOException {
+        if (InstanceFactory.isShutdown())
+            throw new ProcessingStoppedException();
+
         BackupBlock block = repository.block(blockHash);
         if (block == null) {
             log.warn("Block hash \"{}\" does not exist", blockHash);

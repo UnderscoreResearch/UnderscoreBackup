@@ -12,13 +12,14 @@ import AutoAwesomeMotion from "@mui/icons-material/AutoAwesomeMotion";
 import Dashboard from "@mui/icons-material/Dashboard";
 import {Link} from "react-router-dom";
 import {Share} from "@mui/icons-material";
+import {ReactNode} from "react";
 
 function MyListItemButton(props: {
     page: string,
     id: string,
     disabled: boolean,
     currentPage: string,
-    children: JSX.Element[]
+    children: ReactNode[]
 }) {
     return <ListItemButton id={props.id} disabled={props.disabled} component={Link} to={props.page}
                            selected={props.currentPage === props.page}>

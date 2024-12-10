@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {ReactNode, useEffect} from 'react';
 import {FixedSizeList as List} from "react-window";
 import AutoSizer, {Size} from "react-virtualized-auto-sizer";
 import {Checkbox, CircularProgress, FormControlLabel, Tooltip, useTheme} from "@mui/material";
@@ -70,7 +70,7 @@ export interface SetTreeViewProps {
     rootNameProcessing?: string,
     onChange: (roots: BackupSetRoot[]) => void,
     onFileDetailPopup?: (path: string, hasChildren: boolean, updated: (path: string) => void) => Promise<((anchor: HTMLElement, open: boolean, handleClose: () => void)
-        => JSX.Element) | undefined>
+        => ReactNode) | undefined>
 }
 
 interface MatchedFilter {
@@ -389,7 +389,7 @@ export default function FileTreeView(props: SetTreeViewProps) {
         const [anchor, setAnchor] = React.useState(null as HTMLElement | null);
         const [tooltipContents, setTooltipContents] = React.useState(
             () => undefined as ((anchor: HTMLElement, open: boolean, handleClose: () => void)
-                => JSX.Element) | undefined);
+                => ReactNode) | undefined);
 
         function handleClick(e: React.MouseEvent<HTMLAnchorElement> | React.MouseEvent<HTMLButtonElement>) {
             if (!open) {

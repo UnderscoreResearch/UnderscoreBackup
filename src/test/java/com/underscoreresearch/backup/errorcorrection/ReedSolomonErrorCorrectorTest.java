@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.hamcrest.core.Is;
@@ -59,5 +60,32 @@ class ReedSolomonErrorCorrectorTest {
 
         parts.set(3, null);
         assertThrows(IOException.class, () -> corrector.decodeErrorCorrection(storage, parts));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 8, 100, 1024})
+    public void redo(int length) throws Exception {
+        data = new byte[length];
+        for (int i = 0; i < data.length; i++)
+            data[i] = (byte) i;
+
+        ReedSolomonErrorCorrector corrector = new ReedSolomonErrorCorrector(8, 3);
+
+        List<byte[]> parts = corrector.encodeErrorCorrection(storage, data);
+
+        List<byte[]> otherParts = corrector.encodeErrorCorrection(storage,
+                corrector.decodeErrorCorrection(storage, parts));
+        List<byte[]> mixedParts = new ArrayList<>();
+
+        for (int i = 0; i < parts.size(); i++) {
+            if (i % 2 == 0) {
+                mixedParts.add(parts.get(i));
+            } else {
+                mixedParts.add(otherParts.get(i));
+            }
+        }
+
+        byte[] result = corrector.decodeErrorCorrection(storage, mixedParts);
+        assertThat(result, Is.is(data));
     }
 }

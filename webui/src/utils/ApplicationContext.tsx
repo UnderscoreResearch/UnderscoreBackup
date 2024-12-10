@@ -80,6 +80,16 @@ const defaultConfig: ApplicationState = {
     backendState: getDefaultState()
 }
 
+let lastVersion : string = "";
+
+function validateLastVersion(backendState: BackupState) {
+    if (lastVersion === "") {
+        lastVersion = backendState.version;
+    } else if (backendState.version && lastVersion !== backendState.version) {
+        window.location.reload();
+    }
+}
+
 function generateApplicationContext(): ApplicationContext {
     const [state, setState] = React.useState(defaultConfig);
     const [busy, setBusy] = React.useState(false);
@@ -91,10 +101,12 @@ function generateApplicationContext(): ApplicationContext {
         let newState = {} as ApplicationState;
         newState.initialLoad = false;
         newState.backendState = await getState();
+        validateLastVersion(newState.backendState);
         if (await needPrivateKeyPassword(true)) {
             if (password) {
                 await submitPrivateKeyPassword(password);
                 newState.backendState = await getState();
+                validateLastVersion(newState.backendState);
             }
             if (await needPrivateKeyPassword(true)) {
                 newState.needAuthentication = true;
@@ -156,10 +168,9 @@ function generateApplicationContext(): ApplicationContext {
         setBusy(true);
         try {
             const newBackendState = await getState();
+
             setState((oldState) => {
-                if (oldState && oldState.backendState && oldState.backendState.version !== newBackendState.version) {
-                    window.location.reload();
-                }
+                validateLastVersion(newBackendState);
                 return {
                     ...oldState,
                     backendState: newBackendState,
