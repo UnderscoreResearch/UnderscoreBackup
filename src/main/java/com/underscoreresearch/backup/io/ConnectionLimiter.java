@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+
 @Slf4j
 public class ConnectionLimiter {
     private final int maximumConnections;
@@ -23,31 +25,34 @@ public class ConnectionLimiter {
     }
 
     public void acquire() {
-        if (maximumConnections > 0) {
-            synchronized (lock) {
+        synchronized (lock) {
+            if (maximumConnections > 0) {
                 while (currentConnections >= maximumConnections) {
                     try {
                         lock.wait();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        return;
                     }
                 }
+            }
+            currentConnections++;
+            debug(() -> {
                 if (currentConnections > maximumConnections * 0.75 && stopwatch.elapsed(TimeUnit.MINUTES) > 1) {
-                    log.info("{}/{} connections used", currentConnections, maximumConnections);
+                    if (maximumConnections > 0) {
+                        log.debug("{}/{} connections used", currentConnections, maximumConnections);
+                    } else {
+                        log.debug("{} connections used", currentConnections);
+                    }
                     stopwatch.reset().start();
                 }
-                currentConnections++;
-            }
+            });
         }
     }
 
     public void release() {
-        if (maximumConnections > 0) {
-            synchronized (lock) {
-                currentConnections--;
-                lock.notifyAll();
-            }
+        synchronized (lock) {
+            currentConnections--;
+            lock.notifyAll();
         }
     }
 
