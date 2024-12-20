@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +48,8 @@ import com.underscoreresearch.backup.utils.StatusLine;
 
 @Slf4j
 public class BlockValidator implements ManualStatusLogger {
-    public static String VALIDATE_BLOCKS_TASK = "Upgrading metadata repository";
+    public static final String VALIDATE_BLOCKS_TASK = "Upgrading metadata repository";
+    private static final Pattern PARSE_RECOVERY = Pattern.compile("^(\\d+),(.*)$");
     private final MetadataRepository repository;
     private final BackupConfiguration configuration;
     private final ManifestManager manifestManager;
@@ -58,6 +61,7 @@ public class BlockValidator implements ManualStatusLogger {
     private final AtomicLong processedSteps = new AtomicLong();
     private final AtomicLong totalSteps = new AtomicLong();
     private final AtomicLong totalBlocks = new AtomicLong();
+    private long totalBlockOffset;
     private Duration lastHeartbeat;
     private BackupFile currentlyProcessing;
     private BackupFile lastProcessed;
@@ -91,7 +95,15 @@ public class BlockValidator implements ManualStatusLogger {
             if (file.exists()) {
                 try (FileInputStream stream = new FileInputStream(file)) {
                     ignoreBefore = new String(IOUtils.readAllBytes(stream), StandardCharsets.UTF_8);
-                    log.info("Resuming from path \"{}\"", PathNormalizer.physicalPath(ignoreBefore));
+                    Matcher matcher = PARSE_RECOVERY.matcher(ignoreBefore);
+                    if (matcher.find()) {
+                        totalBlockOffset = Long.parseLong(matcher.group(1));
+                        ignoreBefore = matcher.group(2);
+                    } else {
+                        totalBlockOffset = 0;
+                    }
+                    log.info("Resuming from path \"{}\" ({} blocks checked)",
+                            PathNormalizer.physicalPath(ignoreBefore), totalBlockOffset);
                 } catch (IOException e) {
                     log.error("Failed to read progress file", e);
                 }
@@ -211,7 +223,8 @@ public class BlockValidator implements ManualStatusLogger {
     private void saveCancelledCheckpoint() {
         File file = getCancelledCheckpointFile();
         try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
-            writer.write(lastProcessed.getPath());
+            String checkpoint = (destinationBlockProcessor.getValidatedBlocks() + totalBlockOffset) + "," + lastProcessed.getPath();
+            writer.write(checkpoint);
         } catch (IOException e) {
             log.error("Failed to write progress to file", e);
         }
@@ -359,11 +372,12 @@ public class BlockValidator implements ManualStatusLogger {
                             destinationBlockProcessor.getRefreshedUploadSize(), readableSize(destinationBlockProcessor.getRefreshedUploadSize())));
                 }
                 if (totalBlocks.get() > 0) {
+                    long validatedBlocks = Math.min(destinationBlockProcessor.getValidatedBlocks() + totalBlockOffset, totalBlocks.get());
                     ret.add(new StatusLine(getClass(), "VALIDATE_DESTINATION_BLOCKS", "Validating destination blocks",
-                            destinationBlockProcessor.getValidatedBlocks(), totalBlocks.get(),
-                            readableNumber(destinationBlockProcessor.getValidatedBlocks()) + " / "
+                            validatedBlocks, totalBlocks.get(),
+                            readableNumber(validatedBlocks) + " / "
                                     + readableNumber(totalBlocks.get()) + " blocks"
-                                    + readableEta(destinationBlockProcessor.getValidatedBlocks(), totalBlocks.get(),
+                                    + readableEta(destinationBlockProcessor.getValidatedBlocks(), totalBlocks.get() - totalBlockOffset,
                                     Duration.ofMillis(elapsedMilliseconds))));
                     ret.add(new StatusLine(getClass(), "VALIDATE_BLOCKS_THROUGHPUT", "Validating blocks throughput",
                                     throughput, readableNumber(1000 * destinationBlockProcessor.getValidatedBlocks() /
