@@ -85,82 +85,87 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
     @Override
     public boolean startScanning(BackupSet backupSet) throws IOException {
         lock.lock();
-        shutdown = false;
 
-        if (duration == null) {
-            duration = Stopwatch.createStarted();
-        }
-        lastPath = Duration.ZERO;
-
-        TreeMap<String, BackupActivePath> originalActivePaths = repository.getActivePaths(backupSet.getId());
-        pendingPaths = stripExcludedPendingPaths(backupSet, originalActivePaths);
-
-        boolean needStorageValidation = BackupSetDestinations.needStorageValidation(
-                manifestLocation, backupSet, originalActivePaths.isEmpty());
-        if (needStorageValidation)
-            log.info("Enabled storage validation for set \"{}\"", backupSet.getId());
-
-        if (!pendingPaths.isEmpty()) {
-            debug(() -> log.debug("Resuming paths from \"{}\"", pendingPaths.keySet().stream().map(PathNormalizer::physicalPath)
-                    .collect(Collectors.joining("\", \""))));
-        }
-
-        if (!registerBackupRoots(backupSet)) {
-            lock.unlock();
-            return !shutdown;
-        }
-
-        pendingPaths.values().forEach(t -> t.setUnprocessed(true));
-
-        for (BackupSetRoot root : backupSet.getRoots()) {
-            if (!shutdown && pendingPaths.containsKey(root.getNormalizedPath())) {
-                try {
-                    processPath(backupSet, root.getNormalizedPath(), needStorageValidation);
-                } catch (Throwable exc) {
-                    consumer.flushAssignments();
-                    resetStatus();
-                    lock.unlock();
-                    throw exc;
-                }
-            }
-        }
-
-        lock.unlock();
         try {
-            consumer.flushAssignments();
-        } finally {
-            lock.lock();
-        }
+            shutdown = false;
 
-        debug(() -> log.debug("File scanner shutting down"));
-        while (!processedPendingPaths().isEmpty() && !shutdown) {
-            try {
-                debug(() -> log.debug("Waiting for active paths: " + formatPathList(processedPendingPaths()
-                        .keySet())));
-                pendingDirectoriesUpdated.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error("Failed to wait for completion", e);
+            if (duration == null) {
+                duration = Stopwatch.createStarted();
             }
-        }
+            lastPath = Duration.ZERO;
 
-        if (!shutdown) {
-            while (!pendingPaths.isEmpty()) {
-                String path = pendingPaths.lastKey();
-                log.info("Closing remaining active path: \"" + path + "\"");
-                updateActivePath(backupSet, path, true);
+            TreeMap<String, BackupActivePath> originalActivePaths = repository.getActivePaths(backupSet.getId());
+            pendingPaths = stripExcludedPendingPaths(backupSet, originalActivePaths);
+
+            boolean needStorageValidation = BackupSetDestinations.needStorageValidation(
+                    manifestLocation, backupSet, originalActivePaths.isEmpty());
+            if (needStorageValidation)
+                log.info("Enabled storage validation for set \"{}\"", backupSet.getId());
+
+            if (!pendingPaths.isEmpty()) {
+                debug(() -> log.debug("Resuming paths from \"{}\"", pendingPaths.keySet().stream().map(PathNormalizer::physicalPath)
+                        .collect(Collectors.joining("\", \""))));
+            }
+            if (!registerBackupRoots(backupSet)) {
+                return !shutdown;
             }
 
-            TreeMap<String, BackupActivePath> remainingPaths = repository.getActivePaths(backupSet.getId());
-            if (!remainingPaths.isEmpty()) {
-                log.error("Completed with following active paths: " + formatPathList(remainingPaths.keySet()));
-                for (Map.Entry<String, BackupActivePath> entry : remainingPaths.entrySet()) {
-                    repository.popActivePath(backupSet.getId(), entry.getKey());
+            pendingPaths.values().forEach(t -> t.setUnprocessed(true));
+
+            for (BackupSetRoot root : backupSet.getRoots()) {
+                if (!shutdown && pendingPaths.containsKey(root.getNormalizedPath())) {
+                    try {
+                        processPath(backupSet, root.getNormalizedPath(), needStorageValidation);
+                    } catch (Throwable exc) {
+                        try {
+                            consumer.flushAssignments();
+                            resetStatus();
+                        } catch (Throwable e) {
+                            log.error("Failed to reset status", e);
+                        }
+                        throw exc;
+                    }
                 }
             }
-            BackupSetDestinations.completedStorageValidation(manifestLocation, backupSet);
+        } finally {
+            lock.unlock();
         }
-        lock.unlock();
+
+        consumer.flushAssignments();
+
+        lock.lock();
+        try {
+            debug(() -> log.debug("File scanner shutting down"));
+            while (!processedPendingPaths().isEmpty() && !shutdown) {
+                try {
+                    debug(() -> log.debug("Waiting for active paths: " + formatPathList(processedPendingPaths()
+                            .keySet())));
+                    pendingDirectoriesUpdated.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("Failed to wait for completion", e);
+                }
+            }
+
+            if (!shutdown) {
+                while (!pendingPaths.isEmpty()) {
+                    String path = pendingPaths.lastKey();
+                    log.info("Closing remaining active path: \"" + path + "\"");
+                    updateActivePath(backupSet, path, true);
+                }
+
+                TreeMap<String, BackupActivePath> remainingPaths = repository.getActivePaths(backupSet.getId());
+                if (!remainingPaths.isEmpty()) {
+                    log.error("Completed with following active paths: " + formatPathList(remainingPaths.keySet()));
+                    for (Map.Entry<String, BackupActivePath> entry : remainingPaths.entrySet()) {
+                        repository.popActivePath(backupSet.getId(), entry.getKey());
+                    }
+                }
+                BackupSetDestinations.completedStorageValidation(manifestLocation, backupSet);
+            }
+        } finally {
+            lock.unlock();
+        }
 
         return !shutdown;
     }
@@ -243,16 +248,19 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         pendingFiles.setUnprocessed(false);
 
         boolean anyIncluded = false;
+        Set<BackupFile> directoryFiles;
 
         lock.unlock();
+        try {
+            if (duration != null && (lastPath == null || lastPath.toMinutes() != duration.elapsed().toMinutes())) {
+                lastPath = duration.elapsed();
+                log.info("Started processing \"{}\"", PathNormalizer.physicalPath(currentPath));
+            }
 
-        if (duration != null && (lastPath == null || lastPath.toMinutes() != duration.elapsed().toMinutes())) {
-            lastPath = duration.elapsed();
-            log.info("Started processing \"{}\"", PathNormalizer.physicalPath(currentPath));
+            directoryFiles = filesystem.directoryFiles(currentPath);
+        } finally {
+            lock.lock();
         }
-
-        Set<BackupFile> directoryFiles = filesystem.directoryFiles(currentPath);
-        lock.lock();
 
         for (BackupFile file : directoryFiles) {
             if (shutdown) {
@@ -298,35 +306,38 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                                 || !existingFile.getLength().equals(file.getLength())
                                 || (needStorageValidation && invalidStorage(existingFile, set))) {
                             lock.unlock();
-                            log.info("Backing up \"{}\" ({})", PathNormalizer.physicalPath(file.getPath()), readableSize(file.getLength()));
-                            outstandingFiles.incrementAndGet();
-                            pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCOMPLETE);
+                            try {
+                                log.info("Backing up \"{}\" ({})", PathNormalizer.physicalPath(file.getPath()), readableSize(file.getLength()));
+                                outstandingFiles.incrementAndGet();
+                                pendingFiles.getFile(file).setStatus(BackupActiveStatus.INCOMPLETE);
 
-                            file.setPermissions(filesystem.extractPermissions(file.getPath()));
+                                file.setPermissions(filesystem.extractPermissions(file.getPath()));
 
-                            lastProcessed = file;
-                            consumer.backupFile(set, file, (success) -> {
-                                outstandingFiles.decrementAndGet();
-                                if (!success) {
-                                    if (!IOUtils.hasInternet()) {
-                                        log.warn("Lost internet connection, shutting down set \"{}\" backup", set.getId());
-                                        shutdown();
-                                        return;
+                                lastProcessed = file;
+                                consumer.backupFile(set, file, (success) -> {
+                                    outstandingFiles.decrementAndGet();
+                                    if (!success) {
+                                        if (!IOUtils.hasInternet()) {
+                                            log.warn("Lost internet connection, shutting down set \"{}\" backup", set.getId());
+                                            shutdown();
+                                            return;
+                                        }
                                     }
-                                }
-                                completedFiles.incrementAndGet();
-                                completedSize.addAndGet(file.getLength());
+                                    completedFiles.incrementAndGet();
+                                    completedSize.addAndGet(file.getLength());
+                                    lock.lock();
+                                    try {
+                                        pendingFiles.getFile(file).setStatus(success ?
+                                                BackupActiveStatus.INCLUDED :
+                                                BackupActiveStatus.EXCLUDED);
+                                        updateActivePath(set, currentPath, false);
+                                    } finally {
+                                        lock.unlock();
+                                    }
+                                });
+                            } finally {
                                 lock.lock();
-                                try {
-                                    pendingFiles.getFile(file).setStatus(success ?
-                                            BackupActiveStatus.INCLUDED :
-                                            BackupActiveStatus.EXCLUDED);
-                                    updateActivePath(set, currentPath, false);
-                                } finally {
-                                    lock.unlock();
-                                }
-                            });
-                            lock.lock();
+                            }
                         } else {
                             if (existingFile.getDeleted() != null
                                     && existingFile.getLastChanged().equals(file.getLastChanged())
@@ -400,17 +411,19 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
 
     public void shutdown() {
         lock.lock();
-        shutdown = true;
-        pendingDirectoriesUpdated.signalAll();
-        lock.unlock();
+        try {
+            shutdown = true;
+            pendingDirectoriesUpdated.signalAll();
+        } finally {
+            lock.unlock();
+        }
     }
 
     private void addPendingPath(BackupSet set, String path) {
         if (!pendingPaths.containsKey(path)) {
-            lock.unlock();
-
             BackupActivePath activePath;
 
+            lock.unlock();
             try {
                 if (path.endsWith(PATH_SEPARATOR)) {
                     Set<BackupActiveFile> files = filesystem.directoryFiles(path).stream()

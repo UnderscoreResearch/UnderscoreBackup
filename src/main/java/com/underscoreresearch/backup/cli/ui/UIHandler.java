@@ -85,7 +85,7 @@ public class UIHandler {
                 return true;
             if (!activeTasks.isEmpty()) {
                 CloseableTask task = activeTasks.getLast();
-                if (Instant.now().plus(MINIMUM_ACTIVE).isBefore(task.getStarted())) {
+                if (Instant.now().minus(MINIMUM_ACTIVE).isAfter(task.getStarted())) {
                     return task.isActive();
                 }
             }

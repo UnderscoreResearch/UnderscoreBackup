@@ -148,31 +148,35 @@ public class StateLogger implements StatusLogger {
             log.debug("Current CPU usage {}", state.getCpuUsage());
         });
 
-        detectDeadlock();
+        if (InstanceFactory.hasConfiguration(false)) {
+            detectDeadlock();
+
+            debug(() -> printLogStatus((type) -> type != Type.LOG, log::debug));
+        }
     }
 
     private void detectDeadlock() {
         Instant now = Instant.now();
-        boolean isActive = UIHandler.isLongActive();
-        debug(() -> log.debug(isActive ? "Currently active" : "Not active"));
-        // We only do this if we are not sleeping (IE we get a ping here at least once a minute.
-        if (lastDeadlockCheck != null && lastDeadlockCheck.plus(MAX_DEADLOCK_DURATION).isAfter(now) && isActive) {
-            String newActivityHash;
-            try {
-                List<StatusLine> logItems = InstanceFactory.hasConfiguration(true) ?
-                        logData((type) -> type != Type.LOG).stream().filter(this::includeProgressItem).toList() :
-                        new ArrayList<>();
 
-                ThreadMXBean bean = ManagementFactory.getThreadMXBean();
-                long[] threadIds = bean.findDeadlockedThreads(); // Returns null if no threads are deadlocked.
+        String newActivityHash = null;
+        ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+        long[] threadIds = bean.findDeadlockedThreads(); // Returns null if no threads are deadlocked.
 
-                if (threadIds != null) {
-                    StringBuilder sb = new StringBuilder();
-                    for (long threadId : threadIds) {
-                        sb.append(threadId).append(" ");
-                    }
-                    newActivityHash = Hash.hash(sb.toString().getBytes(StandardCharsets.UTF_8));
-                } else {
+        if (threadIds != null) {
+            StringBuilder sb = new StringBuilder();
+            for (long threadId : threadIds) {
+                sb.append(threadId).append(" ");
+            }
+            newActivityHash = Hash.hash(sb.toString().getBytes(StandardCharsets.UTF_8));
+        } else {
+            boolean isActive = UIHandler.isLongActive();
+
+            debug(() -> log.debug(isActive ? "Currently active" : "Not active"));
+            // We only do this if we are not sleeping (IE we get a ping here at least once a minute)
+
+            if (lastDeadlockCheck != null && lastDeadlockCheck.plus(MAX_DEADLOCK_DURATION).isAfter(now) && isActive) {
+                List<StatusLine> logItems = getDeadlockLogItems();
+                try {
                     try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                         try (DataOutputStream writer = new DataOutputStream(out)) {
                             logItems.forEach(item -> {
@@ -193,31 +197,36 @@ public class StateLogger implements StatusLogger {
                         }
                         newActivityHash = Hash.hash(out.toByteArray());
                     }
+                } catch (Throwable e) {
+                    log.error("Failed calculating progress", e);
                 }
-
-                if (newActivityHash.equals(activityHash)) {
-                    if (threadIds != null && lastActivityHash.plus(INACTVITY_DURATION).isBefore(Instant.now())) {
-                        logDeadlock();
-                        if (!LogUtil.isDebug()) {
-                            logItems.forEach(item -> log.info(item.toString()));
-                        }
-                        activityHash = "";
-                    }
-                } else if (!"".equals(activityHash)) {
-                    activityHash = newActivityHash;
-                    lastActivityHash = Instant.now();
-                }
-            } catch (Throwable e) {
-                log.error("Failed calculating progress", e);
+            } else {
+                activityHash = null;
             }
-        } else {
-            activityHash = null;
-            debug(() -> {
-                if (InstanceFactory.hasConfiguration(false))
-                    printLogStatus((type) -> type != Type.LOG, log::debug);
-            });
+
+            lastDeadlockCheck = Instant.now();
         }
-        lastDeadlockCheck = Instant.now();
+
+        if (newActivityHash != null) {
+            if (newActivityHash.equals(activityHash)) {
+                if (threadIds != null || lastActivityHash.plus(INACTVITY_DURATION).isBefore(Instant.now())) {
+                    logDeadlock();
+                    if (!LogUtil.isDebug()) {
+                        getDeadlockLogItems().forEach(item -> log.info(item.toString()));
+                    }
+                    activityHash = "";
+                }
+            } else if (!"".equals(activityHash)) {
+                activityHash = newActivityHash;
+                lastActivityHash = Instant.now();
+            }
+        }
+    }
+
+    private List<StatusLine> getDeadlockLogItems() {
+        return InstanceFactory.hasConfiguration(true) ?
+                logData((type) -> type != Type.LOG).stream().filter(this::includeProgressItem).toList() :
+                new ArrayList<>();
     }
 
     private boolean includeProgressItem(StatusLine item) {

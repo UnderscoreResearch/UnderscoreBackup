@@ -73,7 +73,6 @@ public class LockingMetadataRepository implements MetadataRepository {
     private final String dataPath;
     private final boolean replayOnly;
     private final int defaultVersion;
-    private final Object explicitRequestLock = new Object();
     private final ReentrantLock updateLock = new ReentrantLock();
     private final ReentrantLock openLock = new ReentrantLock();
     protected RepositoryOpenMode openMode;
@@ -83,7 +82,6 @@ public class LockingMetadataRepository implements MetadataRepository {
     private RepositoryInfo repositoryInfo;
     private AccessLock fileLock;
     private final AtomicInteger mutatingChanges = new AtomicInteger(0);
-    private boolean explicitRequested = false;
     private SingleTaskScheduler taskScheduler;
 
     public LockingMetadataRepository(String dataPath, boolean replayOnly) {
@@ -984,16 +982,7 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     private class RepositoryLock extends CloseableLock {
         public RepositoryLock(boolean mutating) {
-            if (!LockingMetadataRepository.this.explicitLock.tryLock()) {
-                synchronized (LockingMetadataRepository.this.explicitRequestLock) {
-                    LockingMetadataRepository.this.explicitRequested = true;
-                    try {
-                        LockingMetadataRepository.this.explicitLock.lock();
-                    } finally {
-                        LockingMetadataRepository.this.explicitRequested = false;
-                    }
-                }
-            }
+            LockingMetadataRepository.this.explicitLock.lock();
             if (mutating) {
                 mutatingChanges.incrementAndGet();
             }
@@ -1006,7 +995,7 @@ public class LockingMetadataRepository implements MetadataRepository {
 
         @Override
         public boolean requested() {
-            return LockingMetadataRepository.this.explicitRequested;
+            return LockingMetadataRepository.this.explicitLock.hasQueuedThreads();
         }
     }
 
