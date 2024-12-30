@@ -151,7 +151,13 @@ public class LogPrefetcher {
                     //noinspection ResultOfMethodCallIgnored
                     logFiles.remove(logId);
                     syncCompletions.add(logId);
-                    ret = new Holder(downloadData.downloadFile(logId));
+
+                    try {
+                        ret = new Holder(encryptor.decodeBlock(null,
+                                downloadData.downloadFile(logId), privateKey));
+                    } catch (Exception exc) {
+                        ret = new Holder(exc);
+                    }
                 }
             }
             data.notifyAll();
