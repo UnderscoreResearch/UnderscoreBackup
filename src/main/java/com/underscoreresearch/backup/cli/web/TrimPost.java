@@ -30,8 +30,8 @@ public class TrimPost extends BaseWrap {
             MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
             executeAsyncOperation(() -> {
                         try {
-                            RepositoryTrimmer.Statistics statistics = trimmer.trimRepository(false);
-                            InstanceFactory.getInstance(BackupStatsLogger.class).updateStats(statistics, true);
+                            RepositoryTrimmer.Statistics statistics = trimmer.trimRepository(null);
+                            InstanceFactory.getInstance(BackupStatsLogger.class).updateStats(statistics);
                         } catch (IOException e) {
                             log.error("Failed to trim repository", e);
                         }

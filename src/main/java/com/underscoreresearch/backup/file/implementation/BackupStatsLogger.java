@@ -117,17 +117,10 @@ public class BackupStatsLogger implements StatusLogger {
         return new File(manifestPath, "statistics.json");
     }
 
-    public void updateStats(RepositoryTrimmer.Statistics statistics, boolean complete) {
+    public void updateStats(RepositoryTrimmer.Statistics statistics) {
         if (manifestPath != null) {
             if (this.statistics != null) {
                 statistics.setNeedActivation(this.statistics.isNeedActivation());
-
-                if (!complete) {
-                    statistics.setBlocks(statistics.getBlocks() + this.statistics.getBlocks());
-                    statistics.setBlockParts(statistics.getBlockParts() + this.statistics.getBlockParts());
-                    statistics.setDirectories(statistics.getDirectories() + this.statistics.getDirectories());
-                    statistics.setDirectoryVersions(statistics.getDirectoryVersions() + this.statistics.getDirectoryVersions());
-                }
             }
             statistics.setTimestamp(Instant.now().toEpochMilli());
             storeStats(statistics);

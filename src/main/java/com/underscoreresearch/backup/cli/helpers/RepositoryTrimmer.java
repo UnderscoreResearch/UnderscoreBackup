@@ -176,7 +176,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         return new ArrayList<>();
     }
 
-    public synchronized Statistics trimRepository(boolean noBlocks) throws IOException {
+    public synchronized Statistics trimRepository(BackupSet onlySet) throws IOException {
         File tempFile = File.createTempFile("block", ".db");
 
         manifestManager.setDisabledFlushing(true);
@@ -191,7 +191,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 filesOnly = true;
             }
 
-            CloseableMap<String, Boolean> usedBlockMap = !filesOnly || !noBlocks ? metadataRepository.temporaryMap(new MapSerializer<>() {
+            CloseableMap<String, Boolean> usedBlockMap = !filesOnly && onlySet == null ? metadataRepository.temporaryMap(new MapSerializer<>() {
                 @Override
                 public byte[] encodeKey(String s) {
                     return s.getBytes(StandardCharsets.UTF_8);
@@ -227,7 +227,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                                 + metadataRepository.getDirectoryCount()
                                 + metadataRepository.getPartCount());
 
-                        if (!noBlocks) {
+                        if (onlySet == null) {
                             totalSteps.addAndGet(metadataRepository.getBlockCount());
                         }
                     }
@@ -235,16 +235,16 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                     stopwatch.start();
                     lastHeartbeat = Duration.ZERO;
 
-                    if (!trimFiles(usedBlockMap, filesOnly, statistics)) {
+                    if (!trimFiles(usedBlockMap, filesOnly, statistics, onlySet)) {
                         log.warn("Found error in repository, will only trim files");
                         metadataRepository.setErrorsDetected(true);
                         filesOnly = true;
                     }
 
                     if (!filesOnly) {
-                        trimDirectories(statistics);
+                        trimDirectories(statistics, onlySet);
 
-                        if (!noBlocks) {
+                        if (onlySet == null) {
                             metadataRepository.clearPartialFiles();
 
                             trimBlocks(usedBlockMap, statistics);
@@ -273,8 +273,12 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         }
     }
 
-    private void trimDirectories(Statistics statistics) throws IOException {
-        log.info("Trimming directories");
+    private void trimDirectories(Statistics statistics, BackupSet onlySet) throws IOException {
+        if (onlySet != null) {
+            log.info("Trimming directories for set \"{}\"", onlySet.getId());
+        } else {
+            log.info("Trimming directories");
+        }
 
         try (CloseableStream<BackupDirectory> directories = metadataRepository.allDirectories(false)) {
             AtomicReference<BackupDirectory> lastDirectory = new AtomicReference<>();
@@ -285,6 +289,10 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 if (InstanceFactory.isShutdown())
                     throw new ProcessingStoppedException();
                 processedSteps.incrementAndGet();
+
+                if (onlySet != null && !onlySet.inRoot(directory.getPath())) {
+                    return;
+                }
 
                 if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                     lastHeartbeat = stopwatch.elapsed();
@@ -507,9 +515,13 @@ public class RepositoryTrimmer implements ManualStatusLogger {
     }
 
     private boolean trimFiles(CloseableMap<String, Boolean> usedBlockMap,
-                              boolean filesOnly, Statistics statistics)
+                              boolean filesOnly, Statistics statistics, BackupSet onlySet)
             throws IOException {
-        log.info("Trimming files");
+        if (onlySet != null) {
+            log.info("Trimming files for set \"{}\"", onlySet.getId());
+        } else {
+            log.info("Trimming files");
+        }
 
         List<BackupFile> fileVersions = new ArrayList<>();
 
@@ -532,6 +544,10 @@ public class RepositoryTrimmer implements ManualStatusLogger {
                 lastProcessed = file.getPath();
 
                 processedSteps.incrementAndGet();
+
+                if (onlySet != null && !onlySet.inRoot(file.getPath())) {
+                    return;
+                }
 
                 if (!fileVersions.isEmpty() && !file.getPath().equals(fileVersions.get(0).getPath())) {
                     try {
