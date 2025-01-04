@@ -9,14 +9,20 @@ import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.ui.AwtFileUIManager;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 
+import java.awt.*;
+
 @CommandPlugin(value = "gui", description = "Show GUI for service process",
         needConfiguration = false, needPrivateKey = false, readonlyRepository = true,
         preferNice = true)
 @Slf4j
 public class GuiCommand extends Command {
     public void executeCommand(CommandLine commandLine) throws Exception {
-        UIHandler.setup(new AwtFileUIManager());
+        if (SystemTray.isSupported()) {
+            UIHandler.setup(new AwtFileUIManager());
 
-        Thread.sleep(Integer.MAX_VALUE);
+            Thread.sleep(Integer.MAX_VALUE);
+        } else {
+            log.warn("System tray is not supported for GUI process, exiting");
+        }
     }
 }
