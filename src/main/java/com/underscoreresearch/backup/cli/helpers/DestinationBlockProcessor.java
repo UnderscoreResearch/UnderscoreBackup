@@ -123,7 +123,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
 
     public boolean refreshStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
         if (uploadedSize.get() > maximumRefreshed) {
-            debug(() -> log.debug("Skipped updating \"{}\" with refreshed locations", block.getHash()));
+            debug(() -> log.debug("Skipped refreshing block\"{}\"", block.getHash()));
             return false;
         }
 
@@ -152,6 +152,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                     }
                     if (exists == storage.getParts().size()) {
                         availableStorage.put(storage, availableParts);
+                        storage.setValidated(Instant.now().toEpochMilli());
                         debug(() -> log.debug("Validated block \"{}\"", block.getHash()));
                     } else {
                         ErrorCorrector ec = ErrorCorrectorFactory.getCorrector(storage.getEc());
@@ -179,6 +180,8 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                     pendingBlockDeletes.add(block);
                     missingBlocks.getAndIncrement();
                 }
+            } else {
+                pendingBlockUpdates.add(block);
             }
         });
     }
@@ -267,6 +270,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                         }
                         updatedStorage.setEc(destination.getErrorCorrection());
                         updatedStorage.setCreated(Instant.now().toEpochMilli());
+                        updatedStorage.setValidated(null);
                         updatedStorage.setParts(partList);
                         any = true;
                     }
@@ -307,7 +311,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
             BackupBlock updateBlock = pendingBlockUpdates.poll();
             try {
                 repository.addBlock(updateBlock);
-                debug(() -> log.debug("Updated block \"{}\" with refreshed locations", updateBlock.getHash()));
+                debug(() -> log.debug("Updated block \"{}\"", updateBlock.getHash()));
             } catch (IOException e) {
                 log.error("Failed to save update to block \"{}\"", updateBlock.getHash(), e);
             }

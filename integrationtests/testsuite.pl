@@ -816,7 +816,7 @@ __EOF__
 print "Test incremental updating\n";
 
 undef @completionTimestamp;
-&prepareRunPath('', ",\"maxRetention\": {\"unit\": \"SECONDS\", \"duration\": 30}, \"errorCorrection\": \"RS\"");
+&prepareRunPath('', ",\"maxRetention\": {\"unit\": \"SECONDS\", \"duration\": 30},\"minValidated\": {\"unit\": \"SECONDS\", \"duration\": 15}, \"errorCorrection\": \"RS\"");
 
 print "Generation 1 incremental\n";
 &prepareTestPath();

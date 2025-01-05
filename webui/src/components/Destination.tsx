@@ -46,7 +46,8 @@ export interface DestinationProps {
     sourceDestination?: boolean,
     shareDestination?: boolean,
     children?: ReactNode,
-    postElement?: ReactNode,
+    additionalElement?: ReactNode,
+    postElement?: ReactNode
 }
 
 export interface S3DestinationProps extends DestinationProps {
@@ -64,6 +65,7 @@ interface S3DestinationState {
     accessKeyId: string,
     secretAccessKey: string,
     maxRetention: BackupTimespan | undefined,
+    minValidated: BackupTimespan | undefined,
     maxConnections: number | undefined,
     encryption: string,
     errorCorrection: string,
@@ -150,6 +152,7 @@ interface SharedState {
     encryption: string,
     errorCorrection: string,
     maxRetention: BackupTimespan | undefined,
+    minValidated: BackupTimespan | undefined,
     maxConnections?: number,
     limits: BackupLimits | undefined
 }
@@ -158,6 +161,7 @@ function SharedProperties(props: {
     manifestDestination?: boolean,
     sourceDestination?: boolean,
     shareDestination?: boolean,
+    additionalElement?: ReactNode,
     state: SharedState,
     onChange: (newState: SharedState) => void
 }) {
@@ -166,6 +170,7 @@ function SharedProperties(props: {
         encryption: props.state.encryption,
         errorCorrection: props.state.errorCorrection,
         maxRetention: props.state.maxRetention as BackupTimespan | undefined,
+        minValidated: props.state.minValidated as BackupTimespan | undefined,
         maxConnections: props.state.maxConnections as number | undefined,
         limits: (props.state.limits ? props.state.limits : {}) as BackupLimits
     });
@@ -179,10 +184,12 @@ function SharedProperties(props: {
             encryption: string,
             errorCorrection: string,
             maxRetention: BackupTimespan | undefined,
+            minValidated: BackupTimespan | undefined,
             limits: BackupLimits | undefined
         } = {
             ...newState,
-            maxRetention: state.maxRetention
+            maxRetention: state.maxRetention,
+            minValidated: state.minValidated
         }
         if (!newState.limits.maximumDownloadBytesPerSecond && !newState.limits.maximumUploadBytesPerSecond) {
             sendState.limits = undefined;
@@ -191,6 +198,7 @@ function SharedProperties(props: {
     }
 
     return <Fragment>
+        {props.additionalElement}
         <Accordion
             sx={{
                 // Remove shadow
@@ -328,23 +336,37 @@ function SharedProperties(props: {
                         </div>
                     </Grid>
                     {!props.sourceDestination && !props.shareDestination &&
-                        <Grid item xs={12}>
-                            <DividerWithText>Maximum retention</DividerWithText>
-                        </Grid>
-                    }
-                    {!props.sourceDestination && !props.shareDestination &&
-                        <Grid item xs={12}>
-                            <DeletionTimespan
-                                timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
-                                title={"re-upload data to destination."}
-                                onChange={(newTimespan) => {
-                                    const sendState = {
-                                        ...state,
-                                        maxRetention: newTimespan
-                                    };
-                                    props.onChange(sendState);
-                                }}/>
-                        </Grid>
+                        <>
+                            <Grid item xs={12}>
+                                <DividerWithText>Retention &amp; validation</DividerWithText>
+                            </Grid>
+                            <Grid item xs={12} xl={6}>
+                                <DeletionTimespan
+                                    timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
+                                    title={"re-upload data to destination."}
+                                    onChange={(newTimespan) => {
+                                        const sendState = {
+                                            ...state,
+                                            maxRetention: newTimespan
+                                        };
+                                        props.onChange(sendState);
+                                        setState(sendState)
+                                    }}/>
+                            </Grid>
+                            <Grid item xs={12} xl={6}>
+                                <DeletionTimespan
+                                    timespan={state.minValidated ? state.minValidated : {duration: 1, unit: "FOREVER"}}
+                                    title={"validate destination storage."}
+                                    onChange={(newTimespan) => {
+                                        const sendState = {
+                                            ...state,
+                                            minValidated: newTimespan
+                                        };
+                                        props.onChange(sendState);
+                                        setState(sendState)
+                                    }}/>
+                            </Grid>
+                        </>
                     }
                 </Grid>
             </AccordionDetails>
@@ -359,6 +381,7 @@ function LocalFileDestination(props: DestinationProps) {
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
         maxConnections: props.destination.maxConnections,
         maxRetention: props.destination.maxRetention,
+        minValidated: props.destination.minValidated,
         limits: props.destination.limits
     });
 
@@ -366,6 +389,7 @@ function LocalFileDestination(props: DestinationProps) {
         endpointUri: string
         encryption: string,
         maxRetention: BackupTimespan | undefined,
+        minValidated: BackupTimespan | undefined,
         maxConnections: number | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined
@@ -376,6 +400,7 @@ function LocalFileDestination(props: DestinationProps) {
                 endpointUri: newState.endpointUri,
                 encryption: newState.encryption,
                 maxRetention: newState.maxRetention,
+                minValidated: newState.minValidated,
                 errorCorrection: newState.errorCorrection,
                 maxConnections: newState.maxConnections,
                 limits: newState.limits
@@ -406,6 +431,7 @@ function LocalFileDestination(props: DestinationProps) {
         <SharedProperties manifestDestination={props.manifestDestination}
                           sourceDestination={props.sourceDestination}
                           shareDestination={props.shareDestination}
+                          additionalElement={props.additionalElement}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -433,6 +459,7 @@ function DropboxDestination(props: DestinationProps) {
         accessToken: props.destination.principal ? props.destination.principal : "",
         refreshToken: props.destination.credential ? props.destination.credential : "",
         maxRetention: props.destination.maxRetention,
+        minValidated: props.destination.minValidated,
         maxConnections: props.destination.maxConnections,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
@@ -448,6 +475,7 @@ function DropboxDestination(props: DestinationProps) {
         refreshToken: string,
         encryption: string,
         maxRetention: BackupTimespan | undefined,
+        minValidated: BackupTimespan | undefined,
         maxConnections: number | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined
@@ -460,6 +488,7 @@ function DropboxDestination(props: DestinationProps) {
                 credential: newState.refreshToken,
                 encryption: newState.encryption,
                 maxRetention: newState.maxRetention,
+                minValidated: newState.minValidated,
                 maxConnections: newState.maxConnections,
                 errorCorrection: newState.errorCorrection,
                 limits: newState.limits
@@ -474,6 +503,7 @@ function DropboxDestination(props: DestinationProps) {
         refreshToken: string,
         encryption: string,
         maxRetention: BackupTimespan | undefined,
+        minValidated: BackupTimespan | undefined,
         maxConnections: number | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined
@@ -568,6 +598,7 @@ function DropboxDestination(props: DestinationProps) {
         <SharedProperties manifestDestination={props.manifestDestination}
                           sourceDestination={props.sourceDestination}
                           shareDestination={props.shareDestination}
+                          additionalElement={props.additionalElement}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -579,6 +610,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
     const [state, setState] = React.useState(() => ({
         region: props.destination.endpointUri ? props.destination.endpointUri : "",
         maxRetention: props.destination.maxRetention,
+        minValidated: props.destination.minValidated,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
         maxConnections: props.destination.maxConnections,
@@ -593,6 +625,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
         region: string,
         encryption: string,
         maxRetention: BackupTimespan | undefined,
+        minValidated: BackupTimespan | undefined,
         maxConnections: number | undefined,
         errorCorrection: string,
         limits: BackupLimits | undefined,
@@ -604,6 +637,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
                 endpointUri: newState.region,
                 encryption: newState.encryption,
                 maxRetention: newState.maxRetention,
+                minValidated: newState.minValidated,
                 maxConnections: newState.maxConnections,
                 errorCorrection: newState.errorCorrection,
                 limits: newState.limits
@@ -698,6 +732,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
         <SharedProperties manifestDestination={props.manifestDestination}
                           sourceDestination={props.sourceDestination}
                           shareDestination={props.shareDestination}
+                          additionalElement={props.additionalElement}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -712,6 +747,7 @@ function WindowsShareDestination(props: DestinationProps) {
         password: props.destination.credential ? props.destination.credential : "",
         domain: props.destination.properties && props.destination.properties["domain"] ? props.destination.properties["domain"] : "WORKSPACE",
         maxRetention: props.destination.maxRetention,
+        minValidated: props.destination.minValidated,
         maxConnections: props.destination.maxConnections,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC",
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE",
@@ -724,6 +760,7 @@ function WindowsShareDestination(props: DestinationProps) {
         password: string,
         domain: string,
         maxRetention: BackupTimespan | undefined,
+        minValidated: BackupTimespan | undefined,
         maxConnections: number | undefined,
         encryption: string,
         errorCorrection: string,
@@ -743,6 +780,7 @@ function WindowsShareDestination(props: DestinationProps) {
                 encryption: newState.encryption,
                 errorCorrection: newState.errorCorrection,
                 maxRetention: newState.maxRetention,
+                minValidated: newState.minValidated,
                 maxConnections: newState.maxConnections,
                 properties: properties,
                 limits: newState.limits
@@ -814,6 +852,7 @@ function WindowsShareDestination(props: DestinationProps) {
         <SharedProperties manifestDestination={props.manifestDestination}
                           sourceDestination={props.sourceDestination}
                           shareDestination={props.shareDestination}
+                          additionalElement={props.additionalElement}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -959,6 +998,7 @@ function BaseS3Destination(props: S3DestinationProps) {
         <SharedProperties manifestDestination={props.manifestDestination}
                           sourceDestination={props.sourceDestination}
                           shareDestination={props.shareDestination}
+                          additionalElement={props.additionalElement}
                           state={state} onChange={(newSate => updateState({
             ...state,
             ...newSate
@@ -1007,6 +1047,7 @@ function createS3Destination(newState: S3DestinationState, properties?: Property
         credential: newState.secretAccessKey,
         encryption: newState.encryption,
         maxRetention: newState.maxRetention,
+        minValidated: newState.minValidated,
         maxConnections: newState.maxConnections,
         errorCorrection: newState.errorCorrection,
         properties: properties,
@@ -1021,6 +1062,7 @@ function createS3State(props: DestinationProps, region: string, apiEndpoint?: st
         accessKeyId: props.destination.principal ? props.destination.principal : "",
         secretAccessKey: props.destination.credential ? props.destination.credential : "",
         maxRetention: props.destination.maxRetention,
+        minValidated: props.destination.minValidated,
         maxConnections: props.destination.maxConnections,
         encryption: props.destination.encryption ? props.destination.encryption : "PQC" as string,
         errorCorrection: props.destination.errorCorrection ? props.destination.errorCorrection : "NONE" as string,
@@ -1251,7 +1293,7 @@ export default function Destination(props: DestinationProps) {
                 shareDestination={props.shareDestination}
                 destination={getTabState(0).destination}
                 id={props.id}
-                children={props.children}
+                additionalElement={props.additionalElement}
                 destinationUpdated={(valid, dest) => destinationUpdated(0, valid, dest)}/>
         </TabPanel>
 
@@ -1263,7 +1305,7 @@ export default function Destination(props: DestinationProps) {
                 shareDestination={props.shareDestination}
                 destination={getTabState(1).destination}
                 id={props.id}
-                children={props.children}
+                additionalElement={props.additionalElement}
                 destinationUpdated={(valid, dest) => destinationUpdated(1, valid, dest)}/>
         </TabPanel>
 
@@ -1275,7 +1317,7 @@ export default function Destination(props: DestinationProps) {
                 shareDestination={props.shareDestination}
                 destination={getTabState(2).destination}
                 id={props.id}
-                children={props.children}
+                additionalElement={props.additionalElement}
                 destinationUpdated={(valid, dest) => destinationUpdated(2, valid, dest)}/>
         </TabPanel>
 
@@ -1287,7 +1329,7 @@ export default function Destination(props: DestinationProps) {
                 shareDestination={props.shareDestination}
                 destination={getTabState(3).destination}
                 id={props.id}
-                children={props.children}
+                additionalElement={props.additionalElement}
                 destinationUpdated={(valid, dest) => destinationUpdated(3, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={4}>
@@ -1298,7 +1340,7 @@ export default function Destination(props: DestinationProps) {
                 shareDestination={props.shareDestination}
                 destination={getTabState(4).destination}
                 id={props.id}
-                children={props.children}
+                additionalElement={props.additionalElement}
                 destinationUpdated={(valid, dest) => destinationUpdated(4, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={5}>
@@ -1309,7 +1351,7 @@ export default function Destination(props: DestinationProps) {
                 shareDestination={props.shareDestination}
                 destination={getTabState(5).destination}
                 id={props.id}
-                children={props.children}
+                additionalElement={props.additionalElement}
                 destinationUpdated={(valid, dest) => destinationUpdated(5, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={6}>
@@ -1320,7 +1362,7 @@ export default function Destination(props: DestinationProps) {
                 shareDestination={props.shareDestination}
                 destination={getTabState(6).destination}
                 id={props.id}
-                children={props.children}
+                additionalElement={props.additionalElement}
                 destinationUpdated={(valid, dest) => destinationUpdated(6, valid, dest)}/>
         </TabPanel>
         <TabPanel value={state.type} index={7}>
@@ -1331,7 +1373,7 @@ export default function Destination(props: DestinationProps) {
                 shareDestination={props.shareDestination}
                 destination={getTabState(7).destination}
                 id={props.id}
-                children={props.children}
+                additionalElement={props.additionalElement}
                 destinationUpdated={(valid, dest) => destinationUpdated(7, valid, dest)}/>
         </TabPanel>
         {props.postElement}

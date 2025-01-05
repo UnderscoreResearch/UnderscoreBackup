@@ -91,6 +91,7 @@ export interface BackupDestination {
     credential?: string,
     maxConnections?: number,
     maxRetention?: BackupTimespan,
+    minValidated?: BackupTimespan,
     properties?: PropertyMap,
     limits?: BackupLimits
 }

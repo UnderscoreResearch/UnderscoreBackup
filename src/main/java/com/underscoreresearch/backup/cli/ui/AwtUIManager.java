@@ -3,7 +3,14 @@ package com.underscoreresearch.backup.cli.ui;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.AWTError;
+import java.awt.AWTException;
+import java.awt.Desktop;
+import java.awt.EventQueue;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
+import java.awt.SystemTray;
+import java.awt.TrayIcon;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;

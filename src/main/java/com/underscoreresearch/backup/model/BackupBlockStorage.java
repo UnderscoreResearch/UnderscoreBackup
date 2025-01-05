@@ -30,6 +30,8 @@ public class BackupBlockStorage {
     private List<String> parts;
     @JsonProperty("c")
     private Long created;
+    @JsonProperty("v")
+    private Long validated;
 
     @JsonIgnore
     private Map<IdentityKeys, Map<String, String>> additionalStorageProperties;

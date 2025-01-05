@@ -138,23 +138,23 @@ export default function Destinations(props: DestinationsProps) {
             onItemChanged: destinationChanged,
             items: state,
             createItem: (item, itemUpdated: (item: DestinationState) => void) => {
-                let postElement: ReactNode | undefined;
+                let additionalElement: ReactNode | undefined;
                 switch (item.destination.type) {
                     default:
                         if (((appContext.currentConfiguration.manifest.additionalDestinations &&
                                     appContext.currentConfiguration.manifest.additionalDestinations.length > 0) ||
                                 appContext.currentConfiguration.manifest.destination !== item.id) &&
                             (item.destination.errorCorrection === undefined || item.destination.errorCorrection === "NONE")) {
-                            postElement = <Fragment>
-                                <DividerWithText>Store manifest</DividerWithText>
+                            additionalElement = <Fragment>
+                                <DividerWithText>Manifest</DividerWithText>
                                 <FormControlLabel control={<Checkbox
                                     checked={isManifestDestination(appContext, item)}
                                     onChange={(e) => toggleManifestDestination(item.id)}
                                 />} label="Store metadata to allow adoption from this destination"/>
                             </Fragment>
                         } else {
-                            postElement = <Fragment>
-                                <DividerWithText>Store manifest</DividerWithText>
+                            additionalElement = <Fragment>
+                                <DividerWithText>Mhanifest</DividerWithText>
                                 <FormControlLabel control={<Checkbox
                                     checked={isManifestDestination(appContext, item)}
                                     onChange={(e) => {
@@ -173,7 +173,7 @@ export default function Destinations(props: DestinationsProps) {
                                         itemUpdated({valid: valid, destination: destination, id: item.id});
                                     }
                                     }
-                                    postElement={postElement}
+                                    additionalElement={additionalElement}
                 />
             }
         })}

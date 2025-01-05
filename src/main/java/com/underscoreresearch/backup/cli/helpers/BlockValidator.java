@@ -66,6 +66,11 @@ public class BlockValidator implements ManualStatusLogger {
     private BackupFile currentlyProcessing;
     private BackupFile lastProcessed;
 
+    private enum ValidationMode {
+        FORCE_VALIDATE,
+        DEFAULT,
+        NO_DESTINATION_VALIDATION
+    }
 
     public BlockValidator(MetadataRepository repository, BackupConfiguration configuration,
                           ManifestManager manifestManager, DestinationBlockProcessor destinationBlockProcessor,
@@ -116,17 +121,29 @@ public class BlockValidator implements ManualStatusLogger {
             destinationBlockProcessor.resetProgress();
             totalBlocks.set(validateDestination ? repository.getBlockCount() : 0L);
 
-            validateBlocksInternal(validateDestination, ignoreBefore);
+            validateBlocksInternal(validateDestination ?
+                    ValidationMode.FORCE_VALIDATE :
+                    ValidationMode.DEFAULT,
+                    ignoreBefore);
 
             if (!InstanceFactory.isShutdown()) {
-                if (validateDestination && destinationBlockProcessor.getMissingBlocks() > 0) {
+                if (destinationBlockProcessor.getMissingBlocks() > 0) {
                     log.warn("Found {} missing blocks in destinations. Checking if any files are now invalid",
                             readableNumber(destinationBlockProcessor.getMissingBlocks()));
                     totalSteps.set(totalSteps.get() + repository.getFileCount());
-                    validateBlocksInternal(false, null);
+                    validateBlocksInternal(ValidationMode.NO_DESTINATION_VALIDATION, null);
                 } else if (destinationBlockProcessor.getRefreshedBlocks() > 0) {
-                    log.info("Completed block validation and refreshed {} blocks",
-                            readableNumber(destinationBlockProcessor.getRefreshedBlocks()));
+                    if (destinationBlockProcessor.getValidatedBlocks() > 0) {
+                        log.info("Completed block validation, refreshed {} blocks, and validated {} destination blocks",
+                                readableNumber(destinationBlockProcessor.getRefreshedBlocks()),
+                                readableNumber(destinationBlockProcessor.getValidatedBlocks()));
+                    } else {
+                        log.info("Completed block validation, refreshed {} blocks",
+                                readableNumber(destinationBlockProcessor.getRefreshedBlocks()));
+                    }
+                } else if (destinationBlockProcessor.getValidatedBlocks() > 0) {
+                    log.info("Completed validation, validated {} destination blocks",
+                            readableNumber(destinationBlockProcessor.getValidatedBlocks()));
                 } else {
                     log.info("Completed block validation");
                 }
@@ -136,7 +153,7 @@ public class BlockValidator implements ManualStatusLogger {
         }
     }
 
-    private void validateBlocksInternal(boolean validateDestination, String ignoreBefore) {
+    private void validateBlocksInternal(ValidationMode validationMode, String ignoreBefore) {
         try (CloseableStream<BackupFile> files = repository.allFiles(true)) {
             try {
                 files.stream().forEach((file) -> {
@@ -153,7 +170,7 @@ public class BlockValidator implements ManualStatusLogger {
                     if (lastHeartbeat.toMinutes() != stopwatch.elapsed().toMinutes()) {
                         lastHeartbeat = stopwatch.elapsed();
                         log.info("Processing path \"{}\"", PathNormalizer.physicalPath(file.getPath()));
-                        if (validateDestination && lastProcessed != null) {
+                        if (validationMode == ValidationMode.FORCE_VALIDATE && lastProcessed != null) {
                             saveCancelledCheckpoint();
                         }
                     }
@@ -164,7 +181,7 @@ public class BlockValidator implements ManualStatusLogger {
                             for (BackupFilePart part : location.getParts()) {
                                 try {
                                     if (!validateHash(repository, part.getBlockHash(), maximumSize, maxBlockSize,
-                                            validateDestination)) {
+                                            validationMode)) {
                                         return false;
                                     }
                                 } catch (IOException e) {
@@ -204,7 +221,7 @@ public class BlockValidator implements ManualStatusLogger {
                     log.warn("Failed to delete progress file");
                 }
             } catch (ProcessingStoppedException exc) {
-                if (validateDestination && lastProcessed != null) {
+                if (validationMode == ValidationMode.FORCE_VALIDATE && lastProcessed != null) {
                     log.info("Stored last processed path \"{}\"", lastProcessed.getPath());
                     saveCancelledCheckpoint();
                 }
@@ -235,7 +252,8 @@ public class BlockValidator implements ManualStatusLogger {
     }
 
     private boolean validateHash(MetadataRepository repository, String blockHash, AtomicLong maximumSize,
-                                 int maxBlockSize, boolean validateDestination) throws IOException {
+                                 int maxBlockSize, ValidationMode validationMode)
+            throws IOException {
         if (InstanceFactory.isShutdown())
             throw new ProcessingStoppedException();
 
@@ -250,20 +268,21 @@ public class BlockValidator implements ManualStatusLogger {
                 return false;
             } else {
                 for (String hash : block.getHashes()) {
-                    validateHash(repository, hash, maximumSize, maxBlockSize, validateDestination);
+                    validateHash(repository, hash, maximumSize, maxBlockSize, validationMode);
                 }
             }
         } else {
             if (maximumSize != null) {
                 maximumSize.addAndGet(maxBlockSize);
             }
-            return validateBlockStorage(block, validateDestination);
+            return validateBlockStorage(block, validationMode);
         }
         return true;
     }
 
-    private boolean validateBlockStorage(BackupBlock block, boolean validateDestination) {
+    private boolean validateBlockStorage(BackupBlock block, ValidationMode validationMode) {
         boolean anyChange = false;
+        boolean needValidation = false;
         List<BackupBlockStorage> needsRefresh = null;
         for (int i = 0; i < block.getStorage().size(); ) {
             BackupBlockStorage storage = block.getStorage().get(i);
@@ -293,53 +312,64 @@ public class BlockValidator implements ManualStatusLogger {
             BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
             if (destination == null) {
                 log.warn("Block \"{}\" referencing missing destination \"{}\"", block.getHash(), storage.getDestination());
-            } else if (validateDestination) {
-                try {
-                    destinationBlockProcessor.validateBlockStorage(block, block.getStorage());
-                } catch (IOException e) {
-                    log.error("Failed to validate block storage \"{}\"", block.getHash(), e);
-                }
-            } else if (destination.getMaxRetention() != null) {
-                long created;
-                if (storage.getCreated() != null)
-                    created = storage.getCreated();
-                else
-                    created = block.getCreated();
+            } else if (validationMode == ValidationMode.FORCE_VALIDATE) {
+                needValidation = true;
+            } else if (validationMode == ValidationMode.DEFAULT) {
+                if (destination.getMaxRetention() != null) {
+                    long created;
+                    if (storage.getCreated() != null)
+                        created = storage.getCreated();
+                    else
+                        created = block.getCreated();
 
-                if (destination.getMaxRetention().toEpochMilli() > created) {
-                    if (needsRefresh == null) {
-                        needsRefresh = new ArrayList<>();
+                    if (destination.getMaxRetention().toEpochMilli() > created) {
+                        if (needsRefresh == null) {
+                            needsRefresh = new ArrayList<>();
+                        }
+                        needsRefresh.add(storage);
                     }
-                    needsRefresh.add(storage);
+                }
+                if (destination.getMinValidated() != null) {
+                    long validated;
+                    if (storage.getValidated() != null)
+                        validated = storage.getValidated();
+                    else if (storage.getCreated() != null)
+                        validated = storage.getCreated();
+                    else
+                        validated = block.getCreated();
+
+                    if (destination.getMinValidated().toEpochMilli() > validated) {
+                        needValidation = true;
+                    }
                 }
             }
             i++;
         }
-        if (anyChange || needsRefresh != null) {
-            if (needsRefresh != null && !needsRefresh.isEmpty()) {
-                try {
-                    if (!destinationBlockProcessor.refreshStorage(block, needsRefresh)) {
-                        if (anyChange) {
-                            repository.addBlock(block);
-                        }
-                    }
-                } catch (IOException e) {
-                    log.error("Failed to refresh block \"{}\"", block.getHash(), e);
+
+        if (needsRefresh != null) {
+            try {
+                if (destinationBlockProcessor.refreshStorage(block, needsRefresh)) {
+                    return !block.getStorage().isEmpty();
                 }
-            } else {
-                try {
-                    if (!block.getStorage().isEmpty()) {
-                        repository.addBlock(block);
-                        return true;
-                    } else {
-                        repository.deleteBlock(block);
-                        return false;
-                    }
-                } catch (IOException e) {
-                    log.error("Could not save updated block \"{}\"", block.getHash(), e);
-                }
+            } catch (IOException e) {
+                log.error("Failed to refresh block \"{}\"", block.getHash(), e);
             }
         }
+
+        if (needValidation) {
+            try {
+                destinationBlockProcessor.validateBlockStorage(block, block.getStorage());
+            } catch (IOException e) {
+                log.error("Failed to validate block storage \"{}\"", block.getHash(), e);
+            }
+        } else if (anyChange) {
+            try {
+                repository.addBlock(block);
+            } catch (IOException e) {
+                log.error("Failed to save block \"{}\"", block.getHash(), e);
+            }
+        }
+
         return !block.getStorage().isEmpty();
     }
 

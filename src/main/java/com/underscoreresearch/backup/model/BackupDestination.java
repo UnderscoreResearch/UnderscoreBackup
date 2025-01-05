@@ -26,6 +26,7 @@ public class BackupDestination {
     private String credential;
     private Integer maxConnections;
     private BackupTimespan maxRetention;
+    private BackupTimespan minValidated;
     private Map<String, String> properties;
     private BackupLimits limits;
 
