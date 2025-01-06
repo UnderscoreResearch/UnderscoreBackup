@@ -358,11 +358,15 @@ public class BlockValidator implements ManualStatusLogger {
 
         if (needValidation) {
             try {
-                destinationBlockProcessor.validateBlockStorage(block, block.getStorage());
+                if (destinationBlockProcessor.validateBlockStorage(block, block.getStorage(), validationMode == ValidationMode.FORCE_VALIDATE)) {
+                    return !block.getStorage().isEmpty();
+                }
             } catch (IOException e) {
                 log.error("Failed to validate block storage \"{}\"", block.getHash(), e);
             }
-        } else if (anyChange) {
+        }
+
+        if (anyChange) {
             try {
                 repository.addBlock(block);
             } catch (IOException e) {

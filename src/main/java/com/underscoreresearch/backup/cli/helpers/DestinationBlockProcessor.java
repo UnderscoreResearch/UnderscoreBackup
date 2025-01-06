@@ -123,7 +123,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
 
     public boolean refreshStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
         if (uploadedSize.get() > maximumRefreshed) {
-            debug(() -> log.debug("Skipped refreshing block\"{}\"", block.getHash()));
+            debug(() -> log.debug("Skipped refreshing block \"{}\"", block.getHash()));
             return false;
         }
 
@@ -132,7 +132,13 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         return true;
     }
 
-    public void validateBlockStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
+    public boolean validateBlockStorage(BackupBlock block, List<BackupBlockStorage> storages, boolean force)
+            throws IOException {
+        if (!force && uploadedSize.get() > maximumRefreshed) {
+            debug(() -> log.debug("Skipped validating block \"{}\"", block.getHash()));
+            return false;
+        }
+
         processBlockStorage(block, () -> {
             List<BackupBlockStorage> missingStorage = Lists.newArrayList();
             Map<BackupBlockStorage, Set<String>> availableStorage = new HashMap<>();
@@ -184,6 +190,8 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                 pendingBlockUpdates.add(block);
             }
         });
+
+        return true;
     }
 
     private boolean refreshBlockInternal(BackupBlock block, List<BackupBlockStorage> needUpdates, Map<BackupBlockStorage, Set<String>> availableData) {
