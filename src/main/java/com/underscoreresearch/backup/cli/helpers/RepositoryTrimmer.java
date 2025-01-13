@@ -770,6 +770,7 @@ public class RepositoryTrimmer implements ManualStatusLogger {
         private long timestamp;
 
         private boolean needActivation;
+        private boolean needValidation;
 
         private synchronized void addFile() {
             this.files++;

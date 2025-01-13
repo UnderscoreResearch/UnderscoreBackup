@@ -143,6 +143,17 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    public void setNeedValidation(boolean needValidation) {
+        if (statistics != null) {
+            statistics.setNeedValidation(needValidation);
+            storeStats(statistics);
+        }
+    }
+
+    public boolean isNeedValidation() {
+        return statistics != null && statistics.isNeedValidation();
+    }
+
     private RepositoryTrimmer.Statistics readStatistics() {
         if (manifestPath != null) {
             try {

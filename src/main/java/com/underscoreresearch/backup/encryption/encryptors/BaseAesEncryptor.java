@@ -132,12 +132,6 @@ public class BaseAesEncryptor implements Encryptor {
     }
 
     @Override
-    public void backfillEncryption(BackupBlockStorage storage, byte[] encryptedBlob) {
-        getEncryptorFormat(encryptedBlob).backfillEncryption(storage, encryptedBlob,
-                getEncryptionFormatOffset(encryptedBlob));
-    }
-
-    @Override
     public boolean validStorage(BackupBlockStorage storage) {
         return storage.getProperties() != null && storage.getProperties().containsKey(PUBLIC_KEY);
     }

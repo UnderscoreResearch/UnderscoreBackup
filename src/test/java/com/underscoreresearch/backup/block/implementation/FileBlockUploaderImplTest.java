@@ -86,7 +86,7 @@ class FileBlockUploaderImplTest {
         Mockito.doAnswer((t) -> {
             String key = t.getArgument(1);
             Integer index = t.getArgument(2);
-            BackupUploadCompletion completion = t.getArgument(4);
+            BackupUploadCompletion completion = t.getArgument(5);
 
             String doneKey;
             if (index != null)
@@ -110,7 +110,7 @@ class FileBlockUploaderImplTest {
             }
 
             return null;
-        }).when(scheduler).scheduleUpload(any(), any(), anyInt(), any(), any());
+        }).when(scheduler).scheduleUpload(any(), any(), anyInt(), anyInt(), any(), any());
 
         configuration = createConfiguration();
         destination1 = configuration.getDestinations().get("dest1");
@@ -148,7 +148,7 @@ class FileBlockUploaderImplTest {
         }
 
         assertThat(success.get(), Is.is(true));
-        Mockito.verify(scheduler).scheduleUpload(eq(destination2), eq("hash"), eq(0), eq(new byte[100]), any());
+        Mockito.verify(scheduler).scheduleUpload(eq(destination2), eq("hash"), eq(0), eq(0), eq(new byte[100]), any());
         ArgumentCaptor<BackupBlock> block = ArgumentCaptor.forClass(BackupBlock.class);
         Mockito.verify(repository).addBlock(block.capture());
 
@@ -191,7 +191,7 @@ class FileBlockUploaderImplTest {
         }
 
         assertThat(success.get(), Is.is(true));
-        Mockito.verify(scheduler, Mockito.times(20)).scheduleUpload(eq(destination1), eq("hash"), anyInt(), any(), any());
+        Mockito.verify(scheduler, Mockito.times(20)).scheduleUpload(eq(destination1), eq("hash"), anyInt(), anyInt(), any(), any());
         Mockito.verify(repository).addBlock(any());
     }
 
@@ -229,7 +229,7 @@ class FileBlockUploaderImplTest {
 
         assertThat(success.get(), Is.is(true));
         Mockito.verify(repository, Mockito.never()).addBlock(any());
-        Mockito.verify(scheduler, Mockito.never()).scheduleUpload(any(), any(), anyInt(), any(), any());
+        Mockito.verify(scheduler, Mockito.never()).scheduleUpload(any(), any(), anyInt(), anyInt(), any(), any());
     }
 
     @Test
@@ -266,7 +266,7 @@ class FileBlockUploaderImplTest {
 
         assertThat(success.get(), Is.is(true));
         Mockito.verify(repository, Mockito.never()).addBlock(any());
-        Mockito.verify(scheduler, Mockito.never()).scheduleUpload(any(), any(), anyInt(), any(), any());
+        Mockito.verify(scheduler, Mockito.never()).scheduleUpload(any(), any(), anyInt(), anyInt(), any(), any());
     }
 
     @Test
@@ -302,7 +302,7 @@ class FileBlockUploaderImplTest {
 
         assertThat(success.get(), Is.is(true));
         Mockito.verify(repository).addBlock(any());
-        Mockito.verify(scheduler).scheduleUpload(any(), any(), anyInt(), any(), any());
+        Mockito.verify(scheduler).scheduleUpload(any(), any(), anyInt(), anyInt(), any(), any());
     }
 
     @Test
@@ -342,7 +342,7 @@ class FileBlockUploaderImplTest {
 
         assertThat(success.get(), Is.is(true));
         Mockito.verify(repository).addBlock(any());
-        Mockito.verify(scheduler, Mockito.times(21)).scheduleUpload(any(), any(), anyInt(), any(), any());
+        Mockito.verify(scheduler, Mockito.times(21)).scheduleUpload(any(), any(), anyInt(), anyInt(), any(), any());
     }
 
     @Test
@@ -378,6 +378,6 @@ class FileBlockUploaderImplTest {
 
         assertThat(success.get(), Is.is(true));
         Mockito.verify(repository).addBlock(any());
-        Mockito.verify(scheduler, Mockito.times(1)).scheduleUpload(any(), any(), anyInt(), any(), any());
+        Mockito.verify(scheduler, Mockito.times(1)).scheduleUpload(any(), any(), anyInt(), anyInt(), any(), any());
     }
 }

@@ -204,7 +204,7 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
                         completions.add(completion);
                     }
 
-                    uploadScheduler.scheduleUpload(destination, blockHash, i, parts.get(i), completion);
+                    uploadScheduler.scheduleUpload(destination, blockHash, i, 0, parts.get(i), completion);
                 }
             }
 

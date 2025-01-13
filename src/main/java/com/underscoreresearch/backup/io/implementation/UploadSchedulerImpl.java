@@ -47,15 +47,19 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
     }
 
     @Override
-    public void scheduleUpload(BackupDestination destination, String hash, int index, byte[] data, BackupUploadCompletion completionPromise) {
-        String suggestedKey = suggestedKey(hash, index);
+    public void scheduleUpload(BackupDestination destination, String hash, int index, int disambiguator, byte[] data, BackupUploadCompletion completionPromise) {
+        String suggestedKey = suggestedKey(hash, index, disambiguator);
 
         scheduleUpload(destination, suggestedKey, data, completionPromise);
     }
 
     @Override
-    public String suggestedKey(String hash, int index) {
-        return PREFIX + splitHash(hash) + PATH_SEPARATOR + index;
+    public String suggestedKey(String hash, int index, int disambiguator) {
+        if (disambiguator == 0) {
+            return PREFIX + index + PATH_SEPARATOR + splitHash(hash);
+        } else {
+            return PREFIX + index + PATH_SEPARATOR + disambiguator + "-" + splitHash(hash);
+        }
     }
 
     @Override

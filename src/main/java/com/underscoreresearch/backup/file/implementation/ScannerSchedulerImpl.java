@@ -385,9 +385,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 InstanceFactory.getInstance(ManifestManager.class)
                         .optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class), false);
                 stateLogger.reset();
-                if (!repository.isErrorsDetected()) {
-                    InstanceFactory.getInstance(BlockValidator.class).validateBlocks(false);
-                    stateLogger.reset();
+                backupStatsLogger.setNeedValidation(true);
+                stateLogger.reset();
+            }
+            if (!repository.isErrorsDetected() && backupStatsLogger.isNeedValidation()) {
+                if (InstanceFactory.getInstance(BlockValidator.class).validateBlocks(false)) {
+                    backupStatsLogger.setNeedValidation(false);
                 }
             }
         }

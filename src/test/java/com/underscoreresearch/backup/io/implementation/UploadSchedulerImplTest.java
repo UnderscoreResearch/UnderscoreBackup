@@ -46,21 +46,31 @@ public class UploadSchedulerImplTest {
         AtomicInteger completed = new AtomicInteger();
         AtomicBoolean success = new AtomicBoolean(true);
 
-        for (int i = 0; i < 100; i++) {
-            int val = i;
-            scheduler.scheduleUpload(destination, "01234567890", i, new byte[i + 1], new BackupUploadCompletion() {
-                @Override
-                public void completed(String key) {
-                    synchronized (completed) {
-                        if (!key.equals("blocks" + PATH_SEPARATOR + "01" + PATH_SEPARATOR + "23"
-                                + PATH_SEPARATOR + "4567890" + PATH_SEPARATOR + val)) {
-                            success.set(false);
+        for (int i = 0; i < 25; i++) {
+            for (int j = 0; j < 4; j++) {
+                int val = i;
+                int dis = j;
+                scheduler.scheduleUpload(destination, "01234567890", i, j, new byte[i + 1], new BackupUploadCompletion() {
+                    @Override
+                    public void completed(String key) {
+                        synchronized (completed) {
+                            if (dis == 0) {
+                                if (!key.equals("blocks" + PATH_SEPARATOR + val + PATH_SEPARATOR + "01" + PATH_SEPARATOR + "23"
+                                        + PATH_SEPARATOR + "4567890")) {
+                                    success.set(false);
+                                }
+                            } else {
+                                if (!key.equals("blocks" + PATH_SEPARATOR + val + PATH_SEPARATOR + dis + "-01" + PATH_SEPARATOR + "23"
+                                        + PATH_SEPARATOR + "4567890")) {
+                                    success.set(false);
+                                }
+                            }
+                            completed.incrementAndGet();
+                            completed.notify();
                         }
-                        completed.incrementAndGet();
-                        completed.notify();
                     }
-                }
-            });
+                });
+            }
         }
 
         synchronized (completed) {
@@ -88,7 +98,7 @@ public class UploadSchedulerImplTest {
         AtomicBoolean success = new AtomicBoolean(true);
 
         for (int i = 0; i < 100; i++) {
-            scheduler.scheduleUpload(destination, i + "", i, new byte[10], new BackupUploadCompletion() {
+            scheduler.scheduleUpload(destination, i + "", i, 0, new byte[10], new BackupUploadCompletion() {
                 @Override
                 public void completed(String key) {
                     synchronized (completed) {
@@ -143,8 +153,8 @@ public class UploadSchedulerImplTest {
             }
         };
         for (int i = 0; i < 100; i++) {
-            scheduler.scheduleUpload(destination, i + "", i, new byte[10], completion);
-            scheduler.scheduleUpload(destination2, i + "", i, new byte[10], completion);
+            scheduler.scheduleUpload(destination, i + "", i, 0, new byte[10], completion);
+            scheduler.scheduleUpload(destination2, i + "", i, 0, new byte[10], completion);
         }
 
         synchronized (completed) {
@@ -189,8 +199,8 @@ public class UploadSchedulerImplTest {
             }
         };
         for (int i = 0; i < 50; i++) {
-            scheduler.scheduleUpload(destination, i + "", i, new byte[10], completion);
-            scheduler.scheduleUpload(destination2, i + "", i, new byte[10], completion);
+            scheduler.scheduleUpload(destination, i + "", i, 0, new byte[10], completion);
+            scheduler.scheduleUpload(destination2, i + "", i, 0, new byte[10], completion);
         }
 
         synchronized (completed) {

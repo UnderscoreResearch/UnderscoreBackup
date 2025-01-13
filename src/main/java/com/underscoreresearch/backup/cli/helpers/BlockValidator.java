@@ -86,7 +86,7 @@ public class BlockValidator implements ManualStatusLogger {
         this.manifestLocation = manifestLocation;
     }
 
-    public void validateBlocks(boolean validateDestination) throws IOException {
+    public boolean validateBlocks(boolean validateDestination) throws IOException {
         stopwatch.start();
         lastHeartbeat = Duration.ZERO;
 
@@ -151,6 +151,7 @@ public class BlockValidator implements ManualStatusLogger {
         } finally {
             backupStatsLogger.setDownloadRunning(false);
         }
+        return !destinationBlockProcessor.hasSkippedOperation();
     }
 
     private void validateBlocksInternal(ValidationMode validationMode, String ignoreBefore) {

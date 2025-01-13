@@ -112,9 +112,6 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
                 new PublicKeyMethod.EncapsulatedKey(Hash.decodeBytes(storage.getProperties().get(X25519_KEY)))));
     }
 
-    public void backfillEncryption(BackupBlockStorage storage, byte[] encryptedData, int offset) {
-    }
-
     @Override
     protected int adjustDecodeLength(byte paddingFormat, int payloadLength) {
         switch (paddingFormat) {

@@ -74,47 +74,6 @@ class AesEncryptorCbcTest {
     }
 
     @Test
-    public void withStorageBackfill() throws GeneralSecurityException {
-        SecureRandom random = new SecureRandom();
-        for (int i = 1; i < 256; i++) {
-            byte[] data = new byte[i];
-            random.nextBytes(data);
-
-            BackupBlockStorage storage = new BackupBlockStorage();
-            assertFalse(validEncryptor.validStorage(storage));
-            byte[] encryptedData = new AesEncryptorCbc() {
-                @Override
-                protected boolean randomizeKeyData() {
-                    return false;
-                }
-            }.encryptBlock(storage, data, key.getPrimaryKeys());
-
-            BackupBlockStorage otherStorage = new BackupBlockStorage();
-            decryptor.backfillEncryption(otherStorage, encryptedData, 1);
-            assertEquals(otherStorage, storage);
-
-            assertTrue(validEncryptor.validStorage(storage));
-
-            assertThat(new AesEncryptorCbc().decodeBlock(
-                    validEncryptor.reKeyStorage(storage, key.getPrivateKeys("Seed"), otherKey.getPrimaryKeys()),
-                    encryptedData, 1, otherKey.getPrivateKeys("OtherSeed")), Is.is(data));
-        }
-    }
-
-    @Test
-    public void encryptionBackfill() throws GeneralSecurityException {
-        SecureRandom random = new SecureRandom();
-        BackupBlockStorage storage = new BackupBlockStorage();
-        byte[] data = new byte[100];
-        random.nextBytes(data);
-        byte[] encryptedData = encryptor.encryptBlock(null, data, key.getPrimaryKeys());
-        assertFalse(validEncryptor.validStorage(storage));
-        validEncryptor.backfillEncryption(storage, encryptedData);
-        assertTrue(validEncryptor.validStorage(storage));
-        assertArrayEquals(data, decryptor.decodeBlock(storage, encryptedData, 1, key.getPrivateKeys("Seed")));
-    }
-
-    @Test
     public void withAdditionalStorage() throws GeneralSecurityException {
         SecureRandom random = new SecureRandom();
         EncryptionIdentity additionalKey = EncryptionIdentity.generateKeyWithPassword("AdditionalSeed");

@@ -47,7 +47,11 @@ sub cleanPath {
 
     sub zapWithFile {
         if (!$onlyZapFile || $onlyZapFile eq basename($File::Find::name)) {
-            &zapFile();
+            if (-d _ && $file) {
+                &cleanPath($File::Find::name);
+            } else {
+                &zapFile();
+            }
         }
     }
 
@@ -504,7 +508,9 @@ sub executeCypressTest {
     chdir($webuiDir);
     my $script = shift(@_);
     my @args = (
-        "npx",
+        "npm",
+        "exec",
+        "--",
         "cypress",
         "run",
         "--headless",
@@ -533,7 +539,9 @@ sub executeCypressTest {
 
     if (undef) {
          @args = (
-             "npx",
+             "npm",
+             "exec",
+             "--",
              "cypress",
              "open"
             );
@@ -753,7 +761,6 @@ print "Random bits and ends\n";
 &executeUnderscoreBackup("history", File::Spec->catdir(File::Spec->catdir($testRoot, "a"), "0"));
 &executeUnderscoreBackup("download-config", "--password", $FIRST_PASSWORD);
 &executeUnderscoreBackup("validate-blocks", "NO_DEFAULT");
-&executeUnderscoreBackup("backfill-metadata", "--password", $FIRST_PASSWORD);
 
 &executeUnderscoreBackup("ls", "/");
 &executeUnderscoreBackup("ls", "/", "--full-path");

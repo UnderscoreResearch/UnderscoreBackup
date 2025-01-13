@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -49,6 +50,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     private final AtomicLong validatedBlocks = new AtomicLong();
     private final AtomicLong missingBlocks = new AtomicLong();
     private final AtomicLong uploadedSize = new AtomicLong();
+    private final AtomicBoolean hasSkipped = new AtomicBoolean(false);
     private final long maximumRefreshed;
     private final boolean noDelete;
     private final ManifestManager manifestManager;
@@ -124,6 +126,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     public boolean refreshStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
         if (uploadedSize.get() > maximumRefreshed) {
             debug(() -> log.debug("Skipped refreshing block \"{}\"", block.getHash()));
+            hasSkipped.set(true);
             return false;
         }
 
@@ -132,10 +135,15 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         return true;
     }
 
+    public boolean hasSkippedOperation() throws IOException {
+        return hasSkipped.get();
+    }
+
     public boolean validateBlockStorage(BackupBlock block, List<BackupBlockStorage> storages, boolean force)
             throws IOException {
         if (!force && uploadedSize.get() > maximumRefreshed) {
             debug(() -> log.debug("Skipped validating block \"{}\"", block.getHash()));
+            hasSkipped.set(true);
             return false;
         }
 
@@ -228,18 +236,16 @@ public class DestinationBlockProcessor extends SchedulerImpl {
 
                     String[] parts = new String[partData.size()];
                     AtomicInteger completed = new AtomicInteger();
-                    HashSet<Integer> usedPieces = new HashSet<>();
                     for (int i = 0; i < partData.size(); i++) {
                         int currentIndex = i;
 
                         // We don't want to write over existing data if we can avoid it.
-                        int pieceIndex = currentIndex;
-                        while(storage.getParts().contains(uploadScheduler.suggestedKey(block.getHash(), pieceIndex)) || usedPieces.contains(pieceIndex))
-                            pieceIndex++;
-                        usedPieces.add(pieceIndex);
+                        int disambiguator = 0;
+                        while(storage.getParts().contains(uploadScheduler.suggestedKey(block.getHash(), currentIndex, disambiguator)))
+                            disambiguator++;
 
                         uploadScheduler.scheduleUpload(destination,
-                                block.getHash(), pieceIndex, partData.get(currentIndex), key -> {
+                                block.getHash(), currentIndex, disambiguator, partData.get(currentIndex), key -> {
                                     parts[currentIndex] = key;
                                     synchronized (completed) {
                                         completed.incrementAndGet();
@@ -356,5 +362,6 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         validatedBlocks.set(0L);
         missingBlocks.set(0L);
         uploadedSize.set(0L);
+        hasSkipped.set(false);
     }
 }

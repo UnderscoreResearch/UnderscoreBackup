@@ -9,9 +9,6 @@ public interface Encryptor {
 
     byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, IdentityKeys.PrivateKeys keys) throws GeneralSecurityException;
 
-    default void backfillEncryption(BackupBlockStorage storage, byte[] encryptedBlob) {
-    }
-
     default boolean validStorage(BackupBlockStorage storage) {
         return true;
     }

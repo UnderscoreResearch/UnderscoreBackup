@@ -162,14 +162,6 @@ public abstract class AesEncryptorFormat {
         return Map.of(X25519_KEY, new PublicKeyMethod.EncapsulatedKey(publicKey));
     }
 
-    public void backfillEncryption(BackupBlockStorage storage, byte[] encryptedData, int offset) {
-        byte[] publicKeyBytes = new byte[PUBLIC_KEY_SIZE];
-
-        System.arraycopy(encryptedData, getIvSize() + offset, publicKeyBytes, 0, PUBLIC_KEY_SIZE);
-
-        storage.addProperty(PUBLIC_KEY, Hash.encodeBytes(publicKeyBytes));
-    }
-
     public void applyAdditionalStorageKeyData(byte[] encryptionKey,
                                               BackupBlockStorage storage) throws GeneralSecurityException {
         if (storage != null && storage.hasAdditionalStorageProperties()) {
