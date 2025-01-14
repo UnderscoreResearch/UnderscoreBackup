@@ -5,6 +5,7 @@ import java.util.Map;
 
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOProvider;
 
 public interface ManifestManager extends BaseManifestManager {
 
@@ -15,6 +16,8 @@ public interface ManifestManager extends BaseManifestManager {
     void repairRepository(LogConsumer logConsumer, String password) throws IOException;
 
     boolean optimizeLog(MetadataRepository existingRepository, LogConsumer logConsumer, boolean force) throws IOException;
+
+    IOProvider getIoProvider();
 
     void setDisabledFlushing(boolean disabledFlushing);
 

@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.cli.ParseException;

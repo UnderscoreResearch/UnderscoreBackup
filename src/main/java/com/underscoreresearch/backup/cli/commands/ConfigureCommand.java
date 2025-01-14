@@ -49,7 +49,7 @@ public class ConfigureCommand extends SimpleCommand {
             if (connection.getResponseCode() != 200) {
                 throw new IOException("Got response code " + connection.getResponseCode());
             }
-        } catch (SocketException exc) {
+        } catch (IOException exc) {
             debug(() -> log.debug("Failed pinging daemon"));
             throw new ConfigurationUrlException("Daemon does not appear to be running");
         } catch (Exception exc) {

@@ -12,10 +12,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.base.Stopwatch;
+import com.underscoreresearch.backup.io.IOIndex;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.collect.Lists;
@@ -50,6 +53,8 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     private final AtomicLong validatedBlocks = new AtomicLong();
     private final AtomicLong missingBlocks = new AtomicLong();
     private final AtomicLong uploadedSize = new AtomicLong();
+    private final AtomicLong missingFiles = new AtomicLong();
+    private final AtomicLong validatedFiles = new AtomicLong();
     private final AtomicBoolean hasSkipped = new AtomicBoolean(false);
     private final long maximumRefreshed;
     private final boolean noDelete;
@@ -58,6 +63,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
 
     private Set<String> activatedShares;
     private CloseableMap<String, Boolean> processedBlockMap;
+    private Stopwatch lastUpdate;
 
     public DestinationBlockProcessor(int maximumConcurrency,
                                      boolean noDelete,
@@ -141,6 +147,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
 
     public boolean validateBlockStorage(BackupBlock block, List<BackupBlockStorage> storages, boolean force)
             throws IOException {
+
         if (!force && uploadedSize.get() > maximumRefreshed) {
             debug(() -> log.debug("Skipped validating block \"{}\"", block.getHash()));
             hasSkipped.set(true);
@@ -154,6 +161,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
             for (BackupBlockStorage storage : storages) {
                 BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
                 IOProvider provider = IOProviderFactory.getProvider(destination);
+                awaitStopwatch(provider);
                 int exists = 0;
                 try {
                     Set<String> availableParts = new HashSet<>();
@@ -223,6 +231,9 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                 try {
                     BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
 
+                    IOProvider provider = IOProviderFactory.getProvider(destination);
+                    awaitStopwatch(provider);
+
                     if (configuration.getShares() != null) {
                         for (String key : configuration.getShares().keySet())
                             if (activatedShares.contains(key)) {
@@ -275,7 +286,6 @@ public class DestinationBlockProcessor extends SchedulerImpl {
 
                             updatedStorage = storage;
 
-                            IOProvider provider = IOProviderFactory.getProvider(destination);
                             for (String part : originalParts) {
                                 if (!partList.contains(part)) {
                                     provider.delete(part);
@@ -320,6 +330,14 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         return uploadedSize.get();
     }
 
+    public long getMissingFiles() {
+        return missingFiles.get();
+    }
+
+    public long getValidatedFiles() {
+        return validatedFiles.get();
+    }
+
     private void postPending() {
         while (!pendingBlockUpdates.isEmpty()) {
             BackupBlock updateBlock = pendingBlockUpdates.poll();
@@ -357,11 +375,56 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         }
     }
 
+    public void validateExists(IOProvider provider, String file) {
+        schedule(() -> {
+            try {
+                awaitStopwatch(provider);
+                if (!provider.exists(file)) {
+                    log.error("File \"{}\" does not exist", file);
+                    missingFiles.incrementAndGet();
+                }
+                validatedFiles.incrementAndGet();
+            } catch (IOException e) {
+                log.error("Failed to check file \"{}\"", file, e);
+            }
+        });
+    }
+
     public void resetProgress() {
         refreshedBlocks.set(0L);
         validatedBlocks.set(0L);
         missingBlocks.set(0L);
         uploadedSize.set(0L);
+        missingFiles.set(0L);
+        validatedFiles.set(0L);
         hasSkipped.set(false);
+    }
+
+    private void awaitStopwatch(IOProvider provider) {
+        Stopwatch newStopwatch = lastUpdate;
+        if (newStopwatch != null) {
+            if (provider instanceof IOIndex ioIndex) {
+                if (ioIndex.hasConsistentWrites()) {
+                    return;
+                }
+            }
+
+            long milliseconds = newStopwatch.elapsed(TimeUnit.MILLISECONDS);
+            long left = 20000 - milliseconds;
+            if (left < 0) {
+                log.info("Completed waiting for eventual consistency");
+                lastUpdate = null;
+            } else {
+                try {
+                    Thread.sleep(left);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
+    public void setEventualConsistencyTimer(Stopwatch stopwatch) {
+        this.lastUpdate = stopwatch;
     }
 }

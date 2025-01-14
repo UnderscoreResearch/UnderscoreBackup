@@ -215,7 +215,7 @@ public class ChangePasswordCommand extends Command {
                                                AdditionalManifestManager additionalManifestManager,
                                                UploadScheduler uploadScheduler) {
             super(configuration, manifestLocation, rateLimitController, serviceManager,
-                    installationIdentity, null, false, publicKey, publicKey.getPrimaryKeys(), statsLogger,
+                    installationIdentity, null, false, false, publicKey, publicKey.getPrimaryKeys(), statsLogger,
                     additionalManifestManager, uploadScheduler);
 
             this.keyFile = keyFile;
@@ -290,7 +290,7 @@ public class ChangePasswordCommand extends Command {
         @Override
         protected void awaitEventualConsistency() {
             try {
-                if (!((IOIndex)getProvider()).hasConsistentWrites()) {
+                if (!((IOIndex) getIoProvider()).hasConsistentWrites()) {
                     log.info("Waiting 20 seconds for eventual consistency");
                     Thread.sleep(20000);
                 }

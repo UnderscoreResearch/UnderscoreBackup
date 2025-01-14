@@ -20,6 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
 import com.google.common.base.Stopwatch;
+import com.underscoreresearch.backup.file.LogFileRepository;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -83,6 +84,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     private AccessLock fileLock;
     private final AtomicInteger mutatingChanges = new AtomicInteger(0);
     private SingleTaskScheduler taskScheduler;
+    private LogFileRepository logFileRepository;
 
     public LockingMetadataRepository(String dataPath, boolean replayOnly) {
         this(dataPath, replayOnly, getDefaultVersion());
@@ -354,11 +356,21 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     @Override
     public String lastSyncedLogFile(String share) {
+        if (repositoryInfo == null) {
+            try {
+                readRepositoryInfo(RepositoryOpenMode.READ_ONLY);
+            } catch (IOException e) {
+                return null;
+            }
+        }
         return repositoryInfo.getLastSyncedLogFile(share);
     }
 
     @Override
     public void setLastSyncedLogFile(String share, String entry) throws IOException {
+        if (repositoryInfo == null) {
+            readRepositoryInfo(RepositoryOpenMode.READ_WRITE);
+        }
         repositoryInfo.setLastSyncedLogFile(share, entry);
         saveRepositoryInfo();
     }
@@ -375,10 +387,17 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     private void openAllDataFiles(RepositoryOpenMode openMode) throws IOException {
         storage.open(openMode);
+
+        logFileRepository = new LogFileRepositoryImpl(getPath("logs.log"));
     }
 
     private void closeAllDataFiles() throws IOException {
         storage.close();
+
+        if (logFileRepository != null) {
+            logFileRepository.close();
+            logFileRepository = null;
+        }
     }
 
     @Override
@@ -661,6 +680,17 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     @Override
+    public LogFileRepository getLogFileRepository() throws IOException {
+        if (logFileRepository != null)
+            return logFileRepository;
+
+        try (RepositoryLock ignored = new RepositoryLock(true)) {
+            ensureOpen(true);
+            return logFileRepository;
+        }
+    }
+
+    @Override
     public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
             ensureOpen(true);
@@ -871,7 +901,7 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     @Override
     public void setErrorsDetected(boolean errorsDetected) throws IOException {
-        if (repositoryInfo != null) {
+        if (repositoryInfo == null) {
             readRepositoryInfo(RepositoryOpenMode.READ_WRITE);
         }
         assert repositoryInfo != null;

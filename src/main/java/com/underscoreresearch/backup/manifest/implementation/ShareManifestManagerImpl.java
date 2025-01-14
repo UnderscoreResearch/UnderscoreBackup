@@ -118,6 +118,11 @@ public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements
         }
     }
 
+    @Override
+    protected void addLogFile(String remoteFile) throws IOException {
+        // Share log files should not be added to the manifest.
+    }
+
     private void uploadConfigurationFile() throws IOException {
         uploadConfigData(CONFIGURATION_FILENAME,
                 getConfigurationData().getBytes(StandardCharsets.UTF_8),

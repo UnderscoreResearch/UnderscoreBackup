@@ -11,7 +11,6 @@ import org.apache.commons.cli.CommandLine;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
-import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
@@ -33,7 +32,8 @@ public class ValidateBlocksCommand extends Command {
         manifestManager.validateIdentity();
         BlockValidator blockValidator = InstanceFactory.getInstance(BlockValidator.class);
 
-        blockValidator.validateBlocks(commandLine.hasOption(FORCE));
+        blockValidator.validateBlocks(commandLine.hasOption(FORCE), null);
+        blockValidator.validateStorage(commandLine.hasOption(FORCE), null);
 
         repository.flushLogging();
         manifestManager.shutdown();

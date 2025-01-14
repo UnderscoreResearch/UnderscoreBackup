@@ -9,6 +9,7 @@ import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
+import com.underscoreresearch.backup.file.LogFileRepository;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
@@ -223,6 +224,11 @@ public class NullRepository implements MetadataRepository {
     @Override
     public void clearPartialFiles() {
 
+    }
+
+    @Override
+    public LogFileRepository getLogFileRepository() throws IOException {
+        return null;
     }
 
     @Override

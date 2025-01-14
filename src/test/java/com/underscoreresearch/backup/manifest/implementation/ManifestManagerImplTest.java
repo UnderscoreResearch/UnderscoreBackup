@@ -18,8 +18,11 @@ import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.file.LogFileRepository;
+import com.underscoreresearch.backup.file.implementation.LogFileRepositoryImpl;
 import lombok.extern.slf4j.Slf4j;
 
 import org.hamcrest.Matchers;
@@ -82,6 +85,8 @@ class ManifestManagerImplTest {
     private EncryptionIdentity publicKey;
     private UploadScheduler uploadScheduler;
     private IOProvider ioProvider;
+    private LogConsumer logConsumer;
+    private LogFileRepository logFileRepository;
 
     @BeforeEach
     public void setup() throws IOException, GeneralSecurityException {
@@ -144,6 +149,11 @@ class ManifestManagerImplTest {
 
         IOProviderFactory.injectProvider(configuration.getDestinations().get("TEST"), ioProvider);
         uploadScheduler = new UploadSchedulerImpl(4, Mockito.mock(RateLimitController.class));
+        logConsumer = Mockito.mock(LogConsumer.class);
+        MetadataRepository repository = Mockito.mock(MetadataRepository.class);
+        logFileRepository = new LogFileRepositoryImpl(Paths.get(Files.createTempDirectory("logs").toString(), "test.log"));
+        Mockito.when(repository.getLogFileRepository()).thenReturn(logFileRepository);
+        Mockito.when(logConsumer.getMetadataRepository()).thenReturn(repository);
     }
 
     private void initializeFactory() throws JsonProcessingException {
@@ -159,9 +169,9 @@ class ManifestManagerImplTest {
     public void testUploadConfig() throws IOException, GeneralSecurityException {
         Mockito.verify(encryptor, Mockito.never()).encryptBlock(any(), any(), any());
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(), rateLimitController, serviceManager,
-                "id", null, false, publicKey, publicKey.getPrimaryKeys(),
+                "id", null, false, false, publicKey, publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
-        manifestManager.initialize(Mockito.mock(LogConsumer.class), true);
+        manifestManager.initialize(logConsumer, true);
         manifestManager.addLogEntry("doh", "doh");
         manifestManager.completeUploads();
         assertThat(ioProvider.download(CONFIGURATION_FILENAME), Matchers.not("{}".getBytes()));
@@ -175,10 +185,10 @@ class ManifestManagerImplTest {
             stream.write(new byte[]{1, 2, 3});
         }
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(),
-                rateLimitController, serviceManager, "id", null, false, publicKey,
+                rateLimitController, serviceManager, "id", null, false, false, publicKey,
                 publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
-        manifestManager.initialize(Mockito.mock(LogConsumer.class), false);
+        manifestManager.initialize(logConsumer, false);
         manifestManager.addLogEntry("doh", "doh");
         manifestManager.shutdown();
         Mockito.verify(encryptor, Mockito.times(3)).encryptBlock(any(), any(), any());
@@ -190,7 +200,7 @@ class ManifestManagerImplTest {
     @Test
     public void testDelayedUpload() throws IOException, InterruptedException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(),
-                rateLimitController, serviceManager, "id", null, false, publicKey,
+                rateLimitController, serviceManager, "id", null, false, false, publicKey,
                 publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
@@ -208,11 +218,20 @@ class ManifestManagerImplTest {
     @Test
     public void testLoggingUpdateAndReplay() throws IOException, GeneralSecurityException {
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(),
-                rateLimitController, serviceManager, "id", null, false, publicKey,
+                rateLimitController, serviceManager, "id", null, false, false, publicKey,
                 publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
         MetadataRepository firstRepository = Mockito.mock(MetadataRepository.class);
+        AtomicReference<String> lastFile = new AtomicReference<>();
+        Mockito.doAnswer(invocation -> {
+            lastFile.set(invocation.getArgument(1));
+            return null;
+        }).when(firstRepository).setLastSyncedLogFile(Mockito.any(), Mockito.any());
+        Mockito.doAnswer(invocation -> lastFile.get()).when(firstRepository).lastSyncedLogFile(Mockito.any());
+        Mockito.when(firstRepository.getLogFileRepository()).thenReturn(logFileRepository);
+
         LoggingMetadataRepository repository = new LoggingMetadataRepository(firstRepository, manifestManager, false);
+
         repository.upgradeStorage();
         try (CloseableLock ignored = repository.exclusiveLock()) {
             repository.deleteDirectory("/a", Instant.now().toEpochMilli());
@@ -233,11 +252,15 @@ class ManifestManagerImplTest {
         Mockito.verify(encryptor, Mockito.atLeast(1)).encryptBlock(any(), any(), any());
 
         manifestManager = new ManifestManagerImpl(configuration, tempDir.getPath(),
-                rateLimitController, serviceManager, "id", null, false, publicKey,
+                rateLimitController, serviceManager, "id", null, false, false, publicKey,
                 publicKey.getPrimaryKeys(),
                 null, Mockito.mock(AdditionalManifestManager.class), uploadScheduler);
         MetadataRepository secondRepository = Mockito.mock(MetadataRepository.class);
+        LogFileRepository logFileRepository2 = new LogFileRepositoryImpl(Paths.get(Files.createTempDirectory("logs").toString(), "test.log"));
+        Mockito.when(secondRepository.getLogFileRepository()).thenReturn(logFileRepository2);
         manifestManager.replayLog(new LoggingMetadataRepository(secondRepository, manifestManager, false), "test");
+
+        assertThat(logFileRepository.getAllFiles(), Is.is(logFileRepository2.getAllFiles()));
 
         compareInvocations(firstRepository, secondRepository);
         repository.close();
@@ -278,6 +301,7 @@ class ManifestManagerImplTest {
                         case "hasActivePath":
                         case "acquireLock":
                         case "flushLogging":
+                        case "getLogFileRepository":
                         case "lastSyncedLogFile":
                         case "setLastSyncedLogFile":
                             return false;

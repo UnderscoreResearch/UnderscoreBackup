@@ -20,6 +20,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Stopwatch;
 import lombok.extern.slf4j.Slf4j;
 
 import com.cronutils.model.Cron;
@@ -41,16 +42,13 @@ import com.underscoreresearch.backup.file.ScannerScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
-import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.SingleTaskScheduler;
 import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class ScannerSchedulerImpl implements ScannerScheduler {
@@ -379,6 +377,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
             log.warn("Skipping log optimization and block validation due to errors");
         } else {
             BackupPendingSet pendingSet = getOptimizeSchedulePendingSet();
+            boolean fullLogValidation = false;
             if (pendingSet != null
                     && pendingSet.getScheduledAt() != null
                     && pendingSet.getScheduledAt().before(new Date())) {
@@ -387,11 +386,16 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 stateLogger.reset();
                 backupStatsLogger.setNeedValidation(true);
                 stateLogger.reset();
+                fullLogValidation = true;
             }
+            Stopwatch stopwatch = Stopwatch.createStarted();
             if (!repository.isErrorsDetected() && backupStatsLogger.isNeedValidation()) {
-                if (InstanceFactory.getInstance(BlockValidator.class).validateBlocks(false)) {
+                if (InstanceFactory.getInstance(BlockValidator.class).validateBlocks(false, stopwatch)) {
                     backupStatsLogger.setNeedValidation(false);
                 }
+            }
+            if (!InstanceFactory.getInstance(BlockValidator.class).validateStorage(fullLogValidation, stopwatch)) {
+                log.error("Failed to validate logs. Consider optimizing logs to rewrite all logs");
             }
         }
     }

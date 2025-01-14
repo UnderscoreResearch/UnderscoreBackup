@@ -93,8 +93,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private final EncryptionIdentity encryptionIdentity;
     @Getter(AccessLevel.PROTECTED)
     private final UploadScheduler uploadScheduler;
-    @Getter(AccessLevel.PROTECTED)
-    private final IOProvider provider;
+    @Getter(AccessLevel.PUBLIC)
+    private final IOProvider ioProvider;
     @Getter(AccessLevel.PROTECTED)
     private final IdentityKeys identityKeys;
     @Getter
@@ -109,6 +109,14 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private LogConsumer logConsumer;
     @Getter(AccessLevel.PROTECTED)
     private boolean initialized;
+    private enum LogFileType {
+        INITIAL,
+        DEFAULT,
+        COMPLETED,
+        INITIAL_COMPLETED
+    }
+
+    private LogFileType logFileType = LogFileType.DEFAULT;
 
     public BaseManifestManagerImpl(BackupConfiguration configuration,
                                    BackupDestination manifestDestination,
@@ -135,8 +143,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
 
         this.encryptor = EncryptorFactory.getEncryptor(manifestDestination.getEncryption());
-        this.provider = IOProviderFactory.getProvider(manifestDestination);
-        if (!(this.provider instanceof IOIndex)) {
+        this.ioProvider = IOProviderFactory.getProvider(manifestDestination);
+        if (!(this.ioProvider instanceof IOIndex)) {
             throw new IllegalArgumentException("Manifest destination must be an index");
         }
         this.uploadScheduler = uploadScheduler;
@@ -208,18 +216,29 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         return null;
     }
 
+    private void uploadLogFile(String localFile, String remoteFile, byte[] data) throws IOException {
+        uploadConfigData(remoteFile, data, true, localFile);
+        addLogFile(remoteFile);
+    }
+
+    protected void addLogFile(String remoteFile) throws IOException {
+        getMetadataRepository(true).getLogFileRepository().addFile(remoteFile);
+    }
+
     protected void uploadLogFile(String file, byte[] data) throws IOException {
-        String uploadFilename = transformLogFilename(file);
-        try {
-            uploadConfigData(uploadFilename, data, true, file);
-        } finally {
-            if (logConsumer != null) {
-                if (logConsumer.lastSyncedLogFile(getShare()) != null && logConsumer.lastSyncedLogFile(getShare()).compareTo(uploadFilename) > 0) {
-                    log.warn("Uploaded log file \"{}\" out of order, already uploaded \"{}\"", uploadFilename,
-                            logConsumer.lastSyncedLogFile(getShare()));
-                } else {
-                    logConsumer.setLastSyncedLogFile(getShare(), uploadFilename);
-                }
+        String uploadFilename = transformLogFilename(file, null);
+        updateNextLogFilename(uploadFilename);
+        uploadConfigData(uploadFilename, data, true, file);
+        addLogFile(uploadFilename);
+    }
+
+    private void updateNextLogFilename(String uploadFilename) throws IOException {
+        if (logConsumer != null) {
+            if (logConsumer.lastSyncedLogFile(getShare()) != null && logConsumer.lastSyncedLogFile(getShare()).compareTo(uploadFilename) > 0) {
+                log.warn("Uploaded log file \"{}\" out of order, already uploaded \"{}\"", uploadFilename,
+                        logConsumer.lastSyncedLogFile(getShare()));
+            } else {
+                logConsumer.setLastSyncedLogFile(getShare(), uploadFilename);
             }
         }
     }
@@ -248,7 +267,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected byte[] downloadData(String file) throws IOException {
-        byte[] data = getProvider().download(file);
+        byte[] data = getIoProvider().download(file);
         if (data != null) {
             rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
         }
@@ -311,7 +330,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         try {
             byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
             rateLimitController.acquireUploadPermits(manifestDestination, data.length);
-            getProvider().upload(IDENTITY_MANIFEST_LOCATION, data);
+            getIoProvider().upload(IDENTITY_MANIFEST_LOCATION, data);
         } catch (SubscriptionLackingException e) {
             throw new RuntimeException(e.getMessage(), e);
         } catch (IOException e) {
@@ -341,7 +360,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected List<String> getExistingLogs() throws IOException {
-        IOIndex index = (IOIndex) getProvider();
+        IOIndex index = (IOIndex) getIoProvider();
         return index.availableLogs(null, true);
     }
 
@@ -358,7 +377,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             keyData = downloadData(PUBLICKEY_FILENAME);
         } catch (Exception exc) {
             try {
-                getProvider().checkCredentials(false);
+                getIoProvider().checkCredentials(false);
             } catch (IOException e) {
                 if (!IOUtils.hasInternet()) {
                     throw exc;
@@ -423,9 +442,21 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
-    private String transformLogFilename(String path) {
+    private String transformLogFilename(String path, String additional) {
         String filename = Paths.get(path).getFileName().toString();
-        return "logs" + PATH_SEPARATOR + filename.replaceAll("(\\d{4}-\\d{2}-\\d{2})-", "$1" + PATH_SEPARATOR) + ".gz";
+        String end = ".gz";
+        if (additional != null) {
+            end = "-" + additional + end;
+        }
+        return "logs" + PATH_SEPARATOR + filename.replaceAll("(\\d{4}-\\d{2}-\\d{2})-", "$1" + PATH_SEPARATOR) + end;
+    }
+
+    protected void ensureOpenLogFile() throws IOException {
+        synchronized (lock) {
+            if (currentLogLock == null) {
+                createNewLogFile();
+            }
+        }
     }
 
     public void addLogEntry(String type, String jsonDefinition) {
@@ -435,9 +466,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             internalInitialize();
 
             try {
-                if (currentLogLock == null) {
-                    createNewLogFile();
-                }
+                ensureOpenLogFile();
                 writeLogEntry(type, jsonDefinition);
 
                 if (!currentlyClosingLog.get()
@@ -482,8 +511,11 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected MetadataRepository getMetadataRepository(boolean required) {
-        if (logConsumer instanceof MetadataRepository repository) {
-            return repository;
+        if (logConsumer != null) {
+            MetadataRepository repository = logConsumer.getMetadataRepository();
+            if (repository != null) {
+                return repository;
+            }
         }
         if (required) {
             throw new RuntimeException("Metadata repository not ready");
@@ -510,6 +542,13 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
             }
             synchronized (lock) {
                 try {
+                    if (wait) {
+                        logFileType = switch (logFileType) {
+                            case INITIAL -> LogFileType.INITIAL_COMPLETED;
+                            case DEFAULT -> LogFileType.COMPLETED;
+                            default -> logFileType;
+                        };
+                    }
                     closeLogFile();
                 } catch (Exception exc) {
                     log.error("Failed to close log file", exc);
@@ -544,6 +583,8 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         if (lastUploadFile != null) {
             writeLogEntry("previousFile", MAPPER.writeValueAsString(lastUploadFile));
             debug(() -> log.debug("Registering previous log file \"{}\" for \"{}\"", lastUploadFile, lastLogFilename));
+        } else {
+            logFileType = LogFileType.INITIAL;
         }
 
         if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
@@ -579,31 +620,56 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     private void closeLogFile() throws IOException {
-        if (currentLogLock != null) {
-            currentLogLock.getLockedChannel().position(0);
-            String filename = currentLogLock.getFilename();
+        LogClosing result = synchronizedLogClosing();
+
+        if (result != null) {
+            result.logLockToClose.getLockedChannel().position(0);
+            String filename = result.logLockToClose.getFilename();
             byte[] data;
-            try (InputStream stream = Channels.newInputStream(currentLogLock.getLockedChannel())) {
+            try (InputStream stream = Channels.newInputStream(result.logLockToClose.getLockedChannel())) {
                 data = IOUtils.readAllBytes(stream);
             } finally {
                 try {
-                    currentLogLock.close();
+                    result.logLockToClose().close();
                 } catch (IOException exc) {
                     log.error("Failed to close log file lock \"{}\"", filename, exc);
                 }
-                currentLogLength = 0;
-                currentLogLock = null;
             }
             try {
-                uploadLogFile(filename, data);
+                uploadLogFile(filename, result.uploadFilename, data);
             } catch (IOException exc) {
                 throw new IOException(String.format("Failed to upload log file \"%s\"", filename), exc);
             }
         }
     }
 
+    private LogClosing synchronizedLogClosing() throws IOException {
+        synchronized (lock) {
+            if (currentLogLock != null) {
+                String uploadFilename = transformLogFilename(currentLogLock.getFilename(), switch (logFileType) {
+                    case INITIAL -> "i";
+                    case INITIAL_COMPLETED -> "ic";
+                    case COMPLETED -> "c";
+                    default -> null;
+                });
+                logFileType = LogFileType.DEFAULT;
+                updateNextLogFilename(uploadFilename);
+                try {
+                    return new LogClosing(currentLogLock, uploadFilename);
+                } finally {
+                    currentLogLength = 0;
+                    currentLogLock = null;
+                }
+            }
+            return null;
+        }
+    }
+
+    private record LogClosing(AccessLock logLockToClose, String uploadFilename) {
+    }
+
     public void deleteLogFiles(String lastLogFile) throws IOException {
-        deleteLogFiles(lastLogFile, (IOIndex) getProvider(), new AtomicLong(), new AtomicLong());
+        deleteLogFiles(lastLogFile, (IOIndex) getIoProvider(), new AtomicLong(), new AtomicLong());
     }
 
     public void syncLog() throws IOException {

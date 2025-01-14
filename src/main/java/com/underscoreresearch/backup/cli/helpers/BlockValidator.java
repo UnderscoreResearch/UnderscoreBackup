@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.helpers;
 
+import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
 import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
@@ -13,13 +14,17 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.google.common.util.concurrent.AtomicDouble;
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Stopwatch;
@@ -86,13 +91,60 @@ public class BlockValidator implements ManualStatusLogger {
         this.manifestLocation = manifestLocation;
     }
 
-    public boolean validateBlocks(boolean validateDestination) throws IOException {
-        stopwatch.start();
+    public boolean validateStorage(boolean all, Stopwatch lastUpdate) throws IOException {
+        HashSet<String> checkedFiles = new HashSet<>();
+        destinationBlockProcessor.setEventualConsistencyTimer(lastUpdate);
+        if (all) {
+            log.info("Validating {} log files at destination", repository.getLogFileRepository().getAllFiles());
+            for (String file : repository.getLogFileRepository().getAllFiles()) {
+                destinationBlockProcessor.validateExists(manifestManager.getIoProvider(), file);
+            }
+        } else {
+            log.info("Validating some random log files at destination");
+            for (int i = 0; i < 10; i++) {
+                String file = repository.getLogFileRepository().getRandomFile();
+                if (checkedFiles.add(file)) {
+                    destinationBlockProcessor.validateExists(manifestManager.getIoProvider(), file);
+                }
+            }
+        }
+
+        log.info("Validating some random blocks at destination");
+
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        AtomicInteger checked = new AtomicInteger(0);
+
+        try {
+            try (CloseableStream<BackupBlock> blocks = repository.allBlocks()) {
+                blocks.stream().forEach((file) -> {
+                    if (checked.get() == 0 && stopwatch.elapsed(TimeUnit.MILLISECONDS) > 500) {
+                        stopwatch.reset().start();
+                        try {
+                            destinationBlockProcessor.validateBlockStorage(file, file.getStorage(), true);
+                            if (checked.incrementAndGet() > 10) {
+                                throw new ProcessingStoppedException();
+                            }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                });
+            }
+        } catch (ProcessingStoppedException exc) {
+            log.info("Stopped processing");
+        }
+        destinationBlockProcessor.waitForCompletion();
+
+        return destinationBlockProcessor.getMissingFiles() == 0 && destinationBlockProcessor.getMissingBlocks() == 0;
+    }
+
+    public boolean validateBlocks(boolean validateDestination, Stopwatch lastUpdate) throws IOException {
         lastHeartbeat = Duration.ZERO;
 
         log.info("Validating all blocks of files");
         manifestManager.setDisabledFlushing(true);
         backupStatsLogger.setDownloadRunning(true);
+        destinationBlockProcessor.setEventualConsistencyTimer(lastUpdate);
 
         String ignoreBefore = null;
         if (validateDestination) {
@@ -419,6 +471,10 @@ public class BlockValidator implements ManualStatusLogger {
                             elapsedMilliseconds) + " blocks/s"));
                     ret.add(new StatusLine(getClass(), "VALIDATE_MISSING_DESTINATION_BLOCKS", "Missing destination blocks",
                             destinationBlockProcessor.getMissingBlocks(), readableNumber(destinationBlockProcessor.getMissingBlocks())));
+                }
+                if (destinationBlockProcessor.getValidatedFiles() > 0) {
+                    ret.add(new StatusLine(getClass(), "VALIDATE_FILES", "Validated files",
+                            destinationBlockProcessor.getValidatedFiles(), readableNumber(destinationBlockProcessor.getValidatedFiles())));
                 }
                 lastProcessedPath(getClass(), ret, currentlyProcessing, "VALIDATE_PROCESSED_PATH");
                 return ret;

@@ -274,6 +274,7 @@ public class BackupModule extends AbstractModule {
                 installationIdentity,
                 source,
                 commandLine.hasOption(FORCE),
+                commandLine.hasOption(NO_DELETE),
                 encryptionIdentity,
                 encryptionIdentity.getPrimaryKeys(),
                 statsLogger,

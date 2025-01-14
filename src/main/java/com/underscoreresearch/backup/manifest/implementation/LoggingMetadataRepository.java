@@ -26,6 +26,7 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.underscoreresearch.backup.file.LogFileRepository;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
@@ -299,6 +300,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public void setLastSyncedLogFile(String share, String entry) throws IOException {
         repository.setLastSyncedLogFile(share, entry);
+    }
+
+    @Override
+    public MetadataRepository getMetadataRepository() {
+        return this;
     }
 
     @Override
@@ -663,6 +669,11 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public void clearPartialFiles() throws IOException {
         repository.clearPartialFiles();
+    }
+
+    @Override
+    public LogFileRepository getLogFileRepository() throws IOException {
+        return repository.getLogFileRepository();
     }
 
     @Override

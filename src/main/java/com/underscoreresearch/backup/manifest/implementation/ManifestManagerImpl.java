@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.CONF
 import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
 import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
@@ -37,6 +38,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
+import com.underscoreresearch.backup.file.LogFileRepository;
+import com.underscoreresearch.backup.file.implementation.LogFileRepositoryImpl;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -104,6 +107,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     private final BackupStatsLogger statsLogger;
     private final AdditionalManifestManager additionalManifestManager;
     private final Object operationLock = new Object();
+    private final boolean noDelete;
     protected Closeable operationTask;
     private Map<String, ShareManifestManager> activeShares;
     private boolean repositoryReady = true;
@@ -126,6 +130,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                                String installationIdentity,
                                String source,
                                boolean forceIdentity,
+                               boolean noDelete,
                                EncryptionIdentity encryptionIdentity,
                                IdentityKeys identityKeys,
                                BackupStatsLogger statsLogger,
@@ -143,6 +148,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 uploadScheduler);
         this.source = source;
         this.statsLogger = statsLogger;
+        this.noDelete = noDelete;
         this.additionalManifestManager = additionalManifestManager;
         StateLogger.addLogger(this);
     }
@@ -312,11 +318,16 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         }
     }
 
+    @Override
+    public void replayLog(LogConsumer consumer, String password) throws IOException {
+        replayLog(true, consumer, password, null, true);
+    }
+
     public boolean replayLog(boolean claimIdentity, LogConsumer consumer, String password,
                              String lastKnownExistingFile, boolean allowFailures) throws IOException {
         repositoryReady = false;
 
-        MetadataRepository repository = (MetadataRepository) consumer;
+        MetadataRepository repository = getMetadataRepository(true);
         if (claimIdentity) {
             try {
                 repository.upgradeStorage();
@@ -337,8 +348,10 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         }
 
         try {
-            IOIndex index = (IOIndex) getProvider();
+            IOIndex index = (IOIndex) getIoProvider();
             List<String> files = index.availableLogs(consumer.lastSyncedLogFile(getShare()), true);
+
+            files = trimFiles(files);
 
             // If we know this file should be in there, but it is not we wait for eventual consistency
             // and try again fetching the log files.
@@ -377,6 +390,9 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                             }
                         }
                         consumer.setLastSyncedLogFile(getShare(), file);
+                        if (claimIdentity) {
+                            getMetadataRepository(true).getLogFileRepository().addFile(file);
+                        }
                     } catch (Exception exc) {
                         log.error("Failed to read log file \"{}\"", file, exc);
                         if (!allowFailures) {
@@ -434,9 +450,16 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         }
     }
 
-    @Override
-    public void replayLog(LogConsumer consumer, String password) throws IOException {
-        replayLog(true, consumer, password, null, true);
+    private List<String> trimFiles(List<String> files) {
+        // Optimize log files start with an initial "-i.gz" file,
+        // followed by "-c.gz" files once done. If only one file was needed to optimize the log the ending
+        // is "-ic.gz". With this we remove all files up to the last file with an "-i*.gz" ending that
+        // has an accompanying "-*c.gz" file.
+
+        if (!noDelete) {
+            return LogFileRepositoryImpl.trimLogFiles(files);
+        }
+        return files;
     }
 
     @Override
@@ -532,12 +555,12 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 }
             });
 
-            if (!existingShares.isEmpty() && getLogConsumer() instanceof MetadataRepository) {
+            if (!existingShares.isEmpty()) {
                 startOperation("Deactivating shares");
                 processedOperations = new AtomicLong(0);
                 totalOperations = new AtomicLong(existingShares.size());
                 try {
-                    MetadataRepository metadataRepository = (MetadataRepository) getLogConsumer();
+                    MetadataRepository metadataRepository = getMetadataRepository(true);
                     for (String share : existingShares.keySet()) {
                         log.info("Deleting unused share \"{}\"", existingShares.get(share).getShare().getName());
                         try {
@@ -700,13 +723,18 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
                 });
 
                 copyRepository.close();
+                // There is a rare edge case where the final log entry closed the log, but we need to make
+                // sure that we have a log file open so we can close it with the completed flag, even if it is empty.
+                ensureOpenLogFile();
                 flushRepositoryLogging(true);
 
                 ScannerSchedulerImpl.updateOptimizeSchedule(existingRepository,
                         getConfiguration().getManifest().getOptimizeSchedule());
                 completeUploads();
+                trimRecordedFiles();
 
                 deleteLogFiles(lastLogFile);
+
                 additionalManifestManager.finishOptimizeLog(lastLogFile, totalFiles, processedFiles);
                 existingRepository.setErrorsDetected(false);
                 log.info("Completed optimizing log");
@@ -731,6 +759,14 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
         }
     }
 
+    private void trimRecordedFiles() throws IOException {
+        LogFileRepository logFileRepository = getMetadataRepository(true).getLogFileRepository();
+        List<String> files = logFileRepository.getAllFiles();
+        logFileRepository.resetFiles(LogFileRepositoryImpl.trimLogFiles(files));
+
+        debug(() -> log.debug("Trimming recorded log files"));
+    }
+
     private void cancelOptimization(MetadataRepository existingRepository,
                                     LoggingMetadataRepository copyRepository,
                                     String lastLogFile) throws IOException {
@@ -744,7 +780,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
         totalFiles = new AtomicLong();
         processedFiles = new AtomicLong();
-        deleteNewLogFiles(lastLogFile, (IOIndex) getProvider(), totalFiles, processedFiles);
+        deleteNewLogFiles(lastLogFile, (IOIndex) getIoProvider(), totalFiles, processedFiles);
         additionalManifestManager.cancelOptimizeLog(lastLogFile, totalFiles, processedFiles);
 
         existingRepository.setLastSyncedLogFile(getShare(), lastLogFile);
@@ -758,7 +794,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
     @Override
     public void repairRepository(LogConsumer consumer, String password) throws IOException {
-        MetadataRepository repository = (MetadataRepository) consumer;
+        MetadataRepository repository = getMetadataRepository(true);
 
         MetadataRepositoryStorage newStorage = repository.createStorageRevision();
         repository.open(RepositoryOpenMode.READ_WRITE);
@@ -788,7 +824,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
     protected void awaitEventualConsistency(long milliseconds) {
         try {
-            if (!((IOIndex)getProvider()).hasConsistentWrites()) {
+            if (!((IOIndex) getIoProvider()).hasConsistentWrites()) {
                 log.info("Waiting {} seconds for log file eventual consistency", milliseconds / 1000);
                 Thread.sleep(milliseconds);
             }
@@ -810,7 +846,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
         totalFiles = new AtomicLong();
         processedFiles = new AtomicLong();
-        deleteLogFiles(lastLogFile, (IOIndex) getProvider(), totalFiles, processedFiles);
+        deleteLogFiles(lastLogFile, (IOIndex) getIoProvider(), totalFiles, processedFiles);
     }
 
     @Override
@@ -873,7 +909,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     public void activateShares(LogConsumer consumer, EncryptionIdentity.PrivateIdentity privateIdentity) throws IOException {
         initialize(consumer, true);
 
-        MetadataRepository repository = (MetadataRepository) consumer;
+        MetadataRepository repository = getMetadataRepository(true);
 
         if (getConfiguration().getShares() != null) {
             Map<IdentityKeys, ShareManifestManagerImpl> pendingShareManagers = new HashMap<>();
