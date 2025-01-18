@@ -113,12 +113,14 @@ public class BlockValidator implements ManualStatusLogger {
 
         Stopwatch stopwatch = Stopwatch.createStarted();
         AtomicInteger checked = new AtomicInteger(0);
+        AtomicDouble waitTime = new AtomicDouble(0);
 
         try {
             try (CloseableStream<BackupBlock> blocks = repository.allBlocks()) {
                 blocks.stream().forEach((file) -> {
-                    if (checked.get() == 0 && stopwatch.elapsed(TimeUnit.MILLISECONDS) > 500) {
+                    if (stopwatch.elapsed(TimeUnit.MILLISECONDS) >= waitTime.get()) {
                         stopwatch.reset().start();
+                        waitTime.set(RANDOM.nextDouble() * 1000);
                         try {
                             destinationBlockProcessor.validateBlockStorage(file, file.getStorage(), true);
                             if (checked.incrementAndGet() > 10) {
