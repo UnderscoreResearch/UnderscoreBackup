@@ -28,6 +28,9 @@ public class OptimizePost extends BaseWrap {
             if (!Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource())) {
                 return messageJson(400, "Cannot optimize additional source");
             }
+            InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                    InstanceFactory.getAdditionalSourceName(), null);
+
             ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
             MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
             LogConsumer logConsumer = InstanceFactory.getInstance(LogConsumer.class);

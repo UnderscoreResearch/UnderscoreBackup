@@ -5,6 +5,7 @@ import static com.underscoreresearch.backup.file.implementation.LockingMetadataR
 
 import java.io.IOException;
 
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import lombok.extern.slf4j.Slf4j;
 
 import org.takes.Request;
@@ -22,6 +23,9 @@ public class DefragPost extends BaseWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) {
+            InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                    InstanceFactory.getAdditionalSourceName(), null);
+
             MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
             executeAsyncOperation(() -> {
                         try {

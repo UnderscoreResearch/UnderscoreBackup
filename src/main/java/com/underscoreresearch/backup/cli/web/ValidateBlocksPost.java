@@ -24,6 +24,9 @@ public class ValidateBlocksPost extends BaseWrap {
     private static class Implementation extends ExclusiveImplementation {
         @Override
         public Response actualAct(Request req) {
+            InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                    InstanceFactory.getAdditionalSourceName(), null);
+
             BlockValidator validator = InstanceFactory.getInstance(BlockValidator.class);
             ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
             MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);

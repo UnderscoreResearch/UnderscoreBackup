@@ -72,6 +72,9 @@ public class RepairPost extends BaseWrap {
 
     public static void repairRepository(String password, boolean async) {
         log.info("Repairing local repository from logs");
+        InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                InstanceFactory.getAdditionalSourceName(), null);
+
         MetadataRepository repository = InstanceFactory.getInstance(MetadataRepository.class);
 
         LogConsumer logConsumer = InstanceFactory.getInstance(LogConsumer.class);

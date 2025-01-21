@@ -87,6 +87,9 @@ public class KeyChangePost extends BaseWrap {
             }
 
             if (request.regeneratePrivateKey) {
+                InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                        InstanceFactory.getAdditionalSourceName(), null);
+
                 ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
                 MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
                 executeAsyncOperation(() -> {
