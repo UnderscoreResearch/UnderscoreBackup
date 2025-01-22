@@ -46,15 +46,27 @@ public class RepairPost extends BaseWrap {
                         log.warn("Interrupted while waiting for repair to complete", e);
                     }
                 }
-                InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
-                        InstanceFactory.getAdditionalSourceName(),
-                        InteractiveCommand::startBackupIfAvailable);
+            }
+            if (!InstanceFactory.isShutdown()) {
+                new Thread(() -> {
+                    InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                            InstanceFactory.getAdditionalSourceName(),
+                            InteractiveCommand::startBackupIfAvailable);
+                }, name).start();
             }
         },
                 name);
         thread.setDaemon(true);
 
-        InstanceFactory.addOrderedCleanupHook(() -> shutdownHook.accept(thread, completed.get()));
+        InstanceFactory.addOrderedCleanupHook(() -> {
+            InstanceFactory.shutdown();
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                log.error("Failed to wait for operation to close", e);
+            }
+            shutdownHook.accept(thread, completed.get());
+        });
 
         thread.start();
         while (!completed.get()) {

@@ -271,7 +271,7 @@ sub executeUnderscoreBackupStdinNoCheck {
     if ($input) {
         for my $line (split(/\n/, $input)) {
             syswrite($child_in, $line . "\n");
-            sleep(5);
+            sleep(6);
         }
     }
 
