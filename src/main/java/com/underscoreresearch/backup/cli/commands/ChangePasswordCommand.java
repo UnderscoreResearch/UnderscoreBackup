@@ -82,7 +82,7 @@ public class ChangePasswordCommand extends Command {
         return keyFile.getAbsolutePath();
     }
 
-    public static void generateNewPrivateKey(ManifestManager manifestManager, MetadataRepository repository,
+    public static EncryptionIdentity generateNewPrivateKey(ManifestManager manifestManager, MetadataRepository repository,
                                              File fileName, String oldPassword, String newPassword) throws IOException,
             GeneralSecurityException {
         BackupConfiguration configuration = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
@@ -119,6 +119,7 @@ public class ChangePasswordCommand extends Command {
             if (!changePrivateKeyManifestManager.optimizeLog(repository, InstanceFactory.getInstance(LogConsumer.class), false)) {
                 throw new IOException("Failed to rewrite all the log files with the new key");
             }
+            return newIdentity;
         } catch (Exception exc) {
             log.error("Error changing private key", exc);
             log.error("You must rerun the password change to complete the change or the backup can be corrupted");
@@ -126,6 +127,7 @@ public class ChangePasswordCommand extends Command {
             changePrivateKeyManifestManager.shutdown();
             manifestManager.setDependentManager(null);
         }
+        return null;
     }
 
     public static void removeSecret(ServiceManager serviceManager) {

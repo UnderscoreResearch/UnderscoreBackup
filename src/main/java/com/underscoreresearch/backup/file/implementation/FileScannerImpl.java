@@ -86,9 +86,8 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
     public boolean startScanning(BackupSet backupSet) throws IOException {
         lock.lock();
 
+        boolean completed = false;
         try {
-            shutdown = false;
-
             if (duration == null) {
                 duration = Stopwatch.createStarted();
             }
@@ -164,10 +163,13 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
                 BackupSetDestinations.completedStorageValidation(manifestLocation, backupSet);
             }
         } finally {
+            completed = !shutdown;
+            shutdown = false;
+
             lock.unlock();
         }
 
-        return !shutdown;
+        return completed;
     }
 
     private String formatPathList(Collection<String> keySet) {

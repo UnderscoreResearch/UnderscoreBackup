@@ -60,4 +60,4 @@ $ENV{"PATH"} = File::Spec->catdir($javaHome, "bin").":$ENV{PATH}";
 print "JAVA_HOME=$ENV{JAVA_HOME}\n";
 print "PATH=$ENV{PATH}\n";
 
-system(File::Spec->catdir($pwd, "gradlew"), "allDistTest") && die;
+system(File::Spec->catdir($pwd, "gradlew"), "allDistTest", "--info") && die;

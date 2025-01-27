@@ -43,8 +43,8 @@ public class CreateSecretPut extends BaseWrap {
     }
 
     public static Response createSecret(ServiceManager serviceManager,
+                                        EncryptionIdentity encryptionIdentity,
                                         String region, String password, String email) throws IOException {
-        EncryptionIdentity encryptionIdentity = encryptionIdentity();
         EncryptionIdentity secretKey;
         try {
             secretKey = encryptionIdentity.changeEncryptionPassword(password,
@@ -91,6 +91,7 @@ public class CreateSecretPut extends BaseWrap {
                 }
 
                 Response Invalid_password = createSecret(serviceManager,
+                        InstanceFactory.getInstance(EncryptionIdentity.class),
                         request.getRegion(), request.getPassword(), request.getEmail());
                 if (Invalid_password != null) return Invalid_password;
 

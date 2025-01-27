@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.cli;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 public final class PasswordReader {
     public static String readPassword(String format, Object... args)
@@ -15,8 +15,15 @@ public final class PasswordReader {
             return new String(System.console().readPassword(format, args));
         }
         System.out.printf(format, args);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(
-                System.in));
-        return reader.readLine();
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int c = System.in.read();
+        while(c != -1 && c != '\n') {
+            if (c != '\r') {
+                baos.write(c);
+            }
+            c = System.in.read();
+        }
+        return baos.toString(StandardCharsets.UTF_8);
     }
 }

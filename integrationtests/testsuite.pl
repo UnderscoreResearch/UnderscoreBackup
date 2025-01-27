@@ -5,7 +5,7 @@ use Cwd;
 use File::Spec;
 use File::Find qw(finddepth);
 use File::Compare;
-use IPC::Open2;
+use IPC::Open3;
 use POSIX qw(strftime);
 use File::Basename;
 
@@ -266,18 +266,16 @@ sub executeUnderscoreBackupStdinNoCheck {
     }
     print "Executing " . join(" ", @args) . "\n";
 
-    my $pid = open2(my $child_out, my $child_in, @args);
+    my $pid = open3(my $child_in, my $child_out, 0, @args);
 
     if ($input) {
-        for my $line (split(/\n/, $input)) {
-            syswrite($child_in, $line . "\n");
-            sleep(6);
-        }
+        syswrite($child_in, $input . "\n");
     }
 
     while(<$child_out>) {
-        if (!/DEBUG\s+(FileIOProvider|ConfigurationValidator|FileScannerImpl|FileConsumerImpl|DownloadSchedulerImpl|FileSystemAccessImpl)\:/) {
-            chomp;
+        if (!/DEBUG\s+(FileIOProvider|ConfigurationValidator|FileScannerImpl|FileConsumerImpl|DownloadSchedulerImpl|FileSystemAccessImpl)\:/ &&
+            !/(java\.util\.prefs\.WindowsPreferences|Software\\JavaSoft\\Prefs)/) {
+            s/\s*$//s;
             print "$_\n";
         }
     }
@@ -311,7 +309,7 @@ sub createConfigFile {
         $retention = <<"__EOF__";
       "retention": {
         "defaultFrequency": {
-          "duration": 10,
+          "duration": 1,
           "unit": "SECONDS"
         },
         "retainDeleted": {
@@ -555,7 +553,6 @@ sub executeCypressTest {
     return 1;
 }
 
-my $DELAY = 11;
 my $MAX_RETRY = 3;
 my @completionTimestamp;
 my $pid;
@@ -660,6 +657,7 @@ for (my $retry = 1; 1; $retry++) {
 waitpid($pid, 0);
 
 &prepareRunPath();
+my $DELAY = 2;
 
 for my $row (split(/\n/, &executeUnderscoreBackupWithOutput("generate-key", "--additional", "--password", $FIRST_PASSWORD))) {
     print "$row\n";
@@ -823,7 +821,7 @@ __EOF__
 print "Test incremental updating\n";
 
 undef @completionTimestamp;
-&prepareRunPath('', ",\"maxRetention\": {\"unit\": \"SECONDS\", \"duration\": 30},\"minValidated\": {\"unit\": \"SECONDS\", \"duration\": 15}, \"errorCorrection\": \"RS\"");
+&prepareRunPath('', ",\"maxRetention\": {\"unit\": \"SECONDS\", \"duration\": 6},\"minValidated\": {\"unit\": \"SECONDS\", \"duration\": 3}, \"errorCorrection\": \"RS\"");
 
 print "Generation 1 incremental\n";
 &prepareTestPath();

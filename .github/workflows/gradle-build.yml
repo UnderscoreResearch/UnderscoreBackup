@@ -84,8 +84,10 @@ jobs:
           npm install
           npm run build
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Build with Gradle
-        uses: gradle/gradle-build-action@v2
         env:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
           GITHUB_ACTION: yes
@@ -93,8 +95,8 @@ jobs:
           CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
           WINDOWS_CERT_DATA: ${{ secrets.WINDOWS_CODE_SIGN }}
           WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
-        with:
-          arguments: downloadJavaAllDistTest
+        run:
+          ./gradlew downloadJavaAllDistTest
 
       - name: Apply code signature to Windows installer
         if: contains(matrix.os, 'windows')

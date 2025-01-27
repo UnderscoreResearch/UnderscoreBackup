@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -93,10 +94,11 @@ public class KeyChangePost extends BaseWrap {
                 ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
                 MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
                 executeAsyncOperation(() -> {
+                            EncryptionIdentity newIdentity = null;
                             try {
                                 File fileName = getDefaultEncryptionFileName(InstanceFactory.getInstance(CommandLine.class));
 
-                                ChangePasswordCommand.generateNewPrivateKey(manifestManager,
+                                newIdentity = ChangePasswordCommand.generateNewPrivateKey(manifestManager,
                                         metadataRepository,
                                         fileName,
                                         request.getPassword(),
@@ -105,11 +107,11 @@ public class KeyChangePost extends BaseWrap {
                                 log.error("Failed to change password", e);
                             }
 
-                            if (request.isSaveSecret()) {
-                                InstanceFactory.reloadConfiguration(null);
+                            if (request.isSaveSecret() && newIdentity != null) {
                                 try {
                                     ServiceManager serviceManager = InstanceFactory.getInstance(ServiceManager.class);
                                     Response response = createSecret(serviceManager,
+                                            newIdentity,
                                             request.getSecretRegion(),
                                             request.getNewPassword(),
                                             request.getEmail());
