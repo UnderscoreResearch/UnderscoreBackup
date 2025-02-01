@@ -589,13 +589,21 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
 
         if (configuration.getManifest().getMaximumUnsyncedSeconds() != null) {
             executor.schedule(() -> {
+                        LogClosing shouldClose = null;
                         synchronized (lock) {
                             if (currentLogLock != null && currentLogLength > 0 && filename.equals(currentLogLock.getFilename())) {
                                 try {
-                                    closeLogFile();
-                                } catch (IOException exc) {
-                                    log.error("Failed to create new log file", exc);
+                                    shouldClose = synchronizedLogClosing();
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
                                 }
+                            }
+                        }
+                        if (shouldClose != null) {
+                            try {
+                                asyncCloseLogFile(shouldClose);
+                            } catch (IOException exc) {
+                                log.error("Failed to create new log file", exc);
                             }
                         }
                     },
@@ -622,6 +630,10 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private void closeLogFile() throws IOException {
         LogClosing result = synchronizedLogClosing();
 
+        asyncCloseLogFile(result);
+    }
+
+    private void asyncCloseLogFile(LogClosing result) throws IOException {
         if (result != null) {
             result.logLockToClose.getLockedChannel().position(0);
             String filename = result.logLockToClose.getFilename();

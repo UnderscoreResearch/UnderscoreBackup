@@ -681,12 +681,24 @@ public class LockingMetadataRepository implements MetadataRepository {
 
     @Override
     public LogFileRepository getLogFileRepository() throws IOException {
-        if (logFileRepository != null)
-            return logFileRepository;
+        // There is a weird case where you have an exclusive lock but want to write log files where you could
+        // get a deadlock if you get here before the repository is open.
+        while(true) {
+            if (logFileRepository != null)
+                return logFileRepository;
 
-        try (RepositoryLock ignored = new RepositoryLock(true)) {
-            ensureOpen(true);
-            return logFileRepository;
+            try {
+                if (explicitLock.tryLock(1000, TimeUnit.SECONDS)) {
+                    try {
+                        ensureOpen(true);
+                        return logFileRepository;
+                    } finally {
+                        explicitLock.unlock();
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

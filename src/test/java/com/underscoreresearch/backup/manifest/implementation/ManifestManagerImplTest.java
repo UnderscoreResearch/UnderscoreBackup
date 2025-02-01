@@ -16,10 +16,12 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.underscoreresearch.backup.file.LogFileRepository;
 import com.underscoreresearch.backup.file.implementation.LogFileRepositoryImpl;
@@ -30,6 +32,9 @@ import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
 
@@ -154,6 +159,24 @@ class ManifestManagerImplTest {
         logFileRepository = new LogFileRepositoryImpl(Paths.get(Files.createTempDirectory("logs").toString(), "test.log"));
         Mockito.when(repository.getLogFileRepository()).thenReturn(logFileRepository);
         Mockito.when(logConsumer.getMetadataRepository()).thenReturn(repository);
+
+        InstanceFactory.addOrderedCleanupHook(() -> {
+            uploadScheduler.shutdown();
+        });
+    }
+
+    @AfterEach
+    public void teardown() throws IOException {
+        if (manifestManager != null) {
+            manifestManager.shutdown();
+        }
+        InstanceFactory.shutdown();
+        InstanceFactory.waitForShutdown();
+        deleteDir(tempDir);
+        deleteDir(backupDir);
+        deleteDir(shareDir);
+
+        uploadScheduler.shutdown();
     }
 
     private void initializeFactory() throws JsonProcessingException {
@@ -355,18 +378,6 @@ class ManifestManagerImplTest {
         manifestManager = (ManifestManagerImpl) InstanceFactory.getInstance(ManifestManager.class);
         manifestManager.initialize(InstanceFactory.getInstance(LogConsumer.class), true);
         repository.close();
-    }
-
-    @AfterEach
-    public void teardown() throws IOException {
-        if (manifestManager != null) {
-            manifestManager.shutdown();
-        }
-        InstanceFactory.shutdown();
-        InstanceFactory.waitForShutdown();
-        deleteDir(tempDir);
-        deleteDir(backupDir);
-        deleteDir(shareDir);
     }
 
     private void deleteDir(File tempDir) {
