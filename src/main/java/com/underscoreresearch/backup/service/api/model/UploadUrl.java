@@ -15,11 +15,16 @@ package com.underscoreresearch.backup.service.api.model;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 import java.util.StringJoiner;
-
+import java.util.Objects;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -27,119 +32,119 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * UploadUrl
  */
 @JsonPropertyOrder({
-        UploadUrl.JSON_PROPERTY_LOCATION
+  UploadUrl.JSON_PROPERTY_LOCATION
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class UploadUrl {
-    public static final String JSON_PROPERTY_LOCATION = "location";
-    private String location;
+  public static final String JSON_PROPERTY_LOCATION = "location";
+  private String location;
 
-    public UploadUrl() {
+  public UploadUrl() { 
+  }
+
+  public UploadUrl location(String location) {
+    this.location = location;
+    return this;
+  }
+
+   /**
+   * Get location
+   * @return location
+  **/
+  @jakarta.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_LOCATION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getLocation() {
+    return location;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_LOCATION)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setLocation(String location) {
+    this.location = location;
+  }
+
+
+  /**
+   * Return true if this UploadUrl object is equal to o.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    UploadUrl uploadUrl = (UploadUrl) o;
+    return Objects.equals(this.location, uploadUrl.location);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(location);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("class UploadUrl {\n");
+    sb.append("    location: ").append(toIndentedString(location)).append("\n");
+    sb.append("}");
+    return sb.toString();
+  }
+
+  /**
+   * Convert the given object to string with each line indented by 4 spaces
+   * (except the first line).
+   */
+  private String toIndentedString(Object o) {
+    if (o == null) {
+      return "null";
+    }
+    return o.toString().replace("\n", "\n    ");
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
     }
 
-    public UploadUrl location(String location) {
-        this.location = location;
-        return this;
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `location` to the URL query string
+    if (getLocation() != null) {
+      joiner.add(String.format("%slocation%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getLocation()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-    /**
-     * Get location
-     *
-     * @return location
-     **/
-    @jakarta.annotation.Nullable
-    @JsonProperty(JSON_PROPERTY_LOCATION)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-    public String getLocation() {
-        return location;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_LOCATION)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-
-    /**
-     * Return true if this UploadUrl object is equal to o.
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        UploadUrl uploadUrl = (UploadUrl) o;
-        return Objects.equals(this.location, uploadUrl.location);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(location);
-    }
-
-    @Override
-    public String toString() {
-        String sb = "class UploadUrl {\n" +
-                "    location: " + toIndentedString(location) + "\n" +
-                "}";
-        return sb;
-    }
-
-    /**
-     * Convert the given object to string with each line indented by 4 spaces
-     * (except the first line).
-     */
-    private String toIndentedString(Object o) {
-        if (o == null) {
-            return "null";
-        }
-        return o.toString().replace("\n", "\n    ");
-    }
-
-    /**
-     * Convert the instance into URL query string.
-     *
-     * @return URL query string
-     */
-    public String toUrlQueryString() {
-        return toUrlQueryString(null);
-    }
-
-    /**
-     * Convert the instance into URL query string.
-     *
-     * @param prefix prefix of the query string
-     * @return URL query string
-     */
-    public String toUrlQueryString(String prefix) {
-        String suffix = "";
-        String containerSuffix = "";
-        String containerPrefix = "";
-        if (prefix == null) {
-            // style=form, explode=true, e.g. /pet?name=cat&type=manx
-            prefix = "";
-        } else {
-            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-            prefix = prefix + "[";
-            suffix = "]";
-            containerSuffix = "]";
-            containerPrefix = "[";
-        }
-
-        StringJoiner joiner = new StringJoiner("&");
-
-        // add `location` to the URL query string
-        if (getLocation() != null) {
-            joiner.add(String.format("%slocation%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getLocation()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        return joiner.toString();
-    }
+    return joiner.toString();
+  }
 }
 

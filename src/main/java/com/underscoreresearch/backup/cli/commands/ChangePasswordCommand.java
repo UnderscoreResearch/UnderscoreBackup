@@ -294,7 +294,7 @@ public class ChangePasswordCommand extends Command {
             try {
                 if (!((IOIndex) getIoProvider()).hasConsistentWrites()) {
                     log.info("Waiting 20 seconds for eventual consistency");
-                    Thread.sleep(20000);
+                    Thread.sleep(EVENTUAL_CONSISTENCY_TIMEOUT_MS);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

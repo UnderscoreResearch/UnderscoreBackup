@@ -13,16 +13,22 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
-import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 import java.util.StringJoiner;
-
+import java.util.Objects;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -30,348 +36,348 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * ReleaseResponse
  */
 @JsonPropertyOrder({
-        ReleaseResponse.JSON_PROPERTY_RELEASE_DATE,
-        ReleaseResponse.JSON_PROPERTY_NAME,
-        ReleaseResponse.JSON_PROPERTY_VERSION,
-        ReleaseResponse.JSON_PROPERTY_BODY,
-        ReleaseResponse.JSON_PROPERTY_CHANGE_LOG,
-        ReleaseResponse.JSON_PROPERTY_TOKEN,
-        ReleaseResponse.JSON_PROPERTY_FILES
+  ReleaseResponse.JSON_PROPERTY_RELEASE_DATE,
+  ReleaseResponse.JSON_PROPERTY_NAME,
+  ReleaseResponse.JSON_PROPERTY_VERSION,
+  ReleaseResponse.JSON_PROPERTY_BODY,
+  ReleaseResponse.JSON_PROPERTY_CHANGE_LOG,
+  ReleaseResponse.JSON_PROPERTY_TOKEN,
+  ReleaseResponse.JSON_PROPERTY_FILES
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class ReleaseResponse {
-    public static final String JSON_PROPERTY_RELEASE_DATE = "releaseDate";
-    public static final String JSON_PROPERTY_NAME = "name";
-    public static final String JSON_PROPERTY_VERSION = "version";
-    public static final String JSON_PROPERTY_BODY = "body";
-    public static final String JSON_PROPERTY_CHANGE_LOG = "changeLog";
-    public static final String JSON_PROPERTY_TOKEN = "token";
-    public static final String JSON_PROPERTY_FILES = "files";
-    private BigDecimal releaseDate;
-    private String name;
-    private String version;
-    private String body;
-    private String changeLog;
-    private String token;
-    private List<ReleaseFileItem> files = new ArrayList<>();
+  public static final String JSON_PROPERTY_RELEASE_DATE = "releaseDate";
+  private BigDecimal releaseDate;
 
-    public ReleaseResponse() {
+  public static final String JSON_PROPERTY_NAME = "name";
+  private String name;
+
+  public static final String JSON_PROPERTY_VERSION = "version";
+  private String version;
+
+  public static final String JSON_PROPERTY_BODY = "body";
+  private String body;
+
+  public static final String JSON_PROPERTY_CHANGE_LOG = "changeLog";
+  private String changeLog;
+
+  public static final String JSON_PROPERTY_TOKEN = "token";
+  private String token;
+
+  public static final String JSON_PROPERTY_FILES = "files";
+  private List<ReleaseFileItem> files = new ArrayList<>();
+
+  public ReleaseResponse() { 
+  }
+
+  public ReleaseResponse releaseDate(BigDecimal releaseDate) {
+    this.releaseDate = releaseDate;
+    return this;
+  }
+
+   /**
+   * When was this released..
+   * @return releaseDate
+  **/
+  @jakarta.annotation.Nonnull
+  @JsonProperty(JSON_PROPERTY_RELEASE_DATE)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+  public BigDecimal getReleaseDate() {
+    return releaseDate;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_RELEASE_DATE)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setReleaseDate(BigDecimal releaseDate) {
+    this.releaseDate = releaseDate;
+  }
+
+
+  public ReleaseResponse name(String name) {
+    this.name = name;
+    return this;
+  }
+
+   /**
+   * Title of release.
+   * @return name
+  **/
+  @jakarta.annotation.Nonnull
+  @JsonProperty(JSON_PROPERTY_NAME)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+  public String getName() {
+    return name;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_NAME)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setName(String name) {
+    this.name = name;
+  }
+
+
+  public ReleaseResponse version(String version) {
+    this.version = version;
+    return this;
+  }
+
+   /**
+   * Version of release.
+   * @return version
+  **/
+  @jakarta.annotation.Nonnull
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+  public String getVersion() {
+    return version;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_VERSION)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setVersion(String version) {
+    this.version = version;
+  }
+
+
+  public ReleaseResponse body(String body) {
+    this.body = body;
+    return this;
+  }
+
+   /**
+   * Description of release.
+   * @return body
+  **/
+  @jakarta.annotation.Nonnull
+  @JsonProperty(JSON_PROPERTY_BODY)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+  public String getBody() {
+    return body;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_BODY)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setBody(String body) {
+    this.body = body;
+  }
+
+
+  public ReleaseResponse changeLog(String changeLog) {
+    this.changeLog = changeLog;
+    return this;
+  }
+
+   /**
+   * Link to change log.
+   * @return changeLog
+  **/
+  @jakarta.annotation.Nonnull
+  @JsonProperty(JSON_PROPERTY_CHANGE_LOG)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+  public String getChangeLog() {
+    return changeLog;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_CHANGE_LOG)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setChangeLog(String changeLog) {
+    this.changeLog = changeLog;
+  }
+
+
+  public ReleaseResponse token(String token) {
+    this.token = token;
+    return this;
+  }
+
+   /**
+   * Bearer token to use for downloading secure URL if present.
+   * @return token
+  **/
+  @jakarta.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_TOKEN)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getToken() {
+    return token;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_TOKEN)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setToken(String token) {
+    this.token = token;
+  }
+
+
+  public ReleaseResponse files(List<ReleaseFileItem> files) {
+    this.files = files;
+    return this;
+  }
+
+  public ReleaseResponse addFilesItem(ReleaseFileItem filesItem) {
+    if (this.files == null) {
+      this.files = new ArrayList<>();
+    }
+    this.files.add(filesItem);
+    return this;
+  }
+
+   /**
+   * Files for release.
+   * @return files
+  **/
+  @jakarta.annotation.Nonnull
+  @JsonProperty(JSON_PROPERTY_FILES)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+  public List<ReleaseFileItem> getFiles() {
+    return files;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_FILES)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setFiles(List<ReleaseFileItem> files) {
+    this.files = files;
+  }
+
+
+  /**
+   * Return true if this ReleaseResponse object is equal to o.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ReleaseResponse releaseResponse = (ReleaseResponse) o;
+    return Objects.equals(this.releaseDate, releaseResponse.releaseDate) &&
+        Objects.equals(this.name, releaseResponse.name) &&
+        Objects.equals(this.version, releaseResponse.version) &&
+        Objects.equals(this.body, releaseResponse.body) &&
+        Objects.equals(this.changeLog, releaseResponse.changeLog) &&
+        Objects.equals(this.token, releaseResponse.token) &&
+        Objects.equals(this.files, releaseResponse.files);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(releaseDate, name, version, body, changeLog, token, files);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("class ReleaseResponse {\n");
+    sb.append("    releaseDate: ").append(toIndentedString(releaseDate)).append("\n");
+    sb.append("    name: ").append(toIndentedString(name)).append("\n");
+    sb.append("    version: ").append(toIndentedString(version)).append("\n");
+    sb.append("    body: ").append(toIndentedString(body)).append("\n");
+    sb.append("    changeLog: ").append(toIndentedString(changeLog)).append("\n");
+    sb.append("    token: ").append(toIndentedString(token)).append("\n");
+    sb.append("    files: ").append(toIndentedString(files)).append("\n");
+    sb.append("}");
+    return sb.toString();
+  }
+
+  /**
+   * Convert the given object to string with each line indented by 4 spaces
+   * (except the first line).
+   */
+  private String toIndentedString(Object o) {
+    if (o == null) {
+      return "null";
+    }
+    return o.toString().replace("\n", "\n    ");
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
     }
 
-    public ReleaseResponse releaseDate(BigDecimal releaseDate) {
-        this.releaseDate = releaseDate;
-        return this;
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `releaseDate` to the URL query string
+    if (getReleaseDate() != null) {
+      joiner.add(String.format("%sreleaseDate%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getReleaseDate()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-    /**
-     * When was this released..
-     *
-     * @return releaseDate
-     **/
-    @jakarta.annotation.Nonnull
-    @JsonProperty(JSON_PROPERTY_RELEASE_DATE)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-    public BigDecimal getReleaseDate() {
-        return releaseDate;
+    // add `name` to the URL query string
+    if (getName() != null) {
+      joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getName()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-
-    @JsonProperty(JSON_PROPERTY_RELEASE_DATE)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-    public void setReleaseDate(BigDecimal releaseDate) {
-        this.releaseDate = releaseDate;
+    // add `version` to the URL query string
+    if (getVersion() != null) {
+      joiner.add(String.format("%sversion%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getVersion()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-
-    public ReleaseResponse name(String name) {
-        this.name = name;
-        return this;
+    // add `body` to the URL query string
+    if (getBody() != null) {
+      joiner.add(String.format("%sbody%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getBody()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-    /**
-     * Title of release.
-     *
-     * @return name
-     **/
-    @jakarta.annotation.Nonnull
-    @JsonProperty(JSON_PROPERTY_NAME)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-    public String getName() {
-        return name;
+    // add `changeLog` to the URL query string
+    if (getChangeLog() != null) {
+      joiner.add(String.format("%schangeLog%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getChangeLog()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-
-    @JsonProperty(JSON_PROPERTY_NAME)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-    public void setName(String name) {
-        this.name = name;
+    // add `token` to the URL query string
+    if (getToken() != null) {
+      joiner.add(String.format("%stoken%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getToken()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-
-    public ReleaseResponse version(String version) {
-        this.version = version;
-        return this;
-    }
-
-    /**
-     * Version of release.
-     *
-     * @return version
-     **/
-    @jakarta.annotation.Nonnull
-    @JsonProperty(JSON_PROPERTY_VERSION)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-    public String getVersion() {
-        return version;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_VERSION)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-    public void setVersion(String version) {
-        this.version = version;
-    }
-
-
-    public ReleaseResponse body(String body) {
-        this.body = body;
-        return this;
-    }
-
-    /**
-     * Description of release.
-     *
-     * @return body
-     **/
-    @jakarta.annotation.Nonnull
-    @JsonProperty(JSON_PROPERTY_BODY)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-    public String getBody() {
-        return body;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_BODY)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-    public void setBody(String body) {
-        this.body = body;
-    }
-
-
-    public ReleaseResponse changeLog(String changeLog) {
-        this.changeLog = changeLog;
-        return this;
-    }
-
-    /**
-     * Link to change log.
-     *
-     * @return changeLog
-     **/
-    @jakarta.annotation.Nonnull
-    @JsonProperty(JSON_PROPERTY_CHANGE_LOG)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-    public String getChangeLog() {
-        return changeLog;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_CHANGE_LOG)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-    public void setChangeLog(String changeLog) {
-        this.changeLog = changeLog;
-    }
-
-
-    public ReleaseResponse token(String token) {
-        this.token = token;
-        return this;
-    }
-
-    /**
-     * Bearer token to use for downloading secure URL if present.
-     *
-     * @return token
-     **/
-    @jakarta.annotation.Nullable
-    @JsonProperty(JSON_PROPERTY_TOKEN)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-    public String getToken() {
-        return token;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_TOKEN)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-    public void setToken(String token) {
-        this.token = token;
-    }
-
-
-    public ReleaseResponse files(List<ReleaseFileItem> files) {
-        this.files = files;
-        return this;
-    }
-
-    public ReleaseResponse addFilesItem(ReleaseFileItem filesItem) {
-        if (this.files == null) {
-            this.files = new ArrayList<>();
+    // add `files` to the URL query string
+    if (getFiles() != null) {
+      for (int i = 0; i < getFiles().size(); i++) {
+        if (getFiles().get(i) != null) {
+          joiner.add(getFiles().get(i).toUrlQueryString(String.format("%sfiles%s%s", prefix, suffix,
+          "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
         }
-        this.files.add(filesItem);
-        return this;
+      }
     }
 
-    /**
-     * Files for release.
-     *
-     * @return files
-     **/
-    @jakarta.annotation.Nonnull
-    @JsonProperty(JSON_PROPERTY_FILES)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-    public List<ReleaseFileItem> getFiles() {
-        return files;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_FILES)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-    public void setFiles(List<ReleaseFileItem> files) {
-        this.files = files;
-    }
-
-
-    /**
-     * Return true if this ReleaseResponse object is equal to o.
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        ReleaseResponse releaseResponse = (ReleaseResponse) o;
-        return Objects.equals(this.releaseDate, releaseResponse.releaseDate) &&
-                Objects.equals(this.name, releaseResponse.name) &&
-                Objects.equals(this.version, releaseResponse.version) &&
-                Objects.equals(this.body, releaseResponse.body) &&
-                Objects.equals(this.changeLog, releaseResponse.changeLog) &&
-                Objects.equals(this.token, releaseResponse.token) &&
-                Objects.equals(this.files, releaseResponse.files);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(releaseDate, name, version, body, changeLog, token, files);
-    }
-
-    @Override
-    public String toString() {
-        String sb = "class ReleaseResponse {\n" +
-                "    releaseDate: " + toIndentedString(releaseDate) + "\n" +
-                "    name: " + toIndentedString(name) + "\n" +
-                "    version: " + toIndentedString(version) + "\n" +
-                "    body: " + toIndentedString(body) + "\n" +
-                "    changeLog: " + toIndentedString(changeLog) + "\n" +
-                "    token: " + toIndentedString(token) + "\n" +
-                "    files: " + toIndentedString(files) + "\n" +
-                "}";
-        return sb;
-    }
-
-    /**
-     * Convert the given object to string with each line indented by 4 spaces
-     * (except the first line).
-     */
-    private String toIndentedString(Object o) {
-        if (o == null) {
-            return "null";
-        }
-        return o.toString().replace("\n", "\n    ");
-    }
-
-    /**
-     * Convert the instance into URL query string.
-     *
-     * @return URL query string
-     */
-    public String toUrlQueryString() {
-        return toUrlQueryString(null);
-    }
-
-    /**
-     * Convert the instance into URL query string.
-     *
-     * @param prefix prefix of the query string
-     * @return URL query string
-     */
-    public String toUrlQueryString(String prefix) {
-        String suffix = "";
-        String containerSuffix = "";
-        String containerPrefix = "";
-        if (prefix == null) {
-            // style=form, explode=true, e.g. /pet?name=cat&type=manx
-            prefix = "";
-        } else {
-            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-            prefix = prefix + "[";
-            suffix = "]";
-            containerSuffix = "]";
-            containerPrefix = "[";
-        }
-
-        StringJoiner joiner = new StringJoiner("&");
-
-        // add `releaseDate` to the URL query string
-        if (getReleaseDate() != null) {
-            joiner.add(String.format("%sreleaseDate%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getReleaseDate()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `name` to the URL query string
-        if (getName() != null) {
-            joiner.add(String.format("%sname%s=%s", prefix, suffix, URLEncoder.encode(getName(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `version` to the URL query string
-        if (getVersion() != null) {
-            joiner.add(String.format("%sversion%s=%s", prefix, suffix, URLEncoder.encode(getVersion(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `body` to the URL query string
-        if (getBody() != null) {
-            joiner.add(String.format("%sbody%s=%s", prefix, suffix, URLEncoder.encode(getBody(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `changeLog` to the URL query string
-        if (getChangeLog() != null) {
-            joiner.add(String.format("%schangeLog%s=%s", prefix, suffix, URLEncoder.encode(getChangeLog(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `token` to the URL query string
-        if (getToken() != null) {
-            joiner.add(String.format("%stoken%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getToken()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `files` to the URL query string
-        if (getFiles() != null) {
-            for (int i = 0; i < getFiles().size(); i++) {
-                if (getFiles().get(i) != null) {
-                    joiner.add(getFiles().get(i).toUrlQueryString(String.format("%sfiles%s%s", prefix, suffix,
-                            "".equals(suffix) ? "" : String.format("%s%d%s", containerPrefix, i, containerSuffix))));
-                }
-            }
-        }
-
-        return joiner.toString();
-    }
+    return joiner.toString();
+  }
 }
 

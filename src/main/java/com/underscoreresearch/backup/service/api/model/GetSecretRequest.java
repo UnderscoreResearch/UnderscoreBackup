@@ -15,11 +15,16 @@ package com.underscoreresearch.backup.service.api.model;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 import java.util.StringJoiner;
-
+import java.util.Objects;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -27,227 +32,227 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * GetSecretRequest
  */
 @JsonPropertyOrder({
-        GetSecretRequest.JSON_PROPERTY_CLIENT_ID,
-        GetSecretRequest.JSON_PROPERTY_CODE,
-        GetSecretRequest.JSON_PROPERTY_CODE_VERIFIER,
-        GetSecretRequest.JSON_PROPERTY_EMAIL_HASH
+  GetSecretRequest.JSON_PROPERTY_CLIENT_ID,
+  GetSecretRequest.JSON_PROPERTY_CODE,
+  GetSecretRequest.JSON_PROPERTY_CODE_VERIFIER,
+  GetSecretRequest.JSON_PROPERTY_EMAIL_HASH
 })
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class GetSecretRequest {
-    public static final String JSON_PROPERTY_CLIENT_ID = "clientId";
-    public static final String JSON_PROPERTY_CODE = "code";
-    public static final String JSON_PROPERTY_CODE_VERIFIER = "codeVerifier";
-    public static final String JSON_PROPERTY_EMAIL_HASH = "emailHash";
-    private String clientId;
-    private String code;
-    private String codeVerifier;
-    private String emailHash;
+  public static final String JSON_PROPERTY_CLIENT_ID = "clientId";
+  private String clientId;
 
-    public GetSecretRequest() {
+  public static final String JSON_PROPERTY_CODE = "code";
+  private String code;
+
+  public static final String JSON_PROPERTY_CODE_VERIFIER = "codeVerifier";
+  private String codeVerifier;
+
+  public static final String JSON_PROPERTY_EMAIL_HASH = "emailHash";
+  private String emailHash;
+
+  public GetSecretRequest() { 
+  }
+
+  public GetSecretRequest clientId(String clientId) {
+    this.clientId = clientId;
+    return this;
+  }
+
+   /**
+   * Client ID of authentication request. Required if you wish to retrieve secret.
+   * @return clientId
+  **/
+  @jakarta.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_CLIENT_ID)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getClientId() {
+    return clientId;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_CLIENT_ID)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setClientId(String clientId) {
+    this.clientId = clientId;
+  }
+
+
+  public GetSecretRequest code(String code) {
+    this.code = code;
+    return this;
+  }
+
+   /**
+   * Code returned by a previous call to getSecretCode.
+   * @return code
+  **/
+  @jakarta.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_CODE)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getCode() {
+    return code;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_CODE)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setCode(String code) {
+    this.code = code;
+  }
+
+
+  public GetSecretRequest codeVerifier(String codeVerifier) {
+    this.codeVerifier = codeVerifier;
+    return this;
+  }
+
+   /**
+   * The original string that was used to generate the codeChallenge in the previous getSecretCode request.
+   * @return codeVerifier
+  **/
+  @jakarta.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_CODE_VERIFIER)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getCodeVerifier() {
+    return codeVerifier;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_CODE_VERIFIER)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setCodeVerifier(String codeVerifier) {
+    this.codeVerifier = codeVerifier;
+  }
+
+
+  public GetSecretRequest emailHash(String emailHash) {
+    this.emailHash = emailHash;
+    return this;
+  }
+
+   /**
+   * Base64url encoding of hash of email that will be used to decrypt secret.
+   * @return emailHash
+  **/
+  @jakarta.annotation.Nonnull
+  @JsonProperty(JSON_PROPERTY_EMAIL_HASH)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+
+  public String getEmailHash() {
+    return emailHash;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_EMAIL_HASH)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setEmailHash(String emailHash) {
+    this.emailHash = emailHash;
+  }
+
+
+  /**
+   * Return true if this GetSecretRequest object is equal to o.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    GetSecretRequest getSecretRequest = (GetSecretRequest) o;
+    return Objects.equals(this.clientId, getSecretRequest.clientId) &&
+        Objects.equals(this.code, getSecretRequest.code) &&
+        Objects.equals(this.codeVerifier, getSecretRequest.codeVerifier) &&
+        Objects.equals(this.emailHash, getSecretRequest.emailHash);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(clientId, code, codeVerifier, emailHash);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("class GetSecretRequest {\n");
+    sb.append("    clientId: ").append(toIndentedString(clientId)).append("\n");
+    sb.append("    code: ").append(toIndentedString(code)).append("\n");
+    sb.append("    codeVerifier: ").append(toIndentedString(codeVerifier)).append("\n");
+    sb.append("    emailHash: ").append(toIndentedString(emailHash)).append("\n");
+    sb.append("}");
+    return sb.toString();
+  }
+
+  /**
+   * Convert the given object to string with each line indented by 4 spaces
+   * (except the first line).
+   */
+  private String toIndentedString(Object o) {
+    if (o == null) {
+      return "null";
+    }
+    return o.toString().replace("\n", "\n    ");
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @return URL query string
+   */
+  public String toUrlQueryString() {
+    return toUrlQueryString(null);
+  }
+
+  /**
+   * Convert the instance into URL query string.
+   *
+   * @param prefix prefix of the query string
+   * @return URL query string
+   */
+  public String toUrlQueryString(String prefix) {
+    String suffix = "";
+    String containerSuffix = "";
+    String containerPrefix = "";
+    if (prefix == null) {
+      // style=form, explode=true, e.g. /pet?name=cat&type=manx
+      prefix = "";
+    } else {
+      // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
+      prefix = prefix + "[";
+      suffix = "]";
+      containerSuffix = "]";
+      containerPrefix = "[";
     }
 
-    public GetSecretRequest clientId(String clientId) {
-        this.clientId = clientId;
-        return this;
+    StringJoiner joiner = new StringJoiner("&");
+
+    // add `clientId` to the URL query string
+    if (getClientId() != null) {
+      joiner.add(String.format("%sclientId%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getClientId()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-    /**
-     * Client ID of authentication request. Required if you wish to retrieve secret.
-     *
-     * @return clientId
-     **/
-    @jakarta.annotation.Nullable
-    @JsonProperty(JSON_PROPERTY_CLIENT_ID)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-    public String getClientId() {
-        return clientId;
+    // add `code` to the URL query string
+    if (getCode() != null) {
+      joiner.add(String.format("%scode%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCode()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-
-    @JsonProperty(JSON_PROPERTY_CLIENT_ID)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-    public void setClientId(String clientId) {
-        this.clientId = clientId;
+    // add `codeVerifier` to the URL query string
+    if (getCodeVerifier() != null) {
+      joiner.add(String.format("%scodeVerifier%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCodeVerifier()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-
-    public GetSecretRequest code(String code) {
-        this.code = code;
-        return this;
+    // add `emailHash` to the URL query string
+    if (getEmailHash() != null) {
+      joiner.add(String.format("%semailHash%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getEmailHash()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
     }
 
-    /**
-     * Code returned by a previous call to getSecretCode.
-     *
-     * @return code
-     **/
-    @jakarta.annotation.Nullable
-    @JsonProperty(JSON_PROPERTY_CODE)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-    public String getCode() {
-        return code;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_CODE)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-    public void setCode(String code) {
-        this.code = code;
-    }
-
-
-    public GetSecretRequest codeVerifier(String codeVerifier) {
-        this.codeVerifier = codeVerifier;
-        return this;
-    }
-
-    /**
-     * The original string that was used to generate the codeChallenge in the previous getSecretCode request.
-     *
-     * @return codeVerifier
-     **/
-    @jakarta.annotation.Nullable
-    @JsonProperty(JSON_PROPERTY_CODE_VERIFIER)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-
-    public String getCodeVerifier() {
-        return codeVerifier;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_CODE_VERIFIER)
-    @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-    public void setCodeVerifier(String codeVerifier) {
-        this.codeVerifier = codeVerifier;
-    }
-
-
-    public GetSecretRequest emailHash(String emailHash) {
-        this.emailHash = emailHash;
-        return this;
-    }
-
-    /**
-     * Base64url encoding of hash of email that will be used to decrypt secret.
-     *
-     * @return emailHash
-     **/
-    @jakarta.annotation.Nonnull
-    @JsonProperty(JSON_PROPERTY_EMAIL_HASH)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-
-    public String getEmailHash() {
-        return emailHash;
-    }
-
-
-    @JsonProperty(JSON_PROPERTY_EMAIL_HASH)
-    @JsonInclude(value = JsonInclude.Include.ALWAYS)
-    public void setEmailHash(String emailHash) {
-        this.emailHash = emailHash;
-    }
-
-
-    /**
-     * Return true if this GetSecretRequest object is equal to o.
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        GetSecretRequest getSecretRequest = (GetSecretRequest) o;
-        return Objects.equals(this.clientId, getSecretRequest.clientId) &&
-                Objects.equals(this.code, getSecretRequest.code) &&
-                Objects.equals(this.codeVerifier, getSecretRequest.codeVerifier) &&
-                Objects.equals(this.emailHash, getSecretRequest.emailHash);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(clientId, code, codeVerifier, emailHash);
-    }
-
-    @Override
-    public String toString() {
-        String sb = "class GetSecretRequest {\n" +
-                "    clientId: " + toIndentedString(clientId) + "\n" +
-                "    code: " + toIndentedString(code) + "\n" +
-                "    codeVerifier: " + toIndentedString(codeVerifier) + "\n" +
-                "    emailHash: " + toIndentedString(emailHash) + "\n" +
-                "}";
-        return sb;
-    }
-
-    /**
-     * Convert the given object to string with each line indented by 4 spaces
-     * (except the first line).
-     */
-    private String toIndentedString(Object o) {
-        if (o == null) {
-            return "null";
-        }
-        return o.toString().replace("\n", "\n    ");
-    }
-
-    /**
-     * Convert the instance into URL query string.
-     *
-     * @return URL query string
-     */
-    public String toUrlQueryString() {
-        return toUrlQueryString(null);
-    }
-
-    /**
-     * Convert the instance into URL query string.
-     *
-     * @param prefix prefix of the query string
-     * @return URL query string
-     */
-    public String toUrlQueryString(String prefix) {
-        String suffix = "";
-        String containerSuffix = "";
-        String containerPrefix = "";
-        if (prefix == null) {
-            // style=form, explode=true, e.g. /pet?name=cat&type=manx
-            prefix = "";
-        } else {
-            // deepObject style e.g. /pet?id[name]=cat&id[type]=manx
-            prefix = prefix + "[";
-            suffix = "]";
-            containerSuffix = "]";
-            containerPrefix = "[";
-        }
-
-        StringJoiner joiner = new StringJoiner("&");
-
-        // add `clientId` to the URL query string
-        if (getClientId() != null) {
-            joiner.add(String.format("%sclientId%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getClientId()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `code` to the URL query string
-        if (getCode() != null) {
-            joiner.add(String.format("%scode%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCode()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `codeVerifier` to the URL query string
-        if (getCodeVerifier() != null) {
-            joiner.add(String.format("%scodeVerifier%s=%s", prefix, suffix, URLEncoder.encode(String.valueOf(getCodeVerifier()), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        // add `emailHash` to the URL query string
-        if (getEmailHash() != null) {
-            joiner.add(String.format("%semailHash%s=%s", prefix, suffix, URLEncoder.encode(getEmailHash(), StandardCharsets.UTF_8).replaceAll("\\+", "%20")));
-        }
-
-        return joiner.toString();
-    }
+    return joiner.toString();
+  }
 }
 

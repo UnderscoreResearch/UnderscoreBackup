@@ -18,13 +18,9 @@ public class Pair {
     private String name = "";
     private String value = "";
 
-    public Pair(String name, String value) {
+    public Pair (String name, String value) {
         setName(name);
         setValue(value);
-    }
-
-    public String getName() {
-        return this.name;
     }
 
     private void setName(String name) {
@@ -35,10 +31,6 @@ public class Pair {
         this.name = name;
     }
 
-    public String getValue() {
-        return this.value;
-    }
-
     private void setValue(String value) {
         if (!isValidString(value)) {
             return;
@@ -47,7 +39,19 @@ public class Pair {
         this.value = value;
     }
 
+    public String getName() {
+        return this.name;
+    }
+
+    public String getValue() {
+        return this.value;
+    }
+
     private boolean isValidString(String arg) {
-        return arg != null;
+        if (arg == null) {
+            return false;
+        }
+
+        return true;
     }
 }

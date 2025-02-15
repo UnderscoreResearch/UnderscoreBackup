@@ -13,8 +13,9 @@
 
 package com.underscoreresearch.backup.service.api.model;
 
-import java.util.Map;
 import java.util.Objects;
+import java.lang.reflect.Type;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -24,12 +25,14 @@ import com.fasterxml.jackson.annotation.JsonValue;
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public abstract class AbstractOpenApiSchema {
 
-    // schema type (e.g. oneOf, anyOf)
-    private final String schemaType;
-    // is nullable
-    private final Boolean isNullable;
     // store the actual instance of the schema/object
     private Object instance;
+
+    // is nullable
+    private Boolean isNullable;
+
+    // schema type (e.g. oneOf, anyOf)
+    private final String schemaType;
 
     public AbstractOpenApiSchema(String schemaType, Boolean isNullable) {
         this.schemaType = schemaType;
@@ -49,18 +52,14 @@ public abstract class AbstractOpenApiSchema {
      * @return an instance of the actual schema/object
      */
     @JsonValue
-    public Object getActualInstance() {
-        return instance;
-    }
+    public Object getActualInstance() {return instance;}
 
     /**
      * Set the actual instance
      *
      * @param instance the actual instance of the schema/object
      */
-    public void setActualInstance(Object instance) {
-        this.instance = instance;
-    }
+    public void setActualInstance(Object instance) {this.instance = instance;}
 
     /**
      * Get the instant recursively when the schemas defined in oneOf/anyof happen to be oneOf/anyOf schema as well
@@ -75,7 +74,7 @@ public abstract class AbstractOpenApiSchema {
         if (object.getActualInstance() == null) {
             return null;
         } else if (object.getActualInstance() instanceof AbstractOpenApiSchema) {
-            return getActualInstanceRecursively((AbstractOpenApiSchema) object.getActualInstance());
+            return getActualInstanceRecursively((AbstractOpenApiSchema)object.getActualInstance());
         } else {
             return object.getActualInstance();
         }
@@ -92,12 +91,13 @@ public abstract class AbstractOpenApiSchema {
 
     @Override
     public String toString() {
-        String sb = "class " + getClass() + " {\n" +
-                "    instance: " + toIndentedString(instance) + "\n" +
-                "    isNullable: " + toIndentedString(isNullable) + "\n" +
-                "    schemaType: " + toIndentedString(schemaType) + "\n" +
-                "}";
-        return sb;
+        StringBuilder sb = new StringBuilder();
+        sb.append("class ").append(getClass()).append(" {\n");
+        sb.append("    instance: ").append(toIndentedString(instance)).append("\n");
+        sb.append("    isNullable: ").append(toIndentedString(isNullable)).append("\n");
+        sb.append("    schemaType: ").append(toIndentedString(schemaType)).append("\n");
+        sb.append("}");
+        return sb.toString();
     }
 
     /**
@@ -120,8 +120,8 @@ public abstract class AbstractOpenApiSchema {
         }
         AbstractOpenApiSchema a = (AbstractOpenApiSchema) o;
         return Objects.equals(this.instance, a.instance) &&
-                Objects.equals(this.isNullable, a.isNullable) &&
-                Objects.equals(this.schemaType, a.schemaType);
+            Objects.equals(this.isNullable, a.isNullable) &&
+            Objects.equals(this.schemaType, a.schemaType);
     }
 
     @Override
@@ -141,6 +141,7 @@ public abstract class AbstractOpenApiSchema {
             return Boolean.FALSE;
         }
     }
+
 
 
 }

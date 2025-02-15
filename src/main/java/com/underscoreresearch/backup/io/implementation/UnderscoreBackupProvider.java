@@ -345,8 +345,9 @@ public class UnderscoreBackupProvider implements IOIndex {
             } else {
                 ret = RetryUtils.retry(() -> limiter.call(() -> {
                     // Will throw exception if not exists.
-                    callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
-                    return true;
+                    DownloadUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
+                    // Also should not return true if the file has been deleted but is still retained by service.
+                    return response.getDeleted() == null || !response.getDeleted();
                 }), this::retrySignedException);
                 debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
             }

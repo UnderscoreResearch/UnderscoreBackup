@@ -1,5 +1,6 @@
 package com.underscoreresearch.backup.cli.helpers;
 
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.EVENTUAL_CONSISTENCY_TIMEOUT_MS;
 import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 import java.io.IOException;
@@ -64,6 +65,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     private Set<String> activatedShares;
     private CloseableMap<String, Boolean> processedBlockMap;
     private Stopwatch lastUpdate;
+    private final Object lastUpdateLock = new Object();
 
     public DestinationBlockProcessor(int maximumConcurrency,
                                      boolean noDelete,
@@ -85,48 +87,50 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         maximumRefreshed = configuration.getProperty("maximumRefreshedBytes", Long.MAX_VALUE);
     }
 
-    private synchronized void processBlockStorage(BackupBlock block, Runnable runnable) throws IOException {
-        if (activatedShares == null) {
-            synchronized (this) {
-                if (activatedShares == null) {
-                    activatedShares = manifestManager.getActivatedShares().keySet();
-                }
+    private void processBlockStorage(BackupBlock block, Runnable runnable) throws IOException {
+        boolean scheduled = false;
+
+        synchronized (this) {
+            if (activatedShares == null) {
+                activatedShares = manifestManager.getActivatedShares().keySet();
+            }
+
+            if (processedBlockMap == null) {
+                processedBlockMap = repository.temporaryMap(new MapSerializer<String, Boolean>() {
+                    @Override
+                    public byte[] encodeKey(String s) {
+                        return s.getBytes(StandardCharsets.UTF_8);
+                    }
+
+                    @Override
+                    public byte[] encodeValue(Boolean aBoolean) {
+                        return new byte[]{aBoolean ? (byte) 1 : 0};
+                    }
+
+                    @Override
+                    public Boolean decodeValue(byte[] data) {
+                        return data[0] != 0;
+                    }
+
+                    @Override
+                    public String decodeKey(byte[] data) {
+                        return new String(data, StandardCharsets.UTF_8);
+                    }
+                });
+                refreshedBlocks.set(0);
+                uploadedSize.set(0);
+            }
+
+            if (!processedBlockMap.containsKey(block.getHash())) {
+                processedBlockMap.put(block.getHash(), true);
+                scheduled = true;
             }
         }
 
-        if (processedBlockMap == null) {
-            processedBlockMap = repository.temporaryMap(new MapSerializer<String, Boolean>() {
-                @Override
-                public byte[] encodeKey(String s) {
-                    return s.getBytes(StandardCharsets.UTF_8);
-                }
-
-                @Override
-                public byte[] encodeValue(Boolean aBoolean) {
-                    return new byte[]{aBoolean ? (byte) 1 : 0};
-                }
-
-                @Override
-                public Boolean decodeValue(byte[] data) {
-                    return data[0] != 0;
-                }
-
-                @Override
-                public String decodeKey(byte[] data) {
-                    return new String(data, StandardCharsets.UTF_8);
-                }
-            });
-            refreshedBlocks.set(0);
-            uploadedSize.set(0);
-        }
-
-        if (!processedBlockMap.containsKey(block.getHash())) {
-            processedBlockMap.put(block.getHash(), true);
-
+        if (scheduled)
             schedule(runnable);
 
-            postPending();
-        }
+        postPending();
     }
 
     public boolean refreshStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
@@ -401,24 +405,28 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     }
 
     private void awaitStopwatch(IOProvider provider) {
-        Stopwatch newStopwatch = lastUpdate;
-        if (newStopwatch != null) {
+        if (lastUpdate != null) {
             if (provider instanceof IOIndex ioIndex) {
                 if (ioIndex.hasConsistentWrites()) {
                     return;
                 }
             }
 
-            long milliseconds = newStopwatch.elapsed(TimeUnit.MILLISECONDS);
-            long left = 20000 - milliseconds;
-            if (left < 0) {
-                log.info("Completed waiting for eventual consistency");
-                lastUpdate = null;
-            } else {
-                try {
-                    Thread.sleep(left);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+            synchronized (lastUpdateLock) {
+                Stopwatch newStopwatch = lastUpdate;
+                if (newStopwatch != null) {
+                    long milliseconds = newStopwatch.elapsed(TimeUnit.MILLISECONDS);
+                    long left = EVENTUAL_CONSISTENCY_TIMEOUT_MS - milliseconds;
+                    if (left < 0) {
+                        log.info("Completed waiting for eventual consistency");
+                        lastUpdate = null;
+                    } else {
+                        try {
+                            Thread.sleep(left);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
                 }
             }
         }

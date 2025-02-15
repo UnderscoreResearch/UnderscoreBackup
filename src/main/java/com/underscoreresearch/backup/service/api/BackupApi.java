@@ -12,24 +12,11 @@
 
 package com.underscoreresearch.backup.service.api;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringJoiner;
-import java.util.function.Consumer;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.underscoreresearch.backup.service.api.invoker.ApiClient;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.invoker.ApiResponse;
 import com.underscoreresearch.backup.service.api.invoker.Pair;
+
 import com.underscoreresearch.backup.service.api.model.DeleteTokenRequest;
 import com.underscoreresearch.backup.service.api.model.DownloadUrl;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
@@ -52,1987 +39,2063 @@ import com.underscoreresearch.backup.service.api.model.SourceResponse;
 import com.underscoreresearch.backup.service.api.model.SourceStatsModel;
 import com.underscoreresearch.backup.service.api.model.UploadUrl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.http.HttpRequest;
+import java.nio.channels.Channels;
+import java.nio.channels.Pipe;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+
+import java.util.ArrayList;
+import java.util.StringJoiner;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen")
 public class BackupApi {
-    private final HttpClient memberVarHttpClient;
-    private final ObjectMapper memberVarObjectMapper;
-    private final String memberVarBaseUri;
-    private final Consumer<HttpRequest.Builder> memberVarInterceptor;
-    private final Duration memberVarReadTimeout;
-    private final Consumer<HttpResponse<InputStream>> memberVarResponseInterceptor;
-    private final Consumer<HttpResponse<String>> memberVarAsyncResponseInterceptor;
-
-    public BackupApi() {
-        this(new ApiClient());
-    }
-
-    public BackupApi(ApiClient apiClient) {
-        memberVarHttpClient = apiClient.getHttpClient();
-        memberVarObjectMapper = apiClient.getObjectMapper();
-        memberVarBaseUri = apiClient.getBaseUri();
-        memberVarInterceptor = apiClient.getRequestInterceptor();
-        memberVarReadTimeout = apiClient.getReadTimeout();
-        memberVarResponseInterceptor = apiClient.getResponseInterceptor();
-        memberVarAsyncResponseInterceptor = apiClient.getAsyncResponseInterceptor();
-    }
-
-    protected ApiException getApiException(String operationId, HttpResponse<InputStream> response) throws IOException {
-        String body = response.body() == null ? null : new String(response.body().readAllBytes());
-        String message = formatExceptionMessage(operationId, response.statusCode(), body);
-        return new ApiException(response.statusCode(), message, response.headers(), body);
-    }
-
-    private String formatExceptionMessage(String operationId, int statusCode, String body) {
-        if (body == null || body.isEmpty()) {
-            body = "[no body]";
-        }
-        return operationId + " call failed with: " + statusCode + " - " + body;
-    }
-
-    /**
-     * Create an existing secret.
-     *
-     * @param sourceId      Unique source identifier (required)
-     * @param secretRequest (required)
-     * @return MessageResponse
-     * @throws ApiException if fails to make API call
-     */
-    public MessageResponse createSecret(String sourceId, SecretRequest secretRequest) throws ApiException {
-        ApiResponse<MessageResponse> localVarResponse = createSecretWithHttpInfo(sourceId, secretRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Create an existing secret.
-     *
-     * @param sourceId      Unique source identifier (required)
-     * @param secretRequest (required)
-     * @return ApiResponse&lt;MessageResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<MessageResponse> createSecretWithHttpInfo(String sourceId, SecretRequest secretRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = createSecretRequestBuilder(sourceId, secretRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("createSecret", localVarResponse);
-            }
-            return new ApiResponse<MessageResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder createSecretRequestBuilder(String sourceId, SecretRequest secretRequest) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling createSecret");
-        }
-        // verify the required parameter 'secretRequest' is set
-        if (secretRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'secretRequest' when calling createSecret");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/secrets/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(secretRequest);
-            localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Create a share to another account account.
-     *
-     * @param sourceId     Unique source identifier from share is to be created (required)
-     * @param shareId      Unique identifier of share to be created (required)
-     * @param shareRequest (required)
-     * @return ShareResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ShareResponse createShare(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
-        ApiResponse<ShareResponse> localVarResponse = createShareWithHttpInfo(sourceId, shareId, shareRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Create a share to another account account.
-     *
-     * @param sourceId     Unique source identifier from share is to be created (required)
-     * @param shareId      Unique identifier of share to be created (required)
-     * @param shareRequest (required)
-     * @return ApiResponse&lt;ShareResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ShareResponse> createShareWithHttpInfo(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = createShareRequestBuilder(sourceId, shareId, shareRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("createShare", localVarResponse);
-            }
-            return new ApiResponse<ShareResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder createShareRequestBuilder(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling createShare");
-        }
-        // verify the required parameter 'shareId' is set
-        if (shareId == null) {
-            throw new ApiException(400, "Missing the required parameter 'shareId' when calling createShare");
-        }
-        // verify the required parameter 'shareRequest' is set
-        if (shareRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'shareRequest' when calling createShare");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/shares/{sourceId}/{shareId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId))
-                .replace("{shareId}", ApiClient.urlEncode(shareId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(shareRequest);
-            localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Create a new source.
-     *
-     * @param sourceRequest (required)
-     * @return SourceResponse
-     * @throws ApiException if fails to make API call
-     */
-    public SourceResponse createSource(SourceRequest sourceRequest) throws ApiException {
-        ApiResponse<SourceResponse> localVarResponse = createSourceWithHttpInfo(sourceRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Create a new source.
-     *
-     * @param sourceRequest (required)
-     * @return ApiResponse&lt;SourceResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<SourceResponse> createSourceWithHttpInfo(SourceRequest sourceRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = createSourceRequestBuilder(sourceRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("createSource", localVarResponse);
-            }
-            return new ApiResponse<SourceResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<SourceResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder createSourceRequestBuilder(SourceRequest sourceRequest) throws ApiException {
-        // verify the required parameter 'sourceRequest' is set
-        if (sourceRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceRequest' when calling createSource");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/sources";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(sourceRequest);
-            localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Get current release information.
-     *
-     * @return ReleaseResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ReleaseResponse currentRelease() throws ApiException {
-        ApiResponse<ReleaseResponse> localVarResponse = currentReleaseWithHttpInfo();
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Get current release information.
-     *
-     * @return ApiResponse&lt;ReleaseResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ReleaseResponse> currentReleaseWithHttpInfo() throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = currentReleaseRequestBuilder();
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("currentRelease", localVarResponse);
-            }
-            return new ApiResponse<ReleaseResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ReleaseResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder currentReleaseRequestBuilder() throws ApiException {
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/releases/current";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Delete data from source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @param path     Path of file in source URI safe encoded (required)
-     * @param shareId  Share identifier (optional)
-     * @return MessageResponse
-     * @throws ApiException if fails to make API call
-     */
-    public MessageResponse deleteFile(String sourceId, String path, String shareId) throws ApiException {
-        ApiResponse<MessageResponse> localVarResponse = deleteFileWithHttpInfo(sourceId, path, shareId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Delete data from source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @param path     Path of file in source URI safe encoded (required)
-     * @param shareId  Share identifier (optional)
-     * @return ApiResponse&lt;MessageResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<MessageResponse> deleteFileWithHttpInfo(String sourceId, String path, String shareId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = deleteFileRequestBuilder(sourceId, path, shareId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("deleteFile", localVarResponse);
-            }
-            return new ApiResponse<MessageResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder deleteFileRequestBuilder(String sourceId, String path, String shareId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteFile");
-        }
-        // verify the required parameter 'path' is set
-        if (path == null) {
-            throw new ApiException(400, "Missing the required parameter 'path' when calling deleteFile");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/data/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        List<Pair> localVarQueryParams = new ArrayList<>();
-        StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-        String localVarQueryParameterBaseName;
-        localVarQueryParameterBaseName = "path";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
-        localVarQueryParameterBaseName = "shareId";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
-
-        if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
-            StringJoiner queryJoiner = new StringJoiner("&");
-            localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
-            if (localVarQueryStringJoiner.length() != 0) {
-                queryJoiner.add(localVarQueryStringJoiner.toString());
-            }
-            localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner));
-        } else {
-            localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-        }
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Delete an existing secret.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @return MessageResponse
-     * @throws ApiException if fails to make API call
-     */
-    public MessageResponse deleteSecret(String sourceId) throws ApiException {
-        ApiResponse<MessageResponse> localVarResponse = deleteSecretWithHttpInfo(sourceId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Delete an existing secret.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @return ApiResponse&lt;MessageResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<MessageResponse> deleteSecretWithHttpInfo(String sourceId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = deleteSecretRequestBuilder(sourceId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("deleteSecret", localVarResponse);
-            }
-            return new ApiResponse<MessageResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder deleteSecretRequestBuilder(String sourceId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteSecret");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/secrets/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Delete an existing share. Can be done by either target or sharing account.
-     *
-     * @param sourceId Unique source identifier of share (required)
-     * @param shareId  Unique share identifier (required)
-     * @return MessageResponse
-     * @throws ApiException if fails to make API call
-     */
-    public MessageResponse deleteShare(String sourceId, String shareId) throws ApiException {
-        ApiResponse<MessageResponse> localVarResponse = deleteShareWithHttpInfo(sourceId, shareId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Delete an existing share. Can be done by either target or sharing account.
-     *
-     * @param sourceId Unique source identifier of share (required)
-     * @param shareId  Unique share identifier (required)
-     * @return ApiResponse&lt;MessageResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<MessageResponse> deleteShareWithHttpInfo(String sourceId, String shareId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = deleteShareRequestBuilder(sourceId, shareId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("deleteShare", localVarResponse);
-            }
-            return new ApiResponse<MessageResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder deleteShareRequestBuilder(String sourceId, String shareId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteShare");
-        }
-        // verify the required parameter 'shareId' is set
-        if (shareId == null) {
-            throw new ApiException(400, "Missing the required parameter 'shareId' when calling deleteShare");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/shares/{sourceId}/{shareId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId))
-                .replace("{shareId}", ApiClient.urlEncode(shareId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Delete source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @return MessageResponse
-     * @throws ApiException if fails to make API call
-     */
-    public MessageResponse deleteSource(String sourceId) throws ApiException {
-        ApiResponse<MessageResponse> localVarResponse = deleteSourceWithHttpInfo(sourceId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Delete source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @return ApiResponse&lt;MessageResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<MessageResponse> deleteSourceWithHttpInfo(String sourceId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = deleteSourceRequestBuilder(sourceId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("deleteSource", localVarResponse);
-            }
-            return new ApiResponse<MessageResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder deleteSourceRequestBuilder(String sourceId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteSource");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/sources/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Delete a token.
-     *
-     * @param deleteTokenRequest (required)
-     * @return MessageResponse
-     * @throws ApiException if fails to make API call
-     */
-    public MessageResponse deleteToken(DeleteTokenRequest deleteTokenRequest) throws ApiException {
-        ApiResponse<MessageResponse> localVarResponse = deleteTokenWithHttpInfo(deleteTokenRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Delete a token.
-     *
-     * @param deleteTokenRequest (required)
-     * @return ApiResponse&lt;MessageResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<MessageResponse> deleteTokenWithHttpInfo(DeleteTokenRequest deleteTokenRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = deleteTokenRequestBuilder(deleteTokenRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("deleteToken", localVarResponse);
-            }
-            return new ApiResponse<MessageResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder deleteTokenRequestBuilder(DeleteTokenRequest deleteTokenRequest) throws ApiException {
-        // verify the required parameter 'deleteTokenRequest' is set
-        if (deleteTokenRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'deleteTokenRequest' when calling deleteToken");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/auth/tokens/delete";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(deleteTokenRequest);
-            localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Generate a token from a client code.
-     *
-     * @param generateTokenRequest (required)
-     * @return ScopedTokenResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ScopedTokenResponse generateToken(GenerateTokenRequest generateTokenRequest) throws ApiException {
-        ApiResponse<ScopedTokenResponse> localVarResponse = generateTokenWithHttpInfo(generateTokenRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Generate a token from a client code.
-     *
-     * @param generateTokenRequest (required)
-     * @return ApiResponse&lt;ScopedTokenResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ScopedTokenResponse> generateTokenWithHttpInfo(GenerateTokenRequest generateTokenRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = generateTokenRequestBuilder(generateTokenRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("generateToken", localVarResponse);
-            }
-            return new ApiResponse<ScopedTokenResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ScopedTokenResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder generateTokenRequestBuilder(GenerateTokenRequest generateTokenRequest) throws ApiException {
-        // verify the required parameter 'generateTokenRequest' is set
-        if (generateTokenRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'generateTokenRequest' when calling generateToken");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/auth/tokens";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(generateTokenRequest);
-            localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Get data from source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @param path     Path of file in source URI safe encoded (required)
-     * @param shareId  Share identifier (optional)
-     * @return DownloadUrl
-     * @throws ApiException if fails to make API call
-     */
-    public DownloadUrl getFile(String sourceId, String path, String shareId) throws ApiException {
-        ApiResponse<DownloadUrl> localVarResponse = getFileWithHttpInfo(sourceId, path, shareId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Get data from source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @param path     Path of file in source URI safe encoded (required)
-     * @param shareId  Share identifier (optional)
-     * @return ApiResponse&lt;DownloadUrl&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<DownloadUrl> getFileWithHttpInfo(String sourceId, String path, String shareId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = getFileRequestBuilder(sourceId, path, shareId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("getFile", localVarResponse);
-            }
-            return new ApiResponse<DownloadUrl>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<DownloadUrl>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder getFileRequestBuilder(String sourceId, String path, String shareId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling getFile");
-        }
-        // verify the required parameter 'path' is set
-        if (path == null) {
-            throw new ApiException(400, "Missing the required parameter 'path' when calling getFile");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/data/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        List<Pair> localVarQueryParams = new ArrayList<>();
-        StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-        String localVarQueryParameterBaseName;
-        localVarQueryParameterBaseName = "path";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
-        localVarQueryParameterBaseName = "shareId";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
-
-        if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
-            StringJoiner queryJoiner = new StringJoiner("&");
-            localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
-            if (localVarQueryStringJoiner.length() != 0) {
-                queryJoiner.add(localVarQueryStringJoiner.toString());
-            }
-            localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner));
-        } else {
-            localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-        }
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Read or check for existence of secret.
-     *
-     * @param sourceId         Unique source identifier (required)
-     * @param getSecretRequest (required)
-     * @return GetSecretResponse
-     * @throws ApiException if fails to make API call
-     */
-    public GetSecretResponse getSecret(String sourceId, GetSecretRequest getSecretRequest) throws ApiException {
-        ApiResponse<GetSecretResponse> localVarResponse = getSecretWithHttpInfo(sourceId, getSecretRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Read or check for existence of secret.
-     *
-     * @param sourceId         Unique source identifier (required)
-     * @param getSecretRequest (required)
-     * @return ApiResponse&lt;GetSecretResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<GetSecretResponse> getSecretWithHttpInfo(String sourceId, GetSecretRequest getSecretRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = getSecretRequestBuilder(sourceId, getSecretRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("getSecret", localVarResponse);
-            }
-            return new ApiResponse<GetSecretResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSecretResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder getSecretRequestBuilder(String sourceId, GetSecretRequest getSecretRequest) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling getSecret");
-        }
-        // verify the required parameter 'getSecretRequest' is set
-        if (getSecretRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'getSecretRequest' when calling getSecret");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/secrets/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(getSecretRequest);
-            localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Get a share account (Can only be called by owner).
-     *
-     * @param sourceId Unique source identifier of share (required)
-     * @param shareId  Unique share identifier (required)
-     * @return ShareResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ShareResponse getShare(String sourceId, String shareId) throws ApiException {
-        ApiResponse<ShareResponse> localVarResponse = getShareWithHttpInfo(sourceId, shareId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Get a share account (Can only be called by owner).
-     *
-     * @param sourceId Unique source identifier of share (required)
-     * @param shareId  Unique share identifier (required)
-     * @return ApiResponse&lt;ShareResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ShareResponse> getShareWithHttpInfo(String sourceId, String shareId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = getShareRequestBuilder(sourceId, shareId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("getShare", localVarResponse);
-            }
-            return new ApiResponse<ShareResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder getShareRequestBuilder(String sourceId, String shareId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling getShare");
-        }
-        // verify the required parameter 'shareId' is set
-        if (shareId == null) {
-            throw new ApiException(400, "Missing the required parameter 'shareId' when calling getShare");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/shares/{sourceId}/{shareId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId))
-                .replace("{shareId}", ApiClient.urlEncode(shareId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Get description of source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @return SourceResponse
-     * @throws ApiException if fails to make API call
-     */
-    public SourceResponse getSource(String sourceId) throws ApiException {
-        ApiResponse<SourceResponse> localVarResponse = getSourceWithHttpInfo(sourceId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Get description of source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @return ApiResponse&lt;SourceResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<SourceResponse> getSourceWithHttpInfo(String sourceId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = getSourceRequestBuilder(sourceId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("getSource", localVarResponse);
-            }
-            return new ApiResponse<SourceResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<SourceResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder getSourceRequestBuilder(String sourceId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling getSource");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/sources/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Get subscription status.
-     *
-     * @return GetSubscriptionResponse
-     * @throws ApiException if fails to make API call
-     */
-    public GetSubscriptionResponse getSubscription() throws ApiException {
-        ApiResponse<GetSubscriptionResponse> localVarResponse = getSubscriptionWithHttpInfo();
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Get subscription status.
-     *
-     * @return ApiResponse&lt;GetSubscriptionResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<GetSubscriptionResponse> getSubscriptionWithHttpInfo() throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = getSubscriptionRequestBuilder();
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("getSubscription", localVarResponse);
-            }
-            return new ApiResponse<GetSubscriptionResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSubscriptionResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder getSubscriptionRequestBuilder() throws ApiException {
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/payments/subscriptions";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * List available log files for a source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @param lastFile Last file processed (Only return files after this one if any) (optional)
-     * @param shareId  Share identifier (optional)
-     * @return FileListResponse
-     * @throws ApiException if fails to make API call
-     */
-    public FileListResponse listLogFiles(String sourceId, String lastFile, String shareId) throws ApiException {
-        ApiResponse<FileListResponse> localVarResponse = listLogFilesWithHttpInfo(sourceId, lastFile, shareId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * List available log files for a source.
-     *
-     * @param sourceId Unique source identifier (required)
-     * @param lastFile Last file processed (Only return files after this one if any) (optional)
-     * @param shareId  Share identifier (optional)
-     * @return ApiResponse&lt;FileListResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<FileListResponse> listLogFilesWithHttpInfo(String sourceId, String lastFile, String shareId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = listLogFilesRequestBuilder(sourceId, lastFile, shareId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("listLogFiles", localVarResponse);
-            }
-            return new ApiResponse<FileListResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<FileListResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder listLogFilesRequestBuilder(String sourceId, String lastFile, String shareId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling listLogFiles");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/data/{sourceId}/logs"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        List<Pair> localVarQueryParams = new ArrayList<>();
-        StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-        String localVarQueryParameterBaseName;
-        localVarQueryParameterBaseName = "lastFile";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("lastFile", lastFile));
-        localVarQueryParameterBaseName = "shareId";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
-
-        if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
-            StringJoiner queryJoiner = new StringJoiner("&");
-            localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
-            if (localVarQueryStringJoiner.length() != 0) {
-                queryJoiner.add(localVarQueryStringJoiner.toString());
-            }
-            localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner));
-        } else {
-            localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-        }
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * List shares that have been shared with your account.
-     *
-     * @return ListSharesResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ListSharesResponse listShares() throws ApiException {
-        ApiResponse<ListSharesResponse> localVarResponse = listSharesWithHttpInfo();
-        return localVarResponse.getData();
-    }
-
-    /**
-     * List shares that have been shared with your account.
-     *
-     * @return ApiResponse&lt;ListSharesResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ListSharesResponse> listSharesWithHttpInfo() throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = listSharesRequestBuilder();
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("listShares", localVarResponse);
-            }
-            return new ApiResponse<ListSharesResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharesResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder listSharesRequestBuilder() throws ApiException {
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/shares";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * List sharing public keys for a source recipient.
-     *
-     * @param listSharingKeysRequest (required)
-     * @return ListSharingKeysResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ListSharingKeysResponse listSharingKeys(ListSharingKeysRequest listSharingKeysRequest) throws ApiException {
-        ApiResponse<ListSharingKeysResponse> localVarResponse = listSharingKeysWithHttpInfo(listSharingKeysRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * List sharing public keys for a source recipient.
-     *
-     * @param listSharingKeysRequest (required)
-     * @return ApiResponse&lt;ListSharingKeysResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ListSharingKeysResponse> listSharingKeysWithHttpInfo(ListSharingKeysRequest listSharingKeysRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = listSharingKeysRequestBuilder(listSharingKeysRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("listSharingKeys", localVarResponse);
-            }
-            return new ApiResponse<ListSharingKeysResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharingKeysResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder listSharingKeysRequestBuilder(ListSharingKeysRequest listSharingKeysRequest) throws ApiException {
-        // verify the required parameter 'listSharingKeysRequest' is set
-        if (listSharingKeysRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'listSharingKeysRequest' when calling listSharingKeys");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/shares";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(listSharingKeysRequest);
-            localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * List shares that have been shared with your account.
-     *
-     * @param sourceId Unique source identifier from share is to be created (required)
-     * @return ListSharesResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ListSharesResponse listSourceShares(String sourceId) throws ApiException {
-        ApiResponse<ListSharesResponse> localVarResponse = listSourceSharesWithHttpInfo(sourceId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * List shares that have been shared with your account.
-     *
-     * @param sourceId Unique source identifier from share is to be created (required)
-     * @return ApiResponse&lt;ListSharesResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ListSharesResponse> listSourceSharesWithHttpInfo(String sourceId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = listSourceSharesRequestBuilder(sourceId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("listSourceShares", localVarResponse);
-            }
-            return new ApiResponse<ListSharesResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharesResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder listSourceSharesRequestBuilder(String sourceId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling listSourceShares");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/shares/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * List all available sources.
-     *
-     * @return ListSourcesResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ListSourcesResponse listSources() throws ApiException {
-        ApiResponse<ListSourcesResponse> localVarResponse = listSourcesWithHttpInfo();
-        return localVarResponse.getData();
-    }
-
-    /**
-     * List all available sources.
-     *
-     * @return ApiResponse&lt;ListSourcesResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ListSourcesResponse> listSourcesWithHttpInfo() throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = listSourcesRequestBuilder();
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("listSources", localVarResponse);
-            }
-            return new ApiResponse<ListSourcesResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSourcesResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder listSourcesRequestBuilder() throws ApiException {
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/sources";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Get the most recent prerelease information.
-     *
-     * @return ReleaseResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ReleaseResponse preRelease() throws ApiException {
-        ApiResponse<ReleaseResponse> localVarResponse = preReleaseWithHttpInfo();
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Get the most recent prerelease information.
-     *
-     * @return ApiResponse&lt;ReleaseResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ReleaseResponse> preReleaseWithHttpInfo() throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = preReleaseRequestBuilder();
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("preRelease", localVarResponse);
-            }
-            return new ApiResponse<ReleaseResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ReleaseResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder preReleaseRequestBuilder() throws ApiException {
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/releases/prerelease";
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Update an existing account.
-     *
-     * @param sourceId     Unique source identifier of share (required)
-     * @param shareId      Unique share identifier (required)
-     * @param shareRequest (required)
-     * @return ShareResponse
-     * @throws ApiException if fails to make API call
-     */
-    public ShareResponse updateShare(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
-        ApiResponse<ShareResponse> localVarResponse = updateShareWithHttpInfo(sourceId, shareId, shareRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Update an existing account.
-     *
-     * @param sourceId     Unique source identifier of share (required)
-     * @param shareId      Unique share identifier (required)
-     * @param shareRequest (required)
-     * @return ApiResponse&lt;ShareResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<ShareResponse> updateShareWithHttpInfo(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = updateShareRequestBuilder(sourceId, shareId, shareRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("updateShare", localVarResponse);
-            }
-            return new ApiResponse<ShareResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder updateShareRequestBuilder(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling updateShare");
-        }
-        // verify the required parameter 'shareId' is set
-        if (shareId == null) {
-            throw new ApiException(400, "Missing the required parameter 'shareId' when calling updateShare");
-        }
-        // verify the required parameter 'shareRequest' is set
-        if (shareRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'shareRequest' when calling updateShare");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/shares/{sourceId}/{shareId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId))
-                .replace("{shareId}", ApiClient.urlEncode(shareId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(shareRequest);
-            localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Update an existing source.
-     *
-     * @param sourceId      Unique source identifier (required)
-     * @param sourceRequest (required)
-     * @return MessageResponse
-     * @throws ApiException if fails to make API call
-     */
-    public MessageResponse updateSource(String sourceId, SourceRequest sourceRequest) throws ApiException {
-        ApiResponse<MessageResponse> localVarResponse = updateSourceWithHttpInfo(sourceId, sourceRequest);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Update an existing source.
-     *
-     * @param sourceId      Unique source identifier (required)
-     * @param sourceRequest (required)
-     * @return ApiResponse&lt;MessageResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<MessageResponse> updateSourceWithHttpInfo(String sourceId, SourceRequest sourceRequest) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = updateSourceRequestBuilder(sourceId, sourceRequest);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("updateSource", localVarResponse);
-            }
-            return new ApiResponse<MessageResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder updateSourceRequestBuilder(String sourceId, SourceRequest sourceRequest) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling updateSource");
-        }
-        // verify the required parameter 'sourceRequest' is set
-        if (sourceRequest == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceRequest' when calling updateSource");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/sources/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(sourceRequest);
-            localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Store source stats.
-     *
-     * @param sourceId         Unique source identifier (required)
-     * @param sourceStatsModel (required)
-     * @return MessageResponse
-     * @throws ApiException if fails to make API call
-     */
-    public MessageResponse updateSourceStats(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
-        ApiResponse<MessageResponse> localVarResponse = updateSourceStatsWithHttpInfo(sourceId, sourceStatsModel);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Store source stats.
-     *
-     * @param sourceId         Unique source identifier (required)
-     * @param sourceStatsModel (required)
-     * @return ApiResponse&lt;MessageResponse&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<MessageResponse> updateSourceStatsWithHttpInfo(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = updateSourceStatsRequestBuilder(sourceId, sourceStatsModel);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("updateSourceStats", localVarResponse);
-            }
-            return new ApiResponse<MessageResponse>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder updateSourceStatsRequestBuilder(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling updateSourceStats");
-        }
-        // verify the required parameter 'sourceStatsModel' is set
-        if (sourceStatsModel == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceStatsModel' when calling updateSourceStats");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/sources/{sourceId}/stats"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-
-        localVarRequestBuilder.header("Content-Type", "application/json");
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        try {
-            byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(sourceStatsModel);
-            localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
-        } catch (IOException e) {
-            throw new ApiException(e);
-        }
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
-
-    /**
-     * Upload data to source.
-     *
-     * @param sourceId   Unique source identifier (required)
-     * @param path       Path of file in source URI safe encoded (required)
-     * @param objectHash Base32 encoded hash of object data (RFC4648 format) (required)
-     * @param size       Size of object in bytes (required)
-     * @param shareId    Share identifier (optional)
-     * @return UploadUrl
-     * @throws ApiException if fails to make API call
-     */
-    public UploadUrl uploadFile(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
-        ApiResponse<UploadUrl> localVarResponse = uploadFileWithHttpInfo(sourceId, path, objectHash, size, shareId);
-        return localVarResponse.getData();
-    }
-
-    /**
-     * Upload data to source.
-     *
-     * @param sourceId   Unique source identifier (required)
-     * @param path       Path of file in source URI safe encoded (required)
-     * @param objectHash Base32 encoded hash of object data (RFC4648 format) (required)
-     * @param size       Size of object in bytes (required)
-     * @param shareId    Share identifier (optional)
-     * @return ApiResponse&lt;UploadUrl&gt;
-     * @throws ApiException if fails to make API call
-     */
-    public ApiResponse<UploadUrl> uploadFileWithHttpInfo(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
-        HttpRequest.Builder localVarRequestBuilder = uploadFileRequestBuilder(sourceId, path, objectHash, size, shareId);
-        try {
-            HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
-                    localVarRequestBuilder.build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-            if (memberVarResponseInterceptor != null) {
-                memberVarResponseInterceptor.accept(localVarResponse);
-            }
-            if (localVarResponse.statusCode() / 100 != 2) {
-                throw getApiException("uploadFile", localVarResponse);
-            }
-            return new ApiResponse<UploadUrl>(
-                    localVarResponse.statusCode(),
-                    localVarResponse.headers().map(),
-                    localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<UploadUrl>() {
-                    }) // closes the InputStream
-            );
-        } catch (IOException e) {
-            throw new ApiException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ApiException(e);
-        }
-    }
-
-    private HttpRequest.Builder uploadFileRequestBuilder(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
-        // verify the required parameter 'sourceId' is set
-        if (sourceId == null) {
-            throw new ApiException(400, "Missing the required parameter 'sourceId' when calling uploadFile");
-        }
-        // verify the required parameter 'path' is set
-        if (path == null) {
-            throw new ApiException(400, "Missing the required parameter 'path' when calling uploadFile");
-        }
-        // verify the required parameter 'objectHash' is set
-        if (objectHash == null) {
-            throw new ApiException(400, "Missing the required parameter 'objectHash' when calling uploadFile");
-        }
-        // verify the required parameter 'size' is set
-        if (size == null) {
-            throw new ApiException(400, "Missing the required parameter 'size' when calling uploadFile");
-        }
-
-        HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
-
-        String localVarPath = "/data/{sourceId}"
-                .replace("{sourceId}", ApiClient.urlEncode(sourceId));
-
-        List<Pair> localVarQueryParams = new ArrayList<>();
-        StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
-        String localVarQueryParameterBaseName;
-        localVarQueryParameterBaseName = "path";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
-        localVarQueryParameterBaseName = "shareId";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
-        localVarQueryParameterBaseName = "objectHash";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("objectHash", objectHash));
-        localVarQueryParameterBaseName = "size";
-        localVarQueryParams.addAll(ApiClient.parameterToPairs("size", size));
-
-        if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
-            StringJoiner queryJoiner = new StringJoiner("&");
-            localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
-            if (localVarQueryStringJoiner.length() != 0) {
-                queryJoiner.add(localVarQueryStringJoiner.toString());
-            }
-            localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner));
-        } else {
-            localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
-        }
-
-        localVarRequestBuilder.header("Accept", "application/json");
-
-        localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.noBody());
-        if (memberVarReadTimeout != null) {
-            localVarRequestBuilder.timeout(memberVarReadTimeout);
-        }
-        if (memberVarInterceptor != null) {
-            memberVarInterceptor.accept(localVarRequestBuilder);
-        }
-        return localVarRequestBuilder;
-    }
+  private final HttpClient memberVarHttpClient;
+  private final ObjectMapper memberVarObjectMapper;
+  private final String memberVarBaseUri;
+  private final Consumer<HttpRequest.Builder> memberVarInterceptor;
+  private final Duration memberVarReadTimeout;
+  private final Consumer<HttpResponse<InputStream>> memberVarResponseInterceptor;
+  private final Consumer<HttpResponse<String>> memberVarAsyncResponseInterceptor;
+
+  public BackupApi() {
+    this(new ApiClient());
+  }
+
+  public BackupApi(ApiClient apiClient) {
+    memberVarHttpClient = apiClient.getHttpClient();
+    memberVarObjectMapper = apiClient.getObjectMapper();
+    memberVarBaseUri = apiClient.getBaseUri();
+    memberVarInterceptor = apiClient.getRequestInterceptor();
+    memberVarReadTimeout = apiClient.getReadTimeout();
+    memberVarResponseInterceptor = apiClient.getResponseInterceptor();
+    memberVarAsyncResponseInterceptor = apiClient.getAsyncResponseInterceptor();
+  }
+
+  protected ApiException getApiException(String operationId, HttpResponse<InputStream> response) throws IOException {
+    String body = response.body() == null ? null : new String(response.body().readAllBytes());
+    String message = formatExceptionMessage(operationId, response.statusCode(), body);
+    return new ApiException(response.statusCode(), message, response.headers(), body);
+  }
+
+  private String formatExceptionMessage(String operationId, int statusCode, String body) {
+    if (body == null || body.isEmpty()) {
+      body = "[no body]";
+    }
+    return operationId + " call failed with: " + statusCode + " - " + body;
+  }
+
+  /**
+   * 
+   * Create an existing secret.
+   * @param sourceId Unique source identifier (required)
+   * @param secretRequest  (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse createSecret(String sourceId, SecretRequest secretRequest) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = createSecretWithHttpInfo(sourceId, secretRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Create an existing secret.
+   * @param sourceId Unique source identifier (required)
+   * @param secretRequest  (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> createSecretWithHttpInfo(String sourceId, SecretRequest secretRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = createSecretRequestBuilder(sourceId, secretRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("createSecret", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder createSecretRequestBuilder(String sourceId, SecretRequest secretRequest) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling createSecret");
+    }
+    // verify the required parameter 'secretRequest' is set
+    if (secretRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'secretRequest' when calling createSecret");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/secrets/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(secretRequest);
+      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Create a share to another account account.
+   * @param sourceId Unique source identifier from share is to be created (required)
+   * @param shareId Unique identifier of share to be created (required)
+   * @param shareRequest  (required)
+   * @return ShareResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ShareResponse createShare(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
+    ApiResponse<ShareResponse> localVarResponse = createShareWithHttpInfo(sourceId, shareId, shareRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Create a share to another account account.
+   * @param sourceId Unique source identifier from share is to be created (required)
+   * @param shareId Unique identifier of share to be created (required)
+   * @param shareRequest  (required)
+   * @return ApiResponse&lt;ShareResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ShareResponse> createShareWithHttpInfo(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = createShareRequestBuilder(sourceId, shareId, shareRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("createShare", localVarResponse);
+        }
+        return new ApiResponse<ShareResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder createShareRequestBuilder(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling createShare");
+    }
+    // verify the required parameter 'shareId' is set
+    if (shareId == null) {
+      throw new ApiException(400, "Missing the required parameter 'shareId' when calling createShare");
+    }
+    // verify the required parameter 'shareRequest' is set
+    if (shareRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'shareRequest' when calling createShare");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/shares/{sourceId}/{shareId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()))
+        .replace("{shareId}", ApiClient.urlEncode(shareId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(shareRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Create a new source.
+   * @param sourceRequest  (required)
+   * @return SourceResponse
+   * @throws ApiException if fails to make API call
+   */
+  public SourceResponse createSource(SourceRequest sourceRequest) throws ApiException {
+    ApiResponse<SourceResponse> localVarResponse = createSourceWithHttpInfo(sourceRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Create a new source.
+   * @param sourceRequest  (required)
+   * @return ApiResponse&lt;SourceResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<SourceResponse> createSourceWithHttpInfo(SourceRequest sourceRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = createSourceRequestBuilder(sourceRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("createSource", localVarResponse);
+        }
+        return new ApiResponse<SourceResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<SourceResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder createSourceRequestBuilder(SourceRequest sourceRequest) throws ApiException {
+    // verify the required parameter 'sourceRequest' is set
+    if (sourceRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceRequest' when calling createSource");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/sources";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(sourceRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Get current release information.
+   * @return ReleaseResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ReleaseResponse currentRelease() throws ApiException {
+    ApiResponse<ReleaseResponse> localVarResponse = currentReleaseWithHttpInfo();
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Get current release information.
+   * @return ApiResponse&lt;ReleaseResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ReleaseResponse> currentReleaseWithHttpInfo() throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = currentReleaseRequestBuilder();
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("currentRelease", localVarResponse);
+        }
+        return new ApiResponse<ReleaseResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ReleaseResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder currentReleaseRequestBuilder() throws ApiException {
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/releases/current";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Delete data from source.
+   * @param sourceId Unique source identifier (required)
+   * @param path Path of file in source URI safe encoded (required)
+   * @param shareId Share identifier (optional)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse deleteFile(String sourceId, String path, String shareId) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = deleteFileWithHttpInfo(sourceId, path, shareId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Delete data from source.
+   * @param sourceId Unique source identifier (required)
+   * @param path Path of file in source URI safe encoded (required)
+   * @param shareId Share identifier (optional)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> deleteFileWithHttpInfo(String sourceId, String path, String shareId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = deleteFileRequestBuilder(sourceId, path, shareId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("deleteFile", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder deleteFileRequestBuilder(String sourceId, String path, String shareId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteFile");
+    }
+    // verify the required parameter 'path' is set
+    if (path == null) {
+      throw new ApiException(400, "Missing the required parameter 'path' when calling deleteFile");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/data/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+    localVarQueryParameterBaseName = "shareId";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Delete an existing secret.
+   * @param sourceId Unique source identifier (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse deleteSecret(String sourceId) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = deleteSecretWithHttpInfo(sourceId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Delete an existing secret.
+   * @param sourceId Unique source identifier (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> deleteSecretWithHttpInfo(String sourceId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = deleteSecretRequestBuilder(sourceId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("deleteSecret", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder deleteSecretRequestBuilder(String sourceId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteSecret");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/secrets/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Delete an existing share. Can be done by either target or sharing account.
+   * @param sourceId Unique source identifier of share (required)
+   * @param shareId Unique share identifier (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse deleteShare(String sourceId, String shareId) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = deleteShareWithHttpInfo(sourceId, shareId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Delete an existing share. Can be done by either target or sharing account.
+   * @param sourceId Unique source identifier of share (required)
+   * @param shareId Unique share identifier (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> deleteShareWithHttpInfo(String sourceId, String shareId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = deleteShareRequestBuilder(sourceId, shareId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("deleteShare", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder deleteShareRequestBuilder(String sourceId, String shareId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteShare");
+    }
+    // verify the required parameter 'shareId' is set
+    if (shareId == null) {
+      throw new ApiException(400, "Missing the required parameter 'shareId' when calling deleteShare");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/shares/{sourceId}/{shareId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()))
+        .replace("{shareId}", ApiClient.urlEncode(shareId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Delete source.
+   * @param sourceId Unique source identifier (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse deleteSource(String sourceId) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = deleteSourceWithHttpInfo(sourceId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Delete source.
+   * @param sourceId Unique source identifier (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> deleteSourceWithHttpInfo(String sourceId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = deleteSourceRequestBuilder(sourceId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("deleteSource", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder deleteSourceRequestBuilder(String sourceId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling deleteSource");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/sources/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("DELETE", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Delete a token.
+   * @param deleteTokenRequest  (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse deleteToken(DeleteTokenRequest deleteTokenRequest) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = deleteTokenWithHttpInfo(deleteTokenRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Delete a token.
+   * @param deleteTokenRequest  (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> deleteTokenWithHttpInfo(DeleteTokenRequest deleteTokenRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = deleteTokenRequestBuilder(deleteTokenRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("deleteToken", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder deleteTokenRequestBuilder(DeleteTokenRequest deleteTokenRequest) throws ApiException {
+    // verify the required parameter 'deleteTokenRequest' is set
+    if (deleteTokenRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'deleteTokenRequest' when calling deleteToken");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/auth/tokens/delete";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(deleteTokenRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Generate a token from a client code.
+   * @param generateTokenRequest  (required)
+   * @return ScopedTokenResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ScopedTokenResponse generateToken(GenerateTokenRequest generateTokenRequest) throws ApiException {
+    ApiResponse<ScopedTokenResponse> localVarResponse = generateTokenWithHttpInfo(generateTokenRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Generate a token from a client code.
+   * @param generateTokenRequest  (required)
+   * @return ApiResponse&lt;ScopedTokenResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ScopedTokenResponse> generateTokenWithHttpInfo(GenerateTokenRequest generateTokenRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = generateTokenRequestBuilder(generateTokenRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("generateToken", localVarResponse);
+        }
+        return new ApiResponse<ScopedTokenResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ScopedTokenResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder generateTokenRequestBuilder(GenerateTokenRequest generateTokenRequest) throws ApiException {
+    // verify the required parameter 'generateTokenRequest' is set
+    if (generateTokenRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'generateTokenRequest' when calling generateToken");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/auth/tokens";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(generateTokenRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Get data from source.
+   * @param sourceId Unique source identifier (required)
+   * @param path Path of file in source URI safe encoded (required)
+   * @param shareId Share identifier (optional)
+   * @return DownloadUrl
+   * @throws ApiException if fails to make API call
+   */
+  public DownloadUrl getFile(String sourceId, String path, String shareId) throws ApiException {
+    ApiResponse<DownloadUrl> localVarResponse = getFileWithHttpInfo(sourceId, path, shareId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Get data from source.
+   * @param sourceId Unique source identifier (required)
+   * @param path Path of file in source URI safe encoded (required)
+   * @param shareId Share identifier (optional)
+   * @return ApiResponse&lt;DownloadUrl&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<DownloadUrl> getFileWithHttpInfo(String sourceId, String path, String shareId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getFileRequestBuilder(sourceId, path, shareId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("getFile", localVarResponse);
+        }
+        return new ApiResponse<DownloadUrl>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<DownloadUrl>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder getFileRequestBuilder(String sourceId, String path, String shareId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling getFile");
+    }
+    // verify the required parameter 'path' is set
+    if (path == null) {
+      throw new ApiException(400, "Missing the required parameter 'path' when calling getFile");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/data/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+    localVarQueryParameterBaseName = "shareId";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Read or check for existence of secret.
+   * @param sourceId Unique source identifier (required)
+   * @param getSecretRequest  (required)
+   * @return GetSecretResponse
+   * @throws ApiException if fails to make API call
+   */
+  public GetSecretResponse getSecret(String sourceId, GetSecretRequest getSecretRequest) throws ApiException {
+    ApiResponse<GetSecretResponse> localVarResponse = getSecretWithHttpInfo(sourceId, getSecretRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Read or check for existence of secret.
+   * @param sourceId Unique source identifier (required)
+   * @param getSecretRequest  (required)
+   * @return ApiResponse&lt;GetSecretResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<GetSecretResponse> getSecretWithHttpInfo(String sourceId, GetSecretRequest getSecretRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getSecretRequestBuilder(sourceId, getSecretRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("getSecret", localVarResponse);
+        }
+        return new ApiResponse<GetSecretResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSecretResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder getSecretRequestBuilder(String sourceId, GetSecretRequest getSecretRequest) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling getSecret");
+    }
+    // verify the required parameter 'getSecretRequest' is set
+    if (getSecretRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'getSecretRequest' when calling getSecret");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/secrets/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(getSecretRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Get a share account (Can only be called by owner).
+   * @param sourceId Unique source identifier of share (required)
+   * @param shareId Unique share identifier (required)
+   * @return ShareResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ShareResponse getShare(String sourceId, String shareId) throws ApiException {
+    ApiResponse<ShareResponse> localVarResponse = getShareWithHttpInfo(sourceId, shareId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Get a share account (Can only be called by owner).
+   * @param sourceId Unique source identifier of share (required)
+   * @param shareId Unique share identifier (required)
+   * @return ApiResponse&lt;ShareResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ShareResponse> getShareWithHttpInfo(String sourceId, String shareId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getShareRequestBuilder(sourceId, shareId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("getShare", localVarResponse);
+        }
+        return new ApiResponse<ShareResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder getShareRequestBuilder(String sourceId, String shareId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling getShare");
+    }
+    // verify the required parameter 'shareId' is set
+    if (shareId == null) {
+      throw new ApiException(400, "Missing the required parameter 'shareId' when calling getShare");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/shares/{sourceId}/{shareId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()))
+        .replace("{shareId}", ApiClient.urlEncode(shareId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Get description of source.
+   * @param sourceId Unique source identifier (required)
+   * @return SourceResponse
+   * @throws ApiException if fails to make API call
+   */
+  public SourceResponse getSource(String sourceId) throws ApiException {
+    ApiResponse<SourceResponse> localVarResponse = getSourceWithHttpInfo(sourceId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Get description of source.
+   * @param sourceId Unique source identifier (required)
+   * @return ApiResponse&lt;SourceResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<SourceResponse> getSourceWithHttpInfo(String sourceId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getSourceRequestBuilder(sourceId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("getSource", localVarResponse);
+        }
+        return new ApiResponse<SourceResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<SourceResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder getSourceRequestBuilder(String sourceId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling getSource");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/sources/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Get subscription status.
+   * @return GetSubscriptionResponse
+   * @throws ApiException if fails to make API call
+   */
+  public GetSubscriptionResponse getSubscription() throws ApiException {
+    ApiResponse<GetSubscriptionResponse> localVarResponse = getSubscriptionWithHttpInfo();
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Get subscription status.
+   * @return ApiResponse&lt;GetSubscriptionResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<GetSubscriptionResponse> getSubscriptionWithHttpInfo() throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = getSubscriptionRequestBuilder();
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("getSubscription", localVarResponse);
+        }
+        return new ApiResponse<GetSubscriptionResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<GetSubscriptionResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder getSubscriptionRequestBuilder() throws ApiException {
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/payments/subscriptions";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * List available log files for a source.
+   * @param sourceId Unique source identifier (required)
+   * @param lastFile Last file processed (Only return files after this one if any) (optional)
+   * @param shareId Share identifier (optional)
+   * @return FileListResponse
+   * @throws ApiException if fails to make API call
+   */
+  public FileListResponse listLogFiles(String sourceId, String lastFile, String shareId) throws ApiException {
+    ApiResponse<FileListResponse> localVarResponse = listLogFilesWithHttpInfo(sourceId, lastFile, shareId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * List available log files for a source.
+   * @param sourceId Unique source identifier (required)
+   * @param lastFile Last file processed (Only return files after this one if any) (optional)
+   * @param shareId Share identifier (optional)
+   * @return ApiResponse&lt;FileListResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<FileListResponse> listLogFilesWithHttpInfo(String sourceId, String lastFile, String shareId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listLogFilesRequestBuilder(sourceId, lastFile, shareId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("listLogFiles", localVarResponse);
+        }
+        return new ApiResponse<FileListResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<FileListResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder listLogFilesRequestBuilder(String sourceId, String lastFile, String shareId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling listLogFiles");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/data/{sourceId}/logs"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "lastFile";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("lastFile", lastFile));
+    localVarQueryParameterBaseName = "shareId";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * List shares that have been shared with your account.
+   * @return ListSharesResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ListSharesResponse listShares() throws ApiException {
+    ApiResponse<ListSharesResponse> localVarResponse = listSharesWithHttpInfo();
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * List shares that have been shared with your account.
+   * @return ApiResponse&lt;ListSharesResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ListSharesResponse> listSharesWithHttpInfo() throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listSharesRequestBuilder();
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("listShares", localVarResponse);
+        }
+        return new ApiResponse<ListSharesResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharesResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder listSharesRequestBuilder() throws ApiException {
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/shares";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * List sharing public keys for a source recipient.
+   * @param listSharingKeysRequest  (required)
+   * @return ListSharingKeysResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ListSharingKeysResponse listSharingKeys(ListSharingKeysRequest listSharingKeysRequest) throws ApiException {
+    ApiResponse<ListSharingKeysResponse> localVarResponse = listSharingKeysWithHttpInfo(listSharingKeysRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * List sharing public keys for a source recipient.
+   * @param listSharingKeysRequest  (required)
+   * @return ApiResponse&lt;ListSharingKeysResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ListSharingKeysResponse> listSharingKeysWithHttpInfo(ListSharingKeysRequest listSharingKeysRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listSharingKeysRequestBuilder(listSharingKeysRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("listSharingKeys", localVarResponse);
+        }
+        return new ApiResponse<ListSharingKeysResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharingKeysResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder listSharingKeysRequestBuilder(ListSharingKeysRequest listSharingKeysRequest) throws ApiException {
+    // verify the required parameter 'listSharingKeysRequest' is set
+    if (listSharingKeysRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'listSharingKeysRequest' when calling listSharingKeys");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/shares";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(listSharingKeysRequest);
+      localVarRequestBuilder.method("POST", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * List shares that have been shared with your account.
+   * @param sourceId Unique source identifier from share is to be created (required)
+   * @return ListSharesResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ListSharesResponse listSourceShares(String sourceId) throws ApiException {
+    ApiResponse<ListSharesResponse> localVarResponse = listSourceSharesWithHttpInfo(sourceId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * List shares that have been shared with your account.
+   * @param sourceId Unique source identifier from share is to be created (required)
+   * @return ApiResponse&lt;ListSharesResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ListSharesResponse> listSourceSharesWithHttpInfo(String sourceId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listSourceSharesRequestBuilder(sourceId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("listSourceShares", localVarResponse);
+        }
+        return new ApiResponse<ListSharesResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSharesResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder listSourceSharesRequestBuilder(String sourceId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling listSourceShares");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/shares/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * List all available sources.
+   * @return ListSourcesResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ListSourcesResponse listSources() throws ApiException {
+    ApiResponse<ListSourcesResponse> localVarResponse = listSourcesWithHttpInfo();
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * List all available sources.
+   * @return ApiResponse&lt;ListSourcesResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ListSourcesResponse> listSourcesWithHttpInfo() throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = listSourcesRequestBuilder();
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("listSources", localVarResponse);
+        }
+        return new ApiResponse<ListSourcesResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ListSourcesResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder listSourcesRequestBuilder() throws ApiException {
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/sources";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Get the most recent prerelease information.
+   * @return ReleaseResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ReleaseResponse preRelease() throws ApiException {
+    ApiResponse<ReleaseResponse> localVarResponse = preReleaseWithHttpInfo();
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Get the most recent prerelease information.
+   * @return ApiResponse&lt;ReleaseResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ReleaseResponse> preReleaseWithHttpInfo() throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = preReleaseRequestBuilder();
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("preRelease", localVarResponse);
+        }
+        return new ApiResponse<ReleaseResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ReleaseResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder preReleaseRequestBuilder() throws ApiException {
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/releases/prerelease";
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("GET", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Update an existing share.
+   * @param sourceId Unique source identifier of share (required)
+   * @param shareId Unique share identifier (required)
+   * @param shareRequest  (required)
+   * @return ShareResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ShareResponse updateShare(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
+    ApiResponse<ShareResponse> localVarResponse = updateShareWithHttpInfo(sourceId, shareId, shareRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Update an existing share.
+   * @param sourceId Unique source identifier of share (required)
+   * @param shareId Unique share identifier (required)
+   * @param shareRequest  (required)
+   * @return ApiResponse&lt;ShareResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<ShareResponse> updateShareWithHttpInfo(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = updateShareRequestBuilder(sourceId, shareId, shareRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("updateShare", localVarResponse);
+        }
+        return new ApiResponse<ShareResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<ShareResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder updateShareRequestBuilder(String sourceId, String shareId, ShareRequest shareRequest) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling updateShare");
+    }
+    // verify the required parameter 'shareId' is set
+    if (shareId == null) {
+      throw new ApiException(400, "Missing the required parameter 'shareId' when calling updateShare");
+    }
+    // verify the required parameter 'shareRequest' is set
+    if (shareRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'shareRequest' when calling updateShare");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/shares/{sourceId}/{shareId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()))
+        .replace("{shareId}", ApiClient.urlEncode(shareId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(shareRequest);
+      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Update an existing source.
+   * @param sourceId Unique source identifier (required)
+   * @param sourceRequest  (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse updateSource(String sourceId, SourceRequest sourceRequest) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = updateSourceWithHttpInfo(sourceId, sourceRequest);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Update an existing source.
+   * @param sourceId Unique source identifier (required)
+   * @param sourceRequest  (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> updateSourceWithHttpInfo(String sourceId, SourceRequest sourceRequest) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = updateSourceRequestBuilder(sourceId, sourceRequest);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("updateSource", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder updateSourceRequestBuilder(String sourceId, SourceRequest sourceRequest) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling updateSource");
+    }
+    // verify the required parameter 'sourceRequest' is set
+    if (sourceRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceRequest' when calling updateSource");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/sources/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(sourceRequest);
+      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Store source stats.
+   * @param sourceId Unique source identifier (required)
+   * @param sourceStatsModel  (required)
+   * @return MessageResponse
+   * @throws ApiException if fails to make API call
+   */
+  public MessageResponse updateSourceStats(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
+    ApiResponse<MessageResponse> localVarResponse = updateSourceStatsWithHttpInfo(sourceId, sourceStatsModel);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Store source stats.
+   * @param sourceId Unique source identifier (required)
+   * @param sourceStatsModel  (required)
+   * @return ApiResponse&lt;MessageResponse&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<MessageResponse> updateSourceStatsWithHttpInfo(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = updateSourceStatsRequestBuilder(sourceId, sourceStatsModel);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("updateSourceStats", localVarResponse);
+        }
+        return new ApiResponse<MessageResponse>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<MessageResponse>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder updateSourceStatsRequestBuilder(String sourceId, SourceStatsModel sourceStatsModel) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling updateSourceStats");
+    }
+    // verify the required parameter 'sourceStatsModel' is set
+    if (sourceStatsModel == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceStatsModel' when calling updateSourceStats");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/sources/{sourceId}/stats"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+
+    localVarRequestBuilder.header("Content-Type", "application/json");
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    try {
+      byte[] localVarPostBody = memberVarObjectMapper.writeValueAsBytes(sourceStatsModel);
+      localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.ofByteArray(localVarPostBody));
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
+  /**
+   * 
+   * Upload data to source.
+   * @param sourceId Unique source identifier (required)
+   * @param path Path of file in source URI safe encoded (required)
+   * @param objectHash Base32 encoded hash of object data (RFC4648 format) (required)
+   * @param size Size of object in bytes (required)
+   * @param shareId Share identifier (optional)
+   * @return UploadUrl
+   * @throws ApiException if fails to make API call
+   */
+  public UploadUrl uploadFile(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
+    ApiResponse<UploadUrl> localVarResponse = uploadFileWithHttpInfo(sourceId, path, objectHash, size, shareId);
+    return localVarResponse.getData();
+  }
+
+  /**
+   * 
+   * Upload data to source.
+   * @param sourceId Unique source identifier (required)
+   * @param path Path of file in source URI safe encoded (required)
+   * @param objectHash Base32 encoded hash of object data (RFC4648 format) (required)
+   * @param size Size of object in bytes (required)
+   * @param shareId Share identifier (optional)
+   * @return ApiResponse&lt;UploadUrl&gt;
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResponse<UploadUrl> uploadFileWithHttpInfo(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
+    HttpRequest.Builder localVarRequestBuilder = uploadFileRequestBuilder(sourceId, path, objectHash, size, shareId);
+    try {
+      HttpResponse<InputStream> localVarResponse = memberVarHttpClient.send(
+          localVarRequestBuilder.build(),
+          HttpResponse.BodyHandlers.ofInputStream());
+      if (memberVarResponseInterceptor != null) {
+        memberVarResponseInterceptor.accept(localVarResponse);
+      }
+      try {
+        if (localVarResponse.statusCode()/ 100 != 2) {
+          throw getApiException("uploadFile", localVarResponse);
+        }
+        return new ApiResponse<UploadUrl>(
+          localVarResponse.statusCode(),
+          localVarResponse.headers().map(),
+          localVarResponse.body() == null ? null : memberVarObjectMapper.readValue(localVarResponse.body(), new TypeReference<UploadUrl>() {}) // closes the InputStream
+        );
+      } finally {
+      }
+    } catch (IOException e) {
+      throw new ApiException(e);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new ApiException(e);
+    }
+  }
+
+  private HttpRequest.Builder uploadFileRequestBuilder(String sourceId, String path, String objectHash, Integer size, String shareId) throws ApiException {
+    // verify the required parameter 'sourceId' is set
+    if (sourceId == null) {
+      throw new ApiException(400, "Missing the required parameter 'sourceId' when calling uploadFile");
+    }
+    // verify the required parameter 'path' is set
+    if (path == null) {
+      throw new ApiException(400, "Missing the required parameter 'path' when calling uploadFile");
+    }
+    // verify the required parameter 'objectHash' is set
+    if (objectHash == null) {
+      throw new ApiException(400, "Missing the required parameter 'objectHash' when calling uploadFile");
+    }
+    // verify the required parameter 'size' is set
+    if (size == null) {
+      throw new ApiException(400, "Missing the required parameter 'size' when calling uploadFile");
+    }
+
+    HttpRequest.Builder localVarRequestBuilder = HttpRequest.newBuilder();
+
+    String localVarPath = "/data/{sourceId}"
+        .replace("{sourceId}", ApiClient.urlEncode(sourceId.toString()));
+
+    List<Pair> localVarQueryParams = new ArrayList<>();
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    localVarQueryParameterBaseName = "path";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("path", path));
+    localVarQueryParameterBaseName = "shareId";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("shareId", shareId));
+    localVarQueryParameterBaseName = "objectHash";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("objectHash", objectHash));
+    localVarQueryParameterBaseName = "size";
+    localVarQueryParams.addAll(ApiClient.parameterToPairs("size", size));
+
+    if (!localVarQueryParams.isEmpty() || localVarQueryStringJoiner.length() != 0) {
+      StringJoiner queryJoiner = new StringJoiner("&");
+      localVarQueryParams.forEach(p -> queryJoiner.add(p.getName() + '=' + p.getValue()));
+      if (localVarQueryStringJoiner.length() != 0) {
+        queryJoiner.add(localVarQueryStringJoiner.toString());
+      }
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath + '?' + queryJoiner.toString()));
+    } else {
+      localVarRequestBuilder.uri(URI.create(memberVarBaseUri + localVarPath));
+    }
+
+    localVarRequestBuilder.header("Accept", "application/json");
+
+    localVarRequestBuilder.method("PUT", HttpRequest.BodyPublishers.noBody());
+    if (memberVarReadTimeout != null) {
+      localVarRequestBuilder.timeout(memberVarReadTimeout);
+    }
+    if (memberVarInterceptor != null) {
+      memberVarInterceptor.accept(localVarRequestBuilder);
+    }
+    return localVarRequestBuilder;
+  }
 }

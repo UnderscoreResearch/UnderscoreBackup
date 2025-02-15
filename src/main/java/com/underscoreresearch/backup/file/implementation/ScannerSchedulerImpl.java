@@ -377,7 +377,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
             log.warn("Skipping log optimization and block validation due to errors");
         } else {
             BackupPendingSet pendingSet = getOptimizeSchedulePendingSet();
-            boolean fullLogValidation = false;
             if (pendingSet != null
                     && pendingSet.getScheduledAt() != null
                     && pendingSet.getScheduledAt().before(new Date())) {
@@ -386,7 +385,6 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 stateLogger.reset();
                 backupStatsLogger.setNeedValidation(true);
                 stateLogger.reset();
-                fullLogValidation = true;
             }
             Stopwatch stopwatch = Stopwatch.createStarted();
             if (!repository.isErrorsDetected() && backupStatsLogger.isNeedValidation()) {
@@ -394,7 +392,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                     backupStatsLogger.setNeedValidation(false);
                 }
             }
-            if (!InstanceFactory.getInstance(BlockValidator.class).validateStorage(fullLogValidation, stopwatch)) {
+            if (!InstanceFactory.getInstance(BlockValidator.class).validateStorage(false, stopwatch)) {
                 log.error("Failed to validate logs. Consider optimizing logs to rewrite all logs");
             }
         }
