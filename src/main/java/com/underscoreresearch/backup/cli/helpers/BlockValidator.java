@@ -93,18 +93,16 @@ public class BlockValidator implements ManualStatusLogger {
 
     public boolean validateStorage(boolean all, Stopwatch lastUpdate) throws IOException {
         HashSet<String> checkedFiles = new HashSet<>();
-        destinationBlockProcessor.setEventualConsistencyTimer(lastUpdate);
+        destinationBlockProcessor.prepareProcessing(lastUpdate, true);
 
         stopwatch.start();
         AtomicInteger checked = new AtomicInteger(0);
         AtomicDouble waitTime = new AtomicDouble(0);
-        totalSteps.set(20);
 
         try {
-
             if (all) {
                 List<String> allFiles = repository.getLogFileRepository().getAllFiles();
-                totalSteps.addAndGet(allFiles.size() - 10);
+                totalSteps.set(allFiles.size());
                 log.info("Validating {} log files at destination", allFiles.size());
                 for (String file : allFiles) {
                     if (InstanceFactory.isShutdown()) {
@@ -115,6 +113,7 @@ public class BlockValidator implements ManualStatusLogger {
                 }
             } else {
                 log.info("Validating some random log files at destination");
+                totalSteps.set(20);
                 for (int i = 0; i < 10; i++) {
                     String file = repository.getLogFileRepository().getRandomFile();
                     processedSteps.incrementAndGet();
@@ -122,36 +121,37 @@ public class BlockValidator implements ManualStatusLogger {
                         destinationBlockProcessor.validateExists(manifestManager.getIoProvider(), file);
                     }
                 }
-            }
 
-            log.info("Validating some random blocks at destination");
+                log.info("Validating some random blocks at destination");
 
-            Stopwatch randomSelectionWatch = Stopwatch.createStarted();
+                Stopwatch randomSelectionWatch = Stopwatch.createStarted();
 
-            try {
-                try (CloseableStream<BackupBlock> blocks = repository.allBlocks()) {
-                    blocks.stream().forEach((file) -> {
-                        if (InstanceFactory.isShutdown()) {
-                            throw new ProcessingStoppedException();
-                        }
-                        if (randomSelectionWatch.elapsed(TimeUnit.MILLISECONDS) >= waitTime.get()) {
-                            randomSelectionWatch.reset().start();
-                            waitTime.set(RANDOM.nextDouble() * 1000);
-                            try {
-                                destinationBlockProcessor.validateBlockStorage(file, file.getStorage(), true);
-                                processedSteps.incrementAndGet();
-                                if (checked.incrementAndGet() > 10) {
-                                    throw new ProcessingStoppedException();
-                                }
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
+                try {
+                    try (CloseableStream<BackupBlock> blocks = repository.allBlocks()) {
+                        blocks.stream().forEach((file) -> {
+                            if (InstanceFactory.isShutdown()) {
+                                throw new ProcessingStoppedException();
                             }
-                        }
-                    });
+                            if (randomSelectionWatch.elapsed(TimeUnit.MILLISECONDS) >= waitTime.get()) {
+                                randomSelectionWatch.reset().start();
+                                waitTime.set(RANDOM.nextDouble() * 1000);
+                                try {
+                                    destinationBlockProcessor.validateBlockStorage(file, file.getStorage(), true);
+                                    processedSteps.incrementAndGet();
+                                    if (checked.incrementAndGet() > 10) {
+                                        throw new ProcessingStoppedException();
+                                    }
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        });
+                    }
+                } catch (ProcessingStoppedException exc) {
+                    log.info("Stopped processing");
                 }
-            } catch (ProcessingStoppedException exc) {
-                log.info("Stopped processing");
             }
+
             destinationBlockProcessor.waitForCompletion();
 
             return destinationBlockProcessor.getMissingFiles() == 0 && destinationBlockProcessor.getMissingBlocks() == 0;
@@ -166,7 +166,7 @@ public class BlockValidator implements ManualStatusLogger {
         log.info("Validating all blocks of files");
         manifestManager.setDisabledFlushing(true);
         backupStatsLogger.setDownloadRunning(true);
-        destinationBlockProcessor.setEventualConsistencyTimer(lastUpdate);
+        destinationBlockProcessor.prepareProcessing(lastUpdate, validateDestination);
 
         String ignoreBefore = null;
         if (validateDestination) {

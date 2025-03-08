@@ -15,8 +15,9 @@ import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -53,7 +54,9 @@ public class UnderscoreBackupProvider implements IOIndex {
     private static final long START_TIMEOUT_SECONDS = 60;
     private static final long MAX_TIMEOUT_SECONDS = 60;
     private static final int S3_UPLOAD_TIMEOUT = (int) Duration.ofSeconds(10).toMillis();
-    private static final HashSet<String> verifiedSources = new HashSet<>();
+    private static final Map<String, Instant> verifiedSources = new HashMap<>();
+    private static final String SOURCE_NO_LONGER_IN_SERVICE = "Source no longer exists in service";
+    private static final Duration NEGATIVE_CACHE_TIMEOUT = Duration.ofSeconds(10);
     private static String cachedIdentityKey;
     private static Instant cachedIdentityTimeout;
     private static byte[] cachedIdentity;
@@ -104,16 +107,17 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
-    private <T> T callRetry(ServiceManager.ApiFunction<T> callable) throws IOException {
+    private <T> T callRetry(boolean limited, ServiceManager.ApiFunction<T> callable) throws IOException {
         try {
             return getServiceManager().callApi(region, new ServiceManager.ApiFunction<>() {
                 @Override
                 public boolean shouldRetryMissing(String region) {
                     synchronized (verifiedSources) {
-                        if (verifiedSources.contains(getVerifiedKey()))
+                        Instant instant = verifiedSources.get(getVerifiedKey());
+                        if (instant != null && instant.plus(NEGATIVE_CACHE_TIMEOUT).isBefore(Instant.now()))
                             return false;
                     }
-                    return region != null && !region.equals("us-west");
+                    return true;
                 }
 
                 @Override
@@ -121,26 +125,30 @@ public class UnderscoreBackupProvider implements IOIndex {
                     return callable.shouldRetry();
                 }
 
+                private T internalCall(BackupApi api) throws ApiException {
+                    T ret = callable.call(api);
+                    synchronized (verifiedSources) {
+                        verifiedSources.putIfAbsent(getVerifiedKey(), Instant.now());
+                    }
+                    return ret;
+                }
+
                 @Override
                 public T call(BackupApi api) throws ApiException {
-                    try {
-                        return limiter.call(() -> {
-                            T ret = callable.call(api);
-                            synchronized (verifiedSources) {
-                                verifiedSources.add(getVerifiedKey());
-                            }
-                            return ret;
-                        });
-                    } catch (ApiException|RuntimeException e) {
-                        throw e;
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
+                    if (limited) {
+                        try {
+                            return limiter.call(() -> internalCall(api));
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    } else {
+                        return internalCall(api);
                     }
                 }
             });
         } catch (ApiException e) {
             if (e.getCode() == 404)
-                throw new IOException("Source no longer exists in service");
+                throw new IOException(SOURCE_NO_LONGER_IN_SERVICE);
             if (e.getCode() == 402)
                 throw new SubscriptionLackingException(extractApiMessage(e));
             if (e.getCode() == 401 || e.getCode() == 403)
@@ -164,7 +172,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     @Override
     public List<String> availableLogs(String lastSyncedFile, boolean all) throws IOException {
         debug(() -> log.debug("Getting available logs"));
-        FileListResponse response = callRetry((api) -> api.listLogFiles(getSourceId(), lastSyncedFile, shareId));
+        FileListResponse response = callRetry(true, (api) -> api.listLogFiles(getSourceId(), lastSyncedFile, shareId));
 
         // Almost all backups will be less than one page, so we can optimize for that case
         if (!all || Boolean.TRUE.equals(response.getCompleted()) || response.getFiles().isEmpty()) {
@@ -174,7 +182,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         // Lots of log files so lets go through all the pages.
         List<String> ret = Lists.newArrayList(response.getFiles());
         do {
-            response = callRetry((api) -> api.listLogFiles(getSourceId(), ret.getLast(), shareId));
+            response = callRetry(true, (api) -> api.listLogFiles(getSourceId(), ret.getLast(), shareId));
             ret.addAll(response.getFiles());
         } while (Boolean.FALSE.equals(response.getCompleted()));
         return ret;
@@ -191,7 +199,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     public boolean rebuildAvailable() throws IOException {
         debug(() -> log.debug("Checking rebuild available"));
         if (getServiceManager().getToken() != null) {
-            SourceResponse sourceResponse = callRetry((api) -> api.getSource(getSourceId()));
+            SourceResponse sourceResponse = callRetry(true, (api) -> api.getSource(getSourceId()));
             return sourceResponse.getEncryptionMode() != null && sourceResponse.getDestination() != null && sourceResponse.getKey() != null;
         } else {
             return false;
@@ -218,7 +226,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         try {
             RetryUtils.retry(() -> limiter.call(() -> {
                 Stopwatch timer = Stopwatch.createStarted();
-                UploadUrl response = callRetry((api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
+                UploadUrl response = callRetry(false, (api) -> api.uploadFile(getSourceId(), useKey, hash, size, shareId));
                 if (response.getLocation() != null) {
                     String ret = s3Retry(() -> {
                         if (timer.elapsed(TimeUnit.SECONDS) > START_TIMEOUT_SECONDS) {
@@ -285,7 +293,7 @@ public class UnderscoreBackupProvider implements IOIndex {
         try {
             return RetryUtils.retry(() -> limiter.call(() -> {
                 Stopwatch timer = Stopwatch.createStarted();
-                DownloadUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
+                DownloadUrl response = callRetry(false, (api) -> api.getFile(getSourceId(), useKey, shareId));
                 byte[] ret = s3Retry(() -> {
                     if (timer.elapsed(TimeUnit.SECONDS) > START_TIMEOUT_SECONDS) {
                         return null;
@@ -343,16 +351,19 @@ public class UnderscoreBackupProvider implements IOIndex {
             if (validateCachedIdentity(useKey)) {
                 ret = true;
             } else {
-                ret = RetryUtils.retry(() -> limiter.call(() -> {
-                    // Will throw exception if not exists.
-                    DownloadUrl response = callRetry((api) -> api.getFile(getSourceId(), useKey, shareId));
-                    // Also should not return true if the file has been deleted but is still retained by service.
-                    return response.getDeleted() == null || !response.getDeleted();
-                }), this::retrySignedException);
-                debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
+                DownloadUrl response = null;
+                try {
+                    response = callRetry(true, (api) -> api.getFile(getSourceId(), useKey, shareId));
+                } catch (IOException exc) {
+                    if (!exc.getMessage().equals(SOURCE_NO_LONGER_IN_SERVICE)) {
+                        throw exc;
+                    }
+                }
+                ret = response != null && (response.getDeleted() == null || !response.getDeleted());
             }
+            debug(() -> log.debug("Exists \"{}\" ({})", key, ret));
             return ret;
-        } catch (IOException | ProcessingStoppedException e) {
+        } catch (IOException e) {
             throw e;
         } catch (Exception e) {
             throw new IOException(e);
@@ -363,7 +374,7 @@ public class UnderscoreBackupProvider implements IOIndex {
     public void delete(String key) throws IOException {
         final String useKey = normalizeKey(key);
 
-        callRetry((api) -> api.deleteFile(getSourceId(), useKey, shareId));
+        callRetry(true, (api) -> api.deleteFile(getSourceId(), useKey, shareId));
         debug(() -> log.debug("Deleted \"{}\"", key));
     }
 
@@ -399,7 +410,7 @@ public class UnderscoreBackupProvider implements IOIndex {
                 });
             }
             synchronized (verifiedSources) {
-                verifiedSources.add(getVerifiedKey());
+                verifiedSources.putIfAbsent(getVerifiedKey(), Instant.now());
             }
         } catch (ApiException e) {
             throw new IOException(e);

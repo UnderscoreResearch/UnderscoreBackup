@@ -66,6 +66,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     private CloseableMap<String, Boolean> processedBlockMap;
     private Stopwatch lastUpdate;
     private final Object lastUpdateLock = new Object();
+    private boolean noDeleteBlocks;
 
     public DestinationBlockProcessor(int maximumConcurrency,
                                      boolean noDelete,
@@ -82,7 +83,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         this.repository = repository;
         this.manifestManager = manifestManager;
         this.encryptionIdentity = encryptionIdentity;
-        this.noDelete = noDelete;
+        this.noDeleteBlocks = this.noDelete = noDelete;
 
         maximumRefreshed = configuration.getProperty("maximumRefreshedBytes", Long.MAX_VALUE);
     }
@@ -162,16 +163,21 @@ public class DestinationBlockProcessor extends SchedulerImpl {
             List<BackupBlockStorage> missingStorage = Lists.newArrayList();
             Map<BackupBlockStorage, Set<String>> availableStorage = new HashMap<>();
             validatedBlocks.getAndIncrement();
+
             for (BackupBlockStorage storage : storages) {
                 BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
                 IOProvider provider = IOProviderFactory.getProvider(destination);
-                awaitStopwatch(provider);
                 int exists = 0;
                 try {
                     Set<String> availableParts = new HashSet<>();
                     for (int i = 0; i < storage.getParts().size(); i++) {
                         String part = storage.getParts().get(i);
-                        if (provider.exists(part)) {
+                        boolean found = provider.exists(part);
+                        if (!found) {
+                            awaitStopwatch(provider);
+                            found = provider.exists(part);
+                        }
+                        if (found) {
                             availableParts.add(part);
                             exists++;
                         }
@@ -355,8 +361,10 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         while (!pendingBlockDeletes.isEmpty()) {
             BackupBlock deleteBlock = pendingBlockDeletes.poll();
             try {
-                repository.deleteBlock(deleteBlock);
-                debug(() -> log.debug("Delete block \"{}\" because of missing data in destination", deleteBlock.getHash()));
+                if (!noDeleteBlocks) {
+                    repository.deleteBlock(deleteBlock);
+                    debug(() -> log.debug("Delete block \"{}\" because of missing data in destination", deleteBlock.getHash()));
+                }
             } catch (IOException e) {
                 log.error("Failed to delete block \"{}\"", deleteBlock.getHash(), e);
             }
@@ -382,8 +390,12 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     public void validateExists(IOProvider provider, String file) {
         schedule(() -> {
             try {
-                awaitStopwatch(provider);
-                if (!provider.exists(file)) {
+                boolean found = provider.exists(file);
+                if (!found) {
+                    awaitStopwatch(provider);
+                    found = provider.exists(file);
+                }
+                if (!found) {
                     log.error("File \"{}\" does not exist", file);
                     missingFiles.incrementAndGet();
                 }
@@ -432,7 +444,8 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         }
     }
 
-    public void setEventualConsistencyTimer(Stopwatch stopwatch) {
-        this.lastUpdate = stopwatch;
+    public void prepareProcessing(Stopwatch eventualConsistencyTimer, boolean noDeleteBlocks) {
+        this.lastUpdate = eventualConsistencyTimer;
+        this.noDeleteBlocks = noDeleteBlocks;
     }
 }
