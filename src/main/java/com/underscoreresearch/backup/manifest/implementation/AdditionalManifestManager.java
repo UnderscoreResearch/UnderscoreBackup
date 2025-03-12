@@ -1,10 +1,21 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.IDENTITY_MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.compressConfigData;
-import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.encryption.Encryptor;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOProviderUtil;
+import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.ParseException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -18,23 +29,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.ParseException;
-
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.encryption.Encryptor;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.encryption.IdentityKeys;
-import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.io.RateLimitController;
-import com.underscoreresearch.backup.io.UploadScheduler;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.IDENTITY_MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.compressConfigData;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
 @Slf4j
 public class AdditionalManifestManager {
@@ -138,7 +137,7 @@ public class AdditionalManifestManager {
     private void storeIdentity(Destination destination, String identity) {
         byte[] data = identity.getBytes(StandardCharsets.UTF_8);
         try {
-            destination.getProvider().upload(IDENTITY_MANIFEST_LOCATION, data);
+            IOProviderUtil.upload(destination.getProvider(), IDENTITY_MANIFEST_LOCATION, data);
         } catch (IOException e) {
             throw new RuntimeException(String.format("Failed to save identity to target: %s", e.getMessage()), e);
         }
@@ -150,7 +149,7 @@ public class AdditionalManifestManager {
             byte[] data;
             try {
                 debug(() -> log.debug("Validating manifest installation identity"));
-                data = entry.getValue().getProvider().download(IDENTITY_MANIFEST_LOCATION);
+                data = IOProviderUtil.download(entry.getValue().getProvider(), IDENTITY_MANIFEST_LOCATION);
                 rateLimitController.acquireDownloadPermits(entry.getValue().getDestination(), data.length);
             } catch (Exception exc) {
                 storeIdentity(entry.getValue(), identity);

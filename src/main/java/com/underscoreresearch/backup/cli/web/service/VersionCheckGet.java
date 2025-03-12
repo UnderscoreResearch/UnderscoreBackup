@@ -1,14 +1,5 @@
 package com.underscoreresearch.backup.cli.web.service;
 
-import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-
-import java.io.IOException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
@@ -17,6 +8,11 @@ import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.state.MachineState;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
 
 @Slf4j
 public class VersionCheckGet extends BaseWrap {

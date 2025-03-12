@@ -1,20 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FULL_PATH;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.utils.LogUtil.printFile;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-
-import java.io.IOException;
-import java.util.List;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
@@ -25,6 +10,19 @@ import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+
+import java.io.IOException;
+import java.util.List;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FULL_PATH;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.LogUtil.printFile;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @CommandPlugin(value = "ls", args = "[DIRECTORIES]...", description = "List backup contents",
         needPrivateKey = false, supportSource = true)

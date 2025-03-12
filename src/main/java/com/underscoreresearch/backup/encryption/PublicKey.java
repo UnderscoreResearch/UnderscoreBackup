@@ -1,13 +1,12 @@
 package com.underscoreresearch.backup.encryption;
 
-import java.security.GeneralSecurityException;
-
-import lombok.Getter;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+
+import java.security.GeneralSecurityException;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PublicKey {

@@ -1,24 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.OVER_WRITE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SKIP_PERMISSIONS;
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.FileDownloader;
 import com.underscoreresearch.backup.cli.Command;
@@ -34,6 +15,23 @@ import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupSetRoot;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.OVER_WRITE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.RECURSIVE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SKIP_PERMISSIONS;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @CommandPlugin(value = "restore", args = "[FILES]... [DESTINATION]",
         description = "Restore data. Use the destination \"-\" to not write data, but simply validate that data is available from destinations.\nUse \"=\" as destination to validate that backup data matches data locally",

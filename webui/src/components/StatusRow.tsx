@@ -26,7 +26,9 @@ function trimValueIfNeeded(props: StatusRowProps) {
             const match = /((\/|\\)[^\\\/]*.{40})$/.exec(props.row.valueString);
             if (match && match[1].length !== props.row.valueString.length) {
                 const shorthand = "..." + match[1];
-                return <Tooltip title={props.row.valueString}><div>{shorthand}</div></Tooltip>;
+                return <Tooltip title={props.row.valueString}>
+                    <div>{shorthand}</div>
+                </Tooltip>;
             }
         }
     }
@@ -39,7 +41,9 @@ function trimDescriptionIfNeeded(props: StatusRowProps) {
             const match = /^(\S+).*?((\/|\\)[^\\\/]*.{40})$/.exec(props.row.message);
             if (match) {
                 const shorthand = match[1] + " ..." + match[2];
-                return <Tooltip title={props.row.message}><div>{shorthand}</div></Tooltip>;
+                return <Tooltip title={props.row.message}>
+                    <div>{shorthand}</div>
+                </Tooltip>;
             }
         }
     }

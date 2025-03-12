@@ -1,21 +1,19 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.IOException;
-import java.net.HttpURLConnection;
-
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.google.common.base.Strings;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.HttpException;
 import org.takes.Request;
 
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.google.common.base.Strings;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Data
 @AllArgsConstructor

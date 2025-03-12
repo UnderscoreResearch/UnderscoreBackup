@@ -1,21 +1,24 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.BIND_ADDRESS;
-import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.cli.commands.ConfigureCommand;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
+import com.underscoreresearch.backup.cli.web.service.BestRegionGet;
+import com.underscoreresearch.backup.cli.web.service.CreateSecretPut;
+import com.underscoreresearch.backup.cli.web.service.DeleteSecretPost;
+import com.underscoreresearch.backup.cli.web.service.GenerateTokenPost;
+import com.underscoreresearch.backup.cli.web.service.GetSecretPost;
+import com.underscoreresearch.backup.cli.web.service.SharesGet;
+import com.underscoreresearch.backup.cli.web.service.SourcesGet;
+import com.underscoreresearch.backup.cli.web.service.SourcesPost;
+import com.underscoreresearch.backup.cli.web.service.SourcesPut;
+import com.underscoreresearch.backup.cli.web.service.SupportBundlePost;
+import com.underscoreresearch.backup.cli.web.service.TokenDelete;
+import com.underscoreresearch.backup.cli.web.service.VersionCheckGet;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.Hash;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.cli.CommandLine;
 import org.takes.Request;
 import org.takes.Response;
@@ -38,24 +41,19 @@ import org.takes.rq.RqHref;
 import org.takes.rq.RqMethod;
 import org.takes.tk.TkWithType;
 
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.cli.commands.ConfigureCommand;
-import com.underscoreresearch.backup.cli.ui.UIHandler;
-import com.underscoreresearch.backup.cli.web.service.BestRegionGet;
-import com.underscoreresearch.backup.cli.web.service.CreateSecretPut;
-import com.underscoreresearch.backup.cli.web.service.DeleteSecretPost;
-import com.underscoreresearch.backup.cli.web.service.GenerateTokenPost;
-import com.underscoreresearch.backup.cli.web.service.GetSecretPost;
-import com.underscoreresearch.backup.cli.web.service.SharesGet;
-import com.underscoreresearch.backup.cli.web.service.SourcesGet;
-import com.underscoreresearch.backup.cli.web.service.SourcesPost;
-import com.underscoreresearch.backup.cli.web.service.SourcesPut;
-import com.underscoreresearch.backup.cli.web.service.SupportBundlePost;
-import com.underscoreresearch.backup.cli.web.service.TokenDelete;
-import com.underscoreresearch.backup.cli.web.service.VersionCheckGet;
-import com.underscoreresearch.backup.configuration.CommandLineModule;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.Hash;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.BIND_ADDRESS;
+import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
 @Slf4j
 public class WebServer {

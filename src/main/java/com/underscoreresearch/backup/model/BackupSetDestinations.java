@@ -1,22 +1,21 @@
 package com.underscoreresearch.backup.model;
 
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.Set;
-
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Sets;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Sets;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.Set;
+
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @AllArgsConstructor
 @NoArgsConstructor

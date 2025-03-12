@@ -1,27 +1,25 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-import org.takes.Take;
-import org.takes.misc.Href;
-import org.takes.rq.RqHref;
-
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.inject.ProvisionException;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+import org.takes.Take;
+import org.takes.misc.Href;
+import org.takes.rq.RqHref;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class ActivityGet extends BaseWrap {

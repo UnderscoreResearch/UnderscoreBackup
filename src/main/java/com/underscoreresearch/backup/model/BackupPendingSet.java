@@ -1,13 +1,12 @@
 package com.underscoreresearch.backup.model;
 
-import java.util.Date;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.Date;
 
 @NoArgsConstructor
 @Builder(toBuilder = true)

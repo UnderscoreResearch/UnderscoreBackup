@@ -1,13 +1,12 @@
 package com.underscoreresearch.backup.manifest.model;
 
-import java.util.NavigableSet;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.NavigableSet;
 
 @Data
 @AllArgsConstructor

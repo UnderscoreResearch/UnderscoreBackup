@@ -1,10 +1,7 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.Response;
@@ -12,6 +9,8 @@ import org.takes.Take;
 import org.takes.misc.Href;
 import org.takes.rq.RqHref;
 import org.takes.rq.RqMethod;
+
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @Slf4j
 @RequiredArgsConstructor

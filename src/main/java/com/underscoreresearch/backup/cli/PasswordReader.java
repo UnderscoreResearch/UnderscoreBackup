@@ -18,7 +18,7 @@ public final class PasswordReader {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         int c = System.in.read();
-        while(c != -1 && c != '\n') {
+        while (c != -1 && c != '\n') {
             if (c != '\r') {
                 baos.write(c);
             }

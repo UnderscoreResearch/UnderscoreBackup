@@ -1,14 +1,15 @@
 package com.underscoreresearch.backup.manifest;
 
-import java.io.IOException;
-import java.util.List;
-
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
+import com.underscoreresearch.backup.utils.RetryUtils;
+
+import java.io.IOException;
+import java.util.List;
 
 public interface ServiceManager {
     boolean activeSubscription() throws IOException;
@@ -48,12 +49,16 @@ public interface ServiceManager {
     <T> T callApi(String region, ApiFunction<T> callable) throws ApiException;
 
     interface ApiFunction<T> {
-        default boolean shouldRetryMissing(String region) {
+        default boolean shouldRetryMissing(String region, ApiException apiException) {
             return false;
         }
 
         default boolean shouldRetry() {
             return true;
+        }
+
+        default RetryUtils.LogOrWait logAndWait(String region, ApiException apiException) {
+            return RetryUtils.LogOrWait.LOG_AND_WAIT;
         }
 
         default boolean waitForInternet() {

@@ -1,29 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
-import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.INSTALLATION_IDENTITY;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-import java.util.List;
-
-import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOUtils;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.ConfigurationValidator;
@@ -34,6 +10,8 @@ import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.manifest.LogConsumer;
@@ -45,6 +23,26 @@ import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
+import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.INSTALLATION_IDENTITY;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 
 @Slf4j
 @CommandPlugin(value = "change-password", description = "Change the password of an existing key",
@@ -83,7 +81,7 @@ public class ChangePasswordCommand extends Command {
     }
 
     public static EncryptionIdentity generateNewPrivateKey(ManifestManager manifestManager, MetadataRepository repository,
-                                             File fileName, String oldPassword, String newPassword) throws IOException,
+                                                           File fileName, String oldPassword, String newPassword) throws IOException,
             GeneralSecurityException {
         BackupConfiguration configuration = InstanceFactory.getInstance(SOURCE_CONFIG, BackupConfiguration.class);
         ConfigurationValidator.validateConfiguration(configuration, false, false);

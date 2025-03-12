@@ -1,5 +1,21 @@
 package com.underscoreresearch.backup.encryption.encryptors;
 
+import com.google.common.collect.Maps;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.Encryptor;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.encryption.PublicKeyMethod;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import java.security.GeneralSecurityException;
+import java.util.Map;
+import java.util.Set;
+
 import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
 import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.CBC;
 import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.NON_PADDED_GCM;
@@ -9,23 +25,6 @@ import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionF
 import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorFormat.KEY_DATA;
 import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorFormat.KEY_TYPES_X25519;
 import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorFormat.PUBLIC_KEY;
-
-import java.security.GeneralSecurityException;
-import java.util.Map;
-import java.util.Set;
-
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-import com.google.common.collect.Maps;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.Encryptor;
-import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.encryption.IdentityKeys;
-import com.underscoreresearch.backup.encryption.PublicKeyMethod;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
-import com.underscoreresearch.backup.model.BackupConfiguration;
 
 /**
  * X25519 encryptor. Called AES for historical reasons (AES is used for the symmetrical cypher)

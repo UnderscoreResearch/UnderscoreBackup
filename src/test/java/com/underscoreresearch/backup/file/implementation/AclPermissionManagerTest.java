@@ -1,7 +1,6 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,7 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.attribute.AclFileAttributeView;
 import java.util.ArrayList;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class AclPermissionManagerTest {
     @Test

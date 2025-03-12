@@ -1,11 +1,11 @@
 package com.underscoreresearch.backup.manifest;
 
-import java.io.IOException;
-import java.util.Map;
-
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.io.IOProvider;
+
+import java.io.IOException;
+import java.util.Map;
 
 public interface ManifestManager extends BaseManifestManager {
 

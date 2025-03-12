@@ -1,17 +1,5 @@
 package com.underscoreresearch.backup.cli.web.service;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.IOException;
-import java.util.stream.Collectors;
-
-import org.takes.Request;
-import org.takes.Response;
-import org.takes.misc.Href;
-import org.takes.rq.RqHref;
-
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
@@ -22,6 +10,17 @@ import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import org.takes.Request;
+import org.takes.Response;
+import org.takes.misc.Href;
+import org.takes.rq.RqHref;
+
+import java.io.IOException;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 public class SourcesGet extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(ListSourcesResponse.class);

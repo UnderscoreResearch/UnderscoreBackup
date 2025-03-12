@@ -1,11 +1,11 @@
 package com.underscoreresearch.backup.io;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.google.common.util.concurrent.RateLimiter;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupLimits;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class RateLimitController {
     private final Map<BackupDestination, RateLimiter> destinationUploadLimit = new HashMap<>();

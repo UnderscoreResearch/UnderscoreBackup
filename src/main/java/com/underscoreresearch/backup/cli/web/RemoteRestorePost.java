@@ -1,10 +1,19 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
-import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOProviderUtil;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+import org.takes.Request;
+import org.takes.Response;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -13,21 +22,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-import org.takes.Request;
-import org.takes.Response;
-
-import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
+import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
+import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
 
 @Slf4j
 public class RemoteRestorePost extends BaseWrap {
@@ -39,7 +38,7 @@ public class RemoteRestorePost extends BaseWrap {
     public static byte[] downloadKeyData(String password, String source) throws ParseException, IOException,
             GeneralSecurityException {
         IOProvider provider = getIoProvider(source);
-        byte[] keyData = provider.download(PUBLICKEY_FILENAME);
+        byte[] keyData = IOProviderUtil.download(provider, PUBLICKEY_FILENAME);
         EncryptionIdentity encryptionKey = EncryptionIdentity.restoreFromString(new String(keyData, StandardCharsets.UTF_8));
 
         if (!Strings.isNullOrEmpty(source) && encryptionKey.getSalt() == null) {

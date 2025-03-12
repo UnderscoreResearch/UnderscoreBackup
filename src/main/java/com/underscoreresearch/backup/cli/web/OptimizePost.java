@@ -1,20 +1,18 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
-import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.OPTIMIZING_LOG_OPERATION;
-
-import java.io.IOException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+
+import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.OPTIMIZING_LOG_OPERATION;
 
 @Slf4j
 public class OptimizePost extends BaseWrap {

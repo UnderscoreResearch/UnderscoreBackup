@@ -7,6 +7,8 @@ public interface IOProvider {
 
     byte[] download(String key) throws IOException;
 
+    String getCacheKey();
+
     boolean exists(String key) throws IOException;
 
     void delete(String key) throws IOException;

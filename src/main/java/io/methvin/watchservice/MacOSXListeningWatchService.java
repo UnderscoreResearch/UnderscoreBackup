@@ -19,7 +19,14 @@
  */
 package io.methvin.watchservice;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import com.sun.jna.NativeLong;
+import com.sun.jna.Pointer;
+import io.methvin.watchservice.jna.CFArrayRef;
+import io.methvin.watchservice.jna.CFIndex;
+import io.methvin.watchservice.jna.CFRunLoopRef;
+import io.methvin.watchservice.jna.CFStringRef;
+import io.methvin.watchservice.jna.CarbonAPI;
+import io.methvin.watchservice.jna.FSEventStreamRef;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,15 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.sun.jna.NativeLong;
-import com.sun.jna.Pointer;
-
-import io.methvin.watchservice.jna.CFArrayRef;
-import io.methvin.watchservice.jna.CFIndex;
-import io.methvin.watchservice.jna.CFRunLoopRef;
-import io.methvin.watchservice.jna.CFStringRef;
-import io.methvin.watchservice.jna.CarbonAPI;
-import io.methvin.watchservice.jna.FSEventStreamRef;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
 /**
  * This class contains the bulk of my implementation of the Watch Service API. It hooks into

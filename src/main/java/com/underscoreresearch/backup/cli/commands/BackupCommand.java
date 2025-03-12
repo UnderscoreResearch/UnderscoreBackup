@@ -1,15 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import com.underscoreresearch.backup.file.RepositoryOpenMode;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.ParseException;
-
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
@@ -19,6 +9,13 @@ import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.service.SubscriptionLackingException;
 import com.underscoreresearch.backup.utils.StateLogger;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.ParseException;
+
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @CommandPlugin(value = "backup", description = "Run backup operation continuously",
         needPrivateKey = false, readonlyRepository = false, preferNice = true)

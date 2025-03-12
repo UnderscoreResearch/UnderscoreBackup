@@ -1,21 +1,5 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import org.takes.HttpException;
-import org.takes.Request;
-import org.takes.Response;
-import org.takes.misc.Href;
-import org.takes.rq.RqHref;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
@@ -27,6 +11,21 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.BackupSearchAccessImpl;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
+import org.takes.HttpException;
+import org.takes.Request;
+import org.takes.Response;
+import org.takes.misc.Href;
+import org.takes.rq.RqHref;
+
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 public class SearchBackupFilesGet extends BaseWrap {
     private static final long MAX_HITS = 1000;

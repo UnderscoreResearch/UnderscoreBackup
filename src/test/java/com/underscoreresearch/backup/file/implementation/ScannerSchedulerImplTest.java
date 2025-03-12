@@ -1,17 +1,5 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import java.io.IOException;
-import java.text.ParseException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.BeforeEach;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
@@ -24,6 +12,16 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.utils.StateLogger;
+import lombok.extern.slf4j.Slf4j;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+
+import java.io.IOException;
+import java.text.ParseException;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 @Slf4j
 class ScannerSchedulerImplTest {

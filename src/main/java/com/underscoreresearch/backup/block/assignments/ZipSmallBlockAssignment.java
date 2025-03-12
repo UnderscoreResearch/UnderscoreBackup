@@ -1,6 +1,17 @@
 package com.underscoreresearch.backup.block.assignments;
 
-import static com.underscoreresearch.backup.block.assignments.ZipSmallBlockAssignment.FORMAT;
+import com.underscoreresearch.backup.block.BlockDownloader;
+import com.underscoreresearch.backup.block.BlockFormatPlugin;
+import com.underscoreresearch.backup.block.FileBlockExtractor;
+import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.model.BackupBlock;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -14,19 +25,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.block.BlockDownloader;
-import com.underscoreresearch.backup.block.BlockFormatPlugin;
-import com.underscoreresearch.backup.block.FileBlockExtractor;
-import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.model.BackupBlock;
+import static com.underscoreresearch.backup.block.assignments.ZipSmallBlockAssignment.FORMAT;
 
 @Slf4j
 @BlockFormatPlugin(FORMAT)

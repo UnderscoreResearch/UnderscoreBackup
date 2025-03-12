@@ -13,8 +13,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class ConnectionLimiterTest {
-    private ConnectionLimiter limiter;
     private static ExecutorService executor = Executors.newFixedThreadPool(10);
+    private ConnectionLimiter limiter;
 
     @BeforeEach
     void setup() {

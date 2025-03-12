@@ -1,19 +1,17 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.Response;
 
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class KeyPost extends BaseWrap {

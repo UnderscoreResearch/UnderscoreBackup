@@ -1,11 +1,10 @@
 package com.underscoreresearch.backup.encryption.encryptors;
 
-import static com.underscoreresearch.backup.encryption.encryptors.X25519Encryptor.AES_ENCRYPTION;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.inject.Inject;
 import com.underscoreresearch.backup.encryption.EncryptorPlugin;
+import lombok.extern.slf4j.Slf4j;
+
+import static com.underscoreresearch.backup.encryption.encryptors.X25519Encryptor.AES_ENCRYPTION;
 
 /**
  * X25519 encryptor. Called AES for historical reasons (AES is used for the symmetrical cypher)

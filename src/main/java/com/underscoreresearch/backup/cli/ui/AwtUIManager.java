@@ -1,6 +1,11 @@
 package com.underscoreresearch.backup.cli.ui;
 
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
+import com.underscoreresearch.backup.cli.web.ConfigurationPost;
+import com.underscoreresearch.backup.cli.web.WebServer;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.SystemUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.AWTError;
@@ -15,14 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.lang.SystemUtils;
-
-import com.underscoreresearch.backup.cli.web.ConfigurationPost;
-import com.underscoreresearch.backup.cli.web.WebServer;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupConfiguration;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
 @Slf4j
 public class AwtUIManager implements UIManager {

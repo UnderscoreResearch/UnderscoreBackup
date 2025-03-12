@@ -1,23 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
-import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
-import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.downloadKeyData;
-import static com.underscoreresearch.backup.cli.web.SourceSelectPost.downloadSourceConfig;
-import static com.underscoreresearch.backup.cli.web.SourceSelectPost.validatePrivateKey;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-
-import com.underscoreresearch.backup.io.IOUtils;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
@@ -27,7 +9,23 @@ import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.EncryptionModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
+import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
+import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.downloadKeyData;
+import static com.underscoreresearch.backup.cli.web.SourceSelectPost.downloadSourceConfig;
+import static com.underscoreresearch.backup.cli.web.SourceSelectPost.validatePrivateKey;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
 @CommandPlugin(value = "download-config", description = "Download config from manifest destination",
         readonlyRepository = false, supportSource = true, needConfiguration = false, needPrivateKey = false)

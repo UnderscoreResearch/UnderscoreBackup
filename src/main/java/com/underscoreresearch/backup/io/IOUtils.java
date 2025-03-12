@@ -1,7 +1,10 @@
 package com.underscoreresearch.backup.io;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_BASE;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.utils.PausedStatusLogger;
+import com.underscoreresearch.backup.utils.ProcessingStoppedException;
+import com.underscoreresearch.backup.utils.state.MachineState;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -20,12 +23,8 @@ import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.underscoreresearch.backup.utils.state.MachineState;
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.utils.PausedStatusLogger;
-import com.underscoreresearch.backup.utils.ProcessingStoppedException;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_BASE;
 
 @Slf4j
 public final class IOUtils {

@@ -1,23 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
-import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
-import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.util.zip.GZIPInputStream;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -29,11 +11,28 @@ import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOProviderUtil;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.zip.GZIPInputStream;
+
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.reloadIfRunning;
+import static com.underscoreresearch.backup.cli.web.RemoteRestorePost.getManifestDestination;
+import static com.underscoreresearch.backup.configuration.BackupModule.REPOSITORY_DB_PATH;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 
 @CommandPlugin(value = "rebuild-repository", description = "Rebuild repository metadata from logs",
         readonlyRepository = false, supportSource = true)
@@ -55,7 +54,7 @@ public class RebuildRepositoryCommand extends Command {
     public static String downloadRemoteConfiguration(BackupDestination destination,
                                                      IdentityKeys.PrivateKeys privateKey) throws IOException {
         IOProvider provider = IOProviderFactory.getProvider(destination);
-        byte[] data = provider.download(CONFIGURATION_FILENAME);
+        byte[] data = IOProviderUtil.download(provider, CONFIGURATION_FILENAME);
         return unpackConfigData(destination.getEncryption(), privateKey, data);
     }
 

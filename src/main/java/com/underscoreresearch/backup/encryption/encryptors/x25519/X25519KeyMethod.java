@@ -1,14 +1,14 @@
 package com.underscoreresearch.backup.encryption.encryptors.x25519;
 
-import static com.underscoreresearch.backup.encryption.IdentityKeys.SYMMETRIC_KEY_SIZE;
-
-import java.security.GeneralSecurityException;
-
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.PublicKey;
 import com.underscoreresearch.backup.encryption.PublicKeyMethod;
 import com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor;
 import com.underscoreresearch.backup.encryption.encryptors.kyber.KyberKeyMethod;
+
+import java.security.GeneralSecurityException;
+
+import static com.underscoreresearch.backup.encryption.IdentityKeys.SYMMETRIC_KEY_SIZE;
 
 public class X25519KeyMethod implements PublicKeyMethod {
     private static final int KEY_SIZE = 32;

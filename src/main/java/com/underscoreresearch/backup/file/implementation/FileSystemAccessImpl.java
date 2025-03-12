@@ -1,11 +1,14 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.StatusLine;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.SystemUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,17 +24,12 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.lang.SystemUtils;
-
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
 @Slf4j
 public class FileSystemAccessImpl implements FileSystemAccess, ManualStatusLogger {

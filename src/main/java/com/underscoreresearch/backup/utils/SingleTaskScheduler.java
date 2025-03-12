@@ -1,11 +1,11 @@
 package com.underscoreresearch.backup.utils;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 public class SingleTaskScheduler {
     private final ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;

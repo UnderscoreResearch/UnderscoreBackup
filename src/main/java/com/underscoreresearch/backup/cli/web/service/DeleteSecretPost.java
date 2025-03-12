@@ -1,19 +1,17 @@
 package com.underscoreresearch.backup.cli.web.service;
 
-import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-
-import java.io.IOException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+
+import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 
 @Slf4j
 public class DeleteSecretPost extends BaseWrap {

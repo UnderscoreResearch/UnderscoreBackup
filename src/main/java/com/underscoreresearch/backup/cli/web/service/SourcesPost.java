@@ -1,20 +1,5 @@
 package com.underscoreresearch.backup.cli.web.service;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
-import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.IOException;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.underscoreresearch.backup.cli.commands.VersionCommand;
 import com.underscoreresearch.backup.cli.web.BaseWrap;
@@ -26,6 +11,19 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
+import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 public class SourcesPost extends BaseWrap {
     private static final ObjectReader READER = MAPPER.readerFor(CreateSourceRequest.class);

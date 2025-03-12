@@ -1,13 +1,12 @@
 package com.underscoreresearch.backup.file.implementation.performance;
 
-import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MAPDB_STORAGE_LEAF_STORAGE;
+import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
+import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepositoryStorage;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.file.Path;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
-import com.underscoreresearch.backup.file.implementation.MapdbMetadataRepositoryStorage;
+import static com.underscoreresearch.backup.file.implementation.LockingMetadataRepository.MAPDB_STORAGE_LEAF_STORAGE;
 
 @Slf4j
 public class LeafStorageMapdbMetadataRepositoryStorageTest extends MetadataRepositoryStoragePerformance {

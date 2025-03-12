@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.cli.ui;
 
-import java.io.IOException;
-
 import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
 
 @Slf4j
 public class OsxUIManager extends FileUIManager {

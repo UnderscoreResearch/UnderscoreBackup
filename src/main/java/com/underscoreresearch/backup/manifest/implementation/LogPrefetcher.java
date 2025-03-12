@@ -1,7 +1,11 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static com.underscoreresearch.backup.configuration.RestoreModule.getGlobalDownloadThreads;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import com.google.common.base.Stopwatch;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.encryption.Encryptor;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -16,13 +20,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.google.common.base.Stopwatch;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.encryption.Encryptor;
-import com.underscoreresearch.backup.encryption.IdentityKeys;
-import com.underscoreresearch.backup.model.BackupConfiguration;
+import static com.underscoreresearch.backup.configuration.RestoreModule.getGlobalDownloadThreads;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @Slf4j
 public class LogPrefetcher {

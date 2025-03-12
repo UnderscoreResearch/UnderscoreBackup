@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.file.changepoller;
 
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import lombok.AccessLevel;
+import lombok.Getter;
 
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
@@ -13,8 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import lombok.AccessLevel;
-import lombok.Getter;
+import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
 public abstract class BaseWatcherChangePoller implements FileChangePoller {
     @Getter(AccessLevel.PROTECTED)

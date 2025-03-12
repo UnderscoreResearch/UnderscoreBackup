@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.encryption;
 
-import java.security.GeneralSecurityException;
-
 import lombok.Getter;
+
+import java.security.GeneralSecurityException;
 
 public interface PublicKeyMethod {
 

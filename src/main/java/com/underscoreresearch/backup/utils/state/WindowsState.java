@@ -1,8 +1,12 @@
 package com.underscoreresearch.backup.utils.state;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
-import static com.underscoreresearch.backup.io.IOUtils.executeProcess;
-import static com.underscoreresearch.backup.io.IOUtils.executeQuietProcess;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
+import com.underscoreresearch.backup.file.changepoller.WindowsFileChangePoller;
+import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,14 +20,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
-import com.underscoreresearch.backup.file.changepoller.WindowsFileChangePoller;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
-import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
-import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
+import static com.underscoreresearch.backup.io.IOUtils.executeQuietProcess;
 
 @Slf4j
 public class WindowsState extends MachineState {

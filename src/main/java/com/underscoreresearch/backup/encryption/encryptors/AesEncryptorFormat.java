@@ -1,8 +1,11 @@
 package com.underscoreresearch.backup.encryption.encryptors;
 
-import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
-import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
-import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
+import com.google.common.collect.Sets;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.encryption.PublicKeyMethod;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -19,13 +22,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.encryption.IdentityKeys;
-import com.underscoreresearch.backup.encryption.PublicKeyMethod;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
+import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
+import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
 
 @Slf4j
 public abstract class AesEncryptorFormat {

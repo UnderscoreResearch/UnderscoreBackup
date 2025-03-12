@@ -1,5 +1,12 @@
 package com.underscoreresearch.backup.utils.state;
 
+import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
+import com.underscoreresearch.backup.file.changepoller.OsxChangePoller;
+import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
@@ -8,14 +15,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
-import com.underscoreresearch.backup.file.changepoller.OsxChangePoller;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
-import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
-import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 
 @Slf4j
 public class OsxState extends MachineState {

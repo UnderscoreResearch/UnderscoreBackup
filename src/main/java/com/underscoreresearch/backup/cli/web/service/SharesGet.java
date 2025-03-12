@@ -1,20 +1,5 @@
 package com.underscoreresearch.backup.cli.web.service;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
-import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.cli.web.BaseImplementation;
 import com.underscoreresearch.backup.cli.web.BaseWrap;
@@ -22,6 +7,19 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
+import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 public class SharesGet extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(ListSharesResponse.class);

@@ -1,10 +1,9 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-
 import org.takes.Response;
 import org.takes.Take;
 import org.takes.rs.RsText;
@@ -12,8 +11,7 @@ import org.takes.rs.RsWithStatus;
 import org.takes.rs.RsWithType;
 import org.takes.tk.TkWrap;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectWriter;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 public class BaseWrap extends TkWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(Message.class);

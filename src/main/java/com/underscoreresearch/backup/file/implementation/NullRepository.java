@@ -1,10 +1,5 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
-
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableSortedMap;
@@ -24,6 +19,11 @@ import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeMap;
 
 public class NullRepository implements MetadataRepository {
     private static CloseableLock getDummyLock() {
@@ -104,6 +104,16 @@ public class NullRepository implements MetadataRepository {
 
     @Override
     public void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
+
+    }
+
+    @Override
+    public String getConfigurationHash() throws IOException {
+        return null;
+    }
+
+    @Override
+    public void setConfigurationHash(String hash) throws IOException {
 
     }
 

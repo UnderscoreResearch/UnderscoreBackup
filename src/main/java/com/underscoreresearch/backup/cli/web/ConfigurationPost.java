@@ -1,14 +1,17 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.ResetDelete.executeShielded;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_FILE_LOCATION;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG_LOCATION;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.ConfigurationValidator;
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.model.BackupShare;
+import org.takes.Request;
+import org.takes.Response;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -21,19 +24,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import com.underscoreresearch.backup.io.IOUtils;
-import org.takes.Request;
-import org.takes.Response;
-
-import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.ConfigurationValidator;
-import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
-import com.underscoreresearch.backup.model.BackupShare;
+import static com.underscoreresearch.backup.cli.web.ResetDelete.executeShielded;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_FILE_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG_LOCATION;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
 public class ConfigurationPost extends BaseWrap {
 

@@ -1,12 +1,12 @@
 package com.underscoreresearch.backup.encryption.encryptors;
 
-import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.NON_PADDED_GCM;
-import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.PADDED_GCM;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.spec.GCMParameterSpec;
 import java.security.spec.AlgorithmParameterSpec;
 
-import lombok.extern.slf4j.Slf4j;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.NON_PADDED_GCM;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.PADDED_GCM;
 
 @Slf4j
 public class AesEncryptorGcm extends AesEncryptorFormat {

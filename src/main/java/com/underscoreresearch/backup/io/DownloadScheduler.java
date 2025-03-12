@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.io;
 
-import java.util.function.Consumer;
-
 import com.underscoreresearch.backup.model.BackupFile;
+
+import java.util.function.Consumer;
 
 public interface DownloadScheduler {
     void scheduleDownload(BackupFile file, String destination, String password);

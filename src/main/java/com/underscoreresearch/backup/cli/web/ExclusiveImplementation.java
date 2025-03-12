@@ -1,20 +1,18 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.BaseWrap.messageJson;
-
-import java.io.Closeable;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.misc.Href;
 import org.takes.rq.RqHref;
 import org.takes.rq.RqMethod;
 
-import com.underscoreresearch.backup.cli.ui.UIHandler;
+import java.io.Closeable;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import static com.underscoreresearch.backup.cli.web.BaseWrap.messageJson;
 
 @Slf4j
 public abstract class ExclusiveImplementation extends BaseImplementation {

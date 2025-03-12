@@ -1,17 +1,16 @@
 package com.underscoreresearch.backup.errorcorrection;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.io.IOException;
-import java.util.List;
-
+import com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
+import java.io.IOException;
+import java.util.List;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class NoneErrorCorrectorTest {
     private byte[] data;

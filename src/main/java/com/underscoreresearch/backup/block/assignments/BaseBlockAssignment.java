@@ -1,17 +1,5 @@
 package com.underscoreresearch.backup.block.assignments;
 
-import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import lombok.Getter;
-
 import com.underscoreresearch.backup.block.FileBlockAssignment;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.model.BackupBlockCompletion;
@@ -21,6 +9,17 @@ import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
+import lombok.Getter;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 public abstract class BaseBlockAssignment implements FileBlockAssignment, ManualStatusLogger {
     private final List<Progress> backupPartialFiles = new ArrayList<>();

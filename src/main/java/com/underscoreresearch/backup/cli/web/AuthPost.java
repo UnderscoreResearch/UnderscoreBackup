@@ -1,9 +1,19 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.ENCRYPTED_CONTENT_TYPE;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.X_KEYEXCHANGE_HEADER;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.X_PAYLOAD_HASH_HEADER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+import org.takes.rq.RqPrint;
+import org.takes.rs.RsText;
+import org.takes.rs.RsWithStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,22 +25,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-import org.takes.rq.RqPrint;
-import org.takes.rs.RsText;
-import org.takes.rs.RsWithStatus;
-
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.base.Strings;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.ENCRYPTED_CONTENT_TYPE;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.X_KEYEXCHANGE_HEADER;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.X_PAYLOAD_HASH_HEADER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class AuthPost extends BaseWrap {

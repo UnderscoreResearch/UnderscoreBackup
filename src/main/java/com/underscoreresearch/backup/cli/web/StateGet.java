@@ -1,29 +1,5 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PingGet.getSiteUrl;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.File;
-import java.math.BigDecimal;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.lang.SystemUtils;
-import org.takes.Request;
-import org.takes.Response;
-
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -45,6 +21,28 @@ import com.underscoreresearch.backup.model.BackupTimespan;
 import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
 import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
 import com.underscoreresearch.backup.utils.state.MachineState;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.SystemUtils;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.File;
+import java.math.BigDecimal;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.underscoreresearch.backup.cli.web.PingGet.getSiteUrl;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class StateGet extends BaseWrap {

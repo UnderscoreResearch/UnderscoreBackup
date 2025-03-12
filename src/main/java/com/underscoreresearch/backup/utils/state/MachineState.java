@@ -1,14 +1,18 @@
 package com.underscoreresearch.backup.utils.state;
 
-import static com.underscoreresearch.backup.io.IOUtils.executeProcess;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
+import com.underscoreresearch.backup.file.changepoller.FsChangePoller;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import com.underscoreresearch.backup.utils.PausedStatusLogger;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.management.ManagementFactory;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
@@ -17,15 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
-import com.underscoreresearch.backup.file.changepoller.FsChangePoller;
-import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
-import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
-import com.underscoreresearch.backup.utils.PausedStatusLogger;
+import static com.underscoreresearch.backup.io.IOUtils.executeProcess;
 
 @Slf4j
 @RequiredArgsConstructor

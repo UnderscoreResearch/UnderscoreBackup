@@ -1,7 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
-
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -17,6 +15,8 @@ import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.implementation.DownloadSchedulerImpl;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 
 public class RestoreModule extends AbstractModule {
     public static final String DOWNLOAD_THREADS = "DOWNLOAD_THREADS";

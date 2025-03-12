@@ -1,20 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
-import static com.underscoreresearch.backup.io.IOProviderFactory.removeOldProviders;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import org.reflections.Reflections;
-
 import com.google.common.base.Strings;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -25,6 +10,19 @@ import com.underscoreresearch.backup.cli.ConfigurationValidator;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.LockingMetadataRepository;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.reflections.Reflections;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
+import static com.underscoreresearch.backup.io.IOProviderFactory.removeOldProviders;
 
 @Slf4j
 public abstract class InstanceFactory {

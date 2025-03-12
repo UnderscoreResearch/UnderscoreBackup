@@ -1,17 +1,17 @@
 package com.underscoreresearch.backup.file.changepoller;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import io.methvin.watchservice.MacOSXListeningWatchService;
+import io.methvin.watchservice.WatchablePath;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Watchable;
 import java.util.List;
 
-import io.methvin.watchservice.MacOSXListeningWatchService;
-import io.methvin.watchservice.WatchablePath;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
 public class OsxChangePoller extends BaseWatcherChangePoller {
     public OsxChangePoller() throws IOException {

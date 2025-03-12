@@ -1,7 +1,17 @@
 package com.underscoreresearch.backup.cli.web.service;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.underscoreresearch.backup.cli.web.BaseWrap;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+import org.takes.Take;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -19,20 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-import org.takes.Take;
-
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.underscoreresearch.backup.cli.web.BaseWrap;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class BestRegionGet extends BaseWrap {

@@ -1,22 +1,21 @@
 package com.underscoreresearch.backup.encryption.encryptors;
 
-import static com.underscoreresearch.backup.encryption.IdentityKeys.KYBER_KEY;
-import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
-import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorPqcStable.KEY_TYPES_PQC;
-import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
-
-import java.security.GeneralSecurityException;
-import java.util.Map;
-import java.util.Set;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.inject.Inject;
 import com.underscoreresearch.backup.encryption.EncryptorPlugin;
 import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.encryption.PublicKeyMethod;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
+import lombok.extern.slf4j.Slf4j;
+
+import java.security.GeneralSecurityException;
+import java.util.Map;
+import java.util.Set;
+
+import static com.underscoreresearch.backup.encryption.IdentityKeys.KYBER_KEY;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorPqcStable.KEY_TYPES_PQC;
+import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
 
 /**
  * X25519 encryptor. Called AES for historical reasons (AES is used for the symmetrical cypher)

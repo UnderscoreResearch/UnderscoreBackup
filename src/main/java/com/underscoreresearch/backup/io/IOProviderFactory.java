@@ -1,5 +1,10 @@
 package com.underscoreresearch.backup.io;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.extern.slf4j.Slf4j;
+import org.reflections.Reflections;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -9,13 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.reflections.Reflections;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupDestination;
 
 @Slf4j
 public final class IOProviderFactory {
@@ -103,6 +101,11 @@ public final class IOProviderFactory {
                     }
 
                     @Override
+                    public boolean rebuildAvailable() throws IOException {
+                        return actualIndex.rebuildAvailable();
+                    }
+
+                    @Override
                     public String upload(String suggestedKey, byte[] data) throws IOException {
                         throw new IOException(String.format("Cant upload data to \"%s\"", InstanceFactory.getAdditionalSource()));
                     }
@@ -110,6 +113,11 @@ public final class IOProviderFactory {
                     @Override
                     public byte[] download(String key) throws IOException {
                         return actualProvider.download(key);
+                    }
+
+                    @Override
+                    public String getCacheKey() {
+                        return actualProvider.getCacheKey();
                     }
 
                     @Override
@@ -131,6 +139,11 @@ public final class IOProviderFactory {
                     public List<String> availableLogs(String lastSyncedFile, boolean all) throws IOException {
                         return actualIndex.availableLogs(lastSyncedFile, all);
                     }
+
+                    @Override
+                    public boolean hasConsistentWrites() {
+                        return actualIndex.hasConsistentWrites();
+                    }
                 };
             } else {
                 return new IOProvider() {
@@ -142,6 +155,11 @@ public final class IOProviderFactory {
                     @Override
                     public byte[] download(String key) throws IOException {
                         return actualProvider.download(key);
+                    }
+
+                    @Override
+                    public String getCacheKey() {
+                        return actualProvider.getCacheKey();
                     }
 
                     @Override

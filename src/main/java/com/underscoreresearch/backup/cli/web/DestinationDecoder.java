@@ -1,23 +1,5 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.BaseWrap.messageJson;
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-
-import lombok.Getter;
-
-import org.takes.HttpException;
-import org.takes.Request;
-import org.takes.Response;
-import org.takes.misc.Href;
-import org.takes.rq.RqHref;
-
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.io.IOProvider;
@@ -27,6 +9,22 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupFile;
+import lombok.Getter;
+import org.takes.HttpException;
+import org.takes.Request;
+import org.takes.Response;
+import org.takes.misc.Href;
+import org.takes.rq.RqHref;
+
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.underscoreresearch.backup.cli.web.BaseWrap.messageJson;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @Getter
 public final class DestinationDecoder {

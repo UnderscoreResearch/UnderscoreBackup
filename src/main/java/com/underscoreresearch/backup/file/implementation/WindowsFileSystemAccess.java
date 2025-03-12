@@ -1,6 +1,7 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import com.underscoreresearch.backup.file.FilePermissionManager;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,9 +9,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.file.FilePermissionManager;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @Slf4j
 public class WindowsFileSystemAccess extends PermissionFileSystemAccess {

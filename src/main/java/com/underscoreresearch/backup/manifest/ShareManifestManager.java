@@ -1,9 +1,9 @@
 package com.underscoreresearch.backup.manifest;
 
-import java.io.IOException;
-
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.model.BackupActivatedShare;
+
+import java.io.IOException;
 
 public interface ShareManifestManager extends BaseManifestManager {
 

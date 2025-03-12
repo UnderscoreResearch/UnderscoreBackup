@@ -1,20 +1,19 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import com.google.common.base.Stopwatch;
+import com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.Test;
-
-import com.google.common.base.Stopwatch;
-import com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor;
-import com.underscoreresearch.backup.model.BackupConfiguration;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class LogPrefetcherTest {
     @Test

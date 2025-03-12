@@ -1,10 +1,9 @@
 package com.underscoreresearch.backup.utils;
 
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
 
 @Data
 public class StatusLine {

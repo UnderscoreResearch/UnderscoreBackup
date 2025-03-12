@@ -1,7 +1,20 @@
 package com.underscoreresearch.backup.encryption;
 
-import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor;
+import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
+import de.mkammerer.argon2.Argon2Advanced;
+import de.mkammerer.argon2.Argon2Factory;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.binary.Base64;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -16,24 +29,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.codec.binary.Base64;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor;
-import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
-
-import de.mkammerer.argon2.Argon2Advanced;
-import de.mkammerer.argon2.Argon2Factory;
+import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 @JsonInclude(JsonInclude.Include.NON_NULL)

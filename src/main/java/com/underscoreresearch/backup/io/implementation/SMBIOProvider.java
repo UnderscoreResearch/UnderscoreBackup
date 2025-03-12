@@ -1,21 +1,5 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import static com.underscoreresearch.backup.io.implementation.SMBIOProvider.SMB_TYPE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import com.underscoreresearch.backup.io.ConnectionLimiter;
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.hierynomus.msdtyp.AccessMask;
@@ -30,10 +14,25 @@ import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
 import com.hierynomus.smbj.share.File;
+import com.underscoreresearch.backup.io.ConnectionLimiter;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.io.implementation.SMBIOProvider.SMB_TYPE;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @IOPlugin(SMB_TYPE)
 @Slf4j
@@ -44,6 +43,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
     private final BackupDestination destination;
     private final String host;
     private final String shareName;
+    private final String cacheKey;
     private String root;
     private SMBClient client;
     private Connection connection;
@@ -69,6 +69,7 @@ public class SMBIOProvider implements IOIndex, Closeable {
 
         host = matcher.group(1);
         shareName = matcher.group(2);
+        cacheKey = destination.getEndpointUri();
         limiter = new ConnectionLimiter(destination);
     }
 
@@ -201,6 +202,11 @@ public class SMBIOProvider implements IOIndex, Closeable {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public String getCacheKey() {
+        return cacheKey;
     }
 
     @Override

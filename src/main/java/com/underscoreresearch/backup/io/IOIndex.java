@@ -1,9 +1,9 @@
 package com.underscoreresearch.backup.io;
 
+import com.underscoreresearch.backup.io.implementation.Utils;
+
 import java.io.IOException;
 import java.util.List;
-
-import com.underscoreresearch.backup.io.implementation.Utils;
 
 public interface IOIndex extends IOProvider {
     List<String> availableKeys(String prefix) throws IOException;

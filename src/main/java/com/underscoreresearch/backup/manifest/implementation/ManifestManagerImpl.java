@@ -1,50 +1,5 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
-import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
-
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.channels.Channels;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
-
-import com.underscoreresearch.backup.file.LogFileRepository;
-import com.underscoreresearch.backup.file.implementation.LogFileRepositoryImpl;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
@@ -55,14 +10,17 @@ import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.Hash;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
+import com.underscoreresearch.backup.file.LogFileRepository;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
 import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.file.RepositoryOpenMode;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
+import com.underscoreresearch.backup.file.implementation.LogFileRepositoryImpl;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.io.IOIndex;
@@ -95,14 +53,56 @@ import com.underscoreresearch.backup.utils.AccessLock;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.channels.Channels;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
+import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
 
 @Slf4j
 public class ManifestManagerImpl extends BaseManifestManagerImpl implements ManualStatusLogger, ManifestManager {
     public final static String CONFIGURATION_FILENAME = "configuration.json";
     public static final String OPTIMIZING_LOG_OPERATION = "Optimizing log";
     public static final String REPAIRING_REPOSITORY_OPERATION = "Repairing repository";
-    private static final String UPLOAD_PENDING = "Upload pending";
     public static final long EVENTUAL_CONSISTENCY_TIMEOUT_MS = 20 * 1000;
+    private static final String UPLOAD_PENDING = "Upload pending";
     private final String source;
     private final BackupStatsLogger statsLogger;
     private final AdditionalManifestManager additionalManifestManager;
@@ -163,9 +163,18 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
             processedFiles.incrementAndGet();
 
-            uploadConfigData(CONFIGURATION_FILENAME,
-                    InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8),
-                    true, null);
+            byte[] configData = InstanceFactory.getInstance(CONFIG_DATA).getBytes(StandardCharsets.UTF_8);
+            String configHash = Hash.hash64(configData);
+            MetadataRepository repository = getMetadataRepository(true);
+            if (configHash.equals(repository.getConfigurationHash())) {
+                debug(() -> log.debug("Configuration has not changed, skipping upload"));
+            } else {
+                uploadConfigData(CONFIGURATION_FILENAME,
+                        configData,
+                        true, null);
+                waitUploads();
+                repository.setConfigurationHash(configHash);
+            }
             processedFiles.incrementAndGet();
 
             updateServiceSourceData(getEncryptionIdentity());
@@ -269,8 +278,8 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
 
             getServiceManager().call(null, new ServiceManager.ApiFunction<>() {
                 @Override
-                public boolean shouldRetryMissing(String region) {
-                    return region != null && !region.equals("us-west");
+                public boolean shouldRetryMissing(String region, ApiException apiException) {
+                    return true;
                 }
 
                 @Override

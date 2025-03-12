@@ -1,23 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_KEY;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_SOURCE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.ENCRYPTION_KEY_DATA;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.PRIVATE_KEY_SEED;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.getDefaultUserManifestLocation;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.security.GeneralSecurityException;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.lang.SystemUtils;
-
 import com.google.common.base.Strings;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -26,6 +8,23 @@ import com.google.inject.name.Named;
 import com.underscoreresearch.backup.cli.PasswordReader;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.io.IOUtils;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.lang.SystemUtils;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_KEY;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_SOURCE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.ENCRYPTION_KEY_DATA;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY_FILE_NAME;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.PRIVATE_KEY_SEED;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.getDefaultUserManifestLocation;
 
 public class EncryptionModule extends AbstractModule {
     public static final String[] DEFAULT_KEY_FILES;

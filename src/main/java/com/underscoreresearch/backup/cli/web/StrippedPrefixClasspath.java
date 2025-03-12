@@ -1,15 +1,8 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.Response;
@@ -17,6 +10,12 @@ import org.takes.Take;
 import org.takes.rq.RqHref;
 import org.takes.rs.RsWithBody;
 import org.takes.tk.TkWrap;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)

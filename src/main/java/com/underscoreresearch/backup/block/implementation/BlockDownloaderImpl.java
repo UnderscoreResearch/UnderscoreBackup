@@ -1,18 +1,5 @@
 package com.underscoreresearch.backup.block.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.common.collect.Lists;
 import com.underscoreresearch.backup.block.BlockDownloader;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -32,6 +19,18 @@ import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+
+import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
 
 @Slf4j
 public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloader, ManualStatusLogger {

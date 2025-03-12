@@ -1,10 +1,20 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.service.api.invoker.ApiException;
+import com.underscoreresearch.backup.service.api.model.SourceStatsModel;
+import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.StatusLogger;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,23 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.service.api.invoker.ApiException;
-import com.underscoreresearch.backup.service.api.model.SourceStatsModel;
-import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class BackupStatsLogger implements StatusLogger {
@@ -143,15 +141,15 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    public boolean isNeedValidation() {
+        return statistics != null && statistics.isNeedValidation();
+    }
+
     public void setNeedValidation(boolean needValidation) {
         if (statistics != null) {
             statistics.setNeedValidation(needValidation);
             storeStats(statistics);
         }
-    }
-
-    public boolean isNeedValidation() {
-        return statistics != null && statistics.isNeedValidation();
     }
 
     private RepositoryTrimmer.Statistics readStatistics() {

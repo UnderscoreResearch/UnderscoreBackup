@@ -1,14 +1,8 @@
 package com.underscoreresearch.backup.cli.ui;
 
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.validateConfigurationUrl;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.NOTIFICATION_LOCATION;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import com.underscoreresearch.backup.cli.commands.ConfigureCommand;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -23,10 +17,15 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.cli.commands.ConfigureCommand;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.validateConfigurationUrl;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.NOTIFICATION_LOCATION;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
 @Slf4j
 public class AwtFileUIManager extends AwtUIManager {

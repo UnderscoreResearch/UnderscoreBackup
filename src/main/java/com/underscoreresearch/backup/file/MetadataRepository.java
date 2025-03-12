@@ -1,10 +1,5 @@
 package com.underscoreresearch.backup.file;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
-
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupActivePath;
 import com.underscoreresearch.backup.model.BackupBlock;
@@ -15,6 +10,11 @@ import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeMap;
 
 public interface MetadataRepository {
     void addFile(BackupFile file) throws IOException;
@@ -122,6 +122,10 @@ public interface MetadataRepository {
     void cancelStorageRevision(MetadataRepositoryStorage newStorage) throws IOException;
 
     void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException;
+
+    String getConfigurationHash() throws IOException;
+
+    void setConfigurationHash(String hash) throws IOException;
 
     boolean isErrorsDetected();
 

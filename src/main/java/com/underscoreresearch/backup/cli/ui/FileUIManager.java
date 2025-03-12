@@ -1,7 +1,8 @@
 package com.underscoreresearch.backup.cli.ui;
 
-import static com.underscoreresearch.backup.cli.ui.AwtUIManager.STARTED_IN_BACKGROUND_MESSAGE;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import com.underscoreresearch.backup.configuration.CommandLineModule;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -9,10 +10,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.configuration.CommandLineModule;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
+import static com.underscoreresearch.backup.cli.ui.AwtUIManager.STARTED_IN_BACKGROUND_MESSAGE;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
 @Slf4j
 public class FileUIManager implements UIManager {

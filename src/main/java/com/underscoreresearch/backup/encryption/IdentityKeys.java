@@ -1,23 +1,5 @@
 package com.underscoreresearch.backup.encryption;
 
-import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorFormat.PUBLIC_KEY;
-import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-import static java.util.stream.Collectors.toMap;
-
-import java.security.GeneralSecurityException;
-import java.security.InvalidKeyException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -28,6 +10,23 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.encryption.encryptors.kyber.KyberKeyMethod;
 import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
 import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519KeyMethod;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorFormat.PUBLIC_KEY;
+import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import static java.util.stream.Collectors.toMap;
 
 @Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)

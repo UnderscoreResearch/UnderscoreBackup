@@ -1,11 +1,11 @@
 package com.underscoreresearch.backup.encryption;
 
-import static com.underscoreresearch.backup.encryption.Hash.encodeBytes;
+import lombok.extern.slf4j.Slf4j;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-import lombok.extern.slf4j.Slf4j;
+import static com.underscoreresearch.backup.encryption.Hash.encodeBytes;
 
 @Slf4j
 public class HashSha3 {

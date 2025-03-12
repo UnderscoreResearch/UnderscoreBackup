@@ -1,16 +1,5 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import static com.underscoreresearch.backup.io.implementation.DropboxIOProvider.DROPBOX_TYPE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import com.underscoreresearch.backup.io.ConnectionLimiter;
-import lombok.extern.slf4j.Slf4j;
-
 import com.dropbox.core.DbxDownloader;
 import com.dropbox.core.DbxException;
 import com.dropbox.core.DbxRequestConfig;
@@ -27,12 +16,22 @@ import com.dropbox.core.v2.files.UploadBuilder;
 import com.dropbox.core.v2.files.UploadUploader;
 import com.dropbox.core.v2.files.WriteMode;
 import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.io.ConnectionLimiter;
 import com.underscoreresearch.backup.io.IOIndex;
 import com.underscoreresearch.backup.io.IOPlugin;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.RetryUtils;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.io.implementation.DropboxIOProvider.DROPBOX_TYPE;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @IOPlugin(DROPBOX_TYPE)
 @Slf4j
@@ -40,6 +39,7 @@ public class DropboxIOProvider implements IOIndex {
     public static final String DROPBOX_TYPE = "DROPBOX";
     private final DbxClientV2 clientV2;
     private final String root;
+    private final String cacheKey;
     private final ConnectionLimiter limiter;
 
     public DropboxIOProvider(BackupDestination destination) {
@@ -55,6 +55,7 @@ public class DropboxIOProvider implements IOIndex {
             calculatedRoot += "/";
 
         root = calculatedRoot;
+        cacheKey = destination.getPrincipal() + "/" + root;
         limiter = new ConnectionLimiter(destination);
     }
 
@@ -113,6 +114,11 @@ public class DropboxIOProvider implements IOIndex {
         } catch (Exception exc) {
             throw new IOException(exc);
         }
+    }
+
+    @Override
+    public String getCacheKey() {
+        return cacheKey;
     }
 
     @Override

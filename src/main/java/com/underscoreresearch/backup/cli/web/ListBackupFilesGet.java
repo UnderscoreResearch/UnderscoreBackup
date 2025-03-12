@@ -1,18 +1,17 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.DestinationDecoder.getRequestFiles;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.utils.SerializationUtils.EXTERNAL_BACKUP_FILES_WRITER;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
+import org.takes.Request;
+import org.takes.Response;
 
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 
-import org.takes.Request;
-import org.takes.Response;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.model.ExternalBackupFile;
+import static com.underscoreresearch.backup.cli.web.DestinationDecoder.getRequestFiles;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.utils.SerializationUtils.EXTERNAL_BACKUP_FILES_WRITER;
 
 public class ListBackupFilesGet extends BaseWrap {
     public ListBackupFilesGet(String base) {

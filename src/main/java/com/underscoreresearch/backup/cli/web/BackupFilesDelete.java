@@ -1,29 +1,23 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.NavigableSet;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableStream;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.manifest.BackupContentsAccess;
-import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.utils.ProcessingStoppedException;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+import java.util.NavigableSet;
+import java.util.TreeSet;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 
 @Slf4j
 public class BackupFilesDelete extends BaseWrap {

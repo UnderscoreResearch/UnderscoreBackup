@@ -1,16 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.timestamp;
-import static com.underscoreresearch.backup.utils.LogUtil.printFile;
-
-import java.util.regex.Pattern;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -21,6 +10,15 @@ import com.underscoreresearch.backup.manifest.ManifestManager;
 import com.underscoreresearch.backup.manifest.implementation.BackupSearchAccessImpl;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+import java.util.regex.Pattern;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.INCLUDE_DELETED;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.timestamp;
+import static com.underscoreresearch.backup.utils.LogUtil.printFile;
 
 @CommandPlugin(value = "search", args = "Regular expression of search", description = "Search backup contents",
         needPrivateKey = false, supportSource = true)

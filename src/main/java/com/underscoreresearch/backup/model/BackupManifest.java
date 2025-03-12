@@ -1,14 +1,13 @@
 package com.underscoreresearch.backup.model;
 
-import java.util.List;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.google.common.base.Strings;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.google.common.base.Strings;
+import java.util.List;
 
 @Data
 @Builder(toBuilder = true)

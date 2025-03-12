@@ -1,13 +1,12 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import java.io.File;
-import java.nio.file.Path;
-
+import com.underscoreresearch.backup.file.FilePermissionManager;
+import com.underscoreresearch.backup.file.PathNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import com.underscoreresearch.backup.file.FilePermissionManager;
-import com.underscoreresearch.backup.file.PathNormalizer;
+import java.io.File;
+import java.nio.file.Path;
 
 @Slf4j
 @RequiredArgsConstructor

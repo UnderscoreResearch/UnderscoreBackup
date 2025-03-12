@@ -1,7 +1,7 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import org.junit.jupiter.api.Test;
+import org.mockito.internal.util.collections.Sets;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,8 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 
-import org.junit.jupiter.api.Test;
-import org.mockito.internal.util.collections.Sets;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class PosixPermissionManagerTest {
     @Test

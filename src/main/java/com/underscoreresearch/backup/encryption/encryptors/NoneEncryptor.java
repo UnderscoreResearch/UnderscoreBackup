@@ -1,13 +1,13 @@
 package com.underscoreresearch.backup.encryption.encryptors;
 
-import static com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor.NONE_ENCRYPTION;
-
-import java.security.GeneralSecurityException;
-
 import com.underscoreresearch.backup.encryption.Encryptor;
 import com.underscoreresearch.backup.encryption.EncryptorPlugin;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
+
+import java.security.GeneralSecurityException;
+
+import static com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor.NONE_ENCRYPTION;
 
 @EncryptorPlugin(value = NONE_ENCRYPTION)
 public class NoneEncryptor implements Encryptor {

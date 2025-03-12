@@ -1,32 +1,5 @@
 package com.underscoreresearch.backup.cli.helpers;
 
-import static com.underscoreresearch.backup.model.BackupTimeUnit.DAYS;
-import static com.underscoreresearch.backup.model.BackupTimeUnit.HOURS;
-import static com.underscoreresearch.backup.model.BackupTimeUnit.MINUTES;
-import static com.underscoreresearch.backup.model.BackupTimeUnit.SECONDS;
-import static com.underscoreresearch.backup.model.BackupTimeUnit.YEARS;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.summingInt;
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.time.Instant;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.apache.commons.lang.SystemUtils;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -57,6 +30,32 @@ import com.underscoreresearch.backup.model.BackupRetention;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupTimespan;
+import org.apache.commons.lang.SystemUtils;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.underscoreresearch.backup.model.BackupTimeUnit.DAYS;
+import static com.underscoreresearch.backup.model.BackupTimeUnit.HOURS;
+import static com.underscoreresearch.backup.model.BackupTimeUnit.MINUTES;
+import static com.underscoreresearch.backup.model.BackupTimeUnit.SECONDS;
+import static com.underscoreresearch.backup.model.BackupTimeUnit.YEARS;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.summingInt;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 class RepositoryTrimmerTest {
     private MetadataRepository repository;

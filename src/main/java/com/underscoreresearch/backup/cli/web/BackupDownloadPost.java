@@ -1,14 +1,12 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.DestinationDecoder.decodeFile;
-import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.net.HttpURLConnection;
-
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.RepositoryOpenMode;
+import com.underscoreresearch.backup.io.DownloadScheduler;
+import com.underscoreresearch.backup.model.BackupFile;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.HttpException;
 import org.takes.Request;
 import org.takes.Response;
@@ -18,12 +16,12 @@ import org.takes.rs.RsWithBody;
 import org.takes.rs.RsWithType;
 import org.takes.tk.TkWrap;
 
-import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.file.RepositoryOpenMode;
-import com.underscoreresearch.backup.io.DownloadScheduler;
-import com.underscoreresearch.backup.model.BackupFile;
+import java.io.File;
+import java.io.FileInputStream;
+import java.net.HttpURLConnection;
+
+import static com.underscoreresearch.backup.cli.web.DestinationDecoder.decodeFile;
+import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
 
 @Slf4j
 public class BackupDownloadPost extends TkWrap {

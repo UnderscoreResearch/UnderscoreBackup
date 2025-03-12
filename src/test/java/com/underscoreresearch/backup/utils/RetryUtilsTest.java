@@ -1,18 +1,17 @@
 package com.underscoreresearch.backup.utils;
 
-import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_RETRIES;
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import com.google.common.base.Stopwatch;
 import org.apache.commons.cli.ParseException;
 import org.hamcrest.Matchers;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import com.google.common.base.Stopwatch;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_RETRIES;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 class RetryUtilsTest {
     @Test

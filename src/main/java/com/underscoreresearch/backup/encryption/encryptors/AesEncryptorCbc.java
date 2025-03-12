@@ -1,11 +1,11 @@
 package com.underscoreresearch.backup.encryption.encryptors;
 
-import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.CBC;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.spec.IvParameterSpec;
 import java.security.spec.AlgorithmParameterSpec;
 
-import lombok.extern.slf4j.Slf4j;
+import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.CBC;
 
 @Slf4j
 public class AesEncryptorCbc extends AesEncryptorFormat {

@@ -1,6 +1,14 @@
 package com.underscoreresearch.backup.encryption.encryptors.kyber;
 
-import static com.underscoreresearch.backup.encryption.IdentityKeys.SYMMETRIC_KEY_SIZE;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.PublicKey;
+import com.underscoreresearch.backup.encryption.PublicKeyMethod;
+import com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor;
+import org.bouncycastle.jcajce.SecretKeyWithEncapsulation;
+import org.bouncycastle.jcajce.spec.KEMExtractSpec;
+import org.bouncycastle.jcajce.spec.KEMGenerateSpec;
+import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
+import org.bouncycastle.pqc.jcajce.spec.KyberParameterSpec;
 
 import javax.crypto.KeyGenerator;
 import java.security.GeneralSecurityException;
@@ -13,16 +21,7 @@ import java.security.Security;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
-import org.bouncycastle.jcajce.SecretKeyWithEncapsulation;
-import org.bouncycastle.jcajce.spec.KEMExtractSpec;
-import org.bouncycastle.jcajce.spec.KEMGenerateSpec;
-import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
-import org.bouncycastle.pqc.jcajce.spec.KyberParameterSpec;
-
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.encryption.PublicKey;
-import com.underscoreresearch.backup.encryption.PublicKeyMethod;
-import com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.SYMMETRIC_KEY_SIZE;
 
 public class KyberKeyMethod implements PublicKeyMethod {
     private static final int KEY_SIZE = 1568;

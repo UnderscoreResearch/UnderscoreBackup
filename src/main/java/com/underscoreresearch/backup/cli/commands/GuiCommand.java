@@ -1,15 +1,13 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.cli.ui.AwtFileUIManager;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
 
-import java.awt.*;
+import java.awt.SystemTray;
 
 @CommandPlugin(value = "gui", description = "Show GUI for service process",
         needConfiguration = false, needPrivateKey = false, readonlyRepository = true,

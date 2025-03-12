@@ -1,9 +1,6 @@
 package com.underscoreresearch.backup.file.changepoller;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import com.sun.nio.file.ExtendedWatchEventModifier;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -12,7 +9,10 @@ import java.nio.file.WatchEvent;
 import java.nio.file.Watchable;
 import java.util.List;
 
-import com.sun.nio.file.ExtendedWatchEventModifier;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
 public class WindowsFileChangePoller extends BaseWatcherChangePoller {
     public WindowsFileChangePoller() throws IOException {

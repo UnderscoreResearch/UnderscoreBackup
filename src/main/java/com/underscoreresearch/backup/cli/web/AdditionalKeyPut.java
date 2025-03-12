@@ -1,21 +1,19 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.security.GeneralSecurityException;
-
-import lombok.Data;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import lombok.Data;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.security.GeneralSecurityException;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 public class AdditionalKeyPut extends BaseWrap {
     private static final ObjectWriter WRITER = MAPPER.writerFor(ExternalEncryptionKey.class);

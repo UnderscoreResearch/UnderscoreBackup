@@ -1,19 +1,18 @@
 package com.underscoreresearch.backup.encryption;
 
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.Test;
 
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.Set;
 
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.Test;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IdentityKeysTest {
     private static final String PUBLIC_LEGACY_KEY = "{\"publicKeyHash\":\"1P5DKWWUH40vQHGxcqo6A23GsmqTm57uW7_0fexMMXw\",\"publicKey\":\"G2I6TQWOX4KK7WRURDBEN3TDLGUFKFOV2YKVFSANCHGCJ7Z6FBVQ\",\"sharingPublicKey\":\"FOMVEHP3Z2KWBSRD35EFHKSMMEKVVMUXWBSUXWVP2AMV46IPJBBA\",\"salt\":\"FEU2RAGIUSPLFNNGL3WZRRRDNGAPRNN7BOEEAIZWR2OWJR7GHKUA\",\"algorithm\":\"ARGON2\",\"encryptedAdditionalKeys\":\"Aa1_f-mof648Ad-N38ggPvsBqBfVuuHlaeFq0smedirIqo-Mo7vEu1ESDH14TEDk5XyLrhrR6rvwGWlrxeo2TPpv1WKZnDjnb0uj4v5WCtGg1dtSKFZK6pp23Y8rfIgfFI1WFxHZbyJrgGnJSDFZgA77\",\"keyData\":\"GLASWN73FACEE3IDESLITPSTQNZUNIOK7HAWUXQEBUNCHO5OC3WA\"}";

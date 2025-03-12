@@ -1,7 +1,27 @@
 package com.underscoreresearch.backup.cli.helpers;
 
-import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.EVENTUAL_CONSISTENCY_TIMEOUT_MS;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.block.BlockDownloader;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
+import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.MapSerializer;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
+import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -18,29 +38,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.base.Stopwatch;
-import com.underscoreresearch.backup.io.IOIndex;
-import lombok.extern.slf4j.Slf4j;
-
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.block.BlockDownloader;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.encryption.IdentityKeys;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
-import com.underscoreresearch.backup.file.CloseableMap;
-import com.underscoreresearch.backup.file.MapSerializer;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.io.UploadScheduler;
-import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
-import com.underscoreresearch.backup.manifest.ManifestManager;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.EVENTUAL_CONSISTENCY_TIMEOUT_MS;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @Slf4j
 public class DestinationBlockProcessor extends SchedulerImpl {
@@ -61,11 +60,10 @@ public class DestinationBlockProcessor extends SchedulerImpl {
     private final boolean noDelete;
     private final ManifestManager manifestManager;
     private final EncryptionIdentity encryptionIdentity;
-
+    private final Object lastUpdateLock = new Object();
     private Set<String> activatedShares;
     private CloseableMap<String, Boolean> processedBlockMap;
     private Stopwatch lastUpdate;
-    private final Object lastUpdateLock = new Object();
     private boolean noDeleteBlocks;
 
     public DestinationBlockProcessor(int maximumConcurrency,
@@ -262,7 +260,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
 
                         // We don't want to write over existing data if we can avoid it.
                         int disambiguator = 0;
-                        while(storage.getParts().contains(uploadScheduler.suggestedKey(block.getHash(), currentIndex, disambiguator)))
+                        while (storage.getParts().contains(uploadScheduler.suggestedKey(block.getHash(), currentIndex, disambiguator)))
                             disambiguator++;
 
                         uploadScheduler.scheduleUpload(destination,
@@ -289,7 +287,8 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                         BackupBlockStorage updatedStorage;
                         if (noDelete) {
                             storage.setCreated(Instant.now().toEpochMilli());
-                            updatedStorage = storage.toBuilder().build();;
+                            updatedStorage = storage.toBuilder().build();
+                            ;
                             block.getStorage().add(updatedStorage);
                         } else {
                             List<String> originalParts = storage.getParts();

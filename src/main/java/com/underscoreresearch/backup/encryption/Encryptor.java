@@ -1,8 +1,8 @@
 package com.underscoreresearch.backup.encryption;
 
-import java.security.GeneralSecurityException;
-
 import com.underscoreresearch.backup.model.BackupBlockStorage;
+
+import java.security.GeneralSecurityException;
 
 public interface Encryptor {
     byte[] encryptBlock(BackupBlockStorage storage, byte[] data, IdentityKeys keys) throws GeneralSecurityException;

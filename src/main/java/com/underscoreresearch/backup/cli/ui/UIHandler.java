@@ -1,5 +1,11 @@
 package com.underscoreresearch.backup.cli.ui;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.SystemUtils;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -8,14 +14,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.lang.SystemUtils;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupConfiguration;
 
 @Slf4j
 public class UIHandler {

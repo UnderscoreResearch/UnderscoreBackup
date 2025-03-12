@@ -1,19 +1,5 @@
 package com.underscoreresearch.backup.cli;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-
 import com.google.common.base.Strings;
 import com.google.inject.ProvisionException;
 import com.google.inject.spi.Message;
@@ -26,6 +12,18 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.SingleTaskScheduler;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.MachineState;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
 
 @Slf4j
 public final class Main {

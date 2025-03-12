@@ -1,7 +1,13 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
-import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.Getter;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -21,15 +27,8 @@ import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.Getter;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.encryption.encryptors.x25519.X25519;
-import com.underscoreresearch.backup.model.BackupConfiguration;
+import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
 
 public class ApiAuth {
     private static final int MAX_SIZE = 100;

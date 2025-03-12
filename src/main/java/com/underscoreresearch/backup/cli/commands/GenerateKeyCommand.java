@@ -1,17 +1,5 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_KEY;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.ENCRYPTION_KEY_DATA;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-
-import java.io.File;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
@@ -22,6 +10,17 @@ import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+import java.io.File;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_KEY;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.ENCRYPTION_KEY_DATA;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.KEY;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 
 @CommandPlugin(value = "generate-key", description = "Generate a new public key and store it to disk",
         needPrivateKey = false, needConfiguration = false)

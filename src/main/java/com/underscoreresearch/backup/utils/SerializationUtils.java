@@ -1,7 +1,5 @@
 package com.underscoreresearch.backup.utils;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +18,8 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
+
+import java.util.List;
 
 public class SerializationUtils {
     public static ObjectMapper MAPPER = new ObjectMapper()

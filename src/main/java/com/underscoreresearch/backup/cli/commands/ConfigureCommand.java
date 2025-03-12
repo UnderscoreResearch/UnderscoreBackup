@@ -1,25 +1,23 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.cli.commands.InteractiveCommand.suppressedOpen;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.URL_LOCATION;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import com.underscoreresearch.backup.cli.CommandPlugin;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
+import com.underscoreresearch.backup.cli.web.AuthPost;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.cli.CommandPlugin;
-import com.underscoreresearch.backup.cli.ui.UIHandler;
-import com.underscoreresearch.backup.cli.web.AuthPost;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
+import static com.underscoreresearch.backup.cli.commands.InteractiveCommand.suppressedOpen;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.URL_LOCATION;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @CommandPlugin(value = "configure", description = "Open configuration interface",
         needConfiguration = false, needPrivateKey = false)

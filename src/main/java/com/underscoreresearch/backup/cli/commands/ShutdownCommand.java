@@ -1,13 +1,12 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
-import static com.underscoreresearch.backup.cli.web.AuthPost.performAuthenticatedRequest;
+import com.underscoreresearch.backup.cli.CommandPlugin;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.cli.CommandPlugin;
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.cli.web.AuthPost.performAuthenticatedRequest;
 
 @CommandPlugin(value = "shutdown", description = "Shutdown the daemon",
         needConfiguration = false, needPrivateKey = false)

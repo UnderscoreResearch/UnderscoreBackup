@@ -1,11 +1,32 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.Encryptor;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOProviderUtil;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.io.RateLimitController;
+import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
+import com.underscoreresearch.backup.manifest.BaseManifestManager;
+import com.underscoreresearch.backup.manifest.LogConsumer;
+import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import com.underscoreresearch.backup.service.SubscriptionLackingException;
+import com.underscoreresearch.backup.utils.AccessLock;
+import com.underscoreresearch.backup.utils.SingleTaskScheduler;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.ParseException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -31,34 +52,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.ParseException;
-
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.encryption.Encryptor;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.encryption.IdentityKeys;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOProvider;
-import com.underscoreresearch.backup.io.IOProviderFactory;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.io.RateLimitController;
-import com.underscoreresearch.backup.io.UploadScheduler;
-import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
-import com.underscoreresearch.backup.manifest.BaseManifestManager;
-import com.underscoreresearch.backup.manifest.LogConsumer;
-import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupDestination;
-import com.underscoreresearch.backup.service.SubscriptionLackingException;
-import com.underscoreresearch.backup.utils.AccessLock;
-import com.underscoreresearch.backup.utils.SingleTaskScheduler;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public abstract class BaseManifestManagerImpl implements BaseManifestManager {
@@ -109,13 +108,6 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     private LogConsumer logConsumer;
     @Getter(AccessLevel.PROTECTED)
     private boolean initialized;
-    private enum LogFileType {
-        INITIAL,
-        DEFAULT,
-        COMPLETED,
-        INITIAL_COMPLETED
-    }
-
     private LogFileType logFileType = LogFileType.DEFAULT;
 
     public BaseManifestManagerImpl(BackupConfiguration configuration,
@@ -267,7 +259,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected byte[] downloadData(String file) throws IOException {
-        byte[] data = getIoProvider().download(file);
+        byte[] data = IOProviderUtil.download(getIoProvider(), file);
         if (data != null) {
             rateLimitController.acquireDownloadPermits(manifestDestination, data.length);
         }
@@ -330,7 +322,7 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         try {
             byte[] data = installationIdentity.getBytes(StandardCharsets.UTF_8);
             rateLimitController.acquireUploadPermits(manifestDestination, data.length);
-            getIoProvider().upload(IDENTITY_MANIFEST_LOCATION, data);
+            IOProviderUtil.upload(getIoProvider(), IDENTITY_MANIFEST_LOCATION, data);
         } catch (SubscriptionLackingException e) {
             throw new RuntimeException(e.getMessage(), e);
         } catch (IOException e) {
@@ -677,9 +669,6 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
         }
     }
 
-    private record LogClosing(AccessLock logLockToClose, String uploadFilename) {
-    }
-
     public void deleteLogFiles(String lastLogFile) throws IOException {
         deleteLogFiles(lastLogFile, (IOIndex) getIoProvider(), new AtomicLong(), new AtomicLong());
     }
@@ -740,6 +729,16 @@ public abstract class BaseManifestManagerImpl implements BaseManifestManager {
     }
 
     protected void waitCompletedOperation() {
+    }
+
+    private enum LogFileType {
+        INITIAL,
+        DEFAULT,
+        COMPLETED,
+        INITIAL_COMPLETED
+    }
+
+    private record LogClosing(AccessLock logLockToClose, String uploadFilename) {
     }
 
     protected static class DeletionScheduler extends SchedulerImpl {

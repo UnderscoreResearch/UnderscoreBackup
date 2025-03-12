@@ -1,16 +1,15 @@
 package com.underscoreresearch.backup.cli.web.service;
 
-import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-
-import java.io.IOException;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.underscoreresearch.backup.cli.web.BaseWrap;
 import com.underscoreresearch.backup.cli.web.ExclusiveImplementation;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+
+import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
 
 public class TokenDelete extends BaseWrap {
     public TokenDelete() {

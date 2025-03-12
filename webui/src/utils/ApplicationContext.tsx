@@ -80,7 +80,7 @@ const defaultConfig: ApplicationState = {
     backendState: getDefaultState()
 }
 
-let lastVersion : string = "";
+let lastVersion: string = "";
 
 function validateLastVersion(backendState: BackupState) {
     if (lastVersion === "") {

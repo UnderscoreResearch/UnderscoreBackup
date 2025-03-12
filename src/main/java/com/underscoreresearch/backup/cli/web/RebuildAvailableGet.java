@@ -1,9 +1,8 @@
 package com.underscoreresearch.backup.cli.web;
 
+import com.underscoreresearch.backup.io.IOIndex;
 import org.takes.Request;
 import org.takes.Response;
-
-import com.underscoreresearch.backup.io.IOIndex;
 
 public class RebuildAvailableGet extends BaseWrap {
     public RebuildAvailableGet() {

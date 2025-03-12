@@ -1,15 +1,8 @@
 package com.underscoreresearch.backup.utils;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedDeque;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.underscoreresearch.backup.cli.ui.UIHandler;
 import lombok.Getter;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.Core;
@@ -23,8 +16,13 @@ import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.underscoreresearch.backup.cli.ui.UIHandler;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Plugin(name = "ActivityAppender",
         category = Core.CATEGORY_NAME,
@@ -98,7 +96,7 @@ public class ActivityAppender extends AbstractAppender implements StatusLogger {
         List<StatusLine> ret = new ArrayList<>();
         ret.addAll(errorEvents);
         ret.addAll(events);
-        ret.sort((a, b) -> ((LogStatusLine)b).getExpire().compareTo(((LogStatusLine)a).getExpire()));
+        ret.sort((a, b) -> ((LogStatusLine) b).getExpire().compareTo(((LogStatusLine) a).getExpire()));
         return ret;
     }
 

@@ -1,14 +1,12 @@
 package com.underscoreresearch.backup.block;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.reflections.Reflections;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.reflections.Reflections;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
 
 @Slf4j
 public final class BlockFormatFactory {

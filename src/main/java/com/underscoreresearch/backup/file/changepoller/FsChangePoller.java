@@ -1,5 +1,8 @@
 package com.underscoreresearch.backup.file.changepoller;
 
+import com.google.common.collect.Lists;
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -10,10 +13,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import lombok.extern.slf4j.Slf4j;
-
-import com.google.common.collect.Lists;
 
 @Slf4j
 public class FsChangePoller implements FileChangePoller {

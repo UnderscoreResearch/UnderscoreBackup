@@ -1,15 +1,14 @@
 package com.underscoreresearch.backup.cli.helpers;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import com.google.common.cache.LoadingCache;
+import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-import com.google.common.cache.LoadingCache;
-import com.underscoreresearch.backup.manifest.model.BackupDirectory;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @Slf4j
 public class DirectoryCache {

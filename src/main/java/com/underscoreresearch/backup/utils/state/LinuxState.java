@@ -1,6 +1,10 @@
 package com.underscoreresearch.backup.utils.state;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -9,12 +13,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
-import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
-import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SERVICE_MODE;
 
 @Slf4j
 public class LinuxState extends MachineState {

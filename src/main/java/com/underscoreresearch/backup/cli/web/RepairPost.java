@@ -1,17 +1,5 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
-import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.REPAIRING_REPOSITORY_OPERATION;
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
@@ -20,6 +8,16 @@ import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.LogConsumer;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
+
+import static com.underscoreresearch.backup.configuration.EncryptionModule.ROOT_KEY;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.REPAIRING_REPOSITORY_OPERATION;
 
 @Slf4j
 public class RepairPost extends BaseWrap {

@@ -1,15 +1,14 @@
 package com.underscoreresearch.backup.encryption;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
-
+import com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.underscoreresearch.backup.encryption.encryptors.NoneEncryptor;
+import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 class NoneEncryptorTest {
     private NoneEncryptor encryptor;

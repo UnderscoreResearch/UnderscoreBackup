@@ -1,15 +1,39 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static com.underscoreresearch.backup.cli.web.BaseWrap.jsonResponse;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.encryption.IdentityKeys.KYBER_KEY;
-import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
-import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.inject.name.Named;
+import com.underscoreresearch.backup.cli.commands.VersionCommand;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.EncryptorFactory;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.manifest.ServiceManager;
+import com.underscoreresearch.backup.model.BackupShare;
+import com.underscoreresearch.backup.service.api.BackupApi;
+import com.underscoreresearch.backup.service.api.invoker.ApiClient;
+import com.underscoreresearch.backup.service.api.invoker.ApiException;
+import com.underscoreresearch.backup.service.api.model.DeleteTokenRequest;
+import com.underscoreresearch.backup.service.api.model.GenerateTokenRequest;
+import com.underscoreresearch.backup.service.api.model.GetSubscriptionResponse;
+import com.underscoreresearch.backup.service.api.model.ListSharingKeysRequest;
+import com.underscoreresearch.backup.service.api.model.MessageResponse;
+import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
+import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
+import com.underscoreresearch.backup.service.api.model.ScopedTokenResponse;
+import com.underscoreresearch.backup.service.api.model.SharePrivateKeys;
+import com.underscoreresearch.backup.service.api.model.ShareRequest;
+import com.underscoreresearch.backup.service.api.model.ShareResponse;
+import com.underscoreresearch.backup.utils.RetryUtils;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Response;
+import org.takes.rs.RsText;
+import org.takes.rs.RsWithStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -35,43 +59,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Response;
-import org.takes.rs.RsText;
-import org.takes.rs.RsWithStatus;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.inject.name.Named;
-import com.underscoreresearch.backup.cli.commands.VersionCommand;
-import com.underscoreresearch.backup.cli.web.ConfigurationPost;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.encryption.EncryptorFactory;
-import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.encryption.IdentityKeys;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.manifest.ServiceManager;
-import com.underscoreresearch.backup.model.BackupShare;
-import com.underscoreresearch.backup.service.api.BackupApi;
-import com.underscoreresearch.backup.service.api.invoker.ApiClient;
-import com.underscoreresearch.backup.service.api.invoker.ApiException;
-import com.underscoreresearch.backup.service.api.model.DeleteTokenRequest;
-import com.underscoreresearch.backup.service.api.model.GenerateTokenRequest;
-import com.underscoreresearch.backup.service.api.model.GetSubscriptionResponse;
-import com.underscoreresearch.backup.service.api.model.ListSharingKeysRequest;
-import com.underscoreresearch.backup.service.api.model.MessageResponse;
-import com.underscoreresearch.backup.service.api.model.ReleaseFileItem;
-import com.underscoreresearch.backup.service.api.model.ReleaseResponse;
-import com.underscoreresearch.backup.service.api.model.ScopedTokenResponse;
-import com.underscoreresearch.backup.service.api.model.SharePrivateKeys;
-import com.underscoreresearch.backup.service.api.model.ShareRequest;
-import com.underscoreresearch.backup.service.api.model.ShareResponse;
-import com.underscoreresearch.backup.utils.RetryUtils;
+import static com.underscoreresearch.backup.cli.web.BaseWrap.jsonResponse;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.KYBER_KEY;
+import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
+import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class ServiceManagerImpl implements ServiceManager {
@@ -121,14 +118,25 @@ public class ServiceManagerImpl implements ServiceManager {
 
     static <T> T callApi(BackupApi client, String region, ApiFunction<T> callable) throws ApiException {
         try {
-            return RetryUtils.retry(RetryUtils.DEFAULT_RETRIES, RetryUtils.DEFAULT_BASE, () -> callable.call(client), (exc) -> {
-                if (exc instanceof ApiException apiException) {
-                    int code = apiException.getCode();
-                    if (code >= 400 && code < 500) {
-                        return code == 404 && callable.shouldRetryMissing(region);
+            return RetryUtils.retry(RetryUtils.DEFAULT_RETRIES, RetryUtils.DEFAULT_BASE, () -> callable.call(client), new RetryUtils.ShouldRetry() {
+                @Override
+                public boolean shouldRetry(Exception exc) {
+                    if (exc instanceof ApiException apiException) {
+                        int code = apiException.getCode();
+                        if (code >= 400 && code < 500) {
+                            return code == 404 && callable.shouldRetryMissing(region, apiException);
+                        }
                     }
+                    return callable.shouldRetry();
                 }
-                return callable.shouldRetry();
+
+                @Override
+                public RetryUtils.LogOrWait logAndWait(Exception exc) {
+                    if (exc instanceof ApiException apiException) {
+                        return callable.logAndWait(region, apiException);
+                    }
+                    return RetryUtils.LogOrWait.LOG_AND_WAIT;
+                }
             }, callable.waitForInternet());
         } catch (ApiException exc) {
             throw exc;

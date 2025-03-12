@@ -1,18 +1,18 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-
-import java.nio.charset.StandardCharsets;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOProviderUtil;
 import com.underscoreresearch.backup.model.BackupConfiguration;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.nio.charset.StandardCharsets;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
 
 @Slf4j
 public class RemoteConfigurationGet extends BaseWrap {
@@ -29,7 +29,7 @@ public class RemoteConfigurationGet extends BaseWrap {
                 IOProvider provider = IOProviderFactory.getProvider(configuration.getDestinations()
                         .get(configuration.getManifest().getDestination()));
                 try {
-                    return encryptResponse(req, new String(provider.download("/configuration.json"), StandardCharsets.UTF_8));
+                    return encryptResponse(req, new String(IOProviderUtil.download(provider, CONFIGURATION_FILENAME), StandardCharsets.UTF_8));
                 } catch (Exception exc) {
                     return messageJson(400, "Couldn't fetch remote configuration");
                 }

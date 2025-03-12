@@ -1,10 +1,13 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
-import static com.underscoreresearch.backup.io.implementation.FileIOProvider.FILE_TYPE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.io.ConnectionLimiter;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOPlugin;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,15 +17,11 @@ import java.net.URI;
 import java.nio.file.Paths;
 import java.util.List;
 
-import com.underscoreresearch.backup.io.ConnectionLimiter;
-import lombok.extern.slf4j.Slf4j;
-
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.io.IOIndex;
-import com.underscoreresearch.backup.io.IOPlugin;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.model.BackupDestination;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
+import static com.underscoreresearch.backup.io.implementation.FileIOProvider.FILE_TYPE;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @IOPlugin(FILE_TYPE)
 @Slf4j
@@ -51,7 +50,7 @@ public class FileIOProvider implements IOIndex {
         if (file.isDirectory()) {
             try {
                 return Lists.newArrayList(limiter.call(() -> file.list()));
-            } catch (IOException|RuntimeException e) {
+            } catch (IOException | RuntimeException e) {
                 throw e;
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -73,7 +72,7 @@ public class FileIOProvider implements IOIndex {
                 }
                 return null;
             });
-        } catch (IOException|RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -95,11 +94,16 @@ public class FileIOProvider implements IOIndex {
                     return data;
                 }
             });
-        } catch (IOException|RuntimeException e) {
+        } catch (IOException | RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public String getCacheKey() {
+        return root;
     }
 
     @Override

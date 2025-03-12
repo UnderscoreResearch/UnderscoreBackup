@@ -19,8 +19,7 @@
  */
 package io.methvin.watchservice;
 
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
-import static java.util.Objects.requireNonNull;
+import io.methvin.watchservice.AbstractWatchService.Event;
 
 import java.nio.file.Path;
 import java.nio.file.WatchEvent;
@@ -35,7 +34,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.methvin.watchservice.AbstractWatchService.Event;
+import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Implementation of {@link WatchKey} for an {@link AbstractWatchService}.

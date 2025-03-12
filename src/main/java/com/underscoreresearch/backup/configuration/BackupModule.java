@@ -1,30 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_SOURCE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.INSTALLATION_IDENTITY;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
-import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.Paths;
-import java.nio.file.attribute.AclFileAttributeView;
-import java.nio.file.attribute.PosixFileAttributeView;
-import java.util.concurrent.atomic.AtomicReference;
-
-import com.underscoreresearch.backup.io.IOUtils;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.lang3.SystemUtils;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
@@ -39,8 +14,8 @@ import com.underscoreresearch.backup.block.assignments.LargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.RawLargeFileBlockAssignment;
 import com.underscoreresearch.backup.block.assignments.ZipSmallBlockAssignment;
 import com.underscoreresearch.backup.block.implementation.FileBlockUploaderImpl;
-import com.underscoreresearch.backup.cli.helpers.DestinationBlockProcessor;
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
+import com.underscoreresearch.backup.cli.helpers.DestinationBlockProcessor;
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.file.ContinuousBackup;
@@ -63,6 +38,7 @@ import com.underscoreresearch.backup.file.implementation.PermissionFileSystemAcc
 import com.underscoreresearch.backup.file.implementation.PosixPermissionManager;
 import com.underscoreresearch.backup.file.implementation.ScannerSchedulerImpl;
 import com.underscoreresearch.backup.file.implementation.WindowsFileSystemAccess;
+import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.io.implementation.UploadSchedulerImpl;
@@ -75,6 +51,28 @@ import com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.state.MachineState;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.lang3.SystemUtils;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Paths;
+import java.nio.file.attribute.AclFileAttributeView;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.underscoreresearch.backup.configuration.CommandLineModule.ADDITIONAL_SOURCE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.INSTALLATION_IDENTITY;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.NO_DELETE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
+import static com.underscoreresearch.backup.configuration.RestoreModule.DOWNLOAD_THREADS;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
 
 @Slf4j
 public class BackupModule extends AbstractModule {

@@ -1,16 +1,15 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import lombok.extern.slf4j.Slf4j;
+import org.hamcrest.Matchers;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.hamcrest.Matchers;
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 @Slf4j
 class BackupStatsLoggerTest {

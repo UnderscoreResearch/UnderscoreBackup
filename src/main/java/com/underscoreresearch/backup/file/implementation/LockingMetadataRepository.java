@@ -1,42 +1,16 @@
 package com.underscoreresearch.backup.file.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.Closeable;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Stream;
-
-import com.google.common.base.Stopwatch;
-import com.underscoreresearch.backup.file.LogFileRepository;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.base.Stopwatch;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
+import com.underscoreresearch.backup.file.LogFileRepository;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
@@ -54,6 +28,31 @@ import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 import com.underscoreresearch.backup.utils.AccessLock;
 import com.underscoreresearch.backup.utils.SingleTaskScheduler;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Stream;
+
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class LockingMetadataRepository implements MetadataRepository {
@@ -76,13 +75,13 @@ public class LockingMetadataRepository implements MetadataRepository {
     private final int defaultVersion;
     private final ReentrantLock updateLock = new ReentrantLock();
     private final ReentrantLock openLock = new ReentrantLock();
+    private final AtomicInteger mutatingChanges = new AtomicInteger(0);
     protected RepositoryOpenMode openMode;
     protected ReentrantLock explicitLock = new ReentrantLock();
     private boolean open;
     private MetadataRepositoryStorage storage;
     private RepositoryInfo repositoryInfo;
     private AccessLock fileLock;
-    private final AtomicInteger mutatingChanges = new AtomicInteger(0);
     private SingleTaskScheduler taskScheduler;
     private LogFileRepository logFileRepository;
 
@@ -683,7 +682,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     public LogFileRepository getLogFileRepository() throws IOException {
         // There is a weird case where you have an exclusive lock but want to write log files where you could
         // get a deadlock if you get here before the repository is open.
-        while(true) {
+        while (true) {
             if (logFileRepository != null)
                 return logFileRepository;
 
@@ -900,6 +899,19 @@ public class LockingMetadataRepository implements MetadataRepository {
     }
 
     @Override
+    public String getConfigurationHash() throws IOException {
+        readRepositoryInfo(RepositoryOpenMode.READ_ONLY);
+        return repositoryInfo.configurationHash;
+    }
+
+    @Override
+    public void setConfigurationHash(String hash) throws IOException {
+        readRepositoryInfo(RepositoryOpenMode.READ_ONLY);
+        repositoryInfo.configurationHash = hash;
+        saveRepositoryInfo();
+    }
+
+    @Override
     public boolean isErrorsDetected() {
         if (repositoryInfo == null) {
             try {
@@ -971,6 +983,7 @@ public class LockingMetadataRepository implements MetadataRepository {
     private static class RepositoryInfo {
         private int version;
         private int revision;
+        private String configurationHash;
         private boolean alternateBlockTable;
         private boolean errorsDetected;
         @JsonIgnore

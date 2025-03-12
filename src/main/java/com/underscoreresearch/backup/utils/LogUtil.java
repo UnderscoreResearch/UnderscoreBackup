@@ -1,10 +1,11 @@
 package com.underscoreresearch.backup.utils;
 
-import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.FULL_PATH;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
-import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.ExternalBackupFile;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
 
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -23,19 +24,17 @@ import java.util.TimeZone;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.ExternalBackupFile;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.DEBUG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FORCE;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.FULL_PATH;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.HUMAN_READABLE;
+import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
 @Slf4j
 public final class LogUtil {
     private static final TimeZone LOCAL_TIMEZONE;
     private static final DateTimeFormatter FILE_TIME_FORMATTER;
+    private static Boolean logContentErrorsAsErrors;
 
     static {
         Calendar now = Calendar.getInstance();
@@ -222,8 +221,6 @@ public final class LogUtil {
         }
         return null;
     }
-
-    private static Boolean logContentErrorsAsErrors;
 
     public static void contentVerificationLogMessage(String message) {
         if (logContentErrorsAsErrors == null) {

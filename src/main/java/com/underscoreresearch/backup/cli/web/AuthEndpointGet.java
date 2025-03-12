@@ -1,20 +1,9 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.URI;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.TemporalAmount;
-
+import com.fasterxml.jackson.databind.ObjectWriter;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.facets.fork.FkRegex;
@@ -26,7 +15,16 @@ import org.takes.rq.RqRequestLine;
 import org.takes.rs.RsRedirect;
 import org.takes.tk.TkWrap;
 
-import com.fasterxml.jackson.databind.ObjectWriter;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.TemporalAmount;
+
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.encryptResponse;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class AuthEndpointGet extends BaseWrap {

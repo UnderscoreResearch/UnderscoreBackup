@@ -1,18 +1,5 @@
 package com.underscoreresearch.backup.cli.helpers;
 
-import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
-import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
-
-import java.io.Closeable;
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.common.base.Strings;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
@@ -25,6 +12,18 @@ import com.underscoreresearch.backup.manifest.BackupContentsAccess;
 import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.utils.StateLogger;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.block.implementation.FileDownloaderImpl.isNullFile;
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.file.PathNormalizer.normalizePath;
+import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
 @Slf4j
 public class RestoreExecutor {

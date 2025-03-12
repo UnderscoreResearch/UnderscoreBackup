@@ -1,16 +1,14 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
-
+import com.underscoreresearch.backup.cli.commands.GenerateKeyCommand;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.cli.CommandLine;
 import org.takes.Request;
 import org.takes.Response;
 
-import com.underscoreresearch.backup.cli.commands.GenerateKeyCommand;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
 
 @Slf4j
 public class GenerateKeyPut extends BaseWrap {

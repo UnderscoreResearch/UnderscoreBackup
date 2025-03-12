@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -25,6 +24,19 @@ public class LogFileRepositoryImpl implements LogFileRepository {
         seekToEnd();
     }
 
+    public static List<String> trimLogFiles(List<String> files) {
+        boolean completed = false;
+        for (int i = files.size() - 1; i > 0; i--) {
+            String fileName = files.get(i);
+            if (fileName.endsWith("-c.gz")) {
+                completed = true;
+            } else if (fileName.endsWith("-ic.gz") || (completed && fileName.endsWith("-i.gz"))) {
+                return files.subList(i, files.size());
+            }
+        }
+        return files;
+    }
+
     public void close() throws IOException {
         this.accessLock.close();
     }
@@ -32,7 +44,7 @@ public class LogFileRepositoryImpl implements LogFileRepository {
     @Override
     public synchronized void addFile(String file) throws IOException {
         byte[] bytes = file.getBytes(StandardCharsets.UTF_8);
-        long ret = accessLock.getLockedChannel().write(new ByteBuffer[] { ByteBuffer.wrap(bytes), ByteBuffer.wrap(NEWLINE) });
+        long ret = accessLock.getLockedChannel().write(new ByteBuffer[]{ByteBuffer.wrap(bytes), ByteBuffer.wrap(NEWLINE)});
         if (ret != bytes.length + 1) {
             throw new IOException("Failed to write file to log");
         }
@@ -79,18 +91,5 @@ public class LogFileRepositoryImpl implements LogFileRepository {
 
     private void seekToEnd() throws IOException {
         accessLock.getLockedChannel().position(accessLock.getLockedChannel().size());
-    }
-
-    public static List<String> trimLogFiles(List<String> files) {
-        boolean completed = false;
-        for (int i = files.size() - 1; i > 0; i--) {
-            String fileName = files.get(i);
-            if (fileName.endsWith("-c.gz")) {
-                completed = true;
-            } else if (fileName.endsWith("-ic.gz") || (completed && fileName.endsWith("-i.gz"))) {
-                return files.subList(i, files.size());
-            }
-        }
-        return files;
     }
 }

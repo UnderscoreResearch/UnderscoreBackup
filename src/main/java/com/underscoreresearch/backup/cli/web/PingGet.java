@@ -1,14 +1,13 @@
 package com.underscoreresearch.backup.cli.web;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.rq.RqHeaders;
 import org.takes.rs.RsWithHeaders;
+
+import java.io.IOException;
+import java.util.Iterator;
 
 @Slf4j
 public class PingGet extends BaseWrap {

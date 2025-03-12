@@ -19,7 +19,7 @@
  */
 package io.methvin.watchservice;
 
-import static java.util.Objects.requireNonNull;
+import lombok.EqualsAndHashCode;
 
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
@@ -31,7 +31,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import lombok.EqualsAndHashCode;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Abstract implementation of {@link WatchService}. Provides the means for registering and managing

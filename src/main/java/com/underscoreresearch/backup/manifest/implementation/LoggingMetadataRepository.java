@@ -1,38 +1,5 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_WRITER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DIRECTORY_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_PART_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PENDING_SET_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.PUSH_ACTIVE_PATH_READER;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableSet;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import com.underscoreresearch.backup.file.LogFileRepository;
-import lombok.AccessLevel;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
@@ -40,6 +7,7 @@ import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
 import com.underscoreresearch.backup.file.CloseableSortedMap;
 import com.underscoreresearch.backup.file.CloseableStream;
+import com.underscoreresearch.backup.file.LogFileRepository;
 import com.underscoreresearch.backup.file.MapSerializer;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.MetadataRepositoryStorage;
@@ -65,6 +33,37 @@ import com.underscoreresearch.backup.model.BackupShare;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
 import com.underscoreresearch.backup.model.ExternalBackupFile;
 import com.underscoreresearch.backup.utils.SingleTaskScheduler;
+import lombok.AccessLevel;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableSet;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_BLOCK_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DIRECTORY_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_PART_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_FILE_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_PENDING_SET_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.PUSH_ACTIVE_PATH_READER;
 
 @Slf4j
 public class LoggingMetadataRepository implements MetadataRepository, LogConsumer {
@@ -360,6 +359,16 @@ public class LoggingMetadataRepository implements MetadataRepository, LogConsume
     @Override
     public void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
         repository.installStorageRevision(newStorage);
+    }
+
+    @Override
+    public String getConfigurationHash() throws IOException {
+        return repository.getConfigurationHash();
+    }
+
+    @Override
+    public void setConfigurationHash(String hash) throws IOException {
+        repository.setConfigurationHash(hash);
     }
 
     @Override

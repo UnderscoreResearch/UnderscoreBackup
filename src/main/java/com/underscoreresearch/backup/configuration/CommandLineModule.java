@@ -1,40 +1,5 @@
 package com.underscoreresearch.backup.configuration;
 
-import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAULT_KEY_FILES;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
-import static java.lang.System.getenv;
-import static java.lang.System.setErr;
-import static java.util.prefs.Preferences.systemRoot;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.time.Instant;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.prefs.Preferences;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang.SystemUtils;
-
 import com.google.common.base.Strings;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -58,6 +23,39 @@ import com.underscoreresearch.backup.utils.state.LinuxState;
 import com.underscoreresearch.backup.utils.state.MachineState;
 import com.underscoreresearch.backup.utils.state.OsxState;
 import com.underscoreresearch.backup.utils.state.WindowsState;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.lang.SystemUtils;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.prefs.Preferences;
+
+import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAULT_KEY_FILES;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
+import static java.lang.System.getenv;
+import static java.lang.System.setErr;
+import static java.util.prefs.Preferences.systemRoot;
 
 @Slf4j
 public class CommandLineModule extends AbstractModule {
@@ -101,6 +99,7 @@ public class CommandLineModule extends AbstractModule {
     private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
     private static final String DEFAULT_LOCAL_PATH = "/var/cache/underscorebackup";
     private static final String DEFAULT_LOG_PATH = "/var/log/underscorebackup.log";
+    private static boolean notifyAdministrator;
     private final String[] argv;
     private final String source;
     private String sourceName;
@@ -136,37 +135,28 @@ public class CommandLineModule extends AbstractModule {
         throw new ParseException("Failed to derive date from parameter: \"" + commandLine.getOptionValue(TIMESTAMP) + "\"");
     }
 
-    private static boolean isRunningAsAdministrator()
-    {
+    private static boolean isRunningAsAdministrator() {
         Preferences preferences = systemRoot();
 
-        synchronized (System.err)
-        {
-            setErr(new PrintStream(new OutputStream()
-            {
+        synchronized (System.err) {
+            setErr(new PrintStream(new OutputStream() {
                 @Override
-                public void write(int b)
-                {
+                public void write(int b) {
                 }
             }));
 
-            try
-            {
+            try {
                 preferences.put("foo", "bar");
                 preferences.remove("foo");
                 preferences.flush();
                 return true;
-            } catch (Exception exception)
-            {
+            } catch (Exception exception) {
                 return false;
-            } finally
-            {
+            } finally {
                 setErr(System.err);
             }
         }
     }
-
-    private static boolean notifyAdministrator;
 
     public static String getDefaultUserManifestLocation() {
         File userDir = new File(System.getProperty("user.home"));

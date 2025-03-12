@@ -1,11 +1,10 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import java.io.IOException;
-import java.util.Properties;
-
+import com.underscoreresearch.backup.cli.CommandPlugin;
 import lombok.extern.slf4j.Slf4j;
 
-import com.underscoreresearch.backup.cli.CommandPlugin;
+import java.io.IOException;
+import java.util.Properties;
 
 @Slf4j
 @CommandPlugin(value = "version", description = "Display version of application",

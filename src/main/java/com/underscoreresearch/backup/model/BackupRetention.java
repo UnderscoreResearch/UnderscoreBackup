@@ -1,15 +1,14 @@
 package com.underscoreresearch.backup.model;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.TreeSet;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.TreeSet;
 
 @Data
 @Builder

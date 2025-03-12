@@ -1,15 +1,13 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
-
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupConfiguration;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.Request;
 import org.takes.Response;
 
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupConfiguration;
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
 @Slf4j
 public class BackupPauseGet extends BaseWrap {

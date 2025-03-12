@@ -1,6 +1,10 @@
 package com.underscoreresearch.backup.errorcorrection.implementation;
 
-import static com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector.NONE;
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorPlugin;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import lombok.RequiredArgsConstructor;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -8,12 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import lombok.RequiredArgsConstructor;
-
-import com.google.common.collect.Lists;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
-import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorPlugin;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
+import static com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCorrector.NONE;
 
 @RequiredArgsConstructor
 @ErrorCorrectorPlugin(NONE)

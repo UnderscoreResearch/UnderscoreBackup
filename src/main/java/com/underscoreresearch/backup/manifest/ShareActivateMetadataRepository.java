@@ -1,16 +1,15 @@
 package com.underscoreresearch.backup.manifest;
 
-import java.io.IOException;
-import java.util.Map;
-
-import lombok.RequiredArgsConstructor;
-
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.NullRepository;
 import com.underscoreresearch.backup.manifest.implementation.LoggingMetadataRepository;
 import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockAdditional;
 import com.underscoreresearch.backup.model.BackupShare;
+import lombok.RequiredArgsConstructor;
+
+import java.io.IOException;
+import java.util.Map;
 
 public class ShareActivateMetadataRepository extends LoggingMetadataRepository {
     public ShareActivateMetadataRepository(MetadataRepository repository,

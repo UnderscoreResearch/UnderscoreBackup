@@ -1,19 +1,17 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.helpers.BlockValidator.VALIDATE_BLOCKS_TASK;
-import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
-
-import java.io.IOException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.underscoreresearch.backup.cli.helpers.BlockValidator;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+
+import static com.underscoreresearch.backup.cli.helpers.BlockValidator.VALIDATE_BLOCKS_TASK;
+import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
 
 @Slf4j
 public class ValidateBlocksPost extends BaseWrap {

@@ -1,5 +1,17 @@
 package com.underscoreresearch.backup.file.implementation;
 
+import com.underscoreresearch.backup.file.ContinuousBackup;
+import com.underscoreresearch.backup.file.FileChangeWatcher;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupSet;
+import com.underscoreresearch.backup.model.BackupSetRoot;
+import com.underscoreresearch.backup.model.BackupUpdatedFile;
+import com.underscoreresearch.backup.utils.state.MachineState;
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -21,19 +33,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.file.ContinuousBackup;
-import com.underscoreresearch.backup.file.FileChangeWatcher;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.file.changepoller.FileChangePoller;
-import com.underscoreresearch.backup.model.BackupConfiguration;
-import com.underscoreresearch.backup.model.BackupSet;
-import com.underscoreresearch.backup.model.BackupSetRoot;
-import com.underscoreresearch.backup.model.BackupUpdatedFile;
-import com.underscoreresearch.backup.utils.state.MachineState;
 
 @Slf4j
 public class FileChangeWatcherImpl implements FileChangeWatcher {

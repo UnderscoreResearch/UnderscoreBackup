@@ -1,9 +1,9 @@
 package com.underscoreresearch.backup.utils;
 
+import com.underscoreresearch.backup.cli.ui.UIHandler;
+
 import java.io.Closeable;
 import java.util.List;
-
-import com.underscoreresearch.backup.cli.ui.UIHandler;
 
 public class PausedStatusLogger implements ManualStatusLogger {
     private final List<StatusLine> lines;

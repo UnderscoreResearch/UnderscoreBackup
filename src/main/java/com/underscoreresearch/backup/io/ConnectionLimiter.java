@@ -13,8 +13,8 @@ import static com.underscoreresearch.backup.utils.LogUtil.debug;
 public class ConnectionLimiter {
     private final int maximumConnections;
     private final Object lock = new Object();
-    private int currentConnections = 0;
     private final Stopwatch stopwatch = Stopwatch.createStarted();
+    private int currentConnections = 0;
 
     public ConnectionLimiter(int maximumConnections) {
         this.maximumConnections = maximumConnections;

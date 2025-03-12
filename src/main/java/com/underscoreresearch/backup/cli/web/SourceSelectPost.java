@@ -1,40 +1,5 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.commands.DownloadConfigCommand.storeKeyData;
-import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
-import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.validateDestinations;
-import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
-import static com.underscoreresearch.backup.cli.web.service.SourcesPut.destinationDecode;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.expandSourceManifestDestination;
-import static com.underscoreresearch.backup.configuration.CommandLineModule.getSourceConfigLocation;
-import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
-import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.util.Map;
-import java.util.zip.GZIPInputStream;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.ParseException;
-import org.takes.HttpException;
-import org.takes.Request;
-import org.takes.Response;
-import org.takes.misc.Href;
-import org.takes.rq.RqHref;
-
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
 import com.google.inject.ProvisionException;
@@ -57,6 +22,39 @@ import com.underscoreresearch.backup.model.BackupManifest;
 import com.underscoreresearch.backup.service.api.model.SharePrivateKeys;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.ParseException;
+import org.takes.HttpException;
+import org.takes.Request;
+import org.takes.Response;
+import org.takes.misc.Href;
+import org.takes.rq.RqHref;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
+
+import static com.underscoreresearch.backup.cli.commands.DownloadConfigCommand.storeKeyData;
+import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
+import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.validateDestinations;
+import static com.underscoreresearch.backup.cli.web.PrivateKeyRequest.decodePrivateKeyRequest;
+import static com.underscoreresearch.backup.cli.web.service.SourcesPut.destinationDecode;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.SOURCE_CONFIG;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.expandSourceManifestDestination;
+import static com.underscoreresearch.backup.configuration.CommandLineModule.getSourceConfigLocation;
+import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
+import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
+import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
 
 @Slf4j
 public class SourceSelectPost extends BaseWrap {

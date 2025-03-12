@@ -1,14 +1,12 @@
 package com.underscoreresearch.backup.file;
 
-import java.io.File;
-import java.util.regex.Pattern;
-
+import com.google.common.base.Strings;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-
 import org.apache.commons.lang3.SystemUtils;
 
-import com.google.common.base.Strings;
+import java.io.File;
+import java.util.regex.Pattern;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class PathNormalizer {

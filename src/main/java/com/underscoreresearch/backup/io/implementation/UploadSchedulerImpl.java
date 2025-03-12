@@ -1,15 +1,8 @@
 package com.underscoreresearch.backup.io.implementation;
 
-import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
-
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-
-import lombok.extern.slf4j.Slf4j;
-
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOProviderUtil;
 import com.underscoreresearch.backup.io.RateLimitController;
 import com.underscoreresearch.backup.io.UploadScheduler;
 import com.underscoreresearch.backup.model.BackupDestination;
@@ -19,6 +12,13 @@ import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
+import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
 
 @Slf4j
 public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLogger, UploadScheduler {
@@ -69,7 +69,7 @@ public class UploadSchedulerImpl extends SchedulerImpl implements ManualStatusLo
             try {
                 IOProvider provider = IOProviderFactory.getProvider(destination);
                 rateLimitController.acquireUploadPermits(destination, data.length);
-                completionPromise.completed(provider.upload(suggestedPath, data));
+                completionPromise.completed(IOProviderUtil.upload(provider, suggestedPath, data));
                 totalSize.addAndGet(data.length);
                 totalCount.incrementAndGet();
             } catch (ProcessingStoppedException exc) {

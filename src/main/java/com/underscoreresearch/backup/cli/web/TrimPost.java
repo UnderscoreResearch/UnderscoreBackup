@@ -1,20 +1,18 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer.TRIMMING_REPOSITORY_TASK;
-import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
-
-import java.io.IOException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.takes.Request;
-import org.takes.Response;
-
 import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.MetadataRepository;
 import com.underscoreresearch.backup.file.implementation.BackupStatsLogger;
 import com.underscoreresearch.backup.manifest.ManifestManager;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+
+import static com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer.TRIMMING_REPOSITORY_TASK;
+import static com.underscoreresearch.backup.cli.web.RepairPost.executeAsyncOperation;
 
 @Slf4j
 public class TrimPost extends BaseWrap {

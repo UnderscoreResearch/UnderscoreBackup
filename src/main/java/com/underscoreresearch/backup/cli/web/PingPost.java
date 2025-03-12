@@ -1,16 +1,14 @@
 package com.underscoreresearch.backup.cli.web;
 
-import static com.underscoreresearch.backup.cli.web.PingGet.getCorsHeaders;
-
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
 import lombok.extern.slf4j.Slf4j;
-
 import org.takes.Request;
 import org.takes.Response;
 import org.takes.rs.RsWithHeaders;
 
-import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.commands.InteractiveCommand;
-import com.underscoreresearch.backup.configuration.InstanceFactory;
+import static com.underscoreresearch.backup.cli.web.PingGet.getCorsHeaders;
 
 @Slf4j
 public class PingPost extends BaseWrap {

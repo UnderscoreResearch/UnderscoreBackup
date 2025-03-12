@@ -1,33 +1,5 @@
 package com.underscoreresearch.backup.cli.web.service;
 
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
-import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
-import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
-import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
-import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
-import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
-import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
-import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
-import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
-import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
-import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.util.Objects;
-
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.cli.CommandLine;
-import org.takes.Request;
-import org.takes.Response;
-
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.io.BaseEncoding;
 import com.underscoreresearch.backup.cli.commands.ChangePasswordCommand;
@@ -42,12 +14,39 @@ import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
 import com.underscoreresearch.backup.io.IOProvider;
 import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.IOProviderUtil;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.cli.CommandLine;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.Objects;
+
+import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.cli.commands.GenerateKeyCommand.getDefaultEncryptionFileName;
+import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.downloadRemoteConfiguration;
+import static com.underscoreresearch.backup.cli.commands.RebuildRepositoryCommand.unpackConfigData;
+import static com.underscoreresearch.backup.cli.web.ConfigurationPost.updateConfiguration;
+import static com.underscoreresearch.backup.cli.web.PsAuthedContent.decodeRequestBody;
+import static com.underscoreresearch.backup.cli.web.service.CreateSecretPut.encryptionIdentity;
+import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
+import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.PUBLICKEY_FILENAME;
+import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.sendApiFailureOn;
+import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_READER;
+import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
 @Slf4j
 public class SourcesPut extends BaseWrap {
@@ -70,7 +69,7 @@ public class SourcesPut extends BaseWrap {
         try {
             serviceManager.setSourceId(sourceDefinition.getSourceId());
             IOProvider provider = IOProviderFactory.getProvider(decodeDestination(sourceDefinition, privateKey));
-            byte[] keyData = provider.download(PUBLICKEY_FILENAME);
+            byte[] keyData = IOProviderUtil.download(provider, PUBLICKEY_FILENAME);
             try {
                 return EncryptionIdentity.restoreFromString(new String(keyData, StandardCharsets.UTF_8));
             } catch (GeneralSecurityException e) {
@@ -201,7 +200,7 @@ public class SourcesPut extends BaseWrap {
                     }
 
                     @Override
-                    public boolean shouldRetryMissing(String region) {
+                    public boolean shouldRetryMissing(String region, ApiException apiException) {
                         return true;
                     }
                 });

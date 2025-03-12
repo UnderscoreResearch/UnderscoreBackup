@@ -1,6 +1,16 @@
 package com.underscoreresearch.backup.block.assignments;
 
-import static com.underscoreresearch.backup.block.assignments.EncryptedSmallBlockAssignment.FORMAT;
+import com.underscoreresearch.backup.block.BlockDownloader;
+import com.underscoreresearch.backup.block.BlockFormatPlugin;
+import com.underscoreresearch.backup.block.FileBlockExtractor;
+import com.underscoreresearch.backup.block.FileBlockUploader;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.Hash;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOUtils;
+import com.underscoreresearch.backup.model.BackupBlock;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -22,18 +32,7 @@ import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.block.BlockDownloader;
-import com.underscoreresearch.backup.block.BlockFormatPlugin;
-import com.underscoreresearch.backup.block.FileBlockExtractor;
-import com.underscoreresearch.backup.block.FileBlockUploader;
-import com.underscoreresearch.backup.encryption.EncryptionIdentity;
-import com.underscoreresearch.backup.encryption.Hash;
-import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.io.IOUtils;
-import com.underscoreresearch.backup.model.BackupBlock;
+import static com.underscoreresearch.backup.block.assignments.EncryptedSmallBlockAssignment.FORMAT;
 
 @Slf4j
 @BlockFormatPlugin(FORMAT)

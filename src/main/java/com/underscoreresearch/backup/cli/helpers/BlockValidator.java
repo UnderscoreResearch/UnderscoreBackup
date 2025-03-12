@@ -1,34 +1,8 @@
 package com.underscoreresearch.backup.cli.helpers;
 
-import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
-import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
-import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
-
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import com.google.common.util.concurrent.AtomicDouble;
-import lombok.extern.slf4j.Slf4j;
-
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.AtomicDouble;
 import com.underscoreresearch.backup.cli.ui.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
@@ -50,6 +24,31 @@ import com.underscoreresearch.backup.utils.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.ProcessingStoppedException;
 import com.underscoreresearch.backup.utils.StateLogger;
 import com.underscoreresearch.backup.utils.StatusLine;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
+import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
+import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @Slf4j
 public class BlockValidator implements ManualStatusLogger {
@@ -70,12 +69,6 @@ public class BlockValidator implements ManualStatusLogger {
     private Duration lastHeartbeat;
     private BackupFile currentlyProcessing;
     private BackupFile lastProcessed;
-
-    private enum ValidationMode {
-        FORCE_VALIDATE,
-        DEFAULT,
-        NO_DESTINATION_VALIDATION
-    }
 
     public BlockValidator(MetadataRepository repository, BackupConfiguration configuration,
                           ManifestManager manifestManager, DestinationBlockProcessor destinationBlockProcessor,
@@ -197,8 +190,8 @@ public class BlockValidator implements ManualStatusLogger {
             stopwatch.start();
 
             validateBlocksInternal(validateDestination ?
-                    ValidationMode.FORCE_VALIDATE :
-                    ValidationMode.DEFAULT,
+                            ValidationMode.FORCE_VALIDATE :
+                            ValidationMode.DEFAULT,
                     ignoreBefore);
 
             if (!InstanceFactory.isShutdown()) {
@@ -474,7 +467,7 @@ public class BlockValidator implements ManualStatusLogger {
                                 processedSteps.get(), totalSteps.get(),
                                 readableNumber(processedSteps.get()) + " / "
                                         + readableNumber(totalSteps.get()) + " files"
-                                        + (totalBlocks.get() > 0 ?  "" :
+                                        + (totalBlocks.get() > 0 ? "" :
                                         readableEta(processedSteps.get(), totalSteps.get(), Duration.ofMillis(elapsedMilliseconds)))));
                 if (destinationBlockProcessor.getRefreshedBlocks() > 0) {
                     ret.add(new StatusLine(getClass(), "VALIDATE_REFRESH", "Refreshed storage blocks",
@@ -491,7 +484,7 @@ public class BlockValidator implements ManualStatusLogger {
                                     + readableEta(destinationBlockProcessor.getValidatedBlocks(), totalBlocks.get() - totalBlockOffset,
                                     Duration.ofMillis(elapsedMilliseconds))));
                     ret.add(new StatusLine(getClass(), "VALIDATE_BLOCKS_THROUGHPUT", "Validating blocks throughput",
-                                    throughput, readableNumber(1000 * destinationBlockProcessor.getValidatedBlocks() /
+                            throughput, readableNumber(1000 * destinationBlockProcessor.getValidatedBlocks() /
                             elapsedMilliseconds) + " blocks/s"));
                     ret.add(new StatusLine(getClass(), "VALIDATE_MISSING_DESTINATION_BLOCKS", "Missing destination blocks",
                             destinationBlockProcessor.getMissingBlocks(), readableNumber(destinationBlockProcessor.getMissingBlocks())));
@@ -505,5 +498,11 @@ public class BlockValidator implements ManualStatusLogger {
             }
         }
         return new ArrayList<>();
+    }
+
+    private enum ValidationMode {
+        FORCE_VALIDATE,
+        DEFAULT,
+        NO_DESTINATION_VALIDATION
     }
 }

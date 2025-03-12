@@ -1,18 +1,17 @@
 package com.underscoreresearch.backup.manifest.implementation;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.io.IOException;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.FileListResponse;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ServiceManagerImplTest {
     @BeforeEach
@@ -67,7 +66,7 @@ class ServiceManagerImplTest {
             }
 
             @Override
-            public boolean shouldRetryMissing(String region) {
+            public boolean shouldRetryMissing(String region, ApiException apiException) {
                 return true;
             }
         });

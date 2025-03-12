@@ -1,15 +1,14 @@
 package com.underscoreresearch.backup.encryption.encryptors.x25519;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import java.security.GeneralSecurityException;
-
-import org.hamcrest.core.Is;
-import org.junit.jupiter.api.Test;
-
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.PublicKey;
 import com.underscoreresearch.backup.encryption.PublicKeyMethod;
+import org.hamcrest.core.Is;
+import org.junit.jupiter.api.Test;
+
+import java.security.GeneralSecurityException;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 class X25519KeyMethodTest {
     @Test

@@ -1,16 +1,15 @@
 package com.underscoreresearch.backup.model;
 
-import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
-
-import java.util.Map;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.Map;
+
+import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
 
 @Data
 @Builder(toBuilder = true)

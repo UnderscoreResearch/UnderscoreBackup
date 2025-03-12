@@ -1,17 +1,15 @@
 package com.underscoreresearch.backup.errorcorrection;
 
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import lombok.extern.slf4j.Slf4j;
+import org.reflections.Reflections;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.reflections.Reflections;
-
-import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.model.BackupBlockStorage;
 
 @Slf4j
 public final class ErrorCorrectorFactory {

@@ -1,13 +1,12 @@
 package com.underscoreresearch.backup.cli.commands;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.ParseException;
-
 import com.underscoreresearch.backup.cli.Command;
 import com.underscoreresearch.backup.cli.CommandPlugin;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.IdentityKeys;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
 
 @CommandPlugin(value = "list-keys", description = "List additional generated keys",
         needPrivateKey = true, needConfiguration = true)

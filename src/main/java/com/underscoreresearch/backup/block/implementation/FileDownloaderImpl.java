@@ -1,7 +1,21 @@
 package com.underscoreresearch.backup.block.implementation;
 
-import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import com.underscoreresearch.backup.block.BlockFormatFactory;
+import com.underscoreresearch.backup.block.FileBlockExtractor;
+import com.underscoreresearch.backup.block.FileDownloader;
+import com.underscoreresearch.backup.file.FileSystemAccess;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.file.PathNormalizer;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupFile;
+import com.underscoreresearch.backup.model.BackupFilePart;
+import com.underscoreresearch.backup.model.BackupLocation;
+import com.underscoreresearch.backup.utils.LogUtil;
+import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.StatusLine;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,23 +29,8 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import com.underscoreresearch.backup.utils.LogUtil;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
-import com.underscoreresearch.backup.block.BlockFormatFactory;
-import com.underscoreresearch.backup.block.FileBlockExtractor;
-import com.underscoreresearch.backup.block.FileDownloader;
-import com.underscoreresearch.backup.file.FileSystemAccess;
-import com.underscoreresearch.backup.file.MetadataRepository;
-import com.underscoreresearch.backup.file.PathNormalizer;
-import com.underscoreresearch.backup.model.BackupBlock;
-import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.model.BackupFilePart;
-import com.underscoreresearch.backup.model.BackupLocation;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
+import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
+import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
 
 @Slf4j
 public class FileDownloaderImpl implements FileDownloader, ManualStatusLogger {
