@@ -141,7 +141,6 @@ public class BlockValidator implements ManualStatusLogger {
                         });
                     }
                 } catch (ProcessingStoppedException exc) {
-                    log.info("Stopped processing");
                 }
             }
 

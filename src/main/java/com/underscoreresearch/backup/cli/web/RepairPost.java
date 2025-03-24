@@ -156,10 +156,7 @@ public class RepairPost extends BaseWrap {
                 return messageJson(403, "Invalid password provided");
             }
 
-            InstanceFactory.reloadConfiguration(
-                    InstanceFactory.getAdditionalSource(),
-                    InstanceFactory.getAdditionalSourceName(),
-                    () -> repairRepository(password, true));
+            repairRepository(password, true);
             return messageJson(200, "Repair started");
         }
 

@@ -101,7 +101,7 @@ public class ManifestManagerImpl extends BaseManifestManagerImpl implements Manu
     public final static String CONFIGURATION_FILENAME = "configuration.json";
     public static final String OPTIMIZING_LOG_OPERATION = "Optimizing log";
     public static final String REPAIRING_REPOSITORY_OPERATION = "Repairing repository";
-    public static final long EVENTUAL_CONSISTENCY_TIMEOUT_MS = 20 * 1000;
+    public static final long EVENTUAL_CONSISTENCY_TIMEOUT_MS = 5 * 1000;
     private static final String UPLOAD_PENDING = "Upload pending";
     private final String source;
     private final BackupStatsLogger statsLogger;

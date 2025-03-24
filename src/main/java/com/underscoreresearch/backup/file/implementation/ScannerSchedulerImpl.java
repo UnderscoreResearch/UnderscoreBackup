@@ -392,7 +392,7 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 }
             }
             if (!InstanceFactory.getInstance(BlockValidator.class).validateStorage(false, stopwatch)) {
-                log.error("Failed to validate logs. Consider optimizing logs to rewrite all logs");
+                log.error("Failed to validate logs and some destination blocks. Your backup could be corrupted. Consider doing a full block validation and optimize your logs");
             }
         }
     }
