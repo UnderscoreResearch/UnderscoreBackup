@@ -171,8 +171,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                     for (int i = 0; i < storage.getParts().size(); i++) {
                         String part = storage.getParts().get(i);
                         boolean found = provider.exists(part);
-                        if (!found) {
-                            awaitStopwatch(provider);
+                        if (!found && awaitStopwatch(provider)) {
                             found = provider.exists(part);
                         }
                         if (found) {
@@ -390,8 +389,7 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         schedule(() -> {
             try {
                 boolean found = provider.exists(file);
-                if (!found) {
-                    awaitStopwatch(provider);
+                if (!found && awaitStopwatch(provider)) {
                     found = provider.exists(file);
                 }
                 if (!found) {
@@ -415,11 +413,11 @@ public class DestinationBlockProcessor extends SchedulerImpl {
         hasSkipped.set(false);
     }
 
-    private void awaitStopwatch(IOProvider provider) {
+    private boolean awaitStopwatch(IOProvider provider) {
         if (lastUpdate != null) {
             if (provider instanceof IOIndex ioIndex) {
                 if (ioIndex.hasConsistentWrites()) {
-                    return;
+                    return false;
                 }
             }
 
@@ -440,10 +438,13 @@ public class DestinationBlockProcessor extends SchedulerImpl {
                     }
                 }
             }
+            return true;
         }
+        return false;
     }
 
     public void prepareProcessing(Stopwatch eventualConsistencyTimer, boolean noDeleteBlocks) {
+        resetProgress();
         this.lastUpdate = eventualConsistencyTimer;
         this.noDeleteBlocks = noDeleteBlocks;
     }

@@ -146,6 +146,14 @@ public class BlockValidator implements ManualStatusLogger {
 
             destinationBlockProcessor.waitForCompletion();
 
+            if (destinationBlockProcessor.getMissingBlocks() != 0) {
+                log.warn("Found {} missing blocks in destinations.",
+                        readableNumber(destinationBlockProcessor.getMissingBlocks()));
+            }
+            if (destinationBlockProcessor.getMissingFiles() != 0) {
+                log.warn("Found {} missing files in destinations.",
+                        readableNumber(destinationBlockProcessor.getMissingFiles()));
+            }
             return destinationBlockProcessor.getMissingFiles() == 0 && destinationBlockProcessor.getMissingBlocks() == 0;
         } finally {
             resetStatus();
