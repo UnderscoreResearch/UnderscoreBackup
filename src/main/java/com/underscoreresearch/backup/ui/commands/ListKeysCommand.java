@@ -1,0 +1,39 @@
+package com.underscoreresearch.backup.ui.commands;
+
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+/**
+ * Command for listing additional generated encryption keys.
+ * This command displays all additional keys that have been generated for sharing purposes.
+ */
+@CommandPlugin(value = "list-keys", description = "List additional generated keys",
+        needPrivateKey = true, needConfiguration = true)
+public class ListKeysCommand extends Command {
+    /**
+     * Executes the list-keys command to display all additional encryption keys.
+     *
+     * @param commandLine The parsed command line arguments
+     * @throws Exception If an error occurs during command execution
+     */
+    public void executeCommand(CommandLine commandLine) throws Exception {
+        if (commandLine.getArgList().size() != 1) {
+            throw new ParseException("Too many arguments for command");
+        }
+
+        EncryptionIdentity identity = InstanceFactory.getInstance(EncryptionIdentity.class);
+        EncryptionIdentity.PrivateIdentity privateIdentity = identity.getPrivateIdentity(getPassword());
+
+        int i = 1;
+        for (IdentityKeys key : identity.getAdditionalKeys()) {
+            System.out.printf("Public key %d : %s%n", i, key.getPublicKeyString());
+            if (key.hasPrivateKey()) {
+                System.out.printf("Private key %d: %s%n%n", i, key.getPrivateKeyString(privateIdentity));
+            }
+            i++;
+        }
+    }
+}

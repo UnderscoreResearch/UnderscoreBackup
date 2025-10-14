@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Stopwatch;
-import com.underscoreresearch.backup.cli.ui.UIHandler;
+import com.underscoreresearch.backup.ui.desktop.UIHandler;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.CloseableLock;
 import com.underscoreresearch.backup.file.CloseableMap;
@@ -51,9 +51,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * Implementation of MetadataRepository that provides locking and transaction support.
+ * Manages access to the repository from multiple processes and threads.
+ * Handles repository upgrades and storage revisions.
+ */
 @Slf4j
 public class LockingMetadataRepository implements MetadataRepository {
     public static final long MINIMUM_WAIT_UPDATE_MS = 2000;
@@ -85,20 +90,42 @@ public class LockingMetadataRepository implements MetadataRepository {
     private SingleTaskScheduler taskScheduler;
     private LogFileRepository logFileRepository;
 
+    /**
+     * Creates a new LockingMetadataRepository.
+     *
+     * @param dataPath The path to the repository data.
+     * @param replayOnly Whether the repository is only for replay (Some operations are ignored).
+     */
     public LockingMetadataRepository(String dataPath, boolean replayOnly) {
         this(dataPath, replayOnly, getDefaultVersion());
     }
 
+    /**
+     * Creates a new LockingMetadataRepository with a specific version.
+     *
+     * @param dataPath The path to the repository data.
+     * @param replayOnly Whether the repository is only for replay (Some operations are ignored).
+     * @param defaultVersion The default version of the repository.
+     */
     LockingMetadataRepository(String dataPath, boolean replayOnly, int defaultVersion) {
         this.dataPath = dataPath;
         this.replayOnly = replayOnly;
         this.defaultVersion = defaultVersion;
     }
 
+    /**
+     * Gets the default repository version.
+     *
+     * @return The default repository version
+     */
     public static int getDefaultVersion() {
         return MAPDB_STORAGE_LEAF_STORAGE;
     }
 
+    /**
+     * Closes all open repositories.
+     * This is called during shutdown to ensure all repositories are properly closed.
+     */
     public static void closeAllRepositories() {
         synchronized (LockingMetadataRepository.openRepositories) {
             for (Map.Entry<String, LockingMetadataRepository> entry : openRepositories.entrySet()) {
@@ -112,10 +139,22 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets the path to a file in the repository.
+     *
+     * @param file The file name
+     * @return The path to the file
+     */
     private Path getPath(String file) {
         return Paths.get(dataPath, file);
     }
 
+    /**
+     * Opens the repository with the specified mode.
+     *
+     * @param openMode The mode to open the repository in
+     * @throws IOException if an I/O error occurs
+     */
     public void open(RepositoryOpenMode openMode) throws IOException {
         try (RepositoryLock ignored = new OpenLock()) {
             if (open && openMode != this.openMode) {
@@ -164,6 +203,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Prepares to open the repository.
+     * Reads the repository info and creates the storage.
+     *
+     * @param openMode The mode to open the repository in
+     * @throws IOException if an I/O error occurs
+     */
     private void prepareOpen(RepositoryOpenMode openMode) throws IOException {
         readRepositoryInfo(openMode);
 
@@ -181,12 +227,22 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Commits changes to the repository if there are many pending changes.
+     */
     private void commitIfManyChanges() {
         if (mutatingChanges.get() > COMMIT_THRESHOLD) {
             commit();
         }
     }
 
+    /**
+     * Creates a storage implementation based on the repository version.
+     *
+     * @param version The repository version
+     * @param revision The repository revision
+     * @return The storage implementation
+     */
     private MetadataRepositoryStorage createStorage(int version, int revision) {
         return switch (version) {
             case MAPDB_STORAGE, MAPDB_STORAGE_VERSIONED, MAPDB_STORAGE_LEAF_STORAGE ->
@@ -195,10 +251,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         };
     }
 
+    /**
+     * Commits changes to the repository.
+     * This ensures that all changes are persisted to disk.
+     */
     public void commit() {
         Stopwatch stopwatch = null;
         int changes = mutatingChanges.get();
-        if (storage != null) {
+        if (changes > 0 && storage != null) {
             if (storage.needExclusiveCommitLock()) {
                 try (UpdateLock ignored = new UpdateLock(false)) {
                     try (RepositoryLock ignored2 = new OpenLock()) {
@@ -235,6 +295,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Reads the repository info from disk.
+     *
+     * @param openMode The mode to open the repository in
+     * @throws IOException if an I/O error occurs
+     */
     private void readRepositoryInfo(RepositoryOpenMode openMode) throws IOException {
         if (repositoryInfo != null && repositoryInfo.stopSaving)
             return;
@@ -251,6 +317,11 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Saves the repository info to disk.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     private void saveRepositoryInfo() throws IOException {
         if (!repositoryInfo.stopSaving) {
             File file = getPath(LockingMetadataRepository.INFO_STORE).toFile();
@@ -258,6 +329,10 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Checks if another process has requested access to the repository.
+     * If so, closes the repository and reopens it after the other process is done.
+     */
     private void checkAccessRequest() {
         try {
             if (!explicitLock.tryLock(500, TimeUnit.MILLISECONDS)) {
@@ -297,6 +372,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Closes the repository.
+     * This ensures that all changes are persisted to disk and all resources are released.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     public void close() throws IOException {
         try (UpdateLock ignored = new UpdateLock(false)) {
             try (RepositoryLock ignored2 = new OpenLock()) {
@@ -320,6 +401,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Ensures that the repository is open and in the correct mode.
+     *
+     * @param readOnly Whether the operation is read-only
+     * @throws IOException if an I/O error occurs
+     */
     private void ensureOpen(boolean readOnly) throws IOException {
         if (!open) {
             open(openMode);
@@ -329,6 +416,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Clears the repository.
+     * This removes all data from the repository.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     public void clear() throws IOException {
         if (openMode == RepositoryOpenMode.READ_ONLY) {
             throw new IOException("Tried to clear read only repository");
@@ -353,6 +446,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets the last synced log file for a share.
+     *
+     * @param share The share ID, or null for the main repository
+     * @return The last synced log file, or null if none
+     */
     @Override
     public String lastSyncedLogFile(String share) {
         if (repositoryInfo == null) {
@@ -365,6 +464,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         return repositoryInfo.getLastSyncedLogFile(share);
     }
 
+    /**
+     * Sets the last synced log file for a share.
+     *
+     * @param share The share ID, or null for the main repository
+     * @param entry The log file entry
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void setLastSyncedLogFile(String share, String entry) throws IOException {
         if (repositoryInfo == null) {
@@ -374,22 +480,45 @@ public class LockingMetadataRepository implements MetadataRepository {
         saveRepositoryInfo();
     }
 
+    /**
+     * Acquires an update lock for the repository.
+     * This lock is used for operations that update the repository.
+     *
+     * @return A closeable lock
+     */
     @Override
     public CloseableLock acquireUpdateLock() {
         return new UpdateLock(true);
     }
 
+    /**
+     * Acquires a repository lock.
+     * This lock is used for general repository operations.
+     *
+     * @return A closeable lock
+     */
     @Override
     public CloseableLock acquireLock() {
         return new RepositoryLock(true);
     }
 
+    /**
+     * Opens all data files in the repository.
+     *
+     * @param openMode The mode to open the repository in
+     * @throws IOException if an I/O error occurs
+     */
     private void openAllDataFiles(RepositoryOpenMode openMode) throws IOException {
         storage.open(openMode);
 
         logFileRepository = new LogFileRepositoryImpl(getPath("logs.log"));
     }
 
+    /**
+     * Closes all data files in the repository.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     private void closeAllDataFiles() throws IOException {
         storage.close();
 
@@ -399,6 +528,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Retrieves all files with the specified path.
+     *
+     * @param path The path to search for
+     * @return A list of external backup files matching the path, or null if none found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public List<ExternalBackupFile> file(String path) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -408,6 +544,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Retrieves all file parts with the specified hash.
+     *
+     * @param partHash The hash to search for
+     * @return A list of backup file parts matching the hash, or null if none found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public List<BackupFilePart> existingFilePart(String partHash) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -417,6 +560,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Retrieves all files in the repository.
+     *
+     * @param ascending Whether to return files in ascending order
+     * @return A closeable stream of backup files
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public CloseableStream<BackupFile> allFiles(boolean ascending) throws IOException {
         CloseableLock lock = acquireStreamLock();
@@ -424,6 +574,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         return new LockedStream<>(storage.allFiles(ascending), lock);
     }
 
+    /**
+     * Acquires a lock for streaming operations.
+     *
+     * @return A closeable lock
+     * @throws IOException if an I/O error occurs
+     */
     private CloseableLock acquireStreamLock() throws IOException {
         CloseableLock lock = acquireLock();
         try {
@@ -435,6 +591,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         return lock;
     }
 
+    /**
+     * Retrieves all blocks in the repository.
+     *
+     * @return A closeable stream of backup blocks
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public CloseableStream<BackupBlock> allBlocks() throws IOException {
         CloseableLock lock = acquireStreamLock();
@@ -442,11 +604,23 @@ public class LockingMetadataRepository implements MetadataRepository {
         return new LockedStream<>(storage.allBlocks(), lock);
     }
 
+    /**
+     * Retrieves all additional blocks in the repository.
+     *
+     * @return A closeable stream of backup additional blocks
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public CloseableStream<BackupBlockAdditional> allAdditionalBlocks() throws IOException {
         return storage.allAdditionalBlocks();
     }
 
+    /**
+     * Retrieves all file parts in the repository.
+     *
+     * @return A closeable stream of backup file parts
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public CloseableStream<BackupFilePart> allFileParts() throws IOException {
         CloseableLock lock = acquireStreamLock();
@@ -454,6 +628,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         return new LockedStream<>(storage.allFileParts(), lock);
     }
 
+    /**
+     * Retrieves all directories in the repository.
+     *
+     * @param ascending Whether to return directories in ascending order
+     * @return A closeable stream of backup directories
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public CloseableStream<BackupDirectory> allDirectories(boolean ascending) throws IOException {
         CloseableLock lock = acquireStreamLock();
@@ -461,6 +642,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         return new LockedStream<>(storage.allDirectories(ascending), lock);
     }
 
+    /**
+     * Adds a pending set to the repository.
+     *
+     * @param scheduledTime The scheduled time information
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void addPendingSets(BackupPendingSet scheduledTime) throws IOException {
         if (!replayOnly)
@@ -471,6 +658,12 @@ public class LockingMetadataRepository implements MetadataRepository {
             }
     }
 
+    /**
+     * Deletes a pending set from the repository.
+     *
+     * @param setId The ID of the set to delete
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void deletePendingSets(String setId) throws IOException {
         if (!replayOnly)
@@ -481,6 +674,12 @@ public class LockingMetadataRepository implements MetadataRepository {
             }
     }
 
+    /**
+     * Gets all pending sets from the repository.
+     *
+     * @return A set of all pending backup sets
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public Set<BackupPendingSet> getPendingSets() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -490,6 +689,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Retrieves a file by path and timestamp.
+     *
+     * @param path The path of the file
+     * @param timestamp The timestamp to match, or null for the latest version
+     * @return The backup file, or null if not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public BackupFile file(String path, Long timestamp) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -499,6 +706,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Retrieves a block by its hash.
+     *
+     * @param hash The hash of the block
+     * @return The backup block, or null if not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public BackupBlock block(String hash) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -508,6 +722,15 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Retrieves a directory by path and timestamp.
+     *
+     * @param path The path of the directory
+     * @param timestamp The timestamp to match, or null for the latest version
+     * @param accumulative Whether to accumulate files from multiple directory versions
+     * @return The backup directory, or null if not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public BackupDirectory directory(String path, Long timestamp, boolean accumulative) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -517,6 +740,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Adds a file to the repository.
+     *
+     * @param file The file to add
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void addFile(BackupFile file) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -536,6 +765,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Adds a block to the repository.
+     *
+     * @param block The block to add
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void addBlock(BackupBlock block) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -545,6 +780,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Adds a temporary block to the repository.
+     * Temporary blocks are stored in a separate table until they are committed.
+     *
+     * @param block The block to add
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void addTemporaryBlock(BackupBlock block) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -554,6 +796,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Installs temporary blocks into the main block table.
+     * This switches the block table to use the temporary blocks.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void installTemporaryBlocks() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -566,6 +814,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Adds a directory to the repository.
+     *
+     * @param directory The directory to add
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void addDirectory(BackupDirectory directory) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -575,6 +829,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Deletes a block from the repository.
+     *
+     * @param block The block to delete
+     * @return true if the block was deleted, false if it was not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public boolean deleteBlock(BackupBlock block) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -584,6 +845,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Deletes a file from the repository.
+     *
+     * @param file The file to delete
+     * @return true if the file was deleted, false if it was not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public boolean deleteFile(BackupFile file) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -593,6 +861,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Deletes a file part from the repository.
+     *
+     * @param part The file part to delete
+     * @return true if the file part was deleted, false if it was not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public boolean deleteFilePart(BackupFilePart part) throws IOException {
         if (!replayOnly) {
@@ -605,6 +880,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         return false;
     }
 
+    /**
+     * Deletes a directory from the repository.
+     *
+     * @param path The path of the directory to delete
+     * @param timestamp The timestamp of the directory version to delete
+     * @return true if the directory was deleted, false if it was not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public boolean deleteDirectory(String path, long timestamp) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -614,6 +897,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Adds an active path to the repository.
+     *
+     * @param setId The ID of the set
+     * @param path The path to add
+     * @param pendingFiles The active path information
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void pushActivePath(String setId, String path, BackupActivePath pendingFiles) throws IOException {
         if (!replayOnly) {
@@ -625,6 +916,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Checks if an active path exists in the repository.
+     *
+     * @param setId The ID of the set
+     * @param path The path to check
+     * @return true if the active path exists, false otherwise
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public boolean hasActivePath(String setId, String path) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -634,6 +933,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Removes an active path from the repository.
+     *
+     * @param setId The ID of the set
+     * @param path The path to remove
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void popActivePath(String setId, String path) throws IOException {
         if (!replayOnly) {
@@ -645,6 +951,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Deletes a partial file from the repository.
+     *
+     * @param file The partial file to delete
+     * @return true if the partial file was deleted, false if it was not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public boolean deletePartialFile(BackupPartialFile file) throws IOException {
         if (!replayOnly) {
@@ -658,6 +971,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Saves a partial file to the repository.
+     *
+     * @param file The partial file to save
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void savePartialFile(BackupPartialFile file) throws IOException {
         if (!replayOnly) {
@@ -669,6 +988,11 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Clears all partial files from the repository.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void clearPartialFiles() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -678,6 +1002,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets the log file repository.
+     * This provides access to log files for the repository.
+     *
+     * @return The log file repository
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public LogFileRepository getLogFileRepository() throws IOException {
         // There is a weird case where you have an exclusive lock but want to write log files where you could
@@ -701,6 +1032,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Retrieves a partial file from the repository.
+     *
+     * @param file The partial file to retrieve
+     * @return The partial file, or null if not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public BackupPartialFile getPartialFile(BackupPartialFile file) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -710,6 +1048,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets all active paths for a set.
+     *
+     * @param setId The ID of the set
+     * @return A map of paths to active path information
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public TreeMap<String, BackupActivePath> getActivePaths(String setId) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -719,10 +1064,22 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Flushes any pending log entries.
+     * This implementation does nothing as logging is handled elsewhere.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void flushLogging() throws IOException {
     }
 
+    /**
+     * Gets the number of blocks in the repository.
+     *
+     * @return The number of blocks
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public long getBlockCount() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -732,6 +1089,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets the number of files in the repository.
+     *
+     * @return The number of files
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public long getFileCount() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -741,6 +1104,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets the number of directories in the repository.
+     *
+     * @return The number of directories
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public long getDirectoryCount() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -750,6 +1119,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets the number of file parts in the repository.
+     *
+     * @return The number of file parts
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public long getPartCount() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -759,6 +1134,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Adds an additional block to the repository.
+     *
+     * @param block The additional block to add
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void addAdditionalBlock(BackupBlockAdditional block) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -768,6 +1149,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Retrieves an additional block from the repository.
+     *
+     * @param publicKey The public key associated with the block
+     * @param blockHash The hash of the block
+     * @return The additional block, or null if not found
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public BackupBlockAdditional additionalBlock(String publicKey, String blockHash) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(false)) {
@@ -777,6 +1166,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Deletes an additional block from the repository.
+     *
+     * @param publicKey The public key associated with the block
+     * @param blockHash The hash of the block
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void deleteAdditionalBlock(String publicKey, String blockHash) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -786,6 +1182,14 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Adds an updated file to the repository.
+     *
+     * @param file The updated file to add
+     * @param howOften How often the file should be updated (in milliseconds)
+     * @return true if the file was added, false if it was already up to date
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public boolean addUpdatedFile(BackupUpdatedFile file, long howOften) throws IOException {
         try (CloseableLock ignored = acquireUpdateLock()) {
@@ -795,6 +1199,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Removes an updated file from the repository.
+     *
+     * @param file The updated file to remove
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void removeUpdatedFile(BackupUpdatedFile file) throws IOException {
         try (CloseableLock ignored = acquireUpdateLock()) {
@@ -804,6 +1214,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets all updated files from the repository.
+     *
+     * @return A closeable stream of updated files
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public CloseableStream<BackupUpdatedFile> getUpdatedFiles() throws IOException {
         CloseableLock lock = acquireStreamLock();
@@ -811,6 +1227,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         return new LockedStream<>(storage.getUpdatedFiles(), lock);
     }
 
+    /**
+     * Performs a repository upgrade if one is needed.
+     * This migrates the repository to the latest version.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void upgradeStorage() throws IOException {
         if (shouldUpgrade() &&
@@ -819,6 +1241,10 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Performs the actual upgrade of the repository.
+     * @throws IOException if an I/O error occurs
+     */
     private void performUpgrade() throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
             try (Closeable ignored2 = UIHandler.registerTask("Upgrading metadata repository", true)) {
@@ -853,10 +1279,22 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Checks if the repository should be upgraded.
+     *
+     * @return true if the repository should be upgraded, false otherwise
+     */
     private boolean shouldUpgrade() {
         return repositoryInfo.version != getDefaultVersion();
     }
 
+    /**
+     * Creates a new storage revision.
+     * This creates a new storage instance with an incremented revision number.
+     *
+     * @return The new storage instance
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public MetadataRepositoryStorage createStorageRevision() throws IOException {
         if (repositoryInfo == null) {
@@ -877,6 +1315,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         return ret;
     }
 
+    /**
+     * Cancels a storage revision.
+     * This reverts to the previous storage revision.
+     *
+     * @param newStorage The new storage to cancel
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void cancelStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
         close();
@@ -887,6 +1332,13 @@ public class LockingMetadataRepository implements MetadataRepository {
         storage = createStorage(repositoryInfo.version, repositoryInfo.revision);
     }
 
+    /**
+     * Installs a storage revision.
+     * This makes the new storage revision the current one.
+     *
+     * @param newStorage The new storage to install
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void installStorageRevision(MetadataRepositoryStorage newStorage) throws IOException {
         try (RepositoryLock ignored = new RepositoryLock(true)) {
@@ -898,12 +1350,24 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Gets the configuration hash from the repository.
+     *
+     * @return The configuration hash
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public String getConfigurationHash() throws IOException {
         readRepositoryInfo(RepositoryOpenMode.READ_ONLY);
         return repositoryInfo.configurationHash;
     }
 
+    /**
+     * Sets the configuration hash in the repository.
+     *
+     * @param hash The configuration hash to set
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void setConfigurationHash(String hash) throws IOException {
         readRepositoryInfo(RepositoryOpenMode.READ_ONLY);
@@ -911,6 +1375,11 @@ public class LockingMetadataRepository implements MetadataRepository {
         saveRepositoryInfo();
     }
 
+    /**
+     * Checks if errors were detected in the repository.
+     *
+     * @return true if errors were detected, false otherwise
+     */
     @Override
     public boolean isErrorsDetected() {
         if (repositoryInfo == null) {
@@ -923,6 +1392,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         return repositoryInfo != null && repositoryInfo.isErrorsDetected();
     }
 
+    /**
+     * Sets whether errors were detected in the repository.
+     *
+     * @param errorsDetected true if errors were detected, false otherwise
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void setErrorsDetected(boolean errorsDetected) throws IOException {
         if (repositoryInfo == null) {
@@ -933,21 +1408,52 @@ public class LockingMetadataRepository implements MetadataRepository {
         saveRepositoryInfo();
     }
 
+    /**
+     * Creates a temporary map for storing key-value pairs.
+     *
+     * @param serializer The serializer for the map keys and values
+     * @param <K> The key type
+     * @param <V> The value type
+     * @return A closeable map
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public <K, V> CloseableMap<K, V> temporaryMap(MapSerializer<K, V> serializer) throws IOException {
         return storage.temporaryMap(serializer);
     }
 
+    /**
+     * Creates a temporary sorted map for storing key-value pairs.
+     *
+     * @param serializer The serializer for the map keys and values
+     * @param <K> The key type
+     * @param <V> The value type
+     * @return A closeable sorted map
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public <K, V> CloseableSortedMap<K, V> temporarySortedMap(MapSerializer<K, V> serializer) throws IOException {
         return storage.temporarySortedMap(serializer);
     }
 
+    /**
+     * Acquires an exclusive lock on the repository.
+     * This lock prevents any other operations from being performed on the repository.
+     *
+     * @return A closeable lock
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public CloseableLock exclusiveLock() throws IOException {
         return storage.exclusiveLock();
     }
 
+    /**
+     * Compacts the repository.
+     * This optimizes the storage by removing unused space and reorganizing data.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void compact() throws IOException {
         try (UpdateLock ignored = new UpdateLock(true)) {
@@ -976,6 +1482,10 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Repository information class.
+     * Stores metadata about the repository.
+     */
     @Data
     @Builder
     @NoArgsConstructor
@@ -991,6 +1501,12 @@ public class LockingMetadataRepository implements MetadataRepository {
         private String lastSyncedLogEntry;
         private Map<String, String> shareLastSyncedLogEntry;
 
+        /**
+         * Gets the last synced log file for a share.
+         *
+         * @param share The share ID, or null for the main repository
+         * @return The last synced log file, or null if none
+         */
         public String getLastSyncedLogFile(String share) {
             if (share != null) {
                 if (shareLastSyncedLogEntry != null) {
@@ -1001,6 +1517,12 @@ public class LockingMetadataRepository implements MetadataRepository {
             return lastSyncedLogEntry;
         }
 
+        /**
+         * Sets the last synced log file for a share.
+         *
+         * @param share The share ID, or null for the main repository
+         * @param entry The log file entry
+         */
         public void setLastSyncedLogFile(String share, String entry) {
             if (share != null) {
                 if (shareLastSyncedLogEntry == null) {
@@ -1013,6 +1535,11 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Stream implementation that closes a lock when the stream is closed.
+     *
+     * @param <T> The type of elements in the stream
+     */
     @RequiredArgsConstructor
     private static class LockedStream<T> implements CloseableStream<T> {
         private final CloseableStream<T> stream;
@@ -1035,6 +1562,10 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Lock implementation for repository operations.
+     * Acquires the explicit lock and increments the mutating changes counter if the operation is mutating.
+     */
     private class RepositoryLock extends CloseableLock {
         public RepositoryLock(boolean mutating) {
             LockingMetadataRepository.this.explicitLock.lock();
@@ -1054,6 +1585,10 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Lock implementation for open operations.
+     * Acquires both the explicit lock and the open lock.
+     */
     private class OpenLock extends RepositoryLock {
         public OpenLock() {
             super(true);
@@ -1067,6 +1602,10 @@ public class LockingMetadataRepository implements MetadataRepository {
         }
     }
 
+    /**
+     * Lock implementation for update operations.
+     * Acquires the update lock and increments the mutating changes counter if the operation is mutating.
+     */
     private class UpdateLock extends CloseableLock {
         public UpdateLock(boolean mutating) {
             LockingMetadataRepository.this.updateLock.lock();

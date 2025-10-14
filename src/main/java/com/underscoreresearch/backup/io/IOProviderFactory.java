@@ -15,6 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Factory for creating and managing IO providers.
+ * Provides methods for discovering, creating, and caching provider instances.
+ */
 @Slf4j
 public final class IOProviderFactory {
     private static final Map<String, Class<? extends IOProvider>> providerClasses;
@@ -34,12 +38,21 @@ public final class IOProviderFactory {
         }
     }
 
+    /**
+     * Get a list of supported provider types.
+     *
+     * @return List of supported provider types
+     */
     public static List<String> supportedProviders() {
         List<String> ret = new ArrayList<>(providerClasses.keySet());
         ret.sort(String::compareTo);
         return ret;
     }
 
+    /**
+     * Remove and close all cached providers.
+     * This should be called when providers need to be recreated.
+     */
     public static void removeOldProviders() {
         for (Map.Entry<BackupDestination, IOProvider> entry : providers.entrySet()) {
             if (entry.getValue() instanceof Closeable closeable) {
@@ -54,10 +67,22 @@ public final class IOProviderFactory {
         providers = new HashMap<>();
     }
 
+    /**
+     * Register a provider class for a specific type.
+     *
+     * @param type The provider type
+     * @param provider The provider class
+     */
     public static void registerProvider(String type, Class<? extends IOProvider> provider) {
         providerClasses.put(type, provider);
     }
 
+    /**
+     * Check if a provider is available for a destination.
+     *
+     * @param destination The backup destination
+     * @return True if a provider is available, false otherwise
+     */
     public static synchronized boolean hasProvider(BackupDestination destination) {
         IOProvider provider = providers.get(destination);
         if (provider != null) {
@@ -67,6 +92,13 @@ public final class IOProviderFactory {
         return clz != null;
     }
 
+    /**
+     * Get or create a provider for a destination.
+     *
+     * @param destination The backup destination
+     * @return The provider instance
+     * @throws IllegalArgumentException If the provider type is unsupported or invalid
+     */
     public static synchronized IOProvider getProvider(BackupDestination destination) {
         IOProvider provider = providers.get(destination);
         if (provider != null) {
@@ -87,10 +119,24 @@ public final class IOProviderFactory {
         }
     }
 
+    /**
+     * Inject a provider instance for a destination.
+     * This is useful for testing or when a custom provider is needed.
+     *
+     * @param destination The backup destination
+     * @param provider The provider instance
+     */
     public static synchronized void injectProvider(BackupDestination destination, IOProvider provider) {
         providers.put(destination, provider);
     }
 
+    /**
+     * Wrap a provider to make it read-only when using an additional source.
+     * This prevents modifications to the source when it's being used for reading only.
+     *
+     * @param actualProvider The actual provider to wrap
+     * @return The wrapped provider if an additional source is set, otherwise the original provider
+     */
     private static IOProvider readOnlyOnSource(IOProvider actualProvider) {
         if (InstanceFactory.getAdditionalSource() != null) {
             if (actualProvider instanceof IOIndex actualIndex) {

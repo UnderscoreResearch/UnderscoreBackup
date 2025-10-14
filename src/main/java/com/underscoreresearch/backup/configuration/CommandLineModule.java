@@ -7,7 +7,7 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.joestelmach.natty.DateGroup;
 import com.joestelmach.natty.Parser;
-import com.underscoreresearch.backup.cli.web.WebServer;
+import com.underscoreresearch.backup.ui.web.WebServer;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl;
@@ -17,12 +17,12 @@ import com.underscoreresearch.backup.model.BackupManifest;
 import com.underscoreresearch.backup.service.api.BackupApi;
 import com.underscoreresearch.backup.service.api.model.ListSourcesResponse;
 import com.underscoreresearch.backup.service.api.model.SourceResponse;
-import com.underscoreresearch.backup.utils.ActivityAppender;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.state.LinuxState;
-import com.underscoreresearch.backup.utils.state.MachineState;
-import com.underscoreresearch.backup.utils.state.OsxState;
-import com.underscoreresearch.backup.utils.state.WindowsState;
+import com.underscoreresearch.backup.utils.log.ActivityAppender;
+import com.underscoreresearch.backup.utils.log.StateLogger;
+import com.underscoreresearch.backup.machinestate.LinuxState;
+import com.underscoreresearch.backup.machinestate.MachineState;
+import com.underscoreresearch.backup.machinestate.OsxState;
+import com.underscoreresearch.backup.machinestate.WindowsState;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -51,60 +51,246 @@ import java.util.prefs.Preferences;
 
 import static com.underscoreresearch.backup.configuration.EncryptionModule.DEFAULT_KEY_FILES;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
-import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.log.LogUtil.formatTimestamp;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_READER;
 import static java.lang.System.getenv;
 import static java.lang.System.setErr;
 import static java.util.prefs.Preferences.systemRoot;
 
+/**
+ * Guice module for handling command line arguments and configuration.
+ * This module provides bindings for command line options, configuration files,
+ * and various system paths used by the application.
+ */
 @Slf4j
 public class CommandLineModule extends AbstractModule {
+    /**
+     * Location of the configuration file.
+     */
     public static final String CONFIG_FILE_LOCATION = "CONFIG_FILE_LOCATION";
 
+    /**
+     * Command line option for private key seed/password.
+     */
     public static final String PRIVATE_KEY_SEED = "password";
+    
+    /**
+     * Named constant for key file name.
+     */
     public static final String KEY_FILE_NAME = "key-file-name";
+    
+    /**
+     * Command line option for encryption key data.
+     */
     public static final String ENCRYPTION_KEY_DATA = "encryption-key-data";
+    
+    /**
+     * Command line option for configuration data.
+     */
     public static final String CONFIG_DATA = "config-data";
+    
+    /**
+     * Command line option to disable logging to file.
+     */
     public static final String NO_LOG = "no-log";
+    
+    /**
+     * Command line option for log file location.
+     */
     public static final String LOG_FILE = "log-file";
+    
+    /**
+     * Command line option for key file location.
+     */
     public static final String KEY = "key";
+    
+    /**
+     * Command line option for debug mode.
+     */
     public static final String DEBUG = "debug";
+    
+    /**
+     * Command line option to force operations.
+     */
     public static final String FORCE = "force";
+    
+    /**
+     * Command line option for configuration file location.
+     */
     public static final String CONFIG = "config";
+    
+    /**
+     * Command line option for developer mode.
+     */
     public static final String DEVELOPER_MODE = "developer-mode";
+    
+    /**
+     * Command line option for human readable output.
+     */
     public static final String HUMAN_READABLE = "human-readable";
+    
+    /**
+     * Command line option to display full paths.
+     */
     public static final String FULL_PATH = "full-path";
+    
+    /**
+     * Command line option to include deleted files.
+     */
     public static final String INCLUDE_DELETED = "include-deleted";
+    
+    /**
+     * Command line option for recursive operations.
+     */
     public static final String RECURSIVE = "recursive";
+    
+    /**
+     * Command line option to overwrite existing files.
+     */
     public static final String OVER_WRITE = "over-write";
+    
+    /**
+     * Command line option to skip permission restoration.
+     */
     public static final String SKIP_PERMISSIONS = "skip-permissions";
+    
+    /**
+     * Command line option for timestamp specification.
+     */
     public static final String TIMESTAMP = "timestamp";
+    
+    /**
+     * Command line option for web server bind address.
+     */
     public static final String BIND_ADDRESS = "bind-address";
+    
+    /**
+     * Command line option for additional key generation.
+     */
     public static final String ADDITIONAL_KEY = "additional-key";
+    
+    /**
+     * Command line option for source specification.
+     */
     public static final String SOURCE = "source";
+    
+    /**
+     * Named constant for URL location.
+     */
     public static final String URL_LOCATION = "URL_LOCATION";
+    
+    /**
+     * Named constant for identity location.
+     */
     public static final String IDENTITY_LOCATION = "IDENTITY_LOCATION";
+    
+    /**
+     * Named constant for installation identity.
+     */
     public static final String INSTALLATION_IDENTITY = "INSTALLATION_IDENTITY";
+    
+    /**
+     * Command line option for manifest location.
+     */
     public static final String MANIFEST_LOCATION = "manifest-location";
+    
+    /**
+     * Command line option to prevent deletion.
+     */
     public static final String NO_DELETE = "no-delete";
+    
+    /**
+     * Named constant for default user manifest location.
+     */
     public static final String DEFAULT_USER_MANIFEST_LOCATION = "DEFAULT_USER_MANIFEST_LOCATION";
+    
+    /**
+     * Named constant for default manifest location.
+     */
     public static final String DEFAULT_MANIFEST_LOCATION = "DEFAULT_MANIFEST_LOCATION";
+    
+    /**
+     * Named constant for additional source.
+     */
     public static final String ADDITIONAL_SOURCE = "ADDITIONAL_SOURCE";
+    
+    /**
+     * Named constant for additional source name.
+     */
     public static final String ADDITIONAL_SOURCE_NAME = "ADDITIONAL_SOURCE_NAME";
+    
+    /**
+     * Named constant for source configuration.
+     */
     public static final String SOURCE_CONFIG = "SOURCE_CONFIG";
+    
+    /**
+     * Named constant for service mode.
+     */
     public static final String SERVICE_MODE = "SERVICE_MODE";
+    
+    /**
+     * Named constant for source configuration location.
+     */
     public static final String SOURCE_CONFIG_LOCATION = "SOURCE_CONFIG_LOCATION";
+    
+    /**
+     * Named constant for notification location.
+     */
     public static final String NOTIFICATION_LOCATION = "NOTIFICATION_LOCATION";
+    
+    /**
+     * Named constant for service data location.
+     */
     private static final String SERVICE_DATA_LOCATION = "SERVICE_DATA_LOCATION";
+    
+    /**
+     * Default configuration file path.
+     */
     private static final String DEFAULT_CONFIG = "/etc/underscorebackup/config.json";
+    
+    /**
+     * Default local cache path.
+     */
     private static final String DEFAULT_LOCAL_PATH = "/var/cache/underscorebackup";
+    
+    /**
+     * Default log file path.
+     */
     private static final String DEFAULT_LOG_PATH = "/var/log/underscorebackup.log";
+    
+    /**
+     * Flag to track if administrator notification has been shown.
+     */
     private static boolean notifyAdministrator;
+    
+    /**
+     * Command line arguments.
+     */
     private final String[] argv;
+    
+    /**
+     * Source identifier.
+     */
     private final String source;
+    
+    /**
+     * Source name.
+     */
     private String sourceName;
+    
+    /**
+     * Source definition from service.
+     */
     private SourceResponse sourceDefinition;
 
+    /**
+     * Constructor for CommandLineModule.
+     *
+     * @param argv Command line arguments
+     * @param source Source identifier (can be null)
+     * @param sourceName Source name (can be null)
+     */
     public CommandLineModule(String[] argv, String source, String sourceName) {
         this.argv = argv;
         if (source != null) {
@@ -116,14 +302,21 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    /**
+     * Parses a timestamp from command line arguments.
+     *
+     * @param commandLine The command line
+     * @return The parsed timestamp or null if not specified
+     * @throws ParseException If the timestamp cannot be parsed
+     */
     public static Long timestamp(CommandLine commandLine) throws ParseException {
         if (!commandLine.hasOption(TIMESTAMP)) {
             return null;
         }
         Parser parser = new Parser();
         for (DateGroup group : parser.parse(commandLine.getOptionValue(TIMESTAMP))) {
-            if (group.getDates().size() > 0) {
-                long date = group.getDates().get(0).getTime();
+            if (!group.getDates().isEmpty()) {
+                long date = group.getDates().getFirst().getTime();
                 if (date > Instant.now().toEpochMilli()) {
                     log.warn("Specified date in future, using current time");
                     return null;
@@ -135,6 +328,11 @@ public class CommandLineModule extends AbstractModule {
         throw new ParseException("Failed to derive date from parameter: \"" + commandLine.getOptionValue(TIMESTAMP) + "\"");
     }
 
+    /**
+     * Checks if the application is running with administrator privileges.
+     *
+     * @return true if running as administrator, false otherwise
+     */
     private static boolean isRunningAsAdministrator() {
         Preferences preferences = systemRoot();
 
@@ -158,6 +356,11 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    /**
+     * Gets the default user manifest location based on the operating system.
+     *
+     * @return The default user manifest location path
+     */
     public static String getDefaultUserManifestLocation() {
         File userDir = new File(System.getProperty("user.home"));
         File configDir;
@@ -188,6 +391,12 @@ public class CommandLineModule extends AbstractModule {
         return configDir.getAbsolutePath();
     }
 
+    /**
+     * Gets the key file name for a specific source or the default key file.
+     *
+     * @param source The source identifier (can be null or empty)
+     * @return The path to the key file
+     */
     public static String getKeyFileName(String source) {
         if (!Strings.isNullOrEmpty(source)) {
             return Paths.get(InstanceFactory.getInstance(MANIFEST_LOCATION), "sources", source, "key").toString();
@@ -196,6 +405,15 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    /**
+     * Expands the source manifest destination with the provided destination.
+     * This method ensures that the source configuration has a manifest destination
+     * that matches the provided destination or adds a new one if needed.
+     *
+     * @param sourceConfig The source backup configuration
+     * @param destination The destination to use for the manifest
+     * @return The updated backup configuration
+     */
     public static BackupConfiguration expandSourceManifestDestination(BackupConfiguration sourceConfig,
                                                                       BackupDestination destination) {
         final AtomicReference<BackupDestination> manifestDestination = new AtomicReference<>();
@@ -237,10 +455,22 @@ public class CommandLineModule extends AbstractModule {
         return sourceConfig;
     }
 
+    /**
+     * Gets the source configuration file location path.
+     *
+     * @param manifestLocation The manifest location
+     * @param source The source identifier
+     * @return The path to the source configuration file
+     */
     public static String getSourceConfigLocation(String manifestLocation, String source) {
         return Paths.get(manifestLocation, "sources", source, "config.json").toString();
     }
 
+    /**
+     * Provides the command line options for the application.
+     *
+     * @return The configured Options object with all supported command line options
+     */
     @Provides
     @Singleton
     public Options options() {
@@ -272,6 +502,13 @@ public class CommandLineModule extends AbstractModule {
         return options;
     }
 
+    /**
+     * Provides the parsed command line.
+     *
+     * @param options The command line options
+     * @return The parsed command line
+     * @throws ParseException If command line parsing fails
+     */
     @Provides
     @Singleton
     public CommandLine commandLine(Options options) throws ParseException {
@@ -279,12 +516,25 @@ public class CommandLineModule extends AbstractModule {
         return parser.parse(options, argv);
     }
 
+    /**
+     * Determines if debug mode is enabled.
+     *
+     * @param commandLine The parsed command line
+     * @return True if debug mode is enabled, false otherwise
+     * @throws ParseException If command line parsing fails
+     */
     @Provides
     @Named(DEBUG)
     public boolean debug(CommandLine commandLine) throws ParseException {
         return commandLine.hasOption(DEBUG);
     }
 
+    /**
+     * Provides the machine state implementation based on the operating system.
+     *
+     * @param configuration The backup configuration
+     * @return The appropriate MachineState implementation for the current OS
+     */
     @Provides
     @Singleton
     public MachineState machineState(BackupConfiguration configuration) {
@@ -305,6 +555,13 @@ public class CommandLineModule extends AbstractModule {
         return new MachineState(pauseOnBattery);
     }
 
+    /**
+     * Gets the manifest location from command line or default.
+     *
+     * @param commandLine The parsed command line
+     * @param defaultLocation The default manifest location
+     * @return The manifest location path
+     */
     @Provides
     @Singleton
     @Named(MANIFEST_LOCATION)
@@ -316,6 +573,16 @@ public class CommandLineModule extends AbstractModule {
         return defaultLocation;
     }
 
+    /**
+     * Gets the additional source identifier from command line or configuration.
+     *
+     * @param configuration The backup configuration
+     * @param commandLine The parsed command line
+     * @param serviceManager The service manager
+     * @return The additional source identifier
+     * @throws ParseException If source parsing fails
+     * @throws IOException If service communication fails
+     */
     @Provides
     @Singleton
     @Named(ADDITIONAL_SOURCE)
@@ -345,6 +612,12 @@ public class CommandLineModule extends AbstractModule {
         return "";
     }
 
+    /**
+     * Provides the source definition from the service.
+     *
+     * @param ignored The additional source identifier (ignored)
+     * @return The source response or an empty one if not defined
+     */
     @Provides
     @Singleton
     public SourceResponse sourceDefinition(@Named(ADDITIONAL_SOURCE) String ignored) {
@@ -354,6 +627,12 @@ public class CommandLineModule extends AbstractModule {
         return sourceDefinition;
     }
 
+    /**
+     * Gets the additional source name.
+     *
+     * @param source The additional source identifier
+     * @return The source name or the source identifier if not defined
+     */
     @Provides
     @Singleton
     @Named(ADDITIONAL_SOURCE_NAME)
@@ -364,6 +643,13 @@ public class CommandLineModule extends AbstractModule {
         return source;
     }
 
+    /**
+     * Determines if the application is running in service mode.
+     *
+     * @param commandLine The parsed command line
+     * @param manifestLocation The manifest location
+     * @return True if running in service mode, false otherwise
+     */
     @Provides
     @Named(SERVICE_MODE)
     public boolean isService(CommandLine commandLine, @Named(MANIFEST_LOCATION) String manifestLocation) {
@@ -382,6 +668,13 @@ public class CommandLineModule extends AbstractModule {
         return manifestLocation.equals(DEFAULT_LOCAL_PATH);
     }
 
+    /**
+     * Gets the service data location based on operating system and service mode.
+     *
+     * @param service True if running in service mode
+     * @param manifestLocation The manifest location
+     * @return The service data location path
+     */
     @Provides
     @Named(SERVICE_DATA_LOCATION)
     @Singleton
@@ -400,6 +693,12 @@ public class CommandLineModule extends AbstractModule {
         return manifestLocation;
     }
 
+    /**
+     * Gets the notification location path.
+     *
+     * @param location The service data location
+     * @return The notification location path
+     */
     @Provides
     @Named(NOTIFICATION_LOCATION)
     @Singleton
@@ -409,6 +708,12 @@ public class CommandLineModule extends AbstractModule {
         return file.toString();
     }
 
+    /**
+     * Calculates the source identifier from command line or instance.
+     *
+     * @param commandLine The parsed command line
+     * @return The source identifier or null if not specified
+     */
     private String calculateSource(CommandLine commandLine) {
         if (!Strings.isNullOrEmpty(source)) {
             return source;
@@ -419,6 +724,12 @@ public class CommandLineModule extends AbstractModule {
         return null;
     }
 
+    /**
+     * Gets the URL location for configuration.
+     *
+     * @param location The service data location
+     * @return The URL location path
+     */
     @Provides
     @Singleton
     @Named(URL_LOCATION)
@@ -430,6 +741,12 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    /**
+     * Gets the identity location path.
+     *
+     * @param manifestLocation The manifest location
+     * @return The identity location path
+     */
     @Provides
     @Singleton
     @Named(IDENTITY_LOCATION)
@@ -441,6 +758,13 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    /**
+     * Gets or creates the installation identity.
+     *
+     * @param identityLocation The identity file location
+     * @param machineState The machine state
+     * @return The installation identity UUID
+     */
     @Provides
     @Singleton
     @Named(INSTALLATION_IDENTITY)
@@ -466,6 +790,12 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    /**
+     * Gets the backup configuration file location.
+     *
+     * @param commandLine The parsed command line
+     * @return The configuration file path
+     */
     @Named(CONFIG_FILE_LOCATION)
     @Singleton
     @Provides
@@ -478,7 +808,7 @@ public class CommandLineModule extends AbstractModule {
             return new File(InstanceFactory.getInstance(DEFAULT_USER_MANIFEST_LOCATION), "config.json")
                     .getAbsolutePath();
         } else {
-            if (commandLine.getArgList().size() > 0 && commandLine.getArgList().get(0).equals("interactive")) {
+            if (!commandLine.getArgList().isEmpty() && commandLine.getArgList().getFirst().equals("interactive")) {
                 File systemDir = new File("/etc/underscorebackup");
                 createDirectory(systemDir, false);
 
@@ -496,6 +826,11 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    /**
+     * Provides the default user manifest location.
+     *
+     * @return The default user manifest location path
+     */
     @Named(DEFAULT_USER_MANIFEST_LOCATION)
     @Provides
     @Singleton
@@ -503,6 +838,12 @@ public class CommandLineModule extends AbstractModule {
         return getDefaultUserManifestLocation();
     }
 
+    /**
+     * Provides the default manifest location based on configuration and system.
+     *
+     * @param commandLine The parsed command line
+     * @return The default manifest location path
+     */
     @Named(DEFAULT_MANIFEST_LOCATION)
     @Provides
     @Singleton
@@ -528,12 +869,25 @@ public class CommandLineModule extends AbstractModule {
         return defaultUserManifestLocation();
     }
 
+    /**
+     * Provides the web server instance.
+     *
+     * @return The web server instance
+     */
     @Provides
     @Singleton
     public WebServer webServer() {
         return WebServer.getInstance();
     }
 
+    /**
+     * Provides the backup configuration data from file or command line.
+     *
+     * @param commandLine The parsed command line
+     * @param configFile The configuration file path
+     * @return The backup configuration data as a string
+     * @throws IOException If reading the configuration file fails
+     */
     @Named(CONFIG_DATA)
     @Singleton
     @Provides
@@ -558,6 +912,13 @@ public class CommandLineModule extends AbstractModule {
         }
     }
 
+    /**
+     * Parses the backup configuration from JSON data.
+     *
+     * @param configData The configuration data as a string
+     * @return The parsed backup configuration
+     * @throws IOException If parsing the configuration fails
+     */
     @Provides
     @Singleton
     public BackupConfiguration backupConfiguration(@Named(CONFIG_DATA) String configData)
@@ -565,6 +926,13 @@ public class CommandLineModule extends AbstractModule {
         return BACKUP_CONFIGURATION_READER.readValue(configData);
     }
 
+    /**
+     * Gets the source configuration file location.
+     *
+     * @param manifestLocation The manifest location
+     * @param source The source identifier
+     * @return The source configuration file path
+     */
     @Provides
     @Singleton
     @Named(SOURCE_CONFIG_LOCATION)
@@ -572,6 +940,15 @@ public class CommandLineModule extends AbstractModule {
         return getSourceConfigLocation(manifestLocation, source);
     }
 
+    /**
+     * Provides the source-specific backup configuration.
+     *
+     * @param configuration The main backup configuration
+     * @param additionalSource The additional source identifier
+     * @param configLocation The source configuration file location
+     * @return The source-specific backup configuration
+     * @throws IOException If reading or parsing the configuration fails
+     */
     @Provides
     @Singleton
     @Named(SOURCE_CONFIG)
@@ -593,6 +970,12 @@ public class CommandLineModule extends AbstractModule {
         return configuration;
     }
 
+    /**
+     * Provides the encryption key data from command line.
+     *
+     * @param commandLine The parsed command line
+     * @return The encryption key data or empty string if not specified
+     */
     @Provides
     @Singleton
     @Named(ENCRYPTION_KEY_DATA)
@@ -602,6 +985,12 @@ public class CommandLineModule extends AbstractModule {
         return "";
     }
 
+    /**
+     * Gets the log file path based on command line options and system.
+     *
+     * @param commandLine The parsed command line
+     * @return The log file path or empty string if logging is disabled
+     */
     @Provides
     @Singleton
     @Named(LOG_FILE)
@@ -629,6 +1018,13 @@ public class CommandLineModule extends AbstractModule {
         return new File(getDefaultUserManifestLocation(), "underscorebackup.log").getAbsolutePath();
     }
 
+    /**
+     * Gets the key file name based on command line options or default locations.
+     *
+     * @param commandLine The parsed command line
+     * @return The key file path
+     * @throws ParseException If no key file can be found
+     */
     @Provides
     @Singleton
     @Named(KEY_FILE_NAME)
@@ -652,18 +1048,36 @@ public class CommandLineModule extends AbstractModule {
         return keyFile;
     }
 
+    /**
+     * Provides the state logger instance.
+     *
+     * @param debug True if debug mode is enabled
+     * @return The state logger instance
+     */
     @Provides
     @Singleton
     public StateLogger stateLogger(@Named(DEBUG) boolean debug) {
         return new StateLogger(debug);
     }
 
+    /**
+     * Provides the activity appender for logging.
+     *
+     * @return The activity appender instance
+     */
     @Provides
     @Singleton
     public ActivityAppender activityAppender() {
         return ActivityAppender.createAppender("Activity", null, null);
     }
 
+    /**
+     * Provides the service manager instance.
+     *
+     * @param location The manifest location
+     * @return The service manager instance
+     * @throws IOException If creating the service manager fails
+     */
     @Provides
     @Singleton
     public ServiceManager serviceManager(@Named(MANIFEST_LOCATION) String location) throws IOException {

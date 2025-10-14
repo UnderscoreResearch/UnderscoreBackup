@@ -74,3 +74,11 @@ See [separate doc](docs/commandline.md) for information about how to use the com
 ## Configuration and files
 
 See [separate doc](docs/configuration.md) for information about the configuration files and how to use them.
+
+## Building the project
+
+See [separate doc](docs/build.md) for information about how to build the project and run it.
+
+## Working with the source
+
+See [separate doc](docs/overview.md) for information about how the source is organized and how to work with it.

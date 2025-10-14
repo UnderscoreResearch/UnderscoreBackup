@@ -14,9 +14,9 @@ import com.underscoreresearch.backup.file.PathNormalizer;
 import com.underscoreresearch.backup.io.DownloadScheduler;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.model.BackupFile;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.log.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.log.StateLogger;
+import com.underscoreresearch.backup.utils.log.StatusLine;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,13 +31,17 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
-import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
-import static com.underscoreresearch.backup.utils.LogUtil.readableDuration;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.getThroughputStatus;
+import static com.underscoreresearch.backup.utils.log.LogUtil.lastProcessedPath;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableDuration;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * Implementation of DownloadScheduler that manages asynchronous downloads.
+ * Provides status tracking and callbacks for download operations.
+ */
 @Slf4j
 public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatusLogger, DownloadScheduler {
     private static final ObjectReader SCHEDULED_DOWNLOAD_READER = MAPPER.readerFor(ScheduledDownload.class);
@@ -56,6 +60,13 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
     private CloseableSortedMap<ScheduledDownloadKey, ScheduledDownload> fileMap;
     private String pendingPassword;
 
+    /**
+     * Constructor for DownloadSchedulerImpl.
+     *
+     * @param maximumConcurrency The maximum number of concurrent downloads
+     * @param repository The metadata repository for temporary storage
+     * @param fileDownloader The file downloader to use for downloading files
+     */
     public DownloadSchedulerImpl(int maximumConcurrency,
                                  MetadataRepository repository,
                                  FileDownloader fileDownloader) {
@@ -66,18 +77,33 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         StateLogger.addLogger(this);
     }
 
+    /**
+     * Add a callback to be notified when downloads complete.
+     *
+     * @param callback The callback to add
+     */
     public void addCompletionCallback(Consumer<String> callback) {
         synchronized (completionCallbacks) {
             completionCallbacks.add(callback);
         }
     }
 
+    /**
+     * Remove a previously added completion callback.
+     *
+     * @param callback The callback to remove
+     */
     public void removeCompletionCallback(Consumer<String> callback) {
         synchronized (completionCallbacks) {
             completionCallbacks.remove(callback);
         }
     }
 
+    /**
+     * Notify all registered callbacks that a download has completed.
+     *
+     * @param path The path of the completed download
+     */
     private void notifyCompleted(String path) {
         synchronized (completionCallbacks) {
             for (Consumer<String> callback : completionCallbacks) {
@@ -86,6 +112,13 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         }
     }
 
+    /**
+     * Schedule a download of a backup file.
+     *
+     * @param file The file to download
+     * @param destination The destination path to save the file
+     * @param password The password for decryption, if required
+     */
     @Override
     public void scheduleDownload(BackupFile file, String destination, String password) {
         if (duration == null)
@@ -104,6 +137,9 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         }
     }
 
+    /**
+     * Initialize the temporary map for storing download information.
+     */
     private synchronized void initializeMap() {
         if (fileMap == null) {
             try {
@@ -151,6 +187,10 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         }
     }
 
+    /**
+     * Wait for all scheduled downloads to complete.
+     * Processes any pending downloads in the temporary map.
+     */
     @Override
     public void waitForCompletion() {
         if (fileMap != null) {
@@ -180,6 +220,13 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         super.waitForCompletion();
     }
 
+    /**
+     * Internal method to schedule a download.
+     *
+     * @param file The file to download
+     * @param destination The destination path
+     * @param password The password for decryption
+     */
     private void internalSchedule(BackupFile file, String destination, String password) {
         schedule(() -> {
             try {
@@ -204,6 +251,9 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         });
     }
 
+    /**
+     * Reset the status counters.
+     */
     @Override
     public void resetStatus() {
         totalCount.set(0);
@@ -213,6 +263,11 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         lastProcessed = null;
     }
 
+    /**
+     * Get the current status of downloads.
+     *
+     * @return List of status lines
+     */
     @Override
     public List<StatusLine> status() {
         List<StatusLine> ret = getThroughputStatus(getClass(), "Restored", "files", totalCount.get(), totalSize.get(),
@@ -231,24 +286,42 @@ public class DownloadSchedulerImpl extends SchedulerImpl implements ManualStatus
         return ret;
     }
 
+    /**
+     * Key class for the scheduled download map.
+     */
     @Data
     @NoArgsConstructor
     public static class ScheduledDownloadKey {
         private String blockHash;
         private Long index;
 
+        /**
+         * Constructor for ScheduledDownloadKey.
+         *
+         * @param blockHash The hash of the block
+         * @param index The index for ordering
+         */
         public ScheduledDownloadKey(String blockHash, Long index) {
             this.blockHash = blockHash;
             this.index = index;
         }
     }
 
+    /**
+     * Value class for the scheduled download map.
+     */
     @Data
     @NoArgsConstructor
     public static class ScheduledDownload {
         private BackupFile file;
         private String destination;
 
+        /**
+         * Constructor for ScheduledDownload.
+         *
+         * @param file The file to download
+         * @param destination The destination path
+         */
         public ScheduledDownload(BackupFile file, String destination) {
             this.file = file;
             this.destination = destination;

@@ -21,8 +21,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.underscoreresearch.backup.configuration.RestoreModule.getGlobalDownloadThreads;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
 
+/**
+ * Prefetches log files asynchronously to improve performance.
+ * Downloads and decrypts log files in the background while they are being processed.
+ */
 @Slf4j
 public class LogPrefetcher {
 
@@ -38,6 +42,15 @@ public class LogPrefetcher {
     private final AtomicBoolean stop = new AtomicBoolean(false);
     private final AtomicReference<Throwable> error = new AtomicReference<>();
 
+    /**
+     * Constructor for LogPrefetcher.
+     *
+     * @param logFiles List of log files to prefetch
+     * @param configuration The backup configuration
+     * @param downloadData The downloader for log files
+     * @param encryptor The encryptor for decrypting log files
+     * @param privateKey The private key for decryption
+     */
     public LogPrefetcher(List<String> logFiles, BackupConfiguration configuration, Downloader downloadData,
                          Encryptor encryptor, IdentityKeys.PrivateKeys privateKey) {
         this.logFiles = new LinkedBlockingDeque<String>(logFiles);
@@ -49,6 +62,10 @@ public class LogPrefetcher {
                 new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
     }
 
+    /**
+     * Start prefetching log files.
+     * Creates worker threads to download and decrypt log files.
+     */
     public void start() {
         try {
             for (int i = 0; i < maxConcurrency; i++) {
@@ -99,6 +116,12 @@ public class LogPrefetcher {
         }
     }
 
+    /**
+     * Add a result to the data map.
+     *
+     * @param finalFile The log file name
+     * @param holder The holder containing the data or exception
+     */
     private void addResult(String finalFile, Holder holder) {
         synchronized (data) {
             if (syncCompletions.contains(finalFile)) {
@@ -110,26 +133,50 @@ public class LogPrefetcher {
         }
     }
 
+    /**
+     * Set an error and notify waiting threads.
+     *
+     * @param e The error to set
+     */
     private void setError(Throwable e) {
         error.set(e);
         data.notifyAll();
     }
 
+    /**
+     * Check if the prefetcher should complete.
+     *
+     * @return True if the prefetcher should complete, false otherwise
+     */
     private boolean shouldComplete() {
         return stop.get() || error.get() != null;
     }
 
+    /**
+     * Stop prefetching and shutdown the executor.
+     */
     public void stop() {
         stop.set(true);
         executor.shutdownNow();
     }
 
+    /**
+     * Shutdown the executor if not already stopped.
+     */
     public void shutdown() {
         if (!stop.get()) {
             executor.shutdown();
         }
     }
 
+    /**
+     * Get a log file by ID.
+     * Waits for the log file to be prefetched, or downloads it synchronously if it takes too long.
+     *
+     * @param logId The log file ID
+     * @return The decrypted log file data
+     * @throws IOException If there's an error getting the log file
+     */
     public byte[] getLog(String logId) throws IOException {
         synchronized (data) {
             throwError();
@@ -169,6 +216,11 @@ public class LogPrefetcher {
         }
     }
 
+    /**
+     * Throw an error if one is set.
+     *
+     * @throws IOException If there's an error
+     */
     private void throwError() throws IOException {
         Throwable e = error.get();
         if (e instanceof IOException ioException)
@@ -179,18 +231,41 @@ public class LogPrefetcher {
             throw new RuntimeException(e);
     }
 
+    /**
+     * Interface for downloading log files.
+     */
     public interface Downloader {
+        /**
+         * Download a log file.
+         *
+         * @param file The log file name
+         * @return The downloaded log file data
+         * @throws IOException If there's an error downloading the file
+         */
         byte[] downloadFile(String file) throws IOException;
     }
 
+    /**
+     * Holder for log file data or exception.
+     */
     private static class Holder {
         private byte[] data;
         private Throwable exc;
 
+        /**
+         * Constructor for successful download.
+         *
+         * @param data The log file data
+         */
         public Holder(byte[] data) {
             this.data = data;
         }
 
+        /**
+         * Constructor for failed download.
+         *
+         * @param exc The exception that occurred
+         */
         public Holder(Throwable exc) {
             this.exc = exc;
         }

@@ -32,6 +32,10 @@ import java.util.Arrays;
  * </pre>
  *
  * <p>i.e. the limbs are 26, 25, 26, 25, ... bits wide.
+ * 
+ * <p>This class provides the mathematical operations needed for the X25519 key exchange algorithm,
+ * implementing field arithmetic over the prime field 2^255 - 19. It handles operations like addition,
+ * subtraction, multiplication, squaring, and inversion of field elements.
  */
 final class Field25519 {
     /**
@@ -65,8 +69,12 @@ final class Field25519 {
 
     /**
      * Sums two numbers: output = in1 + in2
-     * <p>
-     * On entry: in1, in2 are in reduced-size form.
+     * 
+     * <p>This method adds two field elements together and stores the result in the output array.
+     * 
+     * @param output The array to store the result
+     * @param in1 First input array in reduced-size form
+     * @param in2 Second input array in reduced-size form
      */
     static void sum(long[] output, long[] in1, long[] in2) {
         for (int i = 0; i < LIMB_CNT; i++) {
@@ -76,8 +84,11 @@ final class Field25519 {
 
     /**
      * Sums two numbers: output += in
-     * <p>
-     * On entry: in is in reduced-size form.
+     * 
+     * <p>This method adds the input field element to the output field element.
+     * 
+     * @param output The array to which the input will be added
+     * @param in Input array in reduced-size form
      */
     static void sum(long[] output, long[] in) {
         sum(output, output, in);
@@ -86,8 +97,12 @@ final class Field25519 {
     /**
      * Find the difference of two numbers: output = in1 - in2
      * (note the order of the arguments!).
-     * <p>
-     * On entry: in1, in2 are in reduced-size form.
+     * 
+     * <p>This method subtracts the second field element from the first and stores the result in the output array.
+     * 
+     * @param output The array to store the result
+     * @param in1 First input array in reduced-size form
+     * @param in2 Second input array in reduced-size form to be subtracted from in1
      */
     static void sub(long[] output, long[] in1, long[] in2) {
         for (int i = 0; i < LIMB_CNT; i++) {
@@ -98,8 +113,11 @@ final class Field25519 {
     /**
      * Find the difference of two numbers: output = in - output
      * (note the order of the arguments!).
-     * <p>
-     * On entry: in, output are in reduced-size form.
+     * 
+     * <p>This method subtracts the output field element from the input field element and stores the result back in the output array.
+     * 
+     * @param output The array that will be subtracted from in and then store the result
+     * @param in Input array in reduced-size form
      */
     static void sub(long[] output, long[] in) {
         sub(output, in, output);
@@ -107,6 +125,12 @@ final class Field25519 {
 
     /**
      * Multiply a number by a scalar: output = in * scalar
+     * 
+     * <p>This method multiplies each element of the input array by a scalar value.
+     * 
+     * @param output The array to store the result
+     * @param in Input array to be multiplied by the scalar
+     * @param scalar The scalar value to multiply by
      */
     static void scalarProduct(long[] output, long[] in, long scalar) {
         for (int i = 0; i < LIMB_CNT; i++) {
@@ -212,6 +236,7 @@ final class Field25519 {
 
     /**
      * Reduce a field element by calling reduceSizeByModularReduction and reduceCoefficients.
+     * This brings a field element into its canonical representation.
      *
      * @param input  An input array of any length. If the array has 19 elements, it will be used as
      *               temporary buffer and its contents changed.
@@ -232,9 +257,12 @@ final class Field25519 {
 
     /**
      * Reduce a long form to a reduced-size form by taking the input mod 2^255 - 19.
-     * <p>
-     * On entry: |output[i]| < 14*2^54
-     * On exit: |output[0..8]| < 280*2^54
+     * This is a key step in the field arithmetic to keep values within the proper range.
+     * 
+     * <p>On entry: |output[i]| < 14*2^54
+     * <p>On exit: |output[0..8]| < 280*2^54
+     * 
+     * @param output The array to be reduced in place
      */
     static void reduceSizeByModularReduction(long[] output) {
         // The coefficients x[10], x[11],..., x[18] are eliminated by reduction modulo 2^255 - 19.
@@ -275,8 +303,11 @@ final class Field25519 {
 
     /**
      * Reduce all coefficients of the short form input so that |x| < 2^26.
-     * <p>
-     * On entry: |output[i]| < 280*2^54
+     * This ensures the field element is in its canonical representation.
+     * 
+     * <p>On entry: |output[i]| < 280*2^54
+     * 
+     * @param output The array to be reduced in place
      */
     static void reduceCoefficients(long[] output) {
         output[10] = 0;
@@ -315,11 +346,15 @@ final class Field25519 {
 
     /**
      * A helpful wrapper around {@ref Field25519#product}: output = in * in2.
-     * <p>
-     * On entry: |in[i]| < 2^27 and |in2[i]| < 2^27.
-     * <p>
-     * The output is reduced degree (indeed, one need only provide storage for 10 limbs) and
+     * Multiplies two field elements and reduces the result.
+     * 
+     * <p>On entry: |in[i]| < 2^27 and |in2[i]| < 2^27.
+     * <p>The output is reduced degree (indeed, one need only provide storage for 10 limbs) and
      * |output[i]| < 2^26.
+     * 
+     * @param output The array to store the result
+     * @param in First input array to multiply
+     * @param in2 Second input array to multiply
      */
     static void mult(long[] output, long[] in, long[] in2) {
         long[] t = new long[19];
@@ -367,11 +402,14 @@ final class Field25519 {
 
     /**
      * Returns in^2.
-     * <p>
-     * On entry: The |in| argument is in reduced coefficients form and |in[i]| < 2^27.
-     * <p>
-     * On exit: The |output| argument is in reduced coefficients form (indeed, one need only provide
+     * Squares a field element and reduces the result.
+     * 
+     * <p>On entry: The |in| argument is in reduced coefficients form and |in[i]| < 2^27.
+     * <p>On exit: The |output| argument is in reduced coefficients form (indeed, one need only provide
      * storage for 10 limbs) and |out[i]| < 2^26.
+     * 
+     * @param output The array to store the result
+     * @param in Input array to be squared
      */
     static void square(long[] output, long[] in) {
         long[] t = new long[19];
@@ -383,6 +421,10 @@ final class Field25519 {
 
     /**
      * Takes a little-endian, 32-byte number and expands it into mixed radix form.
+     * Converts from the external byte representation to the internal limb representation.
+     * 
+     * @param input The 32-byte little-endian input
+     * @return The expanded field element in limb representation
      */
     static long[] expand(byte[] input) {
         long[] output = new long[LIMB_CNT];
@@ -397,9 +439,12 @@ final class Field25519 {
 
     /**
      * Takes a fully reduced mixed radix form number and contract it into a little-endian, 32-byte
-     * array.
-     * <p>
-     * On entry: |input_limbs[i]| < 2^26
+     * array. Converts from the internal limb representation to the external byte representation.
+     * 
+     * <p>On entry: |input_limbs[i]| < 2^26
+     * 
+     * @param inputLimbs The field element in limb representation
+     * @return The 32-byte little-endian representation
      */
     @SuppressWarnings("NarrowingCompoundAssignment")
     static byte[] contract(long[] inputLimbs) {
@@ -497,9 +542,16 @@ final class Field25519 {
 
     /**
      * Computes inverse of z = z(2^255 - 21)
-     * <p>
+     * Calculates the multiplicative inverse of a field element.
+     * 
+     * <p>This implementation uses a sequence of squarings and multiplications
+     * to compute the inverse based on Fermat's Little Theorem.
+     *
      * Shamelessly copied from agl's code which was shamelessly copied from djb's code. Only the
      * comment format and the variable namings are different from those.
+     * 
+     * @param out The array to store the inverse
+     * @param z The field element to invert
      */
     static void inverse(long[] out, long[] z) {
         long[] z2 = new long[Field25519.LIMB_CNT];
@@ -587,6 +639,11 @@ final class Field25519 {
 
     /**
      * Returns 0xffffffff iff a == b and zero otherwise.
+     * Constant-time equality check to prevent timing attacks.
+     * 
+     * @param a First value to compare
+     * @param b Second value to compare
+     * @return 0xffffffff if a equals b, 0 otherwise
      */
     private static int eq(int a, int b) {
         a = ~(a ^ b);
@@ -599,7 +656,12 @@ final class Field25519 {
     }
 
     /**
-     * returns 0xffffffff if a >= b and zero otherwise, where a and b are both non-negative.
+     * Returns 0xffffffff if a >= b and zero otherwise, where a and b are both non-negative.
+     * Constant-time comparison to prevent timing attacks.
+     * 
+     * @param a First value to compare (non-negative)
+     * @param b Second value to compare (non-negative)
+     * @return 0xffffffff if a is greater than or equal to b, 0 otherwise
      */
     private static int gte(int a, int b) {
         a -= b;

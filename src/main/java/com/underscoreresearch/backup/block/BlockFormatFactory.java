@@ -8,10 +8,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Factory class for creating block format extractors based on registered plugins.
+ * Uses reflection to discover and register block format plugins at runtime.
+ */
 @Slf4j
 public final class BlockFormatFactory {
     private static final Map<String, Class<? extends FileBlockExtractor>> blockFormats;
 
+    /**
+     * Static initializer that discovers and registers all block format plugins.
+     */
     static {
         blockFormats = new HashMap<>();
 
@@ -30,6 +37,13 @@ public final class BlockFormatFactory {
         }
     }
 
+    /**
+     * Gets a block extractor instance for the specified format.
+     * 
+     * @param format The block format identifier
+     * @return A FileBlockExtractor instance for the specified format
+     * @throws IllegalArgumentException If the format is not supported
+     */
     public static FileBlockExtractor getExtractor(String format) {
         Class<? extends FileBlockExtractor> clz = blockFormats.get(format);
         if (clz == null)

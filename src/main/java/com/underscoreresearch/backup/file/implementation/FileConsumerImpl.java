@@ -14,14 +14,25 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
 
+/**
+ * Implementation of FileConsumer that assigns blocks to files and saves them to the repository.
+ * Uses a list of FileBlockAssignment implementations to handle different types of files.
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class FileConsumerImpl implements FileConsumer {
     private final MetadataRepository repository;
     private final List<FileBlockAssignment> assignments;
 
+    /**
+     * Backs up a file by assigning blocks and saving it to the repository.
+     *
+     * @param set The backup set to which the file belongs
+     * @param file The file to back up
+     * @param completionPromise Callback to notify when the backup is complete
+     */
     @Override
     public void backupFile(BackupSet set, BackupFile file, BackupCompletion completionPromise) {
         if (file.getLength() == 0) {
@@ -45,6 +56,10 @@ public class FileConsumerImpl implements FileConsumer {
         }
     }
 
+    /**
+     * Flushes all pending block assignments.
+     * This ensures that any buffered data is written to the repository.
+     */
     @Override
     public void flushAssignments() {
         for (FileBlockAssignment assignment : assignments) {
@@ -52,6 +67,12 @@ public class FileConsumerImpl implements FileConsumer {
         }
     }
 
+    /**
+     * Saves a file to the repository and notifies the completion promise.
+     *
+     * @param file The file to save
+     * @param completionPromise Callback to notify when the save is complete
+     */
     private void saveFile(BackupFile file, BackupCompletion completionPromise) {
         try {
             debug(() -> log.debug("Completed file \"{}\"", PathNormalizer.physicalPath(file.getPath())));

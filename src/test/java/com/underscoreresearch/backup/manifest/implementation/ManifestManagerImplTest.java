@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.cli.commands.BackupCommand;
+import com.underscoreresearch.backup.ui.commands.BackupCommand;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.Encryptor;

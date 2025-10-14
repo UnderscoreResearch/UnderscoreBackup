@@ -1,9 +1,9 @@
 package com.underscoreresearch.backup.io;
 
 import com.underscoreresearch.backup.configuration.InstanceFactory;
-import com.underscoreresearch.backup.utils.PausedStatusLogger;
+import com.underscoreresearch.backup.utils.log.PausedStatusLogger;
 import com.underscoreresearch.backup.utils.ProcessingStoppedException;
-import com.underscoreresearch.backup.utils.state.MachineState;
+import com.underscoreresearch.backup.machinestate.MachineState;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayOutputStream;
@@ -23,9 +23,13 @@ import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.RetryUtils.DEFAULT_BASE;
 
+/**
+ * Utility class for IO operations.
+ * Provides methods for file operations, internet connectivity checks, and process execution.
+ */
 @Slf4j
 public final class IOUtils {
     public static final long INTERNET_WAIT = 1000;
@@ -35,6 +39,13 @@ public final class IOUtils {
     private static final long HOUR_IN_MILLIS = Duration.ofHours(1).toMillis();
     private static Instant internetSuccessfulUntil = null;
 
+    /**
+     * Read all bytes from an input stream into a byte array.
+     *
+     * @param stream The input stream to read from
+     * @return The bytes read from the stream
+     * @throws IOException If there's an error reading from the stream
+     */
     public static byte[] readAllBytes(InputStream stream) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
@@ -46,6 +57,14 @@ public final class IOUtils {
         return outputStream.toByteArray();
     }
 
+    /**
+     * Copy data from an input stream to an output stream.
+     *
+     * @param in The input stream to read from
+     * @param out The output stream to write to
+     * @return The number of bytes copied
+     * @throws IOException If there's an error during the copy operation
+     */
     public static long copyStream(InputStream in, OutputStream out) throws IOException {
         long transferred = 0;
         byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
@@ -57,6 +76,12 @@ public final class IOUtils {
         return transferred;
     }
 
+    /**
+     * Check if internet connectivity is available.
+     * Uses a cached result if a recent check was successful.
+     *
+     * @return True if internet is available, false otherwise
+     */
     public static boolean hasInternet() {
         if (internetSuccessfulUntil != null && Instant.now().isBefore(internetSuccessfulUntil)) {
             return true;
@@ -69,6 +94,11 @@ public final class IOUtils {
         return false;
     }
 
+    /**
+     * Internal method to check internet connectivity by making a request to example.com.
+     *
+     * @return True if the request succeeds, false otherwise
+     */
     private static boolean internalHasInternet() {
         try {
             for (int i = 0; true; i++) {
@@ -98,6 +128,16 @@ public final class IOUtils {
         }
     }
 
+    /**
+     * Execute a callable, waiting for internet connectivity if needed.
+     * Will retry the callable if it fails due to internet connectivity issues.
+     *
+     * @param callable The callable to execute
+     * @param immediateFailOnShutdown Whether to fail immediately if shutdown is in progress
+     * @param <T> The return type of the callable
+     * @return The result of the callable
+     * @throws Exception If the callable throws an exception
+     */
     public static <T> T waitForInternet(Callable<T> callable, boolean immediateFailOnShutdown) throws Exception {
         for (int i = 0; true; i++) {
             if (immediateFailOnShutdown)
@@ -144,11 +184,23 @@ public final class IOUtils {
         }
     }
 
+    /**
+     * Check if shutdown is in progress and throw an exception if it is.
+     *
+     * @throws ProcessingStoppedException If shutdown is in progress
+     */
     private static void failOnShutdown() {
         if (InstanceFactory.isShutdown())
             throw new ProcessingStoppedException("Shutting down");
     }
 
+    /**
+     * Create a directory if it doesn't exist.
+     * Logs a warning or debug message if creation fails.
+     *
+     * @param file The directory to create
+     * @param warning Whether to log a warning or debug message on failure
+     */
     public static void createDirectory(File file, boolean warning) {
         if (!file.mkdirs() && !file.isDirectory()) {
             if (warning)
@@ -158,6 +210,11 @@ public final class IOUtils {
         }
     }
 
+    /**
+     * Delete a file, logging a warning if deletion fails.
+     *
+     * @param file The file to delete
+     */
     public static void deleteFile(File file) {
         try {
             deleteFileException(file);
@@ -166,18 +223,35 @@ public final class IOUtils {
         }
     }
 
+    /**
+     * Set permissions on a file so that only the owner can access it.
+     *
+     * @param file The file to set permissions on
+     * @throws IOException If there's an error setting permissions
+     */
     public static void setOwnerOnlyPermissions(File file) throws IOException {
         MachineState state = InstanceFactory.getInstance(MachineState.class);
 
         state.setOwnerOnlyPermissions(file);
     }
 
+    /**
+     * Delete a file, throwing an exception if deletion fails.
+     *
+     * @param file The file to delete
+     * @throws IOException If the file exists but cannot be deleted
+     */
     public static void deleteFileException(File file) throws IOException {
         if (file.exists() && !file.delete()) {
             throw new IOException("Failed to delete \"" + file + "\"");
         }
     }
 
+    /**
+     * Delete the contents of a directory recursively.
+     *
+     * @param file The directory whose contents should be deleted
+     */
     public static void deleteContents(File file) {
         if (file.isDirectory()) {
             File[] files = file.listFiles();
@@ -194,6 +268,10 @@ public final class IOUtils {
         }
     }
 
+    /**
+     * Clear temporary files created by the application.
+     * Looks for files with names starting with "underscorebackup" in the system temp directory.
+     */
     public static void clearTempFiles() {
         File file = new File(System.getProperty("java.io.tmpdir"));
         File[] files = file.listFiles(pathname -> pathname.getName().toLowerCase().startsWith("underscorebackup"));
@@ -204,6 +282,13 @@ public final class IOUtils {
         }
     }
 
+    /**
+     * Helper method for clearing temporary files.
+     * Recursively checks if files are stale and deletes them if they are.
+     *
+     * @param parent The file or directory to check
+     * @return True if the file was deleted or all children were deleted
+     */
     private static boolean clearTempFiles(File parent) {
         if (parent.isDirectory()) {
             boolean allChildren = true;
@@ -240,6 +325,14 @@ public final class IOUtils {
         }
     }
 
+    /**
+     * Execute a process and log its output.
+     *
+     * @param kind A description of the process for logging
+     * @param cmd The command to execute
+     * @return The process object
+     * @throws IOException If there's an error starting the process
+     */
     public static Process executeProcess(String kind, String[] cmd) throws IOException {
         log.info("{} with command: \"{}\"", kind, String.join(" ", cmd));
         Process process = executeQuietProcess(kind, cmd);
@@ -247,6 +340,15 @@ public final class IOUtils {
         return process;
     }
 
+    /**
+     * Execute a process without logging its standard output.
+     * Error output is still logged.
+     *
+     * @param kind A description of the process for logging
+     * @param cmd The command to execute
+     * @return The process object
+     * @throws IOException If there's an error starting the process
+     */
     public static Process executeQuietProcess(String kind, String[] cmd) throws IOException {
         Process process = Runtime.getRuntime().exec(cmd);
         new Thread(() -> {
@@ -263,6 +365,13 @@ public final class IOUtils {
         return process;
     }
 
+    /**
+     * Print the output from a process stream.
+     *
+     * @param kind A description of the process for logging
+     * @param name The name of the stream (e.g., "output" or "error output")
+     * @param errorStream The stream to read from
+     */
     private static void printOutput(String kind, String name, InputStream errorStream) {
         ByteArrayOutputStream data = new ByteArrayOutputStream();
         try {

@@ -1,0 +1,105 @@
+package com.underscoreresearch.backup.ui.web.methods;
+
+import com.google.common.base.Strings;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.manifest.LogConsumer;
+import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.ui.web.BaseWrap;
+import com.underscoreresearch.backup.ui.web.ExclusiveImplementation;
+import lombok.extern.slf4j.Slf4j;
+import org.takes.Request;
+import org.takes.Response;
+
+import java.io.IOException;
+
+import static com.underscoreresearch.backup.ui.web.methods.RepairPost.executeAsyncOperation;
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.OPTIMIZING_LOG_OPERATION;
+
+/**
+ * Web endpoint for optimizing the backup logs.
+ * This class handles requests to optimize the backup logs to improve performance and reduce storage usage.
+ */
+@Slf4j
+public class OptimizePost extends BaseWrap {
+    /**
+     * Creates a new OptimizePost instance.
+     */
+    public OptimizePost() {
+        super(new Implementation());
+    }
+
+    /**
+     * Implementation class that handles log optimization requests.
+     */
+    private static class Implementation extends ExclusiveImplementation {
+        /**
+         * Processes a request to optimize the backup logs.
+         * Initiates the log optimization process in a separate thread.
+         *
+         * @param req The HTTP request
+         * @return The HTTP response
+         */
+        @Override
+        public Response actualAct(Request req) {
+            if (!Strings.isNullOrEmpty(InstanceFactory.getAdditionalSource())) {
+                return messageJson(400, "Cannot optimize additional source");
+            }
+            InstanceFactory.reloadConfiguration(InstanceFactory.getAdditionalSource(),
+                    InstanceFactory.getAdditionalSourceName(), null);
+
+            ManifestManager manifestManager = InstanceFactory.getInstance(ManifestManager.class);
+            MetadataRepository metadataRepository = InstanceFactory.getInstance(MetadataRepository.class);
+            LogConsumer logConsumer = InstanceFactory.getInstance(LogConsumer.class);
+            executeAsyncOperation(() -> {
+                        try {
+                            manifestManager.optimizeLog(metadataRepository, logConsumer, false);
+                        } catch (IOException e) {
+                            log.error("Failed to optimize logs", e);
+                        }
+                    },
+                    (thread, completed) -> {
+                        try {
+                            manifestManager.shutdown();
+                        } catch (IOException e) {
+                            log.error("Failed to cancel optimize", e);
+                        }
+                        if (!completed && manifestManager.isBusy()) {
+                            try {
+                                thread.join(1000);
+                                if (!thread.isAlive())
+                                    return;
+                            } catch (InterruptedException ignored) {
+                                Thread.currentThread().interrupt();
+                            }
+                            log.info("Waiting for rebuild to get to a checkpoint");
+                            do {
+                                try {
+                                    thread.join();
+                                } catch (InterruptedException ignored) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            } while (thread.isAlive());
+                        }
+                        try {
+                            metadataRepository.close();
+                        } catch (IOException e) {
+                            log.error("Failed to close repository", e);
+                        }
+                    },
+                    OPTIMIZING_LOG_OPERATION,
+                    "OptimizingLogs");
+            return messageJson(200, "Optimizing logs");
+        }
+
+        /**
+         * Gets the message to display when the system is busy.
+         *
+         * @return The busy message
+         */
+        @Override
+        protected String getBusyMessage() {
+            return "Optimizing logs";
+        }
+    }
+}

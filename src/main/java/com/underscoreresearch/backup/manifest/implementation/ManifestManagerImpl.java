@@ -3,9 +3,9 @@ package com.underscoreresearch.backup.manifest.implementation;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
-import com.underscoreresearch.backup.cli.commands.ChangePasswordCommand;
-import com.underscoreresearch.backup.cli.commands.VersionCommand;
-import com.underscoreresearch.backup.cli.ui.UIHandler;
+import com.underscoreresearch.backup.ui.commands.ChangePasswordCommand;
+import com.underscoreresearch.backup.ui.commands.VersionCommand;
+import com.underscoreresearch.backup.ui.desktop.UIHandler;
 import com.underscoreresearch.backup.configuration.CommandLineModule;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
@@ -50,9 +50,9 @@ import com.underscoreresearch.backup.service.api.model.MessageResponse;
 import com.underscoreresearch.backup.service.api.model.ShareResponse;
 import com.underscoreresearch.backup.service.api.model.SourceRequest;
 import com.underscoreresearch.backup.utils.AccessLock;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.log.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.log.StateLogger;
+import com.underscoreresearch.backup.utils.log.StatusLine;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -84,17 +84,23 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
-import static com.underscoreresearch.backup.cli.commands.ConfigureCommand.getConfigurationUrl;
+import static com.underscoreresearch.backup.ui.commands.ConfigureCommand.getConfigurationUrl;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.CONFIG_DATA;
 import static com.underscoreresearch.backup.io.IOUtils.deleteContents;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
 import static com.underscoreresearch.backup.manifest.implementation.ShareManifestManagerImpl.SHARE_CONFIG_FILE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableEta;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableNumber;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_READER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
+
+/**
+ * Implementation of the manifest manager.
+ * This class manages the backup manifest, including configuration, logs, and identity.
+ * It extends BaseManifestManagerImpl to provide additional functionality for backup operations.
+ */
 
 @Slf4j
 public class ManifestManagerImpl extends BaseManifestManagerImpl implements ManualStatusLogger, ManifestManager {

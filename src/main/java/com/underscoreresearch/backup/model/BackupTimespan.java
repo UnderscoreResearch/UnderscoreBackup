@@ -12,21 +12,51 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.Period;
 
+/**
+ * Represents a span of time in the backup system.
+ * Used for retention policies, scheduling, and other time-based operations.
+ */
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class BackupTimespan {
+    /**
+     * Constant representing an immediate time (far in the future).
+     */
     private static final LocalDateTime IMMEDIATE = LocalDateTime.of(3000, 1, 1, 0, 0);
+    
+    /**
+     * Constant representing forever (minimum possible time).
+     */
     private static final LocalDateTime FOREVER = LocalDateTime.MIN;
+    
+    /**
+     * The duration value.
+     */
     private long duration;
+    
+    /**
+     * The unit of the duration.
+     */
     private BackupTimeUnit unit;
 
+    /**
+     * Converts this timespan to a LocalDateTime relative to now.
+     * 
+     * @return The LocalDateTime
+     */
     @JsonIgnore
     public LocalDateTime toTime() {
         return toTime(LocalDateTime.now());
     }
 
+    /**
+     * Converts this timespan to an Instant relative to now.
+     * 
+     * @return The Instant
+     */
     @JsonIgnore
     public Instant toInstant() {
         LocalDateTime time = toTime(LocalDateTime.now());
@@ -36,6 +66,11 @@ public class BackupTimespan {
         return time.toInstant(OffsetDateTime.now().getOffset());
     }
 
+    /**
+     * Checks if this timespan represents an immediate time.
+     * 
+     * @return True if this timespan is immediate, false otherwise
+     */
     @JsonIgnore
     public boolean isImmediate() {
         if (unit == BackupTimeUnit.FOREVER)
@@ -44,16 +79,32 @@ public class BackupTimespan {
             return duration == 0;
     }
 
+    /**
+     * Checks if this timespan represents forever.
+     * 
+     * @return True if this timespan is forever, false otherwise
+     */
     @JsonIgnore
     public boolean isForever() {
         return unit == BackupTimeUnit.FOREVER;
     }
 
+    /**
+     * Converts this timespan to epoch milliseconds.
+     * 
+     * @return The epoch milliseconds
+     */
     @JsonIgnore
     public long toEpochMilli() {
         return toInstant().toEpochMilli();
     }
 
+    /**
+     * Converts this timespan to a LocalDateTime relative to the given time.
+     * 
+     * @param now The reference time
+     * @return The LocalDateTime
+     */
     @JsonIgnore
     public LocalDateTime toTime(LocalDateTime now) {
         if (unit == BackupTimeUnit.FOREVER) {
@@ -75,6 +126,11 @@ public class BackupTimespan {
         };
     }
 
+    /**
+     * Converts this timespan to a Duration.
+     * 
+     * @return The Duration, or null if the unit is not convertible to a Duration
+     */
     public Duration toDuration() {
         if (unit == null)
             return null;

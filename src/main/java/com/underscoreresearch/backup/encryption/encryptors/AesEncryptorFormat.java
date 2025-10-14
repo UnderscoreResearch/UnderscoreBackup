@@ -26,6 +26,11 @@ import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM
 import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
 import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
 
+/**
+ * Base class for AES encryption formats.
+ * This abstract class provides common functionality for AES encryption and decryption
+ * with different modes and padding schemes.
+ */
 @Slf4j
 public abstract class AesEncryptorFormat {
     public static final String PUBLIC_KEY = "p";
@@ -34,22 +39,67 @@ public abstract class AesEncryptorFormat {
     protected static final int PUBLIC_KEY_SIZE = 32;
     protected static final String KEY_ALGORITHM = "AES";
 
+    /**
+     * Gets the encryption algorithm name.
+     *
+     * @return The encryption algorithm name
+     */
     protected abstract String getKeyAlgorithm();
 
+    /**
+     * Gets the initialization vector size in bytes.
+     *
+     * @return The IV size
+     */
     protected abstract int getIvSize();
 
+    /**
+     * Adjusts the estimated size for encryption.
+     *
+     * @param paddingFormat The padding format
+     * @param estimatedSize The estimated size
+     * @return The adjusted size
+     */
     protected int adjustEstimatedSize(byte paddingFormat, int estimatedSize) {
         return estimatedSize;
     }
 
+    /**
+     * Gets the padding format identifier for the given estimated size.
+     *
+     * @param estimatedSize The estimated size
+     * @return The padding format identifier
+     */
     protected abstract byte paddingFormat(int estimatedSize);
 
+    /**
+     * Adjusts the decode length based on the padding format.
+     *
+     * @param paddingFormat The padding format
+     * @param payloadLength The payload length
+     * @return The adjusted length
+     */
     protected int adjustDecodeLength(byte paddingFormat, int payloadLength) {
         return payloadLength;
     }
 
+    /**
+     * Creates the algorithm parameter specification for the cipher.
+     *
+     * @param iv The initialization vector
+     * @return The algorithm parameter specification
+     */
     protected abstract AlgorithmParameterSpec createAlgorithmParameterSpec(byte[] iv);
 
+    /**
+     * Encrypts a data block using the specified identity keys.
+     *
+     * @param storage The storage metadata
+     * @param data The data to encrypt
+     * @param key The identity keys to use for encryption
+     * @return The encrypted data
+     * @throws GeneralSecurityException If encryption fails
+     */
     public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, IdentityKeys key) throws GeneralSecurityException {
         byte[] iv = new byte[getIvSize()];
         RANDOM.nextBytes(iv);
@@ -97,10 +147,24 @@ public abstract class AesEncryptorFormat {
         }
     }
 
+    /**
+     * Creates the encryption key secret from identity keys.
+     *
+     * @param key The identity keys
+     * @return The encryption parameters
+     * @throws GeneralSecurityException If key creation fails
+     */
     protected IdentityKeys.EncryptionParameters createKeySecret(IdentityKeys key) throws GeneralSecurityException {
         return key.getEncryptionParameters(KEY_TYPES_X25519);
     }
 
+    /**
+     * Gets the key encapsulation data for storage.
+     *
+     * @param storage The storage metadata
+     * @param parameters The encryption parameters
+     * @return The key encapsulation data
+     */
     protected byte[] getKeyEncapsulationData(BackupBlockStorage storage, IdentityKeys.EncryptionParameters parameters) {
         byte[] publicKey = parameters.getKeys().get(X25519_KEY).getEncapsulation();
         if (publicKey.length != PUBLIC_KEY_SIZE) {
@@ -112,10 +176,25 @@ public abstract class AesEncryptorFormat {
         return publicKey;
     }
 
+    /**
+     * Indicates whether to randomize key data.
+     *
+     * @return True if key data should be randomized
+     */
     protected boolean randomizeKeyData() {
         return true;
     }
 
+    /**
+     * Decodes (decrypts) a data block.
+     *
+     * @param storage The storage metadata
+     * @param encryptedData The encrypted data
+     * @param offset The offset in the encrypted data
+     * @param key The private keys to use for decryption
+     * @return The decrypted data
+     * @throws GeneralSecurityException If decryption fails
+     */
     public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset, IdentityKeys.PrivateKeys key)
             throws GeneralSecurityException {
         byte[] iv = new byte[getIvSize()];
@@ -142,6 +221,15 @@ public abstract class AesEncryptorFormat {
         }
     }
 
+    /**
+     * Extracts key encapsulation data from storage or encrypted data.
+     *
+     * @param storage The storage metadata
+     * @param encryptedData The encrypted data
+     * @param currentOffset The current offset in the encrypted data
+     * @return The encapsulated keys
+     * @throws GeneralSecurityException If extraction fails
+     */
     protected Map<String, PublicKeyMethod.EncapsulatedKey> extractKeyEncapsulation(BackupBlockStorage storage,
                                                                                    byte[] encryptedData,
                                                                                    AtomicInteger currentOffset)
@@ -161,6 +249,13 @@ public abstract class AesEncryptorFormat {
         return Map.of(X25519_KEY, new PublicKeyMethod.EncapsulatedKey(publicKey));
     }
 
+    /**
+     * Applies additional storage key data for sharing.
+     *
+     * @param encryptionKey The encryption key
+     * @param storage The storage metadata
+     * @throws GeneralSecurityException If key application fails
+     */
     public void applyAdditionalStorageKeyData(byte[] encryptionKey,
                                               BackupBlockStorage storage) throws GeneralSecurityException {
         if (storage != null && storage.hasAdditionalStorageProperties()) {

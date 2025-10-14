@@ -11,7 +11,7 @@ import Settings from "@mui/icons-material/Settings";
 import CloudDownload from "@mui/icons-material/CloudDownload";
 import AutoAwesomeMotion from "@mui/icons-material/AutoAwesomeMotion";
 import Dashboard from "@mui/icons-material/Dashboard";
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import {Share} from "@mui/icons-material";
 
 function MyListItemButton(props: {

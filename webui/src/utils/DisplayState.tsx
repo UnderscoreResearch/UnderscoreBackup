@@ -2,7 +2,7 @@ import {NavigationProps} from "../components/NavigationMenu";
 import {ApplicationContext} from "./ApplicationContext";
 import {ActivityContext} from "./ActivityContext";
 import {deepEqual} from "fast-equals";
-import {Location} from "react-router-dom";
+import {Location} from "react-router";
 
 export interface DisplayState {
     navigation: NavigationProps,

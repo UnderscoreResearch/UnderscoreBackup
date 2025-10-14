@@ -3,15 +3,15 @@ package com.underscoreresearch.backup.file.implementation;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
+import com.underscoreresearch.backup.ui.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.io.IOUtils;
 import com.underscoreresearch.backup.manifest.ServiceManager;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.service.api.invoker.ApiException;
 import com.underscoreresearch.backup.service.api.model.SourceStatsModel;
-import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.StatusLogger;
+import com.underscoreresearch.backup.utils.log.StatusLine;
+import com.underscoreresearch.backup.utils.log.StatusLogger;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -30,11 +30,15 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
-import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableNumber;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * BackupStatsLogger is responsible for logging backup statistics and errors.
+ * It reads and writes statistics to a file, and provides methods to update and retrieve statistics.
+ */
 @Slf4j
 public class BackupStatsLogger implements StatusLogger {
     private static final ObjectReader STATISTICS_READER = MAPPER.readerFor(RepositoryTrimmer.Statistics.class);
@@ -53,6 +57,12 @@ public class BackupStatsLogger implements StatusLogger {
     @Setter
     private boolean downloadRunning;
 
+    /**
+     * Constructor for BackupStatsLogger.
+     *
+     * @param configuration The backup configuration
+     * @param manifestPath The path to the manifest
+     */
     public BackupStatsLogger(BackupConfiguration configuration, String manifestPath) {
         this.manifestPath = manifestPath;
         this.configuration = configuration;
@@ -62,12 +72,22 @@ public class BackupStatsLogger implements StatusLogger {
         setErrorFile(manifestPath);
     }
 
+    /**
+     * Sets the error file path.
+     *
+     * @param manifestPath The path to the manifest
+     */
     private static void setErrorFile(String manifestPath) {
         if (errorFile == null) {
             errorFile = new File(manifestPath, "error.txt");
         }
     }
 
+    /**
+     * Writes an encountered error to the error file.
+     *
+     * @param errorBytes The error message as a byte array
+     */
     public static void writeEncounteredError(byte[] errorBytes) {
         try {
             ensureErrorFile();
@@ -81,10 +101,21 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    /**
+     * Cleans the error message by redacting sensitive information.
+     *
+     * @param error The error message
+     * @return The cleaned error message
+     */
     private static String cleanError(String error) {
         return ERROR_REQUEST.matcher(error).replaceAll("{REDACTED}");
     }
 
+    /**
+     * Extracts the last encountered error message.
+     *
+     * @return The last encountered error message, or null if not available
+     */
     public static String extractEncounteredError() {
         ensureErrorFile();
         if (errorFile != null && errorFile.exists()) {
@@ -102,6 +133,9 @@ public class BackupStatsLogger implements StatusLogger {
         return null;
     }
 
+    /**
+     * Ensures that the error file is set up.
+     */
     private static void ensureErrorFile() {
         if (errorFile == null) {
             try {
@@ -111,10 +145,20 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    /**
+     * Gets the statistics file path.
+     *
+     * @return The statistics file
+     */
     private File getStatisticsFile() {
         return new File(manifestPath, "statistics.json");
     }
 
+    /**
+     * Updates the statistics with the provided data.
+     *
+     * @param statistics The statistics to update
+     */
     public void updateStats(RepositoryTrimmer.Statistics statistics) {
         if (manifestPath != null) {
             if (this.statistics != null) {
@@ -125,6 +169,11 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    /**
+     * Stores the statistics in a file.
+     *
+     * @param statistics The statistics to store
+     */
     private void storeStats(RepositoryTrimmer.Statistics statistics) {
         try {
             this.statistics = statistics;
@@ -134,6 +183,11 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    /**
+     * Set if activation is needed.
+     *
+     * @param needsActivation True if activation is needed, false otherwise
+     */
     public void setNeedsActivation(boolean needsActivation) {
         if (statistics != null) {
             statistics.setNeedActivation(needsActivation);
@@ -141,10 +195,20 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    /**
+     * Checks if validation is needed.
+     *
+     * @return True if validation is needed, false otherwise
+     */
     public boolean isNeedValidation() {
         return statistics != null && statistics.isNeedValidation();
     }
 
+    /**
+     * Sets whether validation is needed.
+     *
+     * @param needValidation True if validation is needed, false otherwise
+     */
     public void setNeedValidation(boolean needValidation) {
         if (statistics != null) {
             statistics.setNeedValidation(needValidation);
@@ -152,6 +216,11 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    /**
+     * Reads the statistics from the file.
+     *
+     * @return The statistics
+     */
     private RepositoryTrimmer.Statistics readStatistics() {
         if (manifestPath != null) {
             try {
@@ -166,6 +235,11 @@ public class BackupStatsLogger implements StatusLogger {
         return statistics;
     }
 
+    /**
+     * Updates the future scheduled set times.
+     *
+     * @param newState The new scheduled times
+     */
     public void updateScheduledTimes(Map<String, Date> newState) {
         synchronized (scheduledTimes) {
             scheduledTimes.clear();
@@ -175,10 +249,18 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    /**
+     * Resets the status of the logger. NOP.
+     */
     @Override
     public void resetStatus() {
     }
 
+    /**
+     * Sets the upload running status.
+     *
+     * @param uploadRunning True if upload is running, false otherwise
+     */
     public void setUploadRunning(boolean uploadRunning) {
         if (this.uploadRunning && !uploadRunning) {
             if (statistics != null && configuration.getManifest() != null &&
@@ -206,6 +288,11 @@ public class BackupStatsLogger implements StatusLogger {
         this.uploadRunning = uploadRunning;
     }
 
+    /**
+     * Gets the backup status lines.
+     *
+     * @return List of status lines describing the current state based on the stats.
+     */
     @Override
     public List<StatusLine> status() {
         List<StatusLine> ret = new ArrayList<>();
@@ -280,11 +367,21 @@ public class BackupStatsLogger implements StatusLogger {
         }
     }
 
+    /**
+     * Gets the type of the logger.
+     *
+     * @return The type of the logger
+     */
     @Override
     public Type type() {
         return Type.PERMANENT;
     }
 
+    /**
+     * Gets the index of a set in the configuration by its id.
+     *
+     * @return Index of the set in the configuration, or -1 if not found
+     */
     private int indexOfSet(String key) {
         for (int i = 0; i < configuration.getSets().size(); i++) {
             if (configuration.getSets().get(i).getId().equals(key)) {

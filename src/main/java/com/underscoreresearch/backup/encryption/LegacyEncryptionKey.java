@@ -32,6 +32,11 @@ import java.util.Objects;
 import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * Legacy implementation of encryption key management.
+ * This class provides backward compatibility with older key formats
+ * and handles conversion between legacy and current key formats.
+ */
 @Slf4j
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
@@ -60,12 +65,30 @@ public class LegacyEncryptionKey {
     @JsonIgnore
     private PrivateKey cachedPrivateKey;
 
+    /**
+     * Adjusts a private key to conform to the required format.
+     * Sets specific bits in the private key to ensure it meets the requirements
+     * for X25519 key operations.
+     *
+     * @param privateKey The private key to adjust
+     */
     private static void makePrivateKey(byte[] privateKey) {
         privateKey[0] = (byte) (privateKey[0] | 7);
         privateKey[31] = (byte) (privateKey[31] & 63);
         privateKey[31] = (byte) (privateKey[31] | 128);
     }
 
+    /**
+     * Derives a key from a password using the specified algorithm.
+     * Supports both Argon2 (current) and PBKDF2 (legacy) algorithms.
+     *
+     * @param algorithm The algorithm to use for key derivation
+     * @param password The password to derive the key from
+     * @param saltData The salt to use for key derivation
+     * @return The derived key
+     * @throws NoSuchAlgorithmException If the algorithm is not available
+     * @throws InvalidKeySpecException If the key specification is invalid
+     */
     private static byte[] getPasswordDerivative(String algorithm, String password, byte[] saltData) throws NoSuchAlgorithmException, InvalidKeySpecException {
         if (CURRENT_ALGORITHM.equals(algorithm)) {
             Argon2Advanced argon2 = Argon2Factory.createAdvanced();
@@ -80,12 +103,28 @@ public class LegacyEncryptionKey {
         throw new InvalidKeySpecException();
     }
 
+    /**
+     * Creates a LegacyEncryptionKey with only a public key.
+     * Used for encryption operations where only the public key is needed.
+     *
+     * @param publicKey The public key in encoded string format
+     * @return A new LegacyEncryptionKey instance with the specified public key
+     */
     public static LegacyEncryptionKey createWithPublicKey(String publicKey) {
         LegacyEncryptionKey ret = new LegacyEncryptionKey();
         ret.setPublicKey(publicKey);
         return ret;
     }
 
+    /**
+     * Creates a LegacyEncryptionKey from key data.
+     * Supports both private key format (starting with prefix) and JSON format.
+     *
+     * @param keyData The key data in string format
+     * @return A new LegacyEncryptionKey instance created from the key data
+     * @throws InvalidKeyException If the key data is invalid
+     * @throws JsonProcessingException If there's an error parsing the JSON
+     */
     public static LegacyEncryptionKey createWithKeyData(String keyData) throws InvalidKeyException, JsonProcessingException {
         if (keyData.startsWith(DISPLAY_PREFIX)) {
             return createWithPrivateKey(keyData);
@@ -93,6 +132,14 @@ public class LegacyEncryptionKey {
         return ENCRYPTION_KEY_READER.readValue(keyData);
     }
 
+    /**
+     * Creates a LegacyEncryptionKey with a private key.
+     * The private key must be in the expected format with the correct prefix.
+     *
+     * @param privateKey The private key in encoded string format with prefix
+     * @return A new LegacyEncryptionKey instance with the specified private key
+     * @throws InvalidKeyException If the private key is invalid or in the wrong format
+     */
     public static LegacyEncryptionKey createWithPrivateKey(String privateKey) throws InvalidKeyException {
         if (!privateKey.startsWith(DISPLAY_PREFIX)) {
             throw new IllegalArgumentException("Invalid private key string. Should start with \"p-\"");
@@ -103,6 +150,12 @@ public class LegacyEncryptionKey {
         return ret;
     }
 
+    /**
+     * Gets the private key for serialization.
+     * Returns the encoded private key if it's available and not password-protected.
+     *
+     * @return The encoded private key or null if not available or password-protected
+     */
     @JsonProperty("privateKey")
     public String getPrivateKeySerializing() {
         if (cachedPrivateKey != null && cachedPrivateKey.password == null)
@@ -110,6 +163,12 @@ public class LegacyEncryptionKey {
         return null;
     }
 
+    /**
+     * Sets the private key from a serialized string.
+     * Creates a PrivateKey instance from the encoded private key.
+     *
+     * @param privateKey The encoded private key or null to clear the private key
+     */
     @JsonProperty("privateKey")
     public void setPrivateKeySerializing(String privateKey) {
         if (privateKey != null)
@@ -118,6 +177,12 @@ public class LegacyEncryptionKey {
             this.cachedPrivateKey = null;
     }
 
+    /**
+     * Gets the key data for serialization.
+     * Returns the encoded key data if available.
+     *
+     * @return The encoded key data or null if not available
+     */
     @JsonProperty("keyData")
     public String getKeyData() {
         if (keyData != null)
@@ -125,6 +190,12 @@ public class LegacyEncryptionKey {
         return null;
     }
 
+    /**
+     * Sets the key data from a serialized string.
+     * Decodes the key data from the encoded string.
+     *
+     * @param xor The encoded key data or null to clear the key data
+     */
     @JsonProperty("keyData")
     public void setKeyData(String xor) {
         if (xor != null)
@@ -133,6 +204,12 @@ public class LegacyEncryptionKey {
             keyData = null;
     }
 
+    /**
+     * Gets the block hash salt for serialization.
+     * Returns the Base64 encoded block hash salt if available.
+     *
+     * @return The Base64 encoded block hash salt or null if not available
+     */
     @JsonProperty("blockHashSalt")
     public String getBlockHashSalt() {
         if (blockHashSalt != null)
@@ -140,6 +217,12 @@ public class LegacyEncryptionKey {
         return null;
     }
 
+    /**
+     * Sets the block hash salt from a serialized string.
+     * Decodes the block hash salt from the Base64 encoded string.
+     *
+     * @param salt The Base64 encoded block hash salt or null to clear the salt
+     */
     @JsonProperty("blockHashSalt")
     public void setBlockHashSalt(String salt) {
         if (salt != null)
@@ -148,12 +231,26 @@ public class LegacyEncryptionKey {
             blockHashSalt = null;
     }
 
+    /**
+     * Adds the block hash salt to a hash.
+     * Used to incorporate the salt into hash calculations for blocks.
+     *
+     * @param hash The hash to add the block hash salt to
+     */
     @JsonIgnore
     public void addBlockHashSalt(Hash hash) {
         if (blockHashSalt != null)
             hash.addBytes(blockHashSalt);
     }
 
+    /**
+     * Gets the private key using the provided password.
+     * Derives the private key from the password and key data, and verifies it against the public key.
+     *
+     * @param password The password to use for deriving the private key
+     * @return The private key
+     * @throws IllegalArgumentException If the password is incorrect or the key cannot be unpacked
+     */
     @JsonIgnore
     public PrivateKey getPrivateKey(String password) {
         if (cachedPrivateKey == null || !Objects.equals(cachedPrivateKey.getPassword(), password)) {
@@ -191,6 +288,12 @@ public class LegacyEncryptionKey {
         return cachedPrivateKey;
     }
 
+    /**
+     * Gets the public key for serialization.
+     * Returns the encoded public key if available.
+     *
+     * @return The encoded public key or null if not available
+     */
     @JsonProperty
     public String getPublicKey() {
         if (publicKey != null)
@@ -198,6 +301,12 @@ public class LegacyEncryptionKey {
         return null;
     }
 
+    /**
+     * Sets the public key from a serialized string.
+     * Decodes the public key from the encoded string.
+     *
+     * @param publicKey The encoded public key or null to clear the public key
+     */
     @JsonProperty
     public void setPublicKey(String publicKey) {
         if (publicKey != null)
@@ -206,6 +315,12 @@ public class LegacyEncryptionKey {
             this.publicKey = null;
     }
 
+    /**
+     * Gets the public key hash.
+     * Calculates the hash from the public key if available.
+     *
+     * @return The public key hash
+     */
     @JsonProperty
     public String getPublicKeyHash() {
         if (publicKey != null)
@@ -213,11 +328,22 @@ public class LegacyEncryptionKey {
         return publicKeyHash;
     }
 
+    /**
+     * Sets the public key hash.
+     *
+     * @param publicKeyHash The public key hash
+     */
     @JsonProperty
     public void setPublicKeyHash(String publicKeyHash) {
         this.publicKeyHash = publicKeyHash;
     }
 
+    /**
+     * Gets the sharing public key for serialization.
+     * Returns the encoded sharing public key if available.
+     *
+     * @return The encoded sharing public key or null if not available
+     */
     @JsonProperty
     public String getSharingPublicKey() {
         if (sharingPublicKey != null)
@@ -225,6 +351,12 @@ public class LegacyEncryptionKey {
         return null;
     }
 
+    /**
+     * Sets the sharing public key from a serialized string.
+     * Decodes the sharing public key from the encoded string.
+     *
+     * @param sharingPublicKey The encoded sharing public key or null to clear the sharing public key
+     */
     @JsonProperty
     public void setSharingPublicKey(String sharingPublicKey) {
         if (sharingPublicKey != null)
@@ -233,6 +365,12 @@ public class LegacyEncryptionKey {
             this.sharingPublicKey = null;
     }
 
+    /**
+     * Gets a new LegacyEncryptionKey with only the sharing public key.
+     * Used for sharing operations where only the sharing public key is needed.
+     *
+     * @return A new LegacyEncryptionKey instance with only the sharing public key
+     */
     @JsonIgnore
     public LegacyEncryptionKey getSharingPublicEncryptionKey() {
         LegacyEncryptionKey key = new LegacyEncryptionKey();
@@ -240,6 +378,12 @@ public class LegacyEncryptionKey {
         return key;
     }
 
+    /**
+     * Gets the salt for serialization.
+     * Returns the encoded salt if available.
+     *
+     * @return The encoded salt or null if not available
+     */
     @JsonProperty
     public String getSalt() {
         if (salt != null)
@@ -247,6 +391,12 @@ public class LegacyEncryptionKey {
         return null;
     }
 
+    /**
+     * Sets the salt from a serialized string.
+     * Decodes the salt from the encoded string.
+     *
+     * @param salt The encoded salt or null to clear the salt
+     */
     @JsonProperty
     public void setSalt(String salt) {
         if (salt != null)
@@ -255,6 +405,12 @@ public class LegacyEncryptionKey {
             this.salt = null;
     }
 
+    /**
+     * Gets the password key for serialization.
+     * Returns the encoded password key if available.
+     *
+     * @return The encoded password key or null if not available
+     */
     @JsonProperty
     public String getPasswordKey() {
         if (passwordKey != null)
@@ -262,6 +418,12 @@ public class LegacyEncryptionKey {
         return null;
     }
 
+    /**
+     * Sets the password key from a serialized string.
+     * Decodes the password key from the encoded string.
+     *
+     * @param passwordKey The encoded password key or null to clear the password key
+     */
     @JsonProperty
     public void setPasswordKey(String passwordKey) {
         if (passwordKey != null)
@@ -270,6 +432,12 @@ public class LegacyEncryptionKey {
             this.passwordKey = null;
     }
 
+    /**
+     * Creates a copy of this key with only public information.
+     * Includes the public key and block hash salt.
+     *
+     * @return A new LegacyEncryptionKey instance with only public information
+     */
     public LegacyEncryptionKey publicOnly() {
         LegacyEncryptionKey ret = publicOnlyHash();
         ret.publicKey = publicKey;
@@ -277,6 +445,12 @@ public class LegacyEncryptionKey {
         return ret;
     }
 
+    /**
+     * Creates a copy of this key with only the public key hash.
+     * Includes additional keys, sharing public key, and encrypted block hash salt.
+     *
+     * @return A new LegacyEncryptionKey instance with only the public key hash and related information
+     */
     public LegacyEncryptionKey publicOnlyHash() {
         LegacyEncryptionKey ret = serviceOnlyKey();
         ret.encryptedAdditionalKeys = encryptedAdditionalKeys;
@@ -285,6 +459,12 @@ public class LegacyEncryptionKey {
         return ret;
     }
 
+    /**
+     * Creates a copy of this key with only service-related information.
+     * Includes the public key hash, salt, password key, key data, and algorithm.
+     *
+     * @return A new LegacyEncryptionKey instance with only service-related information
+     */
     public LegacyEncryptionKey serviceOnlyKey() {
         LegacyEncryptionKey ret = new LegacyEncryptionKey();
         ret.publicKeyHash = getPublicKeyHash();
@@ -295,29 +475,73 @@ public class LegacyEncryptionKey {
         return ret;
     }
 
+    /**
+     * Represents a private key associated with a LegacyEncryptionKey.
+     * Contains the private key bytes and a reference to the parent key.
+     */
     @Getter
     public static class PrivateKey {
+        /**
+         * The password used to derive this private key, if any.
+         */
         private final String password;
+        
+        /**
+         * The parent LegacyEncryptionKey that this private key belongs to.
+         */
         private final LegacyEncryptionKey parent;
+        
+        /**
+         * The actual private key bytes.
+         */
         private byte[] privateKey;
 
 
+        /**
+         * Constructor for PrivateKey.
+         * Creates a new private key with the specified password, key bytes, and parent.
+         *
+         * @param password The password used to derive this private key, or null if not password-derived
+         * @param privateKey The private key bytes
+         * @param parent The parent LegacyEncryptionKey
+         */
         PrivateKey(String password, byte[] privateKey, LegacyEncryptionKey parent) {
             this.password = password;
             this.privateKey = privateKey;
             this.parent = parent;
         }
 
+        /**
+         * Sets the private key bytes.
+         *
+         * @param privateKey The new private key bytes
+         */
         public void setPrivateKey(byte[] privateKey) {
             this.privateKey = privateKey;
         }
     }
 
+    /**
+     * Manages additional encryption keys for a backup source.
+     * Handles decryption and management of additional private keys.
+     */
     public static class AdditionalKeyManager {
         private final static ObjectReader READER = MAPPER.readerFor(new TypeReference<List<String>>() {
         });
+        /**
+         * List of additional encryption keys.
+         */
         private final List<LegacyEncryptionKey> keys;
 
+        /**
+         * Constructor for AdditionalKeyManager.
+         * Decrypts and loads additional keys from the encrypted string.
+         *
+         * @param privateKeys The private keys to use for decryption
+         * @param encryptedAdditionalKeys The encrypted additional keys string
+         * @throws IOException If there's an error reading the keys
+         * @throws GeneralSecurityException If there's an error decrypting the keys
+         */
         public AdditionalKeyManager(IdentityKeys.PrivateKeys privateKeys, String encryptedAdditionalKeys) throws IOException, GeneralSecurityException {
             keys = new ArrayList<>();
 
@@ -341,6 +565,13 @@ public class LegacyEncryptionKey {
             }
         }
 
+        /**
+         * Finds a private key that matches the given public key.
+         * Searches through the loaded keys for one with a matching public key hash.
+         *
+         * @param publicKey The public key to match
+         * @return The matching private key, or null if no match is found
+         */
         public LegacyEncryptionKey findMatchingPrivateKey(LegacyEncryptionKey publicKey) {
             for (LegacyEncryptionKey key : keys) {
                 if (key.getPublicKeyHash().equals(publicKey.getPublicKeyHash())) {
@@ -350,6 +581,12 @@ public class LegacyEncryptionKey {
             return null;
         }
 
+        /**
+         * Gets all the loaded keys.
+         * Returns an array containing all the loaded encryption keys.
+         *
+         * @return Array of LegacyEncryptionKey instances
+         */
         public synchronized LegacyEncryptionKey[] getKeys() {
             LegacyEncryptionKey[] ret = new LegacyEncryptionKey[keys.size()];
             return keys.toArray(ret);

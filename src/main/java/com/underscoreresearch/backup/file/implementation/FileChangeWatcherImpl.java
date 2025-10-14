@@ -9,7 +9,7 @@ import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
-import com.underscoreresearch.backup.utils.state.MachineState;
+import com.underscoreresearch.backup.machinestate.MachineState;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -34,6 +34,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of FileChangeWatcher that monitors file system changes.
+ * Uses a FileChangePoller to detect file changes and submits them to a ContinuousBackup for processing.
+ */
 @Slf4j
 public class FileChangeWatcherImpl implements FileChangeWatcher {
     private static final int THREAD_POOL_SIZE = 5;
@@ -51,6 +55,15 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
     private ExecutorService executorService;
     private BlockingQueue<Runnable> executionQueue;
 
+    /**
+     * Constructor for FileChangeWatcherImpl.
+     *
+     * @param configuration The backup configuration containing backup sets
+     * @param repository The metadata repository to use for file operations
+     * @param continuousBackup The continuous backup to handle file changes
+     * @param manifestDirectory The directory where the manifest is stored
+     * @param machineState The machine state to monitor system status
+     */
     public FileChangeWatcherImpl(BackupConfiguration configuration, MetadataRepository repository,
                                  ContinuousBackup continuousBackup, String manifestDirectory,
                                  MachineState machineState) {
@@ -63,6 +76,13 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
         sets = getContinuousSets(configuration, whenBySet);
     }
 
+    /**
+     * Gets the list of backup sets that have continuous backup enabled.
+     *
+     * @param configuration The backup configuration
+     * @param whenBySet Optional map to store the frequency of each backup set
+     * @return List of backup sets with continuous backup enabled
+     */
     public static List<BackupSet> getContinuousSets(BackupConfiguration configuration, Map<String, Long> whenBySet) {
         return configuration.getSets().stream().filter(set ->
         {
@@ -79,6 +99,13 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * Starts the file change watcher.
+     * Creates a poller and registers paths to watch.
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws IllegalStateException if the watcher is already started
+     */
     @Override
     public void start() throws IOException {
         if (sets.isEmpty())
@@ -117,6 +144,12 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
         }
     }
 
+    /**
+     * Stops the file change watcher.
+     * Closes the poller and shuts down the executor service.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public void stop() throws IOException {
         lock.lock();
@@ -142,14 +175,26 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
         }
     }
 
+    /**
+     * Checks if the file change watcher is active.
+     *
+     * @return true if the watcher is active, false otherwise
+     */
     @Override
     public boolean active() {
         return !sets.isEmpty() && poller != null;
     }
 
+    /**
+     * Thread that polls for file changes and submits them for processing.
+     */
     private class PollingThread implements Runnable {
         private final AtomicBoolean overflowing = new AtomicBoolean();
 
+        /**
+         * Main run method for the polling thread.
+         * Continuously polls for file changes and submits them to the executor service.
+         */
         @Override
         public void run() {
             lock.lock();
@@ -199,6 +244,12 @@ public class FileChangeWatcherImpl implements FileChangeWatcher {
             }
         }
 
+        /**
+         * Processes a list of changed paths.
+         * Adds updated files to the repository and signals the continuous backup.
+         *
+         * @param paths List of paths that have changed
+         */
         private void processPaths(List<String> paths) {
             boolean anyChanged = false;
             for (String pathStr : paths) {

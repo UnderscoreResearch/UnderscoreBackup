@@ -9,7 +9,7 @@ plugins {
 }
 
 application {
-    mainClass = 'com.underscoreresearch.backup.cli.Main'
+    mainClass = 'com.underscoreresearch.backup.ui.Main'
     applicationDefaultJvmArgs = [
             '-Xmx256m',
             '--add-opens=java.base/java.nio=ALL-UNNAMED',
@@ -19,7 +19,7 @@ application {
 }
 
 group 'com.underscoreresearch'
-version '3.2.3.0'
+version '3.2.3.1'
 def releaseType = 'rc'
 
 def archiveName = 'underscorebackup'

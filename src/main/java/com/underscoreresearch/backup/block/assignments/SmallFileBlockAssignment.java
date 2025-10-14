@@ -28,6 +28,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -39,8 +40,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 
+/**
+ * Abstract base class for handling small file block assignments.
+ * Provides functionality for combining multiple small files into blocks for efficient storage.
+ */
 @RequiredArgsConstructor
 @Slf4j
 public abstract class SmallFileBlockAssignment extends BaseBlockAssignment implements FileBlockExtractor {
@@ -60,12 +65,21 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
             .newBuilder()
             .maximumSize(2)
             .build(new CacheLoader<>() {
+                @NotNull
                 @Override
-                public CachedData load(KeyFetch key) throws Exception {
+                public CachedData load(@NotNull KeyFetch key) throws Exception {
                     return createCacheData(key.getBlockHash(), key.getPassword());
                 }
             });
 
+    /**
+     * Assign blocks to a file by reading its contents and adding it to a pending block.
+     * 
+     * @param set The backup set containing the file
+     * @param backupPartialFile The partial file to assign blocks to
+     * @param completionFuture Callback for when block assignment is complete
+     * @return true if the assignment was successful, false otherwise
+     */
     @Override
     protected boolean internalAssignBlocks(BackupSet set, BackupPartialFile backupPartialFile,
                                            BackupBlockCompletion completionFuture) {
@@ -101,6 +115,14 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         return true;
     }
 
+    /**
+     * Add file data to a pending block, creating a new one if necessary.
+     * 
+     * @param set The backup set
+     * @param data The file data
+     * @param completionFuture Callback for when block assignment is complete
+     * @throws IOException If there's an error assigning the block
+     */
     private synchronized void internalAssignBlock(BackupSet set, byte[] data, BackupBlockCompletion completionFuture)
             throws IOException {
         PendingFile pendingFile = pendingFiles.computeIfAbsent(set, t -> createPendingFile());
@@ -113,8 +135,19 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         pendingFile.addData(data, set, completionFuture);
     }
 
+    /**
+     * Create a new pending file for the specific implementation.
+     * 
+     * @return A new PendingFile instance
+     */
     protected abstract PendingFile createPendingFile();
 
+    /**
+     * Upload a pending file to storage.
+     * 
+     * @param set The backup set
+     * @param pendingFile The pending file to upload
+     */
     private void uploadPending(BackupSet set, PendingFile pendingFile) {
         try {
             uploader.uploadBlock(set, new BackupData(pendingFile.data()), pendingFile.hash(), getFormat(),
@@ -126,8 +159,16 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         pendingFiles.remove(set);
     }
 
+    /**
+     * Get the format identifier for this block assignment.
+     * 
+     * @return The format identifier string
+     */
     protected abstract String getFormat();
 
+    /**
+     * Flush any pending assignments by uploading all pending files.
+     */
     @Override
     public synchronized void flushAssignments() {
         for (Map.Entry<BackupSet, PendingFile> entry : pendingFiles.entrySet()) {
@@ -138,8 +179,24 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         pendingFiles.clear();
     }
 
+    /**
+     * Create a cached data object for the specific implementation.
+     * 
+     * @param key The block hash key
+     * @param password The password for decryption
+     * @return A new CachedData instance
+     */
     protected abstract CachedData createCacheData(String key, String password);
 
+    /**
+     * Extract a file part from a block.
+     * 
+     * @param file The file part to extract
+     * @param block The block containing the file part
+     * @param password The password for decryption
+     * @return The extracted file part data
+     * @throws IOException If there's an error extracting the file part
+     */
     @Override
     public byte[] extractPart(BackupFilePart file, BackupBlock block, String password) throws IOException {
         try {
@@ -150,16 +207,27 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         }
     }
 
+    /**
+     * Calculate the size of a block for a specific file part.
+     * Not implemented for small file blocks.
+     * 
+     * @param file The file part
+     * @param blockData The block data
+     * @return The size of the block in bytes
+     * @throws IOException If there's an error calculating the block size
+     */
     @Override
     public long blockSize(BackupFilePart file, byte[] blockData) throws IOException {
         throw new NotImplementedException();
     }
 
+    /**
+     * Inner class for key fetching in the cache.
+     */
+    @Getter
     @AllArgsConstructor
     private static class KeyFetch {
-        @Getter
         private String blockHash;
-        @Getter
         private String password;
 
         @Override
@@ -176,22 +244,47 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
         }
     }
 
+    /**
+     * Abstract class for cached block data.
+     */
     @Data
     protected abstract static class CachedData {
+        /**
+         * Get a specific part from the cached block data.
+         * 
+         * @param index The index of the part
+         * @param partHash The hash of the part
+         * @return The part data
+         * @throws IOException If there's an error getting the part
+         */
         public abstract byte[] get(int index, String partHash) throws IOException;
     }
 
+    /**
+     * Abstract class for pending file data.
+     */
     protected abstract class PendingFile {
         private final Hash hash = new Hash();
         private final Map<String, List<BackupFilePart>> pendingParts = new HashMap<>();
         private final List<BackupCompletion> completions = new ArrayList<>();
         private int currentIndex;
 
+        /**
+         * Constructor that initializes the hash with salt.
+         */
         public PendingFile() {
             encryptionIdentity.addBlockHashSalt(hash);
             hash.addBytes(SmallFileBlockAssignment.this.getClass().getName().getBytes(StandardCharsets.UTF_8));
         }
 
+        /**
+         * Add data to the pending file.
+         * 
+         * @param data The data to add
+         * @param set The backup set
+         * @param completion Callback for when the addition is complete
+         * @throws IOException If there's an error adding the data
+         */
         public synchronized void addData(byte[] data, BackupSet set, BackupBlockCompletion completion) throws IOException {
             String partHash;
             {
@@ -226,7 +319,7 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
                                 .build());
                     }
                 }
-                if (locations.size() > 0) {
+                if (!locations.isEmpty()) {
                     completion.completed(locations);
                     return;
                 }
@@ -267,21 +360,55 @@ public abstract class SmallFileBlockAssignment extends BaseBlockAssignment imple
 
         }
 
+        /**
+         * Add a part to the pending file.
+         * 
+         * @param index The index of the part
+         * @param data The data to add
+         * @param partHash The hash of the part
+         * @throws IOException If there's an error adding the part
+         */
         protected abstract void addPartData(int index, byte[] data, String partHash) throws IOException;
 
+        /**
+         * Estimate the current size of the pending file.
+         * 
+         * @return The estimated size in bytes
+         */
         public abstract int estimateSize();
 
+        /**
+         * Get the complete data for the pending file.
+         * 
+         * @return The complete file data as a byte array
+         * @throws IOException If there's an error finalizing the data
+         */
         public abstract byte[] data() throws IOException;
 
+        /**
+         * Get the hash of the pending file.
+         * 
+         * @return The hash string
+         */
         public synchronized String hash() {
             return hash.getHash();
         }
 
+        /**
+         * Complete the pending file operation.
+         * 
+         * @param success Whether the operation was successful
+         */
         public synchronized void complete(boolean success) {
             for (BackupCompletion completion : completions)
                 completion.completed(success);
         }
 
+        /**
+         * Get the number of files in this pending file.
+         * 
+         * @return The file count
+         */
         public int getFileCount() {
             return currentIndex;
         }

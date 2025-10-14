@@ -27,6 +27,10 @@ import java.util.stream.Stream;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 
+/**
+ * Implementation of backup search access.
+ * Provides methods for searching backup files by pattern.
+ */
 @RequiredArgsConstructor
 public class BackupSearchAccessImpl implements BackupSearchAccess {
     private final MetadataRepository repository;
@@ -48,11 +52,24 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
                 }
             });
 
+    /**
+     * Acquire a lock for the repository.
+     *
+     * @return The acquired lock
+     */
     @Override
     public CloseableLock acquireLock() {
         return repository.acquireLock();
     }
 
+    /**
+     * Search for files matching a pattern.
+     *
+     * @param pathPattern The pattern to match against file paths
+     * @param interruptableLock A lock that can be used to interrupt the search
+     * @return A stream of matching files
+     * @throws IOException If there's an error accessing the repository
+     */
     @Override
     public CloseableStream<BackupFile> searchFiles(Pattern pathPattern, CloseableLock interruptableLock) throws IOException {
         AtomicReference<List<BackupFile>> filesPerPath = new AtomicReference<>(new ArrayList<>());
@@ -102,6 +119,13 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
         };
     }
 
+    /**
+     * Find the appropriate file version from a list of file versions.
+     * Selects the file based on timestamp and deleted status.
+     *
+     * @param files List of file versions
+     * @return The selected file, or null if none match the criteria
+     */
     private BackupFile findSearchFile(List<BackupFile> files) {
         BackupFile file = null;
         if (timestamp == null)
@@ -123,6 +147,13 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
         return file;
     }
 
+    /**
+     * Check if a file is deleted.
+     * A file is considered deleted if it or any of its parent directories are deleted.
+     *
+     * @param file The file to check
+     * @return True if the file is deleted, false otherwise
+     */
     private boolean deletedFile(BackupFile file) {
         String path = file.getPath();
         String parent = ROOT;
@@ -143,6 +174,9 @@ public class BackupSearchAccessImpl implements BackupSearchAccess {
         return false;
     }
 
+    /**
+     * Exception thrown when a search is interrupted.
+     */
     public static class InterruptedSearch extends RuntimeException {
     }
 }

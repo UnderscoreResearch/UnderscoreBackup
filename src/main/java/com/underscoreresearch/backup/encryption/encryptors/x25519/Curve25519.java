@@ -118,9 +118,13 @@ final class Curve25519 {
             };
 
     /**
-     * Best effort fix-timing array comparison.
+     * Best effort constant-time array comparison to prevent timing attacks.
+     * This method compares two byte arrays in a way that doesn't leak timing information
+     * about the contents of the arrays, which helps prevent side-channel attacks.
      *
-     * @return true if two arrays are equal.
+     * @param x First byte array to compare
+     * @param y Second byte array to compare
+     * @return true if two arrays are equal, false otherwise
      */
     private static boolean byteEqual(final byte[] x, final byte[] y) {
         if (x == null || y == null) {
@@ -137,7 +141,10 @@ final class Curve25519 {
     }
 
     /**
-     * Encodes a byte array to hex.
+     * Encodes a byte array to hexadecimal string representation.
+     * 
+     * @param bytes The byte array to encode
+     * @return A hexadecimal string representation of the input bytes
      */
     public static String hexEncode(final byte[] bytes) {
         String chars = "0123456789abcdef";
@@ -152,9 +159,8 @@ final class Curve25519 {
     }
 
     /**
-     * Computes Montgomery's double-and-add formulas.
-     *
-     * <p>On entry and exit, the absolute value of the limbs of all inputs and outputs are < 2^26.
+     * Computes Montgomery's double-and-add formulas for elliptic curve operations.
+     * This is a core function for X25519 key exchange calculations.
      *
      * @param x2     x projective coordinate of output 2Q, long form
      * @param z2     z projective coordinate of output 2Q, long form
@@ -252,13 +258,17 @@ final class Curve25519 {
     }
 
     /**
-     * Conditionally swap two reduced-form limb arrays if {@code iswap} is 1, but leave them unchanged
+     * Conditionally swaps two reduced-form limb arrays if {@code iswap} is 1, but leaves them unchanged
      * if {@code iswap} is 0. Runs in data-invariant time to avoid side-channel attacks.
      *
      * <p>NOTE that this function requires that {@code iswap} be 1 or 0; other values give wrong
      * results. Also, the two limb arrays must be in reduced-coefficient, reduced-degree form: the
      * values in a[10..19] or b[10..19] aren't swapped, and all all values in a[0..9],b[0..9] must
      * have magnitude less than Integer.MAX_VALUE.
+     * 
+     * @param a First limb array
+     * @param b Second limb array
+     * @param iswap Flag indicating whether to swap (1) or not (0)
      */
     static void swapConditional(long[] a, long[] b, int iswap) {
         int swap = -iswap;
@@ -271,13 +281,14 @@ final class Curve25519 {
 
     /**
      * Calculates nQ where Q is the x-coordinate of a point on the curve.
+     * This is the core operation for the X25519 key exchange function.
      *
      * @param resultx the x projective coordinate of the resulting curve point (short form).
-     * @param n       a little endian, 32-byte number.
-     * @param qBytes  a little endian, 32-byte number representing the public point' x coordinate.
-     * @throws InvalidKeyException   iff the public key is in the banned list or its length is not
+     * @param n       a little endian, 32-byte number representing the scalar.
+     * @param qBytes  a little endian, 32-byte number representing the public point's x coordinate.
+     * @throws InvalidKeyException   if the public key is in the banned list or its length is not
      *                               32-byte.
-     * @throws IllegalStateException iff there is arithmetic error.
+     * @throws IllegalStateException if there is an arithmetic error during computation.
      */
     static void curveMult(long[] resultx, byte[] n, byte[] qBytes) throws InvalidKeyException {
         validatePubKeyAndClearMsb(qBytes);
@@ -349,9 +360,12 @@ final class Curve25519 {
     }
 
     /**
-     * Validates public key and clear its most significant bit.
+     * Validates public key and clears its most significant bit.
+     * This ensures the public key is valid for X25519 operations and not one of the banned values
+     * that could lead to security issues.
      *
-     * @throws InvalidKeyException iff the {@code pubKey} is in the banned list or its length is not
+     * @param pubKey The public key to validate and modify
+     * @throws InvalidKeyException if the {@code pubKey} is in the banned list or its length is not
      *                             32-byte.
      */
     private static void validatePubKeyAndClearMsb(byte[] pubKey) throws InvalidKeyException {
@@ -369,9 +383,14 @@ final class Curve25519 {
     }
 
     /**
-     * Checks whether there are three collinear points with x coordinate x1, x2, x3/z3.
+     * Checks whether there are three collinear points with x coordinates x1, x2, x3/z3.
+     * This is used as a validation check to detect computational errors during curve operations.
      *
-     * @return true if three collinear points with x coordianate x1, x2, x3/z3 are collinear.
+     * @param x1 The x coordinate of the first point
+     * @param x2 The x coordinate of the second point
+     * @param x3 The numerator of the x coordinate of the third point
+     * @param z3 The denominator of the x coordinate of the third point
+     * @return true if the three points with x coordinates x1, x2, x3/z3 are collinear
      */
     private static boolean isCollinear(long[] x1, long[] x2, long[] x3, long[] z3) {
         // If x1, x2, x3 (in this method x3 is represented as x3/z3) are the x-coordinates of three

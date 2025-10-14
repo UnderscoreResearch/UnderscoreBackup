@@ -1,4 +1,4 @@
-import {useLocation, useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router";
 import queryString from "query-string";
 import React, {useEffect} from "react";
 import base64url from "base64url";

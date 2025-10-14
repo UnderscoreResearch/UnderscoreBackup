@@ -21,11 +21,23 @@ import java.util.Set;
 
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * Implementation of FilePermissionManager for POSIX file systems.
+ * Handles reading and writing file permissions using the POSIX file attribute view.
+ * This implementation encodes and decodes POSIX file permissions to store them in a serialized format.
+ */
 @Slf4j
 public class PosixPermissionManager implements FilePermissionManager {
     private static final ObjectReader READER = MAPPER.readerFor(PosixPermissions.class);
     private static final ObjectWriter WRITER = MAPPER.writerFor(PosixPermissions.class);
 
+    /**
+     * Encodes a POSIX file permission to an integer representation.
+     *
+     * @param permission The POSIX file permission to encode
+     * @return The integer representation of the permission
+     * @throws IllegalArgumentException if the permission is unknown
+     */
     private static int encodePermission(PosixFilePermission permission) {
         return switch (permission) {
             case OWNER_READ -> 0x400;
@@ -41,6 +53,12 @@ public class PosixPermissionManager implements FilePermissionManager {
         };
     }
 
+    /**
+     * Decodes an integer representation into a set of POSIX file permissions.
+     *
+     * @param permissions The integer representation of permissions
+     * @return A set of POSIX file permissions
+     */
     private static Set<PosixFilePermission> decodePermissions(int permissions) {
         Set<PosixFilePermission> result = new HashSet<>();
 
@@ -75,6 +93,12 @@ public class PosixPermissionManager implements FilePermissionManager {
         return result;
     }
 
+    /**
+     * Gets the permissions for a file or directory as a serialized string.
+     *
+     * @param path The path to the file or directory
+     * @return A string representation of the permissions, or null if an error occurs
+     */
     @Override
     public String getPermissions(Path path) {
         try {
@@ -92,6 +116,12 @@ public class PosixPermissionManager implements FilePermissionManager {
         }
     }
 
+    /**
+     * Sets the permissions for a file or directory from a serialized string.
+     *
+     * @param path The path to the file or directory
+     * @param permissions A string representation of the permissions
+     */
     @Override
     public void setPermissions(Path path, String permissions) {
         if (permissions != null) {
@@ -113,6 +143,9 @@ public class PosixPermissionManager implements FilePermissionManager {
         }
     }
 
+    /**
+     * Inner class for serializing and deserializing POSIX permissions.
+     */
     @AllArgsConstructor
     @NoArgsConstructor
     @Data

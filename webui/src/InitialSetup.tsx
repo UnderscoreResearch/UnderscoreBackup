@@ -4,7 +4,7 @@ import {Step, StepButton, Stepper} from "@mui/material";
 import {ServicePage} from "./components/initial/ServicePage";
 import {RemoveCircleOutline} from "@mui/icons-material";
 import {useApplication} from "./utils/ApplicationContext";
-import {Route, Routes, useLocation, useNavigate} from "react-router-dom";
+import {Route, Routes, useLocation, useNavigate} from "react-router";
 import {SourceResponse} from "./api/service";
 import {BackupConfiguration} from "./api";
 import AuthorizeAccept from "./components/AuthorizeAccept";

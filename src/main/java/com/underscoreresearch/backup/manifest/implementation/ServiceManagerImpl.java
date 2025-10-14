@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.inject.name.Named;
-import com.underscoreresearch.backup.cli.commands.VersionCommand;
+import com.underscoreresearch.backup.ui.commands.VersionCommand;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.encryption.EncryptorFactory;
 import com.underscoreresearch.backup.encryption.Hash;
@@ -59,16 +59,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
-import static com.underscoreresearch.backup.cli.web.BaseWrap.jsonResponse;
+import static com.underscoreresearch.backup.ui.web.BaseWrap.jsonResponse;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.encryption.IdentityKeys.KYBER_KEY;
 import static com.underscoreresearch.backup.encryption.IdentityKeys.X25519_KEY;
 import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_DESTINATION_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
+/**
+ * Implementation of the service manager.
+ * This class manages interactions with the Underscore Backup service, including authentication,
+ * sharing, and subscription management.
+ */
 
 @Slf4j
 public class ServiceManagerImpl implements ServiceManager {

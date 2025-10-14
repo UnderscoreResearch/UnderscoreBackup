@@ -28,6 +28,10 @@ import java.util.concurrent.ExecutionException;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.file.PathNormalizer.ROOT;
 
+/**
+ * Base implementation of backup contents access that only uses path information.
+ * Provides methods for accessing backup directories and files.
+ */
 @Slf4j
 public class BackupContentsAccessPathOnly implements BackupContentsAccess {
     private static final String EMPTY_STRING = "";
@@ -47,12 +51,26 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
                 }
             });
 
+    /**
+     * Constructor for BackupContentsAccessPathOnly.
+     *
+     * @param repository The metadata repository
+     * @param timestamp The timestamp to use for filtering, or null for current state
+     * @param includeDeleted Whether to include deleted files
+     */
     public BackupContentsAccessPathOnly(MetadataRepository repository, Long timestamp, boolean includeDeleted) {
         this.repository = repository;
         this.timestamp = timestamp;
         this.includeDeleted = includeDeleted;
     }
 
+    /**
+     * Get paths for a directory.
+     *
+     * @param path The directory path
+     * @return The directory information, or null if not found
+     * @throws IOException If there's an error accessing the repository
+     */
     protected BackupDirectory getPaths(String path) throws IOException {
         BackupDirectory ret;
 
@@ -72,10 +90,25 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         return ret;
     }
 
+    /**
+     * Process additional paths for a directory.
+     * This is a hook for subclasses to add additional paths.
+     *
+     * @param ret The directory to process
+     * @return The processed directory
+     */
     protected BackupDirectory processAdditionalPaths(BackupDirectory ret) {
         return ret;
     }
 
+    /**
+     * Create a file object from a path.
+     *
+     * @param root The root path
+     * @param path The file path
+     * @return The file object, or null if not found or deleted
+     * @throws IOException If there's an error accessing the repository
+     */
     private BackupFile createFile(String root, String path) throws IOException {
         if (path.endsWith(PATH_SEPARATOR)) {
             BackupDirectory ret = pathEntry(root + path);
@@ -102,6 +135,14 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         return ret;
     }
 
+    /**
+     * Create a file object from a path, allowing missing files.
+     *
+     * @param root The root path
+     * @param path The file path
+     * @return The file object, or a placeholder if not found
+     * @throws IOException If there's an error accessing the repository
+     */
     private BackupFile createFileAllowMissing(String root, String path) throws IOException {
         BackupFile file = createFile(root, path);
         if (file == null) {
@@ -110,10 +151,24 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         return file;
     }
 
+    /**
+     * Get a directory entry from the repository.
+     *
+     * @param path The directory path
+     * @return The directory information, or null if not found
+     * @throws IOException If there's an error accessing the repository
+     */
     private BackupDirectory pathEntry(String path) throws IOException {
         return repository.directory(path, timestamp, false);
     }
 
+    /**
+     * Get the files in a directory.
+     *
+     * @param path The directory path
+     * @return List of files in the directory, or null if the directory doesn't exist
+     * @throws IOException If there's an error accessing the repository
+     */
     @Override
     public List<BackupFile> directoryFiles(String path) throws IOException {
         final String normalizedRoot;
@@ -171,6 +226,13 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         return null;
     }
 
+    /**
+     * Get the permissions for a directory.
+     *
+     * @param path The directory path
+     * @return The permissions string, or null if not found
+     * @throws IOException If there's an error accessing the repository
+     */
     @Override
     public String directoryPermissions(String path) throws IOException {
         try {
@@ -193,10 +255,21 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         }
     }
 
+    /**
+     * Add root paths to the found paths.
+     * This is a hook for subclasses to add additional root paths.
+     *
+     * @param foundPaths The found paths to add to
+     * @param normalizedRoot The normalized root path
+     * @return The updated found paths
+     */
     protected FoundPath addRootPaths(FoundPath foundPaths, String normalizedRoot) {
         return foundPaths;
     }
 
+    /**
+     * Data class for found paths in a directory.
+     */
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -206,6 +279,12 @@ public class BackupContentsAccessPathOnly implements BackupContentsAccess {
         private Long added;
         private TreeMap<String, Boolean> files;
 
+        /**
+         * Create a FoundPath from a BackupDirectory.
+         *
+         * @param directory The directory to convert
+         * @return The FoundPath, or null if the directory is null
+         */
         protected static FoundPath fromDirectory(BackupDirectory directory) {
             if (directory != null) {
                 FoundPath ret = new FoundPath();

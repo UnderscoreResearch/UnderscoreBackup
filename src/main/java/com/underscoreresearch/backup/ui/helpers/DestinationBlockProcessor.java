@@ -1,0 +1,571 @@
+package com.underscoreresearch.backup.ui.helpers;
+
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.Lists;
+import com.underscoreresearch.backup.block.BlockDownloader;
+import com.underscoreresearch.backup.configuration.InstanceFactory;
+import com.underscoreresearch.backup.encryption.EncryptionIdentity;
+import com.underscoreresearch.backup.encryption.IdentityKeys;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrector;
+import com.underscoreresearch.backup.errorcorrection.ErrorCorrectorFactory;
+import com.underscoreresearch.backup.file.CloseableMap;
+import com.underscoreresearch.backup.file.MapSerializer;
+import com.underscoreresearch.backup.file.MetadataRepository;
+import com.underscoreresearch.backup.io.IOIndex;
+import com.underscoreresearch.backup.io.IOProvider;
+import com.underscoreresearch.backup.io.IOProviderFactory;
+import com.underscoreresearch.backup.io.UploadScheduler;
+import com.underscoreresearch.backup.io.implementation.SchedulerImpl;
+import com.underscoreresearch.backup.manifest.ManifestManager;
+import com.underscoreresearch.backup.model.BackupBlock;
+import com.underscoreresearch.backup.model.BackupBlockStorage;
+import com.underscoreresearch.backup.model.BackupConfiguration;
+import com.underscoreresearch.backup.model.BackupDestination;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.EVENTUAL_CONSISTENCY_TIMEOUT_MS;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+
+/**
+ * Processes blocks at backup destinations, handling validation, refreshing, and error checking.
+ * This class manages the interaction with storage destinations for block operations.
+ */
+@Slf4j
+public class DestinationBlockProcessor extends SchedulerImpl {
+    private final BlockDownloader blockDownloader;
+    private final UploadScheduler uploadScheduler;
+    private final BackupConfiguration configuration;
+    private final MetadataRepository repository;
+    private final ConcurrentLinkedQueue<BackupBlock> pendingBlockUpdates = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<BackupBlock> pendingBlockDeletes = new ConcurrentLinkedQueue<>();
+    private final AtomicLong refreshedBlocks = new AtomicLong();
+    private final AtomicLong validatedBlocks = new AtomicLong();
+    private final AtomicLong missingBlocks = new AtomicLong();
+    private final AtomicLong uploadedSize = new AtomicLong();
+    private final AtomicLong missingFiles = new AtomicLong();
+    private final AtomicLong validatedFiles = new AtomicLong();
+    private final AtomicBoolean hasSkipped = new AtomicBoolean(false);
+    private final long maximumRefreshed;
+    private final boolean noDelete;
+    private final ManifestManager manifestManager;
+    private final EncryptionIdentity encryptionIdentity;
+    private final Object lastUpdateLock = new Object();
+    private Set<String> activatedShares;
+    private CloseableMap<String, Boolean> processedBlockMap;
+    private Stopwatch lastUpdate;
+    private boolean noDeleteBlocks;
+
+    /**
+     * Creates a new DestinationBlockProcessor.
+     *
+     * @param maximumConcurrency Maximum number of concurrent operations
+     * @param noDelete           Whether to avoid deleting blocks
+     * @param blockDownloader    The block downloader to use
+     * @param uploadScheduler    The upload scheduler to use
+     * @param configuration      The backup configuration
+     * @param repository         The metadata repository
+     * @param manifestManager    The manifest manager
+     * @param encryptionIdentity The encryption identity for secure operations
+     */
+    public DestinationBlockProcessor(int maximumConcurrency,
+                                     boolean noDelete,
+                                     BlockDownloader blockDownloader,
+                                     UploadScheduler uploadScheduler,
+                                     BackupConfiguration configuration,
+                                     MetadataRepository repository,
+                                     ManifestManager manifestManager,
+                                     EncryptionIdentity encryptionIdentity) {
+        super(maximumConcurrency);
+        this.blockDownloader = blockDownloader;
+        this.uploadScheduler = uploadScheduler;
+        this.configuration = configuration;
+        this.repository = repository;
+        this.manifestManager = manifestManager;
+        this.encryptionIdentity = encryptionIdentity;
+        this.noDeleteBlocks = this.noDelete = noDelete;
+
+        maximumRefreshed = configuration.getProperty("maximumRefreshedBytes", Long.MAX_VALUE);
+    }
+
+    /**
+     * Process a block's storage, handling validation and refreshing as needed.
+     *
+     * @param block    The block to process
+     * @param runnable Callback to run when processing is complete
+     * @throws IOException If there is an error accessing the storage
+     */
+    private void processBlockStorage(BackupBlock block, Runnable runnable) throws IOException {
+        boolean scheduled = false;
+
+        synchronized (this) {
+            if (activatedShares == null) {
+                activatedShares = manifestManager.getActivatedShares().keySet();
+            }
+
+            if (processedBlockMap == null) {
+                processedBlockMap = repository.temporaryMap(new MapSerializer<String, Boolean>() {
+                    @Override
+                    public byte[] encodeKey(String s) {
+                        return s.getBytes(StandardCharsets.UTF_8);
+                    }
+
+                    @Override
+                    public byte[] encodeValue(Boolean aBoolean) {
+                        return new byte[]{aBoolean ? (byte) 1 : 0};
+                    }
+
+                    @Override
+                    public Boolean decodeValue(byte[] data) {
+                        return data[0] != 0;
+                    }
+
+                    @Override
+                    public String decodeKey(byte[] data) {
+                        return new String(data, StandardCharsets.UTF_8);
+                    }
+                });
+                refreshedBlocks.set(0);
+                uploadedSize.set(0);
+            }
+
+            if (!processedBlockMap.containsKey(block.getHash())) {
+                processedBlockMap.put(block.getHash(), true);
+                scheduled = true;
+            }
+        }
+
+        if (scheduled)
+            schedule(runnable);
+
+        postPending();
+    }
+
+    /**
+     * Refreshes the storage for a block by re-uploading it to the destination.
+     * This is used when a block's storage needs to be updated or repaired.
+     *
+     * @param block    The block to refresh
+     * @param storages The list of storage locations to refresh
+     * @return True if the refresh operation was scheduled, false if skipped due to size limits
+     * @throws IOException If there is an error accessing the storage
+     */
+    public boolean refreshStorage(BackupBlock block, List<BackupBlockStorage> storages) throws IOException {
+        if (uploadedSize.get() > maximumRefreshed) {
+            debug(() -> log.debug("Skipped refreshing block \"{}\"", block.getHash()));
+            hasSkipped.set(true);
+            return false;
+        }
+
+        processBlockStorage(block, () -> refreshBlockInternal(block, storages, null));
+
+        return true;
+    }
+
+    /**
+     * Checks if any operations were skipped during processing.
+     *
+     * @return True if any operations were skipped
+     * @throws IOException If there is an error checking the status
+     */
+    public boolean hasSkippedOperation() throws IOException {
+        return hasSkipped.get();
+    }
+
+    /**
+     * Validates the storage of a block by checking its existence and integrity at the destination.
+     * If issues are found, it may attempt to repair the block.
+     *
+     * @param block    The block to validate
+     * @param storages The list of storage locations to validate
+     * @param force    Whether to force validation even if size limits would be exceeded
+     * @return True if validation was scheduled, false if skipped due to size limits
+     * @throws IOException If there is an error accessing the storage
+     */
+    public boolean validateBlockStorage(BackupBlock block, List<BackupBlockStorage> storages, boolean force)
+            throws IOException {
+
+        if (!force && uploadedSize.get() > maximumRefreshed) {
+            debug(() -> log.debug("Skipped validating block \"{}\"", block.getHash()));
+            hasSkipped.set(true);
+            return false;
+        }
+
+        processBlockStorage(block, () -> {
+            List<BackupBlockStorage> missingStorage = Lists.newArrayList();
+            Map<BackupBlockStorage, Set<String>> availableStorage = new HashMap<>();
+            validatedBlocks.getAndIncrement();
+
+            for (BackupBlockStorage storage : storages) {
+                BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
+                IOProvider provider = IOProviderFactory.getProvider(destination);
+                int exists = 0;
+                try {
+                    Set<String> availableParts = new HashSet<>();
+                    for (int i = 0; i < storage.getParts().size(); i++) {
+                        String part = storage.getParts().get(i);
+                        boolean found = provider.exists(part);
+                        if (!found && awaitStopwatch(provider)) {
+                            found = provider.exists(part);
+                        }
+                        if (found) {
+                            availableParts.add(part);
+                            exists++;
+                        }
+                    }
+                    if (exists == storage.getParts().size()) {
+                        availableStorage.put(storage, availableParts);
+                        storage.setValidated(Instant.now().toEpochMilli());
+                        debug(() -> log.debug("Validated block \"{}\"", block.getHash()));
+                    } else {
+                        ErrorCorrector ec = ErrorCorrectorFactory.getCorrector(storage.getEc());
+                        if (ec.getMinimumSufficientParts(storage) <= exists) {
+                            availableStorage.put(storage, availableParts);
+                        }
+                        missingStorage.add(storage);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to check block at destination \"{}\"", block.getHash(), e);
+                    return;
+                }
+            }
+            if (!missingStorage.isEmpty()) {
+                if (!availableStorage.isEmpty()) {
+                    if (!refreshBlockInternal(block, missingStorage, availableStorage)) {
+                        if (!InstanceFactory.isShutdown()) {
+                            log.warn("Block \"{}\" has missing parts and could not be read", block.getHash());
+                            pendingBlockDeletes.add(block);
+                            missingBlocks.getAndIncrement();
+                        }
+                    }
+                } else {
+                    log.warn("Block \"{}\" has missing parts and cannot be restored", block.getHash());
+                    pendingBlockDeletes.add(block);
+                    missingBlocks.getAndIncrement();
+                }
+            } else {
+                pendingBlockUpdates.add(block);
+            }
+        });
+
+        return true;
+    }
+
+    /**
+     * Internal method to refresh a block's storage.
+     * This handles the actual work of downloading and re-uploading block data.
+     *
+     * @param block         The block to refresh
+     * @param needUpdates   The list of storage locations that need updating
+     * @param availableData Map of available storage data, or null if all data should be used
+     * @return True if the refresh was successful
+     */
+    private boolean refreshBlockInternal(BackupBlock block, List<BackupBlockStorage> needUpdates, Map<BackupBlockStorage, Set<String>> availableData) {
+        byte[] data = null;
+        for (BackupBlockStorage availableStorage : availableData != null ? availableData.keySet() : needUpdates) {
+            try {
+                if (availableData != null) {
+                    data = blockDownloader.downloadEncryptedBlockStorage(block, availableStorage, availableData.get(availableStorage));
+                } else {
+                    data = blockDownloader.downloadEncryptedBlockStorage(block, availableStorage, null);
+                }
+                break;
+            } catch (IOException e) {
+                log.warn("Failed fetching block from destination \"{}\"", availableStorage.getDestination());
+            }
+        }
+
+        if (data != null) {
+            boolean any = false;
+            for (BackupBlockStorage storage : needUpdates) {
+                try {
+                    BackupDestination destination = configuration.getDestinations().get(storage.getDestination());
+
+                    IOProvider provider = IOProviderFactory.getProvider(destination);
+                    awaitStopwatch(provider);
+
+                    if (configuration.getShares() != null) {
+                        for (String key : configuration.getShares().keySet())
+                            if (activatedShares.contains(key)) {
+                                IdentityKeys keys = encryptionIdentity.getIdentityKeyForHash(key);
+                                storage.getAdditionalStorageProperties().put(keys, new HashMap<>());
+                            }
+                    }
+                    List<byte[]> partData = ErrorCorrectorFactory.encodeBlocks(destination.getErrorCorrection(),
+                            storage, data);
+                    partData.forEach(part -> uploadedSize.addAndGet(part.length));
+
+                    String[] parts = new String[partData.size()];
+                    AtomicInteger completed = new AtomicInteger();
+                    for (int i = 0; i < partData.size(); i++) {
+                        int currentIndex = i;
+
+                        // We don't want to write over existing data if we can avoid it.
+                        int disambiguator = 0;
+                        while (storage.getParts().contains(uploadScheduler.suggestedKey(block.getHash(), currentIndex, disambiguator)))
+                            disambiguator++;
+
+                        uploadScheduler.scheduleUpload(destination,
+                                block.getHash(), currentIndex, disambiguator, partData.get(currentIndex), key -> {
+                                    parts[currentIndex] = key;
+                                    synchronized (completed) {
+                                        completed.incrementAndGet();
+                                        completed.notify();
+                                    }
+                                });
+                    }
+
+                    synchronized (completed) {
+                        while (completed.get() < parts.length) {
+                            completed.wait();
+                        }
+                    }
+                    List<String> partList = Lists.newArrayList(parts);
+                    if (partList.stream().anyMatch(Objects::isNull)) {
+                        log.error("Failed to refresh storage for block \"{}\"", block.getHash());
+                    } else {
+                        debug(() -> log.debug("Refreshed storage for block \"{}\"", block.getHash()));
+
+                        BackupBlockStorage updatedStorage;
+                        if (noDelete) {
+                            storage.setCreated(Instant.now().toEpochMilli());
+                            updatedStorage = storage.toBuilder().build();
+                            ;
+                            block.getStorage().add(updatedStorage);
+                        } else {
+                            List<String> originalParts = storage.getParts();
+
+                            updatedStorage = storage;
+
+                            for (String part : originalParts) {
+                                if (!partList.contains(part)) {
+                                    provider.delete(part);
+                                }
+                            }
+                        }
+                        updatedStorage.setEc(destination.getErrorCorrection());
+                        updatedStorage.setCreated(Instant.now().toEpochMilli());
+                        updatedStorage.setValidated(null);
+                        updatedStorage.setParts(partList);
+                        any = true;
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to refresh data for block \"{}\" on destination \"{}\"",
+                            block.getHash(), storage.getDestination(), e);
+                }
+            }
+            if (any) {
+                pendingBlockUpdates.add(block);
+                refreshedBlocks.getAndIncrement();
+            }
+            return true;
+        } else {
+            log.error("Failed to refresh data for block \"{}\"", block.getHash());
+            return false;
+        }
+    }
+
+    /**
+     * Gets the number of blocks that have been refreshed.
+     *
+     * @return The count of refreshed blocks
+     */
+    public long getRefreshedBlocks() {
+        return refreshedBlocks.get();
+    }
+
+    /**
+     * Gets the number of blocks that were found to be missing.
+     *
+     * @return The count of missing blocks
+     */
+    public long getMissingBlocks() {
+        return missingBlocks.get();
+    }
+
+    /**
+     * Gets the number of blocks that have been validated.
+     *
+     * @return The count of validated blocks
+     */
+    public long getValidatedBlocks() {
+        return validatedBlocks.get();
+    }
+
+    /**
+     * Gets the total size of data that has been uploaded during refresh operations.
+     *
+     * @return The size in bytes
+     */
+    public long getRefreshedUploadSize() {
+        return uploadedSize.get();
+    }
+
+    /**
+     * Gets the number of files that were found to be missing.
+     *
+     * @return The count of missing files
+     */
+    public long getMissingFiles() {
+        return missingFiles.get();
+    }
+
+    /**
+     * Gets the number of files that have been validated.
+     *
+     * @return The count of validated files
+     */
+    public long getValidatedFiles() {
+        return validatedFiles.get();
+    }
+
+    /**
+     * Waits for all scheduled operations to complete and processes any pending updates.
+     * This method should be called before shutting down the processor.
+     */
+    private void postPending() {
+        while (!pendingBlockUpdates.isEmpty()) {
+            BackupBlock updateBlock = pendingBlockUpdates.poll();
+            try {
+                repository.addBlock(updateBlock);
+                debug(() -> log.debug("Updated block \"{}\"", updateBlock.getHash()));
+            } catch (IOException e) {
+                log.error("Failed to save update to block \"{}\"", updateBlock.getHash(), e);
+            }
+        }
+        while (!pendingBlockDeletes.isEmpty()) {
+            BackupBlock deleteBlock = pendingBlockDeletes.poll();
+            try {
+                if (!noDeleteBlocks) {
+                    repository.deleteBlock(deleteBlock);
+                    debug(() -> log.debug("Delete block \"{}\" because of missing data in destination", deleteBlock.getHash()));
+                }
+            } catch (IOException e) {
+                log.error("Failed to delete block \"{}\"", deleteBlock.getHash(), e);
+            }
+        }
+    }
+
+    /**
+     * Processes pending block updates and deletions.
+     * This method applies changes to the repository based on validation results.
+     */
+    @Override
+    public void waitForCompletion() {
+        super.waitForCompletion();
+
+        postPending();
+
+        if (processedBlockMap != null) {
+            try {
+                processedBlockMap.close();
+            } catch (IOException e) {
+                log.error("Failed to close temporary refresh block map", e);
+            }
+            processedBlockMap = null;
+        }
+    }
+
+    /**
+     * Validates that a file exists at the specified provider.
+     * This schedules a check operation that will be executed asynchronously.
+     *
+     * @param provider The IO provider to check
+     * @param file     The file path to validate
+     */
+    public void validateExists(IOProvider provider, String file) {
+        schedule(() -> {
+            try {
+                boolean found = provider.exists(file);
+                if (!found && awaitStopwatch(provider)) {
+                    found = provider.exists(file);
+                }
+                if (!found) {
+                    log.error("File \"{}\" does not exist", file);
+                    missingFiles.incrementAndGet();
+                }
+                validatedFiles.incrementAndGet();
+            } catch (IOException e) {
+                log.error("Failed to check file \"{}\"", file, e);
+            }
+        });
+    }
+
+    /**
+     * Resets all progress counters to zero.
+     * This should be called before starting a new validation operation.
+     */
+    public void resetProgress() {
+        refreshedBlocks.set(0L);
+        validatedBlocks.set(0L);
+        missingBlocks.set(0L);
+        uploadedSize.set(0L);
+        missingFiles.set(0L);
+        validatedFiles.set(0L);
+        hasSkipped.set(false);
+    }
+
+    /**
+     * Waits for eventual consistency if needed for the given provider.
+     * Some storage providers have eventual consistency guarantees that require waiting.
+     *
+     * @param provider The IO provider to check
+     * @return True if waiting was performed
+     */
+    private boolean awaitStopwatch(IOProvider provider) {
+        if (lastUpdate != null) {
+            if (provider instanceof IOIndex ioIndex) {
+                if (ioIndex.hasConsistentWrites()) {
+                    return false;
+                }
+            }
+
+            synchronized (lastUpdateLock) {
+                Stopwatch newStopwatch = lastUpdate;
+                if (newStopwatch != null) {
+                    long milliseconds = newStopwatch.elapsed(TimeUnit.MILLISECONDS);
+                    long left = EVENTUAL_CONSISTENCY_TIMEOUT_MS - milliseconds;
+                    if (left < 0) {
+                        log.info("Completed waiting for eventual consistency");
+                        lastUpdate = null;
+                    } else {
+                        try {
+                            Thread.sleep(left);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Prepares the processor for a new processing operation.
+     * This resets progress counters and configures processing options.
+     *
+     * @param eventualConsistencyTimer Timer for tracking eventual consistency timeout
+     * @param noDeleteBlocks           Whether to avoid deleting blocks
+     */
+    public void prepareProcessing(Stopwatch eventualConsistencyTimer, boolean noDeleteBlocks) {
+        resetProgress();
+        this.lastUpdate = eventualConsistencyTimer;
+        this.noDeleteBlocks = noDeleteBlocks;
+    }
+}

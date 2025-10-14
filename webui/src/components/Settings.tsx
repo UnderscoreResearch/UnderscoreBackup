@@ -161,7 +161,7 @@ export default function Settings() {
     return <Stack spacing={2}>
         <Paper sx={{p: 2}}>
             <Grid container spacing={2} alignItems={"center"}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <DividerWithText>Underscore Backup service account</DividerWithText>
                 </Grid>
                 <ServiceAuthentication includeSkip={false}
@@ -176,12 +176,12 @@ export default function Settings() {
         })}/>
         <Paper sx={{p: 2}}>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <DividerWithText>Global limits</DividerWithText>
                 </Grid>
-                <Grid item xs={9}>
+                <Grid size={{xs: 9}}>
                     <Grid container spacing={2}>
-                        <Grid item xs={8}>
+                        <Grid size={{xs: 8}}>
                             <SpeedLimit
                                 speed={state.limits.maximumUploadBytesPerSecond}
                                 onChange={(newSpeed) => {
@@ -195,7 +195,7 @@ export default function Settings() {
                                     updateState(newState);
                                 }} title={"Maximum total upload speed"}/>
                         </Grid>
-                        <Grid item xs={4}>
+                        <Grid size={{xs: 4}}>
                             <TextField label="Maximum concurrent uploads" variant="outlined"
                                        value={state.limits.maximumUploadThreads ? state.limits.maximumUploadThreads : 4}
                                        type={"number"}
@@ -208,7 +208,7 @@ export default function Settings() {
                                            }
                                        })}/>
                         </Grid>
-                        <Grid item xs={8}>
+                        <Grid size={{xs: 8}}>
                             <SpeedLimit
                                 speed={state.limits.maximumDownloadBytesPerSecond}
                                 onChange={(newSpeed) => {
@@ -222,7 +222,7 @@ export default function Settings() {
                                     updateState(newState);
                                 }} title={"Maximum total download speed"}/>
                         </Grid>
-                        <Grid item xs={4}>
+                        <Grid size={{xs: 4}}>
                             <TextField label="Maximum concurrent downloads" variant="outlined"
                                        value={state.limits.maximumDownloadThreads ? state.limits.maximumDownloadThreads : 4}
                                        type={"number"}
@@ -237,7 +237,7 @@ export default function Settings() {
                         </Grid>
                     </Grid>
                 </Grid>
-                <Grid item xs={3}>
+                <Grid size={{xs: 3}}>
                     {((state.limits.maximumUploadThreads ?? 0) > 4 || (state.limits.maximumDownloadThreads ?? 0) > 4) &&
                         <>
                             <Typography>
@@ -265,7 +265,7 @@ export default function Settings() {
         <Paper sx={{p: 2}}>
             <DividerWithText>Advanced settings</DividerWithText>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.manifest.versionCheck || state.manifest.versionCheck === undefined}
                         onChange={(e) => updateState({
@@ -279,7 +279,7 @@ export default function Settings() {
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel style={{paddingLeft: "1em"}} control={<Checkbox
                         checked={state.manifest.automaticUpgrade || state.manifest.automaticUpgrade === undefined}
                         disabled={!state.manifest.versionCheck && state.manifest.versionCheck !== undefined}
@@ -294,7 +294,7 @@ export default function Settings() {
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.manifest.reportStats || state.manifest.reportStats === undefined}
                         disabled={!appContext.backendState.serviceConnected}
@@ -309,7 +309,7 @@ export default function Settings() {
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.manifest.hideNotifications}
                         onChange={(e) => updateState({
@@ -323,7 +323,7 @@ export default function Settings() {
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.manifest.pauseOnBattery || state.manifest.pauseOnBattery === undefined}
                         onChange={(e) => updateState({
@@ -337,7 +337,7 @@ export default function Settings() {
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel control={<Checkbox
                         checked={!!state.manifest.ignorePermissions}
                         onChange={(e) => updateState({
@@ -351,7 +351,7 @@ export default function Settings() {
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.manifest.optimizeSchedule !== undefined}
                         onChange={(e) => updateState({
@@ -363,7 +363,7 @@ export default function Settings() {
                         })}
                     />} label="Automatically optimize log and validate file blocks"/>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <Cron disabled={state.manifest.optimizeSchedule === undefined}
                           value={state.manifest.optimizeSchedule ? state.manifest.optimizeSchedule : "0 0 1 * *"}
                           setValue={(newSchedule: string) => {
@@ -382,7 +382,7 @@ export default function Settings() {
                 </Grid>
             </Grid>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.manifest.trimSchedule !== undefined}
                         onChange={(e) => updateState({
@@ -394,7 +394,7 @@ export default function Settings() {
                         })}
                     />} label="At most scan for unused blocks while trimming"/>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <Cron disabled={state.manifest.trimSchedule === undefined}
                           value={state.manifest.trimSchedule ? state.manifest.trimSchedule : "0 0 * * *"}
                           setValue={(newSchedule: string) => {

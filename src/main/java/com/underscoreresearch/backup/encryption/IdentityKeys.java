@@ -28,6 +28,11 @@ import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncrypt
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * Manages a collection of public and private keys for encryption operations.
+ * This class handles key generation, encryption parameters, and key management
+ * for different encryption algorithms.
+ */
 @Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class IdentityKeys {
@@ -43,11 +48,25 @@ public class IdentityKeys {
     @JsonProperty("k")
     private Map<String, PublicKey> keys;
 
+    /**
+     * Constructor for IdentityKeys.
+     * Creates an instance with the specified map of key types to public keys.
+     *
+     * @param keys Map of key types to public keys
+     */
     @JsonCreator
     public IdentityKeys(@JsonProperty("k") Map<String, PublicKey> keys) {
         this.keys = keys;
     }
 
+    /**
+     * Creates identity keys with both X25519 and Kyber key pairs.
+     * Generates new key pairs using the provided private identity.
+     *
+     * @param privateIdentity The private identity to use for key generation
+     * @return A new IdentityKeys instance with generated key pairs
+     * @throws GeneralSecurityException If there's an error during key generation
+     */
     public static IdentityKeys createIdentityKeys(EncryptionIdentity.PrivateIdentity privateIdentity)
             throws GeneralSecurityException {
         return new IdentityKeys(Map.of(
@@ -56,12 +75,30 @@ public class IdentityKeys {
         ));
     }
 
+    /**
+     * Creates identity keys with an X25519 key pair from an existing private key.
+     * Uses the provided private key to generate the public key.
+     *
+     * @param privateIdentity The private identity to use for key encryption
+     * @param privateKey The existing private key to use
+     * @return A new IdentityKeys instance with the generated key pair
+     * @throws GeneralSecurityException If there's an error during key generation
+     */
     public static IdentityKeys createIdentityKeys(EncryptionIdentity.PrivateIdentity privateIdentity, byte[] privateKey)
             throws GeneralSecurityException {
         return new IdentityKeys(Map.of(
                 X25519_KEY, new PublicKey(X25519.publicFromPrivate(privateKey), privateKey, privateIdentity)));
     }
 
+    /**
+     * Creates identity keys from a string representation.
+     * Supports multiple formats: JSON, legacy format, and raw key formats.
+     *
+     * @param str The string representation of the keys
+     * @param privateIdentity The private identity to use for key unpacking (can be null)
+     * @return A new IdentityKeys instance parsed from the string
+     * @throws GeneralSecurityException If there's an error during parsing or key processing
+     */
     public static IdentityKeys fromString(String str, EncryptionIdentity.PrivateIdentity privateIdentity)
             throws GeneralSecurityException {
         if (str.startsWith("{")) {
@@ -100,6 +137,14 @@ public class IdentityKeys {
         }
     }
 
+    /**
+     * Gets encryption parameters for the specified key types.
+     * Generates a shared secret and encapsulated keys for each key type.
+     *
+     * @param keysToUse Set of key types to use for encryption
+     * @return Encryption parameters containing the secret and encapsulated keys
+     * @throws GeneralSecurityException If there's an error during key processing or if a key type is not available
+     */
     public EncryptionParameters getEncryptionParameters(Set<String> keysToUse) throws GeneralSecurityException {
         byte[] secret = null;
         Map<String, PublicKeyMethod.EncapsulatedKey> encapsulatedKeys = new HashMap<>();
@@ -124,16 +169,35 @@ public class IdentityKeys {
         return new EncryptionParameters(secret, encapsulatedKeys);
     }
 
+    /**
+     * Gets the key identifier.
+     * Returns the Base64 encoded X25519 public key.
+     *
+     * @return The key identifier as a Base64 encoded string
+     */
     @JsonIgnore
     public String getKeyIdentifier() {
         return Hash.encodeBytes(keys.get(X25519_KEY).getPublicKey());
     }
 
+    /**
+     * Gets the public key hash.
+     * Returns the hash of the X25519 public key.
+     *
+     * @return The public key hash
+     */
     @JsonIgnore
     public String getPublicKeyHash() {
         return keys.get(X25519_KEY).getPublicKeyHash();
     }
 
+    /**
+     * Returns a string representation of the identity keys.
+     * Serializes the keys to a JSON string.
+     *
+     * @return JSON string representation of the identity keys
+     * @throws RuntimeException If there's an error during serialization
+     */
     @Override
     public String toString() {
         try {
@@ -143,6 +207,12 @@ public class IdentityKeys {
         }
     }
 
+    /**
+     * Creates a copy of this identity keys without public keys.
+     * Useful for creating a version with only key hashes for storage or transmission.
+     *
+     * @return A new IdentityKeys instance without public keys
+     */
     public IdentityKeys withoutPublicKeys() {
         return new IdentityKeys(keys.entrySet().stream()
                 .map(entry -> Map.entry(entry.getKey(),
@@ -150,6 +220,13 @@ public class IdentityKeys {
                 .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)));
     }
 
+    /**
+     * Unpacks encrypted keys using the provided private identity.
+     * Decrypts all keys and ensures a Kyber key is available.
+     *
+     * @param privateIdentity The private identity to use for unpacking
+     * @throws GeneralSecurityException If there's an error during key decryption
+     */
     public void unpackKeys(EncryptionIdentity.PrivateIdentity privateIdentity) throws GeneralSecurityException {
         for (PublicKey key : keys.values()) {
             key.getPrivateKey(privateIdentity);
@@ -160,10 +237,26 @@ public class IdentityKeys {
         }
     }
 
+    /**
+     * Gets the private keys for the provided private identity.
+     * Creates a PrivateKeys instance that can be used for decryption.
+     *
+     * @param privateIdentity The private identity to use
+     * @return A PrivateKeys instance for decryption operations
+     */
     public PrivateKeys getPrivateKeys(EncryptionIdentity.PrivateIdentity privateIdentity) {
         return new PrivateKeys(privateIdentity);
     }
 
+    /**
+     * Changes the encryption of the private keys.
+     * Re-encrypts all private keys using a new private identity.
+     *
+     * @param existingPI The existing private identity for decryption
+     * @param newPI The new private identity for encryption
+     * @return A new IdentityKeys instance with re-encrypted private keys
+     * @throws GeneralSecurityException If there's an error during key processing
+     */
     public IdentityKeys changeEncryption(EncryptionIdentity.PrivateIdentity existingPI,
                                          EncryptionIdentity.PrivateIdentity newPI)
             throws GeneralSecurityException {
@@ -176,16 +269,36 @@ public class IdentityKeys {
         return new IdentityKeys(map);
     }
 
+    /**
+     * Checks if any of the keys have an encrypted private key.
+     *
+     * @return true if at least one key has an encrypted private key, false otherwise
+     */
     @JsonIgnore
     public boolean hasPrivateKey() {
         return keys.values().stream().anyMatch(t -> t.getEncryptedPrivateKey() != null);
     }
 
+    /**
+     * Checks if any of the keys need unpacking.
+     * A key needs unpacking if its public key is null.
+     *
+     * @return true if at least one key needs unpacking, false otherwise
+     */
     @JsonIgnore
     public boolean needKeyUnpack() {
         return keys.values().stream().anyMatch(t -> t.getPublicKey() == null);
     }
 
+    /**
+     * Gets a string representation of the private keys.
+     * Serializes the private keys to a JSON string.
+     *
+     * @param privateIdentity The private identity to use for accessing private keys
+     * @return JSON string representation of the private keys
+     * @throws GeneralSecurityException If there's an error accessing the private keys
+     * @throws RuntimeException If there's an error during serialization
+     */
     @JsonIgnore
     public String getPrivateKeyString(EncryptionIdentity.PrivateIdentity privateIdentity) throws GeneralSecurityException {
         try {
@@ -195,6 +308,13 @@ public class IdentityKeys {
         }
     }
 
+    /**
+     * Gets a string representation of the public keys only.
+     * Creates a new IdentityKeys with only public keys and serializes it to a JSON string.
+     *
+     * @return JSON string representation of the public keys
+     * @throws RuntimeException If there's an error during serialization
+     */
     @JsonIgnore
     public String getPublicKeyString() {
         try {
@@ -206,6 +326,12 @@ public class IdentityKeys {
         }
     }
 
+    /**
+     * Converts this IdentityKeys to a public EncryptionIdentity.
+     * Creates an EncryptionIdentity with only public keys.
+     *
+     * @return A new EncryptionIdentity with only public keys
+     */
     public EncryptionIdentity toPublicEncryptionIdentity() {
         EncryptionIdentity ret = new EncryptionIdentity();
         ret.primaryKeys = new IdentityKeys(keys.entrySet().stream()
@@ -215,6 +341,13 @@ public class IdentityKeys {
         return ret;
     }
 
+    /**
+     * Compares this IdentityKeys with another object for equality.
+     * Two IdentityKeys are considered equal if they have the same X25519 public key hash.
+     *
+     * @param o The object to compare with
+     * @return true if the objects are equal, false otherwise
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -225,18 +358,34 @@ public class IdentityKeys {
         return Objects.equals(k1.getPublicKeyHash(), k2.getPublicKeyHash());
     }
 
+    /**
+     * Generates a hash code for this IdentityKeys.
+     * The hash code is based on the X25519 public key string and encrypted public key string.
+     *
+     * @return The hash code
+     */
     @Override
     public int hashCode() {
         PublicKey k1 = keys.get(X25519_KEY);
         return Objects.hash(k1.getPublicKeyString(), k1.getEncryptedPublicKeyString());
     }
 
-    // This is a bit tricky, but basically the private keys serialize into something that can be expanded to public keys
-    // with properly encrypted private keys. This should only be needed for non service managed sharing.
+    /**
+     * Private class for serializing private identity keys.
+     * This is used for non-service managed sharing of private keys.
+     */
     private static class PrivateIdentityKeys {
         @JsonProperty("k")
         Map<String, PublicKey.PrivateKey> keys;
 
+        /**
+         * Constructor for PrivateIdentityKeys.
+         * Creates an instance with private keys extracted from the provided public keys.
+         *
+         * @param keys Map of key types to public keys
+         * @param privateIdentity The private identity to use for accessing private keys
+         * @throws GeneralSecurityException If there's an error accessing the private keys
+         */
         public PrivateIdentityKeys(Map<String, PublicKey> keys, EncryptionIdentity.PrivateIdentity privateIdentity)
                 throws GeneralSecurityException {
             Map<String, PublicKey.PrivateKey> map = new TreeMap<>();
@@ -247,27 +396,66 @@ public class IdentityKeys {
         }
     }
 
+    /**
+     * Class representing encryption parameters for secure data exchange.
+     * Contains a shared secret and encapsulated keys used for encryption.
+     */
     @AllArgsConstructor
     @Getter
     public static class EncryptionParameters {
+        /**
+         * The shared secret used for symmetric encryption.
+         */
         private final byte[] secret;
+        
+        /**
+         * Map of key types to their corresponding encapsulated keys.
+         * These encapsulated keys are used by the recipient to recreate the shared secret.
+         */
         private final Map<String, PublicKeyMethod.EncapsulatedKey> keys;
     }
 
+    /**
+     * Class providing access to private keys for decryption operations.
+     * Acts as a wrapper around the private identity to perform operations requiring private keys.
+     */
     @Getter
     @RequiredArgsConstructor
     public class PrivateKeys {
+        /**
+         * The private identity used to access encrypted private keys.
+         */
         private final EncryptionIdentity.PrivateIdentity privateIdentity;
 
+        /**
+         * Gets the identity that owns these private keys.
+         *
+         * @return The parent IdentityKeys instance
+         */
         public IdentityKeys getIdentity() {
             return IdentityKeys.this;
         }
 
+        /**
+         * Gets the private key for the specified key type.
+         *
+         * @param type The key type to get the private key for
+         * @return The private key
+         * @throws GeneralSecurityException If there's an error accessing the private key
+         */
         public PublicKey.PrivateKey getPrivateKey(String type) throws GeneralSecurityException {
             PublicKey key = IdentityKeys.this.keys.get(type);
             return key.getPrivateKey(privateIdentity);
         }
 
+        /**
+         * Recreates the shared secret from encapsulated keys.
+         * Uses the private keys to decrypt the encapsulated keys and recreate the original secret.
+         *
+         * @param encapsulatedKeys Map of key types to encapsulated keys
+         * @return The recreated secret
+         * @throws GeneralSecurityException If there's an error during decryption or if a key type is not available
+         */
         public byte[] recreateSecret(Map<String, PublicKeyMethod.EncapsulatedKey> encapsulatedKeys)
                 throws GeneralSecurityException {
             byte[] combinedSecret = null;

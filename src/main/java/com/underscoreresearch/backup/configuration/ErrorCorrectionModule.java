@@ -8,11 +8,32 @@ import com.underscoreresearch.backup.errorcorrection.implementation.NoneErrorCor
 import com.underscoreresearch.backup.errorcorrection.implementation.ReedSolomonErrorCorrector;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 
+/**
+ * Guice module for error correction implementations.
+ * This module provides bindings for different error correction strategies.
+ */
 public class ErrorCorrectionModule extends AbstractModule {
+    /**
+     * Default maximum file size for error correction in bytes.
+     */
     private static final int DEFAULT_MAXIMUM_FILE_SIZE = 16 * 1024 * 1024;
+    
+    /**
+     * Default number of data slices for Reed-Solomon error correction.
+     */
     private static final int DEFAULT_DATA_SLICES = 17;
+    
+    /**
+     * Default number of parity slices for Reed-Solomon error correction.
+     */
     private static final int DEFAULT_PARITY_SLICES = 3;
 
+    /**
+     * Provides a singleton ReedSolomonErrorCorrector instance.
+     *
+     * @param configuration The backup configuration
+     * @return A configured ReedSolomonErrorCorrector instance
+     */
     @Provides
     @Singleton
     public ReedSolomonErrorCorrector reedSolomonErrorCorrector(
@@ -22,6 +43,12 @@ public class ErrorCorrectionModule extends AbstractModule {
                 configuration.getProperty("reedSolomon.paritySlices", DEFAULT_PARITY_SLICES));
     }
 
+    /**
+     * Provides a singleton NoneErrorCorrector instance.
+     *
+     * @param configuration The backup configuration
+     * @return A configured NoneErrorCorrector instance
+     */
     @Provides
     @Singleton
     public NoneErrorCorrector noneErrorCorrector(

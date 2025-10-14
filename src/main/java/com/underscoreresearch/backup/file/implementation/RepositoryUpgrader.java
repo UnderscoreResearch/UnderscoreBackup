@@ -14,9 +14,9 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.log.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.log.StateLogger;
+import com.underscoreresearch.backup.utils.log.StatusLine;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -27,9 +27,14 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.underscoreresearch.backup.utils.LogUtil.readableEta;
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableEta;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableNumber;
 
+/**
+ * Upgrades a metadata repository to a new version.
+ * Migrates data from one storage implementation to another.
+ * Also implements ManualStatusLogger to provide status information to the UI.
+ */
 @Slf4j
 public class RepositoryUpgrader implements ManualStatusLogger {
     private final MetadataRepositoryStorage storage;
@@ -39,11 +44,24 @@ public class RepositoryUpgrader implements ManualStatusLogger {
     private final AtomicLong currentStep = new AtomicLong(0);
     private final Stopwatch stopwatch = Stopwatch.createUnstarted();
 
+    /**
+     * Constructor for RepositoryUpgrader.
+     *
+     * @param storage The old metadata repository storage
+     * @param upgradedStorage The new metadata repository storage
+     */
     public RepositoryUpgrader(MetadataRepositoryStorage storage, MetadataRepositoryStorage upgradedStorage) {
         this.storage = storage;
         this.updatedStorage = upgradedStorage;
     }
 
+    /**
+     * Upgrades the repository by migrating data from the old storage to the new storage.
+     * This method copies all data from the old storage to the new storage.
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws RepositoryErrorException if an error is detected in the repository data
+     */
     public void upgrade() throws IOException, RepositoryErrorException {
         updatedStorage.clear();
         updatedStorage.open(RepositoryOpenMode.WITHOUT_TRANSACTION);
@@ -201,6 +219,10 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         log.info("Successfully completed metadata migration");
     }
 
+    /**
+     * Resets the status information.
+     * Implementation of ManualStatusLogger interface.
+     */
     @Override
     public void resetStatus() {
         currentStep.set(0);
@@ -208,6 +230,12 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         stopwatch.reset();
     }
 
+    /**
+     * Gets the current status lines for display in the UI.
+     * Implementation of ManualStatusLogger interface.
+     *
+     * @return List of status lines
+     */
     @Override
     public List<StatusLine> status() {
         int elapsedMilliseconds = (int) stopwatch.elapsed(TimeUnit.MILLISECONDS);
@@ -226,12 +254,20 @@ public class RepositoryUpgrader implements ManualStatusLogger {
         return new ArrayList<>();
     }
 
+    /**
+     * Runtime exception for repository errors.
+     * Used to signal errors during the upgrade process.
+     */
     private static class RuntimeRepositoryErrorException extends RuntimeException {
         public RuntimeRepositoryErrorException(String message) {
             super(message);
         }
     }
 
+    /**
+     * Exception for repository errors.
+     * Thrown when an error is detected in the repository data.
+     */
     public static class RepositoryErrorException extends Exception {
         public RepositoryErrorException(String message) {
             super(message);

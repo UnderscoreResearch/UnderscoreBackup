@@ -12,6 +12,11 @@ import java.nio.channels.FileLock;
 import java.nio.channels.FileLockInterruptionException;
 import java.nio.channels.OverlappingFileLockException;
 
+/**
+ * Provides file-based locking mechanism to ensure exclusive or shared access to resources.
+ * This class handles acquiring, managing, and releasing file locks for coordinating access
+ * between multiple processes or threads.
+ */
 @Slf4j
 public class AccessLock implements Closeable {
     @Getter
@@ -20,10 +25,21 @@ public class AccessLock implements Closeable {
     private FileChannel channel;
     private FileLock lock;
 
+    /**
+     * Creates a new AccessLock for the specified file.
+     *
+     * @param filename The path to the file to use for locking
+     */
     public AccessLock(String filename) {
         this.filename = filename;
     }
 
+    /**
+     * Gets the file channel associated with the currently held lock.
+     *
+     * @return The file channel
+     * @throws IOException If the lock is not currently held
+     */
     public synchronized FileChannel getLockedChannel() throws IOException {
         if (lock != null) {
             return lock.channel();
@@ -32,6 +48,13 @@ public class AccessLock implements Closeable {
         }
     }
 
+    /**
+     * Attempts to acquire a lock on the file without blocking.
+     *
+     * @param exclusive Whether to acquire an exclusive (write) lock or a shared (read) lock
+     * @return True if the lock was acquired, false otherwise
+     * @throws IOException If there was an error accessing the file
+     */
     public synchronized boolean tryLock(boolean exclusive) throws IOException {
         ensureOpenFile();
         if (lock == null) {
@@ -54,6 +77,12 @@ public class AccessLock implements Closeable {
         return true;
     }
 
+    /**
+     * Ensures the file is open and ready for locking operations.
+     * If the file channel is closed or null, reopens the file.
+     *
+     * @throws IOException If there was an error opening the file
+     */
     private void ensureOpenFile() throws IOException {
         if (channel == null || !channel.isOpen()) {
             close();
@@ -62,6 +91,12 @@ public class AccessLock implements Closeable {
         }
     }
 
+    /**
+     * Acquires a lock on the file, blocking until the lock is available.
+     *
+     * @param exclusive Whether to acquire an exclusive (write) lock or a shared (read) lock
+     * @throws IOException If there was an error accessing the file
+     */
     public synchronized void lock(boolean exclusive) throws IOException {
         ensureOpenFile();
         if (lock == null) {
@@ -80,6 +115,11 @@ public class AccessLock implements Closeable {
         }
     }
 
+    /**
+     * Releases the currently held lock, if any.
+     *
+     * @throws IOException If there was an error releasing the lock
+     */
     public synchronized void release() throws IOException {
         if (lock != null) {
             if (lock.channel().isOpen()) {
@@ -89,6 +129,11 @@ public class AccessLock implements Closeable {
         }
     }
 
+    /**
+     * Closes this access lock, releasing any held lock and closing the file.
+     *
+     * @throws IOException If there was an error closing the file
+     */
     @Override
     public synchronized void close() throws IOException {
         release();

@@ -1,5 +1,5 @@
 import React from "react";
-import {BrowserRouter} from "react-router-dom";
+import {BrowserRouter} from "react-router";
 import {useSnackbar, VariantType} from "notistack";
 import {useApplication} from "./utils/ApplicationContext";
 import {useActivity} from "./utils/ActivityContext";

@@ -7,10 +7,10 @@ import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
-import com.underscoreresearch.backup.cli.helpers.BlockValidator;
-import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
-import com.underscoreresearch.backup.cli.ui.UIHandler;
-import com.underscoreresearch.backup.cli.web.service.VersionCheckGet;
+import com.underscoreresearch.backup.ui.helpers.BlockValidator;
+import com.underscoreresearch.backup.ui.helpers.RepositoryTrimmer;
+import com.underscoreresearch.backup.ui.desktop.UIHandler;
+import com.underscoreresearch.backup.ui.web.methods.service.VersionCheckGet;
 import com.underscoreresearch.backup.configuration.InstanceFactory;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
@@ -26,7 +26,7 @@ import com.underscoreresearch.backup.model.BackupPendingSet;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
 import com.underscoreresearch.backup.utils.SingleTaskScheduler;
-import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.log.StateLogger;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
@@ -47,8 +47,13 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import static com.underscoreresearch.backup.utils.LogUtil.formatTimestamp;
+import static com.underscoreresearch.backup.utils.log.LogUtil.formatTimestamp;
 
+/**
+ * Implementation of ScannerScheduler that schedules and runs backup scans.
+ * Manages the scheduling of backup sets based on their schedules and runs the scanner when needed.
+ * Also handles continuous backup and file change watching.
+ */
 @Slf4j
 public class ScannerSchedulerImpl implements ScannerScheduler {
     private static final long SLEEP_DELAY_MS = 60 * 1000;
@@ -96,6 +101,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         executor.scheduleAtFixedRate(this::detectSleep, SLEEP_DELAY_MS, SLEEP_DELAY_MS, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Updates the optimize schedule in the repository.
+     *
+     * @param copyRepository The repository to update
+     * @param schedule The schedule to set
+     * @throws IOException if an I/O error occurs
+     */
     public static void updateOptimizeSchedule(MetadataRepository copyRepository,
                                               String schedule) throws IOException {
         if (schedule != null) {
@@ -111,6 +123,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Updates the trim schedule in the repository.
+     *
+     * @param repository The repository to update
+     * @param schedule The schedule to set
+     * @throws IOException if an I/O error occurs
+     */
     public static void updateTrimSchedule(MetadataRepository repository,
                                           String schedule) throws IOException {
         if (schedule != null) {
@@ -128,6 +147,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Gets the next scheduled date for a cron schedule.
+     *
+     * @param schedule The cron schedule
+     * @return The next scheduled date, or null if the schedule is invalid
+     */
     private static Date getNextScheduleDate(String schedule) {
         if (schedule != null) {
             try {
@@ -154,6 +179,9 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         return null;
     }
 
+    /**
+     * Detects if the system has been sleeping and reschedules sets if needed.
+     */
     private void detectSleep() {
         synchronized (scheduledTimes) {
             Date expired = new Date(Instant.now().minusMillis(SLEEP_RESUME_DELAY_MS).toEpochMilli());
@@ -175,6 +203,10 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Starts the scheduler.
+     * Initializes the scheduler, starts the file change watcher, and runs backup sets as scheduled.
+     */
     @Override
     public void start() {
         boolean hasSchedules = initializeScheduler();
@@ -303,6 +335,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         checkNewVersion();
     }
 
+    /**
+     * Reschedules a completed set.
+     * Updates the repository with the next scheduled time and marks the set as not pending.
+     *
+     * @param i The index of the set
+     * @param set The backup set
+     */
     private void rescheduleCompletedSet(int i, BackupSet set) {
         synchronized (scheduledTimes) {
             Date date = scheduledTimes.get(set.getId());
@@ -319,6 +358,10 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         lock.unlock();
     }
 
+    /**
+     * Checks for a new version of the software.
+     * Only checks if version checking is enabled.
+     */
     private void checkNewVersion() {
         if (checkVersion && !shutdown) {
             if (configuration.getManifest().getVersionCheck() == null || configuration.getManifest().getVersionCheck()) {
@@ -327,6 +370,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Checks if only file trimming should be done.
+     * This is the case if there are pending sets or if the trim schedule is due.
+     *
+     * @return true if only file trimming should be done, false otherwise
+     */
     private boolean shouldOnlyDoFileTrim() {
         lock.lock();
         try {
@@ -357,6 +406,10 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         return false;
     }
 
+    /**
+     * Updates the optimize schedule.
+     * Checks if the optimize schedule has changed and updates it if needed.
+     */
     private void updateOptimizeSchedule() {
         try {
             BackupPendingSet backupPendingSet = getOptimizeSchedulePendingSet();
@@ -369,6 +422,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Performs cleanup after a backup has completed.
+     * Syncs the log, optimizes the log if needed, and validates blocks.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     private void backupCompletedCleanup() throws IOException {
         InstanceFactory.getInstance(ManifestManager.class).syncLog();
         stateLogger.reset();
@@ -397,18 +456,36 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Gets the optimize schedule pending set. (Stored as the set ID "")
+     *
+     * @return The optimize schedule pending set, or null if none exists
+     * @throws IOException if an I/O error occurs
+     */
     private BackupPendingSet getOptimizeSchedulePendingSet() throws IOException {
         Optional<BackupPendingSet> ret = repository.getPendingSets().stream().filter(t -> t.getSetId().equals(""))
                 .findAny();
         return ret.orElse(null);
     }
 
+    /**
+     * Gets the trim schedule pending set. (Stored as the set ID "=")
+     *
+     * @return The trim schedule pending set, or null if none exists
+     * @throws IOException if an I/O error occurs
+     */
     private BackupPendingSet getTrimSchedulePendingSet() throws IOException {
         Optional<BackupPendingSet> ret = repository.getPendingSets().stream().filter(t -> t.getSetId().equals("="))
                 .findAny();
         return ret.orElse(null);
     }
 
+    /**
+     * Initializes the scheduler.
+     * Reads pending sets from the repository and schedules them.
+     *
+     * @return true if there are any scheduled sets, false otherwise
+     */
     private boolean initializeScheduler() {
         boolean hasSchedules = false;
         lock.lock();
@@ -471,6 +548,11 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         return hasSchedules;
     }
 
+    /**
+     * Deletes a pending set from the repository.
+     *
+     * @param id The ID of the set to delete
+     */
     private void deletePendingSet(String id) {
         try {
             repository.deletePendingSets(id);
@@ -479,6 +561,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Schedules the next run of a backup set.
+     * Gets the next scheduled date and schedules the set to run at that time.
+     *
+     * @param set The backup set
+     * @param index The index of the set
+     */
     private void scheduleNext(BackupSet set, int index) {
         Date date = getNextScheduleDate(set.getSchedule());
         if (date != null) {
@@ -500,6 +589,14 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Schedules the next run of a backup set at a specific date.
+     * Updates the scheduled times and schedules the set to run at the specified date.
+     *
+     * @param set The backup set
+     * @param index The index of the set
+     * @param date The date to run the set
+     */
     private void scheduleNextAt(BackupSet set, int index, Date date) {
         log.info("Schedule set \"{}\" to run again at {}", set.getId(), formatTimestamp(date.getTime()));
         synchronized (scheduledTimes) {
@@ -515,6 +612,13 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
                 TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Restarts a backup set.
+     * Marks the set as pending and signals the scheduler to run it.
+     *
+     * @param set The backup set
+     * @param index The index of the set
+     */
     private void restartSet(BackupSet set, int index) {
         lock.lock();
         try {
@@ -533,6 +637,10 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Shuts down the scheduler.
+     * Stops all running tasks and signals the scheduler to stop.
+     */
     @Override
     public void shutdown() {
         lock.lock();
@@ -547,6 +655,12 @@ public class ScannerSchedulerImpl implements ScannerScheduler {
         }
     }
 
+    /**
+     * Waits for the scheduler to complete.
+     * Blocks until the scheduler has shut down.
+     *
+     * @throws IllegalStateException if the scheduler has not been shut down
+     */
     @Override
     public void waitForCompletion() {
         lock.lock();

@@ -5,7 +5,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import com.underscoreresearch.backup.cli.PasswordReader;
+import com.underscoreresearch.backup.ui.PasswordReader;
 import com.underscoreresearch.backup.encryption.EncryptionIdentity;
 import com.underscoreresearch.backup.io.IOUtils;
 import org.apache.commons.cli.CommandLine;
@@ -26,11 +26,29 @@ import static com.underscoreresearch.backup.configuration.CommandLineModule.MANI
 import static com.underscoreresearch.backup.configuration.CommandLineModule.PRIVATE_KEY_SEED;
 import static com.underscoreresearch.backup.configuration.CommandLineModule.getDefaultUserManifestLocation;
 
+/**
+ * Guice module for encryption-related dependencies.
+ * This module provides bindings for encryption keys and identity management.
+ */
 public class EncryptionModule extends AbstractModule {
+    /**
+     * Default key file locations based on the operating system.
+     */
     public static final String[] DEFAULT_KEY_FILES;
+    
+    /**
+     * Named constant for root encryption key.
+     */
     public static final String ROOT_KEY = "ROOT_KEY";
+    
+    /**
+     * Default system key file location.
+     */
     private static final String SYSTEM_DEFAULT_KEY_FILE = "/etc/underscorebackup/key";
 
+    /*
+     * Static initializer to set up default key file locations based on the operating system.
+     */
     static {
         if (SystemUtils.IS_OS_WINDOWS) {
             DEFAULT_KEY_FILES = new String[]{
@@ -58,6 +76,12 @@ public class EncryptionModule extends AbstractModule {
         }
     }
 
+    /**
+     * Gets the password for the private key, either from command line or by prompting the user.
+     *
+     * @return The password for the private key
+     * @throws IOException If there's an error reading the password
+     */
     public static String getPassword() throws IOException {
         CommandLine commandLine = InstanceFactory.getInstance(CommandLine.class);
         String key;
@@ -72,6 +96,16 @@ public class EncryptionModule extends AbstractModule {
         return key;
     }
 
+    /**
+     * Provides the root encryption identity.
+     *
+     * @param keyData The encryption key data
+     * @param rootKeyFile The root key file path
+     * @param commandLine The command line
+     * @return The root encryption identity
+     * @throws IOException If there's an error reading the key file
+     * @throws GeneralSecurityException If there's an error with the encryption
+     */
     @Provides
     @Singleton
     @Named(ROOT_KEY)
@@ -92,6 +126,20 @@ public class EncryptionModule extends AbstractModule {
         return encryptionKey;
     }
 
+    /**
+     * Provides the encryption identity for the current operation.
+     * This may be the root key or a source-specific key.
+     *
+     * @param keyData The encryption key data
+     * @param rootKeyFile The root key file path
+     * @param manifestLocation The manifest location
+     * @param source The additional source
+     * @param rootEncryptionKey The root encryption key
+     * @param commandLine The command line
+     * @return The encryption identity
+     * @throws IOException If there's an error reading the key file
+     * @throws GeneralSecurityException If there's an error with the encryption
+     */
     @Provides
     @Singleton
     public EncryptionIdentity encryptionKey(@Named(ENCRYPTION_KEY_DATA) String keyData,

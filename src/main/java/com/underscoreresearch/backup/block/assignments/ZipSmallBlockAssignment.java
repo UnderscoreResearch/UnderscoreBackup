@@ -27,11 +27,26 @@ import java.util.zip.ZipOutputStream;
 
 import static com.underscoreresearch.backup.block.assignments.ZipSmallBlockAssignment.FORMAT;
 
+/**
+ * Block assignment implementation that handles small files with ZIP compression.
+ * Files are stored in a ZIP archive with optional additional GZIP compression for larger files.
+ */
 @Slf4j
 @BlockFormatPlugin(FORMAT)
 public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements FileBlockExtractor {
     public static final String FORMAT = "ZIP";
 
+    /**
+     * Constructor for ZipSmallBlockAssignment.
+     * 
+     * @param uploader Block uploader for storing blocks
+     * @param blockDownloader Block downloader for retrieving blocks
+     * @param repository Metadata repository for block information
+     * @param access File system access for reading files
+     * @param encryptionIdentity Encryption identity for securing data
+     * @param maximumFileSize Maximum size of files to handle
+     * @param targetSize Target size for blocks
+     */
     public ZipSmallBlockAssignment(FileBlockUploader uploader,
                                    BlockDownloader blockDownloader,
                                    MetadataRepository repository,
@@ -42,27 +57,53 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
         super(uploader, blockDownloader, repository, access, encryptionIdentity, maximumFileSize, targetSize);
     }
 
+    /**
+     * Create a new pending file for ZIP data.
+     * 
+     * @return A new ZipPendingFile instance
+     */
     @Override
     protected PendingFile createPendingFile() {
         return new ZipPendingFile();
     }
 
+    /**
+     * Get the format identifier for this block assignment.
+     * 
+     * @return The format identifier string
+     */
     @Override
     protected String getFormat() {
         return FORMAT;
     }
 
+    /**
+     * Create a cached data object for ZIP blocks.
+     * 
+     * @param key The block hash key
+     * @param password The password for decryption
+     * @return A new ZipCachedData instance
+     */
     @Override
     protected CachedData createCacheData(String key, String password) {
         return new ZipCachedData(key, password);
     }
 
+    /**
+     * Inner class for storing cached entries with optional compression.
+     */
     @Data
     @AllArgsConstructor
     private static class CacheEntry {
         private boolean compressed;
         private byte[] data;
 
+        /**
+         * Get the data, decompressing if necessary.
+         * 
+         * @return The decompressed data
+         * @throws IOException If there's an error decompressing
+         */
         public byte[] get() throws IOException {
             if (compressed) {
                 try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
@@ -75,12 +116,21 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
         }
     }
 
+    /**
+     * Inner class for handling cached ZIP block data.
+     */
     private class ZipCachedData extends CachedData {
         private static final long MINIMUM_COMPRESSED_SIZE = 8192;
         private static final long MINIMUM_COMPRESSED_RATIO = 2;
         private final String hash;
         private final Map<String, CacheEntry> blockEntries;
 
+        /**
+         * Constructor that loads and extracts ZIP block data.
+         * 
+         * @param hash The block hash
+         * @param password The password for decryption
+         */
         private ZipCachedData(String hash, String password) {
             this.hash = hash;
             try {
@@ -116,6 +166,14 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
             }
         }
 
+        /**
+         * Get a specific part from the cached block data.
+         * 
+         * @param index The index of the part
+         * @param partHash The hash of the part (unused in this implementation)
+         * @return The part data
+         * @throws IOException If there's an error getting the part
+         */
         public byte[] get(int index, String partHash) throws IOException {
             CacheEntry entry = blockEntries.get(String.valueOf(index));
             if (entry != null) {
@@ -124,22 +182,46 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
             return null;
         }
 
+        /**
+         * Check if this cached data equals another object.
+         * 
+         * @param o The object to compare with
+         * @return true if the objects are equal, false otherwise
+         */
         @Override
         public boolean equals(Object o) {
-            ZipCachedData that = (ZipCachedData) o;
-            return Objects.equals(hash, that.hash);
+            if (o instanceof ZipCachedData that) {
+                return Objects.equals(hash, that.hash);
+            }
+            return false;
         }
 
+        /**
+         * Generate a hash code for this cached data.
+         * 
+         * @return The hash code
+         */
         @Override
         public int hashCode() {
             return Objects.hash(super.hashCode(), hash);
         }
     }
 
+    /**
+     * Inner class for handling pending ZIP file data.
+     */
     private class ZipPendingFile extends PendingFile {
         private ByteArrayOutputStream output = new ByteArrayOutputStream(getTargetSize());
         private ZipOutputStream zipOutputStream = new ZipOutputStream(output);
 
+        /**
+         * Add a part to the pending ZIP file.
+         * 
+         * @param index The index of the part
+         * @param data The data to add
+         * @param partHash The hash of the part (unused in this implementation)
+         * @throws IOException If there's an error adding the part
+         */
         @Override
         protected void addPartData(int index, byte[] data, String partHash) throws IOException {
             ZipEntry entry = new ZipEntry(String.valueOf(index));
@@ -149,11 +231,22 @@ public class ZipSmallBlockAssignment extends SmallFileBlockAssignment implements
             zipOutputStream.flush();
         }
 
+        /**
+         * Estimate the current size of the pending ZIP file.
+         * 
+         * @return The estimated size in bytes
+         */
         @Override
         public synchronized int estimateSize() {
             return output.size();
         }
 
+        /**
+         * Get the complete data for the pending ZIP file.
+         * 
+         * @return The complete ZIP data as a byte array
+         * @throws IOException If there's an error finalizing the ZIP
+         */
         @Override
         public synchronized byte[] data() throws IOException {
             zipOutputStream.close();

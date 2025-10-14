@@ -31,9 +31,13 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.underscoreresearch.backup.io.implementation.SMBIOProvider.SMB_TYPE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 
+/**
+ * IO provider implementation for SMB/CIFS (Windows Share) storage.
+ * Provides methods for storing and retrieving backup data from SMB shares.
+ */
 @IOPlugin(SMB_TYPE)
 @Slf4j
 public class SMBIOProvider implements IOIndex, Closeable {
@@ -51,6 +55,11 @@ public class SMBIOProvider implements IOIndex, Closeable {
     private DiskShare share;
     private ConnectionLimiter limiter;
 
+    /**
+     * Constructor for SMBIOProvider.
+     *
+     * @param destination The backup destination configuration
+     */
     public SMBIOProvider(BackupDestination destination) {
         this.destination = destination;
 
@@ -73,6 +82,13 @@ public class SMBIOProvider implements IOIndex, Closeable {
         limiter = new ConnectionLimiter(destination);
     }
 
+    /**
+     * Get the SMB share for this provider.
+     * Establishes a connection if one doesn't exist.
+     *
+     * @return The SMB share
+     * @throws IOException If there's an error connecting to the share
+     */
     private DiskShare getShare() throws IOException {
         if (share == null) {
             if (connection != null) {
@@ -93,6 +109,13 @@ public class SMBIOProvider implements IOIndex, Closeable {
         return share;
     }
 
+    /**
+     * List all available keys with the specified prefix.
+     *
+     * @param prefix The prefix to filter keys by
+     * @return List of keys matching the prefix
+     * @throws IOException If there's an error accessing the share
+     */
     @Override
     public List<String> availableKeys(String prefix) throws IOException {
         try {
@@ -116,6 +139,12 @@ public class SMBIOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Convert a path to the physical path format used by SMB.
+     *
+     * @param prefix The path to convert
+     * @return The physical path
+     */
     private String physicalPath(String prefix) {
         String ret = prefix.replace('/', '\\');
         if (ret.startsWith("\\"))
@@ -123,6 +152,12 @@ public class SMBIOProvider implements IOIndex, Closeable {
         return ret;
     }
 
+    /**
+     * Get the parent path of a physical key.
+     *
+     * @param physicalKey The physical key
+     * @return The parent path
+     */
     private String parentPath(String physicalKey) {
         int index = physicalKey.lastIndexOf("\\");
         if (index >= 0) {
@@ -131,6 +166,14 @@ public class SMBIOProvider implements IOIndex, Closeable {
         return "";
     }
 
+    /**
+     * Upload data to the SMB share with a suggested key.
+     *
+     * @param key The suggested key for the data
+     * @param data The data to upload
+     * @return The actual key used for the uploaded data
+     * @throws IOException If there's an error uploading the data
+     */
     @Override
     public String upload(String key, byte[] data) throws IOException {
         String physicalKey = physicalPath(key);
@@ -158,6 +201,12 @@ public class SMBIOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Create parent directories for a path.
+     *
+     * @param parent The path to create parent directories for
+     * @throws IOException If there's an error creating directories
+     */
     private void createParent(String parent) throws IOException {
         try {
             if (parent.endsWith("\\"))
@@ -172,11 +221,25 @@ public class SMBIOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Check if the provider guarantees consistent writes.
+     * A consistent write means that once a write operation completes,
+     * the data is guaranteed to be durably stored.
+     *
+     * @return True if writes are consistent, false otherwise
+     */
     @Override
     public boolean hasConsistentWrites() {
         return true;
     }
 
+    /**
+     * Download data from the SMB share using a key.
+     *
+     * @param key The key for the data to download
+     * @return The downloaded data
+     * @throws IOException If there's an error downloading the data
+     */
     @Override
     public byte[] download(String key) throws IOException {
         String physicalKey = physicalPath(key);
@@ -204,11 +267,23 @@ public class SMBIOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Get a unique cache key for this provider.
+     *
+     * @return The cache key
+     */
     @Override
     public String getCacheKey() {
         return cacheKey;
     }
 
+    /**
+     * Check if data exists at the specified key.
+     *
+     * @param key The key to check
+     * @return True if data exists at the key, false otherwise
+     * @throws IOException If there's an error checking for existence
+     */
     @Override
     public boolean exists(String key) throws IOException {
         String physicalKey = physicalPath(key);
@@ -228,6 +303,12 @@ public class SMBIOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Delete data at the specified key.
+     *
+     * @param key The key for the data to delete
+     * @throws IOException If there's an error deleting the data
+     */
     @Override
     public void delete(String key) throws IOException {
         String physicalKey = physicalPath(key);
@@ -258,6 +339,12 @@ public class SMBIOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Check if the provider credentials are valid.
+     *
+     * @param readOnly Whether to check for read-only access
+     * @throws IOException If the credentials are invalid or there's an error checking
+     */
     @Override
     public void checkCredentials(boolean readOnly) throws IOException {
         if (!getShare().folderExists(root)) {
@@ -267,6 +354,11 @@ public class SMBIOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Close the SMB connection and release resources.
+     *
+     * @throws IOException If there's an error closing the connection
+     */
     @Override
     public void close() throws IOException {
         if (share != null)

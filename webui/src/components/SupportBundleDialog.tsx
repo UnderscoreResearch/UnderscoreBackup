@@ -96,43 +96,43 @@ export default function SupportBundleDialog(props: { open: boolean, onClose: () 
                 <hr/>
                 <DialogContentText id="alert-dialog-description">
                     <Grid container spacing={0}>
-                        <Grid item xs={12}>
+                        <Grid size={{xs: 12}}>
                             <FormControlLabel control={<Checkbox
                                 checked={state.includeConfig}
                                 onChange={(e) => setState({...state, includeConfig: e.target.checked})}
                             />} label="Include configuration without credentials"/>
                         </Grid>
-                        <Grid item xs={12} paddingLeft={"2em"}>
+                        <Grid size={{xs: 12}} paddingLeft={"2em"}>
                             Contains all your settings <b>except for any login credentials</b>. This includes what files
                             are included in your backup.
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={{xs: 12}}>
                             <FormControlLabel control={<Checkbox
                                 checked={state.includeLogs}
                                 onChange={(e) => setState({...state, includeLogs: e.target.checked})}
                             />} label="Include log files"/>
                         </Grid>
-                        <Grid item xs={12} paddingLeft={"2em"}>
+                        <Grid size={{xs: 12}} paddingLeft={"2em"}>
                             Will contain the location and name of all the files that have been backed up or have had
                             changes detected in the in the last couple of weeks.
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={{xs: 12}}>
                             <FormControlLabel control={<Checkbox
                                 checked={state.includeMetadata}
                                 onChange={(e) => setState({...state, includeMetadata: e.target.checked})}
                             />} label="Include metadata repository"/>
                         </Grid>
-                        <Grid item xs={12} paddingLeft={"2em"}>
+                        <Grid size={{xs: 12}} paddingLeft={"2em"}>
                             Contains metadata about all the files and directories in your backup with history. It does
                             not contain the contents of any of those files.
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={{xs: 12}}>
                             <FormControlLabel control={<Checkbox
                                 checked={state.includeKey}
                                 onChange={(e) => setState({...state, includeKey: e.target.checked})}
                             />} label="Include key definition"/>
                         </Grid>
-                        <Grid item xs={12} paddingLeft={"2em"}>
+                        <Grid size={{xs: 12}} paddingLeft={"2em"}>
                             Include the key definition for your backup. This only includes the public key, <b>it does
                             not include the plain text private encryption key</b>.
                         </Grid>

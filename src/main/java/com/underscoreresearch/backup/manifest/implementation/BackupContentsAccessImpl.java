@@ -13,11 +13,23 @@ import java.util.Set;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.model.BackupActivePath.stripPath;
 
+/**
+ * Implementation of backup contents access that includes active paths.
+ * Extends BackupContentsAccessPathOnly to add support for active paths.
+ */
 @Slf4j
 public class BackupContentsAccessImpl extends BackupContentsAccessPathOnly {
     private final Map<String, BackupActivePath> activePaths;
     private Set<String> rootPaths;
 
+    /**
+     * Constructor for BackupContentsAccessImpl.
+     *
+     * @param repository The metadata repository
+     * @param timestamp The timestamp to use for filtering, or null for current state
+     * @param includeDeleted Whether to include deleted files
+     * @throws IOException If there's an error accessing the repository
+     */
     public BackupContentsAccessImpl(MetadataRepository repository, Long timestamp, boolean includeDeleted)
             throws IOException {
         super(repository, timestamp, includeDeleted);
@@ -33,6 +45,13 @@ public class BackupContentsAccessImpl extends BackupContentsAccessPathOnly {
         }
     }
 
+    /**
+     * Process additional paths from active paths.
+     * Adds active paths to the directory listing.
+     *
+     * @param ret The directory to process
+     * @return The processed directory
+     */
     @Override
     protected BackupDirectory processAdditionalPaths(BackupDirectory ret) {
         if (activePaths != null) {
@@ -49,6 +68,14 @@ public class BackupContentsAccessImpl extends BackupContentsAccessPathOnly {
         return ret;
     }
 
+    /**
+     * Add root paths to the found paths.
+     * Filters root paths based on the normalized root.
+     *
+     * @param foundPaths The found paths to add to
+     * @param normalizedRoot The normalized root path
+     * @return The updated found paths
+     */
     @Override
     protected FoundPath addRootPaths(FoundPath foundPaths, String normalizedRoot) {
         if (rootPaths != null) {

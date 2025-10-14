@@ -21,10 +21,10 @@ import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetDestinations;
 import com.underscoreresearch.backup.model.BackupSetRoot;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.state.MachineState;
+import com.underscoreresearch.backup.utils.log.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.log.StateLogger;
+import com.underscoreresearch.backup.utils.log.StatusLine;
+import com.underscoreresearch.backup.machinestate.MachineState;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -44,12 +44,17 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
-import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
-import static com.underscoreresearch.backup.utils.LogUtil.readableDuration;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.getThroughputStatus;
+import static com.underscoreresearch.backup.utils.log.LogUtil.lastProcessedPath;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableDuration;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 
+/**
+ * Implementation of FileScanner that scans the file system for files to back up.
+ * Manages the scanning process, tracks active paths, and submits files to the FileConsumer.
+ * Also implements ManualStatusLogger to provide status information to the UI.
+ */
 @Slf4j
 public class FileScannerImpl implements FileScanner, ManualStatusLogger {
     private final MetadataRepository repository;
@@ -69,6 +74,16 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
     private BackupFile lastProcessed;
     private Duration lastPath;
 
+    /**
+     * Constructor for FileScannerImpl.
+     *
+     * @param repository The metadata repository
+     * @param consumer The file consumer
+     * @param filesystem The file system access
+     * @param machineState The machine state
+     * @param debug Whether to enable debug logging
+     * @param manifestLocation The location of the manifest
+     */
     public FileScannerImpl(MetadataRepository repository, FileConsumer consumer, FileSystemAccess filesystem,
                            MachineState machineState, boolean debug, String manifestLocation) {
         this.repository = repository;
@@ -81,6 +96,13 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         StateLogger.addLogger(this);
     }
 
+    /**
+     * Starts scanning a backup set for files to back up.
+     *
+     * @param backupSet The backup set to scan
+     * @return true if the scan completed successfully, false if it was interrupted
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public boolean startScanning(BackupSet backupSet) throws IOException {
         lock.lock();
@@ -171,11 +193,23 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         return completed;
     }
 
+    /**
+     * Formats a collection of paths as a string for logging.
+     *
+     * @param keySet The collection of paths
+     * @return A formatted string of paths
+     */
     private String formatPathList(Collection<String> keySet) {
         return "\"" + keySet.stream().map(PathNormalizer::physicalPath)
                 .collect(Collectors.joining("\", \"")) + "\"";
     }
 
+    /**
+     * Registers the roots of a backup set as pending paths.
+     *
+     * @param backupSet The backup set
+     * @return true if any roots were found, false otherwise
+     */
     private boolean registerBackupRoots(BackupSet backupSet) {
         boolean anyFound = false;
         for (BackupSetRoot root : backupSet.getRoots()) {
@@ -186,11 +220,23 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         return anyFound;
     }
 
+    /**
+     * Gets the pending paths that have been processed but not yet completed.
+     *
+     * @return A map of processed pending paths
+     */
     private Map<String, BackupActivePath> processedPendingPaths() {
         return pendingPaths.entrySet().stream().filter(t -> !t.getValue().isUnprocessed())
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
+    /**
+     * Removes paths from the active paths that are excluded by the backup set.
+     *
+     * @param backupSet The backup set
+     * @param activePaths The active paths
+     * @return A map of active paths that are included in the backup set
+     */
     private TreeMap<String, BackupActivePath> stripExcludedPendingPaths(BackupSet backupSet,
                                                                         TreeMap<String, BackupActivePath> activePaths) {
         if (activePaths != null) {
@@ -210,6 +256,10 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         return activePaths;
     }
 
+    /**
+     * Resets the status information.
+     * Implementation of ManualStatusLogger interface.
+     */
     @Override
     public void resetStatus() {
         completedSize.set(0);
@@ -219,6 +269,12 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         lastProcessed = null;
     }
 
+    /**
+     * Gets the current status lines for display in the UI.
+     * Implementation of ManualStatusLogger interface.
+     *
+     * @return List of status lines
+     */
     @Override
     public List<StatusLine> status() {
         List<StatusLine> ret = getThroughputStatus(getClass(), "Completed", "files",
@@ -240,6 +296,16 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         return ret;
     }
 
+    /**
+     * Processes a path in the backup set.
+     * Scans the directory for files and subdirectories and processes them.
+     *
+     * @param set The backup set
+     * @param currentPath The path to process
+     * @param needStorageValidation Whether storage validation is needed
+     * @return The status of the path after processing
+     * @throws IOException if an I/O error occurs
+     */
     private BackupActiveStatus processPath(BackupSet set, String currentPath, boolean needStorageValidation) throws IOException {
         BackupActivePath pendingFiles = pendingPaths.get(currentPath);
         pendingFiles.getFiles().forEach(file -> {
@@ -372,6 +438,14 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         }
     }
 
+    /**
+     * Checks if a file has invalid storage.
+     * A file has invalid storage if any of its blocks are missing from any of the destinations.
+     *
+     * @param existingFile The file to check
+     * @param set The backup set
+     * @return true if the file has invalid storage, false otherwise
+     */
     private boolean invalidStorage(BackupFile existingFile, BackupSet set) {
         if (existingFile.getLength() != 0) {
             for (BackupLocation location : existingFile.getLocations()) {
@@ -410,6 +484,10 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         return false;
     }
 
+    /**
+     * Shuts down the file scanner.
+     * Sets the shutdown flag and signals any waiting threads.
+     */
     public void shutdown() {
         lock.lock();
         try {
@@ -420,6 +498,13 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         }
     }
 
+    /**
+     * Adds a path to the pending paths.
+     * Creates an active path and pushes it to the repository.
+     *
+     * @param set The backup set
+     * @param path The path to add
+     */
     private void addPendingPath(BackupSet set, String path) {
         if (!pendingPaths.containsKey(path)) {
             BackupActivePath activePath;
@@ -451,6 +536,14 @@ public class FileScannerImpl implements FileScanner, ManualStatusLogger {
         }
     }
 
+    /**
+     * Updates an active path in the repository.
+     * If the path is completed, removes it from the pending paths and updates the directory.
+     *
+     * @param set The backup set
+     * @param currentPath The path to update
+     * @param forceClose Whether to force close the path
+     */
     private void updateActivePath(BackupSet set, String currentPath, boolean forceClose) {
         BackupActivePath pending = pendingPaths.get(currentPath);
         if (pending != null) {

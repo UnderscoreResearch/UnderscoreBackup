@@ -3,7 +3,7 @@ import * as React from "react";
 import {useEffect} from "react";
 import {BackupState} from "../api";
 import {authorizationRedirect} from "../api/utils";
-import {useLocation} from "react-router-dom";
+import {useLocation} from "react-router";
 import {deleteToken, updateSource} from "../api/service";
 import KeyRecoveryDialog from "./KeyRecoveryDialog";
 
@@ -112,7 +112,7 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
 
     if (props.includeSkip) {
         return <>
-            <Grid item md={8} sm={6} xs={12}>
+            <Grid size={{md: 8, sm: 6, xs: 12}} >
                 <Link id="skipService" rel="noreferrer" href={"."}
                       underline={"hover"}
                       onClick={(e) => {
@@ -123,22 +123,22 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
                     {props.backendState.serviceConnected ? "Continue" : "Skip"}
                 </Link>
             </Grid>
-            <Grid item md={4} sm={6} xs={12} textAlign={"center"}>
+            <Grid size={{md: 4, sm: 6, xs: 12}} textAlign={"center"}>
                 <ConnectionButton/>
             </Grid>
         </>
     } else {
         return <>
-            <Grid item md={4} sm={3} xs={1}>
+            <Grid size={{md: 4, sm: 3, xs: 1}}>
             </Grid>
-            <Grid item md={4} sm={6} xs={10} textAlign={"center"}>
+            <Grid size={{md: 4, sm: 6, xs: 10}} textAlign={"center"}>
                 <ConnectionButton/>
             </Grid>
-            <Grid item md={4} sm={3} xs={1}>
+            <Grid size={{md: 4, sm: 3, xs: 1}}>
             </Grid>
             {props.backendState.serviceConnected && !props.needSubscription &&
                 <>
-                    <Grid item xs={12} textAlign={"center"}>
+                    <Grid size={{xs: 12}} textAlign={"center"}>
                         <Link rel="noreferrer" target="_blank"
                               href={`${props.backendState.siteUrl}/dashboard`} underline={"hover"}>Dashboard</Link>
                         &nbsp;
@@ -153,7 +153,7 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
                         <Link rel="noreferrer" target="_blank" underline={"hover"}
                               onClick={() => setShowKeyRecovery(true)}>Manage Key Recovery</Link>
                     </Grid>
-                    <Grid item md={9} xs={12}>
+                    <Grid size={{md: 9, xs: 12}}>
                         <TextField
                             fullWidth={true}
                             multiline
@@ -164,7 +164,7 @@ export default function ServiceAuthentication(props: ServiceAuthenticationProps)
                             })}
                         />
                     </Grid>
-                    <Grid item md={3} xs={12}>
+                    <Grid size={{md: 3, xs: 12}}>
                         <Button fullWidth={true}
                                 disabled={state.busy || state.sourceName === props.backendState.sourceName}
                                 variant="contained" id="newSource" onClick={() => updateName()}>

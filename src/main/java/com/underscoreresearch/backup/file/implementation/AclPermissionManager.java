@@ -25,11 +25,23 @@ import java.util.Set;
 
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * Implementation of FilePermissionManager for Access Control List (ACL) based file systems.
+ * Handles reading and writing file permissions using the ACL file attribute view.
+ * This implementation encodes and decodes ACL entries to store them in a serialized format.
+ */
 @Slf4j
 public class AclPermissionManager implements FilePermissionManager {
     private static final ObjectReader READER = MAPPER.readerFor(AclPermissions.class);
     private static final ObjectWriter WRITER = MAPPER.writerFor(AclPermissions.class);
 
+    /**
+     * Encodes an ACL entry flag to an integer representation.
+     *
+     * @param flag The ACL entry flag to encode
+     * @return The integer representation of the flag
+     * @throws IllegalArgumentException if the flag is unknown
+     */
     private static int encodeFlag(AclEntryFlag flag) {
         return switch (flag) {
             case DIRECTORY_INHERIT -> 0x00001;
@@ -40,6 +52,13 @@ public class AclPermissionManager implements FilePermissionManager {
         };
     }
 
+    /**
+     * Encodes an ACL entry type to an integer representation.
+     *
+     * @param type The ACL entry type to encode
+     * @return The integer representation of the type
+     * @throws IllegalArgumentException if the type is unknown
+     */
     private static int encodeType(AclEntryType type) {
         return switch (type) {
             case ALARM -> 0x100000;
@@ -50,6 +69,13 @@ public class AclPermissionManager implements FilePermissionManager {
         };
     }
 
+    /**
+     * Encodes an ACL entry permission to an integer representation.
+     *
+     * @param permission The ACL entry permission to encode
+     * @return The integer representation of the permission
+     * @throws IllegalArgumentException if the permission is unknown
+     */
     private static int encodePermission(AclEntryPermission permission) {
         return switch (permission) {
             case APPEND_DATA -> 0x00010;
@@ -70,6 +96,12 @@ public class AclPermissionManager implements FilePermissionManager {
         };
     }
 
+    /**
+     * Decodes an integer representation into a set of ACL entry permissions.
+     *
+     * @param permissions The integer representation of permissions
+     * @return A set of ACL entry permissions
+     */
     private static Set<AclEntryPermission> decodePermissions(int permissions) {
         Set<AclEntryPermission> result = new HashSet<>();
 
@@ -99,6 +131,13 @@ public class AclPermissionManager implements FilePermissionManager {
         }
         if ((permissions & 0x01000) != 0) {
             result.add(AclEntryPermission.READ_NAMED_ATTRS);
+    /**
+     * Decodes an integer representation into an ACL entry type.
+     *
+     * @param type The integer representation of the type
+     * @return The ACL entry type
+     * @throws IllegalArgumentException if the type is unknown
+     */
         }
         if ((permissions & 0x02000) != 0) {
             result.add(AclEntryPermission.SYNCHRONIZE);
@@ -119,6 +158,12 @@ public class AclPermissionManager implements FilePermissionManager {
         return result;
     }
 
+    /**
+     * Decodes an integer representation into a set of ACL entry flags.
+     *
+     * @param flags The integer representation of flags
+     * @return A set of ACL entry flags
+     */
     private static Set<AclEntryFlag> decodeFlags(int flags) {
         Set<AclEntryFlag> result = new HashSet<>();
 
@@ -148,6 +193,12 @@ public class AclPermissionManager implements FilePermissionManager {
         };
     }
 
+    /**
+     * Gets the permissions for a file or directory as a serialized string.
+     *
+     * @param path The path to the file or directory
+     * @return A string representation of the permissions, or null if an error occurs
+     */
     @Override
     public String getPermissions(Path path) {
         try {
@@ -173,6 +224,12 @@ public class AclPermissionManager implements FilePermissionManager {
         }
     }
 
+    /**
+     * Sets the permissions for a file or directory from a serialized string.
+     *
+     * @param path The path to the file or directory
+     * @param permissions A string representation of the permissions
+     */
     @Override
     public void setPermissions(Path path, String permissions) {
         if (permissions != null) {
@@ -214,6 +271,9 @@ public class AclPermissionManager implements FilePermissionManager {
         }
     }
 
+    /**
+     * Inner class for serializing and deserializing ACL permissions.
+     */
     @AllArgsConstructor
     @NoArgsConstructor
     @Data

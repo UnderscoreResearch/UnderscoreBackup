@@ -23,6 +23,11 @@ import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionF
 import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorPqcStable.KEY_TYPES_PQC;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * AES encryptor implementation using Post-Quantum Cryptography.
+ * This class extends the GCM encryptor to add support for post-quantum
+ * cryptographic algorithms for key encapsulation.
+ */
 @Slf4j
 public class AesEncryptorPqc extends AesEncryptorGcm {
     private static final TypeReference<Map<String, String>> MAP_TYPE = new TypeReference<Map<String, String>>() {
@@ -30,11 +35,25 @@ public class AesEncryptorPqc extends AesEncryptorGcm {
     private static final ObjectReader ENCAPSULATION_READER = MAPPER.readerFor(MAP_TYPE);
     private static final ObjectWriter ENCAPSULATION_WRITER = MAPPER.writerFor(MAP_TYPE);
 
+    /**
+     * Gets the padding format identifier based on the estimated size.
+     *
+     * @param estimatedSize The estimated size of the encrypted data
+     * @return The padding format identifier
+     */
     @Override
     protected byte paddingFormat(int estimatedSize) {
         return estimatedSize % 4 != 3 ? NON_PADDED_PQC : PADDED_PQC;
     }
 
+    /**
+     * Adjusts the estimated size based on the padding format.
+     *
+     * @param paddingFormat The padding format
+     * @param estimatedSize The estimated size
+     * @return The adjusted size
+     * @throws IllegalArgumentException If the padding format is unknown
+     */
     @Override
     protected int adjustEstimatedSize(byte paddingFormat, int estimatedSize) {
         switch (paddingFormat) {
@@ -48,6 +67,14 @@ public class AesEncryptorPqc extends AesEncryptorGcm {
         throw new IllegalArgumentException("Unknown AES padding format");
     }
 
+    /**
+     * Adjusts the decode length based on the padding format.
+     *
+     * @param paddingFormat The padding format
+     * @param payloadLength The payload length
+     * @return The adjusted length
+     * @throws IllegalArgumentException If the padding format is unknown
+     */
     @Override
     protected int adjustDecodeLength(byte paddingFormat, int payloadLength) {
         switch (paddingFormat) {
@@ -61,11 +88,27 @@ public class AesEncryptorPqc extends AesEncryptorGcm {
         throw new IllegalArgumentException("Unknown AES padding format");
     }
 
+    /**
+     * Creates the encryption key secret from identity keys.
+     * Uses both X25519 and Kyber key types for post-quantum security.
+     *
+     * @param key The identity keys
+     * @return The encryption parameters
+     * @throws GeneralSecurityException If key creation fails
+     */
     @Override
     protected IdentityKeys.EncryptionParameters createKeySecret(IdentityKeys key) throws GeneralSecurityException {
         return key.getEncryptionParameters(KEY_TYPES_PQC);
     }
 
+    /**
+     * Gets the key encapsulation data for storage.
+     * Serializes the encapsulated keys to JSON and adds padding to ensure 4-byte alignment.
+     *
+     * @param storage The storage metadata
+     * @param parameters The encryption parameters
+     * @return The key encapsulation data
+     */
     @Override
     protected byte[] getKeyEncapsulationData(BackupBlockStorage storage, IdentityKeys.EncryptionParameters parameters) {
         Map<String, String> encapsulatedData = parameters.getKeys().entrySet().stream()
@@ -99,6 +142,15 @@ public class AesEncryptorPqc extends AesEncryptorGcm {
         }
     }
 
+    /**
+     * Extracts key encapsulation data from storage or encrypted data.
+     *
+     * @param storage The storage metadata
+     * @param encryptedData The encrypted data
+     * @param currentOffset The current offset in the encrypted data
+     * @return The encapsulated keys
+     * @throws GeneralSecurityException If extraction fails
+     */
     @Override
     protected Map<String, PublicKeyMethod.EncapsulatedKey> extractKeyEncapsulation(BackupBlockStorage storage,
                                                                                    byte[] encryptedData,

@@ -18,30 +18,20 @@ import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptorPq
 import static com.underscoreresearch.backup.encryption.encryptors.PQCEncryptor.PQC_ENCRYPTION;
 
 /**
- * X25519 encryptor. Called AES for historical reasons (AES is used for the symmetrical cypher)
+ * Post-Quantum Cryptography encryptor implementation.
+ * This class extends the BaseAesEncryptor to add support for post-quantum
+ * cryptographic algorithms for key encapsulation.
+ *
  * <p>
- * So this format is a bit of a mess in that I started using CBC encoding and padding and then realized that I really
- * should be using GCM encoding. Unfortunately I left no field for future expansion in the original format but I have
- * figured out a way to be backwards compatible and add future extensibility in case I want to change this again
- * in the future. So here is how the payload works.
+ * It is designed to work with the Kyber post-quantum algorithm in addition to the X25519 
+ * key exchange algorithm for deriving the AES encryption key, providing a hybrid approach
+ * that maintains security even if one of the algorithms is compromised.
+ * </p>
+ *
  * <p>
- * First byte is a padding version indicator which can currently be 0 for CBC, 1 for GCM and 2 for GCM with a single
- * additional byte for padding its payload to an even length. This byte is missing for all legacy data created before
- * the introduction of the GCM encoding. However, any encrypted block with an even number of bytes in length will
- * assumed to be of CBC encoding. This is also why the GCM encoding needs format bytes since it can be of uneven size.
- * <p>
- * The next 12 bytes for GCM and 16 bytes for CBC contain the IV vector for the crypto.
- * <p>
- * The next 32 bytes contain the public key used to combine with the private key to create the key used for the AES256
- * algorithm.
- * <p>
- * The entire rest of the data is the encryption payload.
- * <p>
- * There is also another format used when storage is specified by default. In this format only the first byte is used
- * to specify the format and the entire rest of the payload is the encryption. The IV in this case is a 0 array, the
- * encryption key is the SHA3-256 of the payload (Which is different from the SHA-256 used to create the block ID. In
- * this format a block with the same contents will always be encrypted to exactly the same encryption payload allowing
- * for good deduplication of the data without jeopardizing the contents.
+ * The class supports both standard and stable (deduplication-friendly) encryption formats
+ * using AesEncryptorPqc and AesEncryptorPqcStable implementations.
+ * </p>
  */
 @EncryptorPlugin(PQC_ENCRYPTION)
 @Slf4j
@@ -51,21 +41,46 @@ public class PQCEncryptor extends BaseAesEncryptor {
     private static final AesEncryptorFormat stableFormat = new AesEncryptorPqcStable();
     private static final AesEncryptorFormat defaultFormat = new AesEncryptorPqc();
 
+    /**
+     * Constructor for PQCEncryptor.
+     * Initializes the encryptor with default settings.
+     */
     @Inject
     public PQCEncryptor() {
     }
 
+    /**
+     * Stores encryption parameters in the storage metadata.
+     * This method adds both X25519 and Kyber key encapsulations to the storage properties.
+     *
+     * @param storage The storage metadata
+     * @param ret The encryption parameters to store
+     */
     @Override
     protected void storeEncryptionParameters(BackupBlockStorage storage, IdentityKeys.EncryptionParameters ret) {
         storage.getProperties().put(X25519_KEY, Hash.encodeBytes(ret.getKeys().get(X25519_KEY).getEncapsulation()));
         storage.getProperties().put(KYBER_KEY, Hash.encodeBytes(ret.getKeys().get(KYBER_KEY).getEncapsulation()));
     }
 
+    /**
+     * Gets the set of encryption key types used by this encryptor.
+     * Returns both X25519 and Kyber key types for post-quantum security.
+     *
+     * @return The set of encryption key types
+     */
     @Override
     protected Set<String> getEncryptionKeys() {
         return KEY_TYPES_PQC;
     }
 
+    /**
+     * Creates encapsulated keys from storage metadata.
+     * This method extracts both X25519 and Kyber public keys from storage properties
+     * and creates encapsulated keys. If Kyber key is not available, only X25519 key is used.
+     *
+     * @param storage The storage metadata containing the public keys
+     * @return A map of key types to encapsulated keys
+     */
     @Override
     protected Map<String, PublicKeyMethod.EncapsulatedKey> createEncapsulatedKeys(BackupBlockStorage storage) {
         PublicKeyMethod.EncapsulatedKey x25519PK = new PublicKeyMethod.EncapsulatedKey(Hash.decodeBytes(storage.getProperties().get(X25519_KEY)));
@@ -81,6 +96,14 @@ public class PQCEncryptor extends BaseAesEncryptor {
         );
     }
 
+    /**
+     * Determines the appropriate encryptor format based on the encrypted data.
+     * This method extends the base implementation to handle PQC-specific formats.
+     *
+     * @param data The encrypted data
+     * @return The appropriate AesEncryptorFormat implementation
+     * @throws IllegalArgumentException If the encryption format is unknown
+     */
     @Override
     protected AesEncryptorFormat getEncryptorFormat(byte[] data) {
         if (data.length % 4 == 0) {
@@ -96,6 +119,17 @@ public class PQCEncryptor extends BaseAesEncryptor {
         };
     }
 
+    /**
+     * Encrypts a data block using the appropriate encryption format.
+     * Uses stable format for deduplication if storage is provided and stableDedupe is enabled.
+     * This method uses PQC-specific formats for encryption.
+     *
+     * @param storage The storage metadata
+     * @param data The data to encrypt
+     * @param key The identity keys to use for encryption
+     * @return The encrypted data
+     * @throws GeneralSecurityException If encryption fails
+     */
     @Override
     public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, IdentityKeys key) throws GeneralSecurityException {
         if (storage != null && isStableDedupe()) {

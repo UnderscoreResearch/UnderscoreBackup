@@ -13,15 +13,39 @@ import java.util.stream.Collectors;
 
 import static com.underscoreresearch.backup.model.BackupSetRoot.withoutFinalSeparator;
 
+/**
+ * Represents a filter for backup files and directories.
+ * Contains information about paths to include or exclude in a backup,
+ * and can have child filters for more specific filtering.
+ */
+
 @Data
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 public class BackupFilter {
+    /**
+     * List of paths to filter.
+     */
     private List<String> paths;
+    
+    /**
+     * Type of filter (include or exclude).
+     */
     private BackupFilterType type;
+    
+    /**
+     * List of child filters.
+     */
     private List<BackupFilter> children;
 
+    /**
+     * Constructor that initializes a BackupFilter with paths, type, and children.
+     * 
+     * @param paths The list of paths to filter
+     * @param type The type of filter
+     * @param children The list of child filters
+     */
     @JsonCreator
     public BackupFilter(
             @JsonProperty("paths") List<String> paths,
@@ -32,6 +56,11 @@ public class BackupFilter {
         this.children = children;
     }
 
+    /**
+     * Sets the paths to filter, normalizing them by removing trailing separators.
+     * 
+     * @param paths The list of paths to filter
+     */
     public void setPaths(List<String> paths) {
         this.paths = paths.stream().map(path -> {
             if (path.endsWith(PathNormalizer.PATH_SEPARATOR))
@@ -41,6 +70,12 @@ public class BackupFilter {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * Checks if a file matches any of the filter paths.
+     * 
+     * @param file The file path to check
+     * @return The matching path, or null if no match
+     */
     public String fileMatch(String file) {
         for (String path : paths) {
             if (file.startsWith(path)) {
@@ -53,6 +88,12 @@ public class BackupFilter {
         return null;
     }
 
+    /**
+     * Checks if a directory matches any of the filter paths.
+     * 
+     * @param file The directory path to check
+     * @return The matching path, or null if no match
+     */
     public String directoryMatch(String file) {
         file = withoutFinalSeparator(file);
         String ret = fileMatch(file);
@@ -70,6 +111,13 @@ public class BackupFilter {
         return null;
     }
 
+    /**
+     * Checks if a matched file should be included in the backup.
+     * 
+     * @param path The matched path
+     * @param file The file path to check
+     * @return True if the file should be included, false otherwise
+     */
     public boolean includeMatchedFile(final String path, final String file) {
         String pathWithoutSeparator = withoutFinalSeparator(path);
 
@@ -92,6 +140,13 @@ public class BackupFilter {
         return shouldInclude();
     }
 
+    /**
+     * Checks if a matched directory should be included in the backup.
+     * 
+     * @param path The matched path
+     * @param file The directory path to check
+     * @return True if the directory should be included, false otherwise
+     */
     public boolean includeMatchedDirectory(String path, String file) {
         String pathWithoutSeparator = withoutFinalSeparator(path);
         String fileWithoutSeparator = withoutFinalSeparator(file);
@@ -119,6 +174,11 @@ public class BackupFilter {
         return shouldInclude();
     }
 
+    /**
+     * Checks if this filter should include paths.
+     * 
+     * @return True if this filter should include paths, false otherwise
+     */
     private boolean shouldInclude() {
         return type != BackupFilterType.EXCLUDE;
     }

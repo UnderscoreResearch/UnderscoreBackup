@@ -41,10 +41,10 @@ export default function UIAuthentication(props: UIAuthenticationProps) {
 
     return <Paper sx={{p: 2}}>
         <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid size={{xs: 12}}>
                 <DividerWithText>Interface authentication</DividerWithText>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs: 12}}>
                 <Alert severity="info">Require knowledge of the private key password to access the
                     administration interface.<br/><br/><b>This is recommended when running as a service or root user</b>.</Alert>
                 <FormControlLabel control={<Checkbox

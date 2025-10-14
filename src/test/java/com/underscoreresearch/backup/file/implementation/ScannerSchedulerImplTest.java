@@ -2,7 +2,7 @@ package com.underscoreresearch.backup.file.implementation;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.underscoreresearch.backup.cli.helpers.RepositoryTrimmer;
+import com.underscoreresearch.backup.ui.helpers.RepositoryTrimmer;
 import com.underscoreresearch.backup.file.ContinuousBackup;
 import com.underscoreresearch.backup.file.FileChangeWatcher;
 import com.underscoreresearch.backup.file.FileScanner;
@@ -11,7 +11,7 @@ import com.underscoreresearch.backup.manifest.model.BackupDirectory;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
-import com.underscoreresearch.backup.utils.StateLogger;
+import com.underscoreresearch.backup.utils.log.StateLogger;
 import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.BeforeEach;

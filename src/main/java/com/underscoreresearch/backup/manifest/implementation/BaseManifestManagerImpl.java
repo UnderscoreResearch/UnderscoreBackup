@@ -55,9 +55,14 @@ import java.util.zip.GZIPOutputStream;
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFile;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
+
+/**
+ * Base implementation of the manifest manager.
+ * Provides core functionality for managing backup manifests, including configuration, logs, and identity.
+ */
 
 @Slf4j
 public abstract class BaseManifestManagerImpl implements BaseManifestManager {

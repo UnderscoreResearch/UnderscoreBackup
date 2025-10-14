@@ -13,11 +13,30 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
+/**
+ * Implementation of FileChangePoller for macOS systems.
+ * This class uses the MacOSXListeningWatchService to monitor file system changes
+ * on macOS, which provides better performance than the default Java WatchService.
+ */
 public class OsxChangePoller extends BaseWatcherChangePoller {
+    /**
+     * Constructor for OsxChangePoller.
+     * Initializes the poller with a MacOSXListeningWatchService.
+     *
+     * @throws IOException If there's an error initializing the watch service
+     */
     public OsxChangePoller() throws IOException {
         super(new MacOSXListeningWatchService());
     }
 
+    /**
+     * Registers paths to be monitored for changes.
+     * This implementation registers each path with the MacOSXListeningWatchService
+     * to monitor for create, delete, modify, and overflow events.
+     *
+     * @param paths List of paths to monitor
+     * @throws IOException If there's an error registering the paths
+     */
     @Override
     public void registerPaths(List<Path> paths) throws IOException {
         for (Path path : paths) {
@@ -25,6 +44,13 @@ public class OsxChangePoller extends BaseWatcherChangePoller {
         }
     }
 
+    /**
+     * Gets the path associated with a watchable object.
+     * For MacOSXListeningWatchService, the watchable is a WatchablePath.
+     *
+     * @param watchable The watchable object
+     * @return The path associated with the watchable
+     */
     @Override
     protected Path getEventPath(Watchable watchable) {
         return ((WatchablePath) watchable).getFile();

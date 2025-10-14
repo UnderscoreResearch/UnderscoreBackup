@@ -14,17 +14,55 @@ import java.util.zip.CRC32;
 
 import static com.underscoreresearch.backup.errorcorrection.implementation.ReedSolomonErrorCorrector.RS;
 
+/**
+ * Implementation of ErrorCorrector using Reed-Solomon error correction.
+ * Reed-Solomon is a forward error correction code that allows data to be
+ * reconstructed even when some parts are missing or corrupted.
+ */
 @ErrorCorrectorPlugin(RS)
 @Slf4j
 public class ReedSolomonErrorCorrector implements ErrorCorrector {
+    /**
+     * Constant for the "RS" (Reed-Solomon) error correction type.
+     */
     public static final String RS = "RS";
+    
+    /**
+     * Size of the error correction code in bytes.
+     */
     private static final int ECC_SIZE = 8;
+    
+    /**
+     * Property key for the number of data shards.
+     */
     private static final String DATA_SHARDS = "d";
+    
+    /**
+     * Property key for the original data length.
+     */
     private static final String EC_LENGTH = "l";
+    
+    /**
+     * Number of data shards (original data parts).
+     */
     private final int dataShards;
+    
+    /**
+     * Number of parity shards (redundant parts).
+     */
     private final int parityShards;
+    
+    /**
+     * Total number of shards (data + parity).
+     */
     private final int totalShards;
 
+    /**
+     * Constructor for ReedSolomonErrorCorrector.
+     *
+     * @param dataParts Number of data parts to split the original data into
+     * @param parityParts Number of parity parts to generate for redundancy
+     */
     public ReedSolomonErrorCorrector(int dataParts, int parityParts) {
         this.dataShards = dataParts;
         this.parityShards = parityParts;
@@ -32,6 +70,17 @@ public class ReedSolomonErrorCorrector implements ErrorCorrector {
         this.totalShards = dataParts + parityParts;
     }
 
+    /**
+     * Encodes data using Reed-Solomon error correction.
+     * The data is split into data shards, and parity shards are generated.
+     * Each shard includes a CRC32 checksum for integrity verification.
+     *
+     * @param storage The backup block storage to update with error correction info
+     * @param originalData The original data to encode
+     * @return A list of data and parity shards
+     * @throws Exception If there's an error during encoding
+     */
+    @Override
     public List<byte[]> encodeErrorCorrection(BackupBlockStorage storage, byte[] originalData)
             throws Exception {
         storage.addProperty(DATA_SHARDS, Integer.toString(dataShards));
@@ -67,6 +116,17 @@ public class ReedSolomonErrorCorrector implements ErrorCorrector {
         return Lists.newArrayList(shards);
     }
 
+    /**
+     * Decodes data using Reed-Solomon error correction.
+     * Missing or corrupted shards can be reconstructed as long as enough valid shards are available.
+     * Each shard's integrity is verified using its CRC32 checksum.
+     *
+     * @param storage The backup block storage containing error correction parameters
+     * @param parts The list of available parts for decoding
+     * @return The decoded original data
+     * @throws Exception If there aren't enough valid shards to reconstruct the data
+     */
+    @Override
     public byte[] decodeErrorCorrection(BackupBlockStorage storage, List<byte[]> parts)
             throws Exception {
         int decodeTotalShards = parts.size();
@@ -130,6 +190,13 @@ public class ReedSolomonErrorCorrector implements ErrorCorrector {
         return allBytes;
     }
 
+    /**
+     * Gets the minimum number of parts needed to decode the data.
+     * For Reed-Solomon, this is equal to the number of data shards.
+     *
+     * @param storage The backup block storage containing error correction parameters
+     * @return The number of data shards
+     */
     @Override
     public int getMinimumSufficientParts(BackupBlockStorage storage) {
         return Integer.parseInt(storage.getProperties().get(DATA_SHARDS));

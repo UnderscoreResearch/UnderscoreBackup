@@ -19,7 +19,7 @@ import com.underscoreresearch.backup.model.BackupFilePart;
 import com.underscoreresearch.backup.model.BackupLocation;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupSet;
-import com.underscoreresearch.backup.utils.state.MachineState;
+import com.underscoreresearch.backup.machinestate.MachineState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,8 +32,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 
+/**
+ * Abstract base class for handling large file block assignments.
+ * Provides functionality for breaking large files into blocks and managing their upload.
+ */
 @RequiredArgsConstructor
 @Slf4j
 public abstract class LargeFileBlockAssignment extends BaseBlockAssignment implements FileBlockExtractor {
@@ -46,6 +50,15 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
     private final EncryptionIdentity encryptionIdentity;
     private final int maximumBlockSize;
 
+    /**
+     * Assign blocks to a file by breaking it into chunks and uploading each chunk.
+     * Supports resuming partial uploads.
+     * 
+     * @param set The backup set containing the file
+     * @param backupPartialFile The partial file to assign blocks to
+     * @param completionFuture Callback for when block assignment is complete
+     * @return true if the assignment was successful, false otherwise
+     */
     @Override
     protected boolean internalAssignBlocks(BackupSet set, BackupPartialFile backupPartialFile,
                                            BackupBlockCompletion completionFuture) {
@@ -185,10 +198,19 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
         return true;
     }
 
+    /**
+     * Complete the block assignment if all partial uploads are done.
+     * 
+     * @param partialCompletions Set of partial completions to check
+     * @param backupPartialFile The partial file being processed
+     * @param locationRef Reference to the location being built
+     * @param completionFuture Callback for when block assignment is complete
+     * @param success Whether the operation was successful so far
+     */
     private void completeIfDone(Set<BackupCompletion> partialCompletions,
                                 BackupPartialFile backupPartialFile, AtomicReference<BackupPartialFile> locationRef,
                                 BackupBlockCompletion completionFuture, AtomicBoolean success) {
-        if (partialCompletions.size() == 0) {
+        if (partialCompletions.isEmpty()) {
             try {
                 metadataRepository.deletePartialFile(backupPartialFile);
             } catch (IOException e) {
@@ -203,6 +225,12 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
         }
     }
 
+    /**
+     * Create a backup location from a partial file reference.
+     * 
+     * @param locationRef Reference to the partial file
+     * @return A new BackupLocation containing the file parts
+     */
     private BackupLocation createLocation(AtomicReference<BackupPartialFile> locationRef) {
         BackupPartialFile file = locationRef.get();
         if (file != null) {
@@ -214,21 +242,62 @@ public abstract class LargeFileBlockAssignment extends BaseBlockAssignment imple
         }
     }
 
+    /**
+     * Flush any pending assignments.
+     * No-op in this implementation.
+     */
     @Override
     public void flushAssignments() {
     }
 
+    /**
+     * Process a buffer before storage, typically by compressing it.
+     * 
+     * @param buffer The buffer to process
+     * @return The processed buffer
+     * @throws IOException If there's an error processing the buffer
+     */
     protected abstract byte[] processBuffer(byte[] buffer) throws IOException;
 
+    /**
+     * Get the format identifier for this block assignment.
+     * 
+     * @return The format identifier string
+     */
     protected abstract String getFormat();
 
+    /**
+     * Extract a file part from a block by downloading and processing it.
+     * 
+     * @param file The file part to extract
+     * @param block The block containing the file part
+     * @param password The password for decryption
+     * @return The extracted file part data
+     * @throws IOException If there's an error extracting the file part
+     */
     @Override
     public byte[] extractPart(BackupFilePart file, BackupBlock block, String password) throws IOException {
         return extractPart(file, blockDownloader.downloadBlock(block, password));
     }
 
+    /**
+     * Extract a file part from block data.
+     * 
+     * @param file The file part to extract
+     * @param blockData The block data
+     * @return The extracted file part data
+     * @throws IOException If there's an error extracting the file part
+     */
     protected abstract byte[] extractPart(BackupFilePart file, byte[] blockData) throws IOException;
 
+    /**
+     * Calculate the size of a block for a specific file part.
+     * 
+     * @param file The file part
+     * @param blockData The block data
+     * @return The size of the block in bytes
+     * @throws IOException If there's an error calculating the block size
+     */
     @Override
     public long blockSize(BackupFilePart file, byte[] blockData) throws IOException {
         return extractPart(file, blockData).length;

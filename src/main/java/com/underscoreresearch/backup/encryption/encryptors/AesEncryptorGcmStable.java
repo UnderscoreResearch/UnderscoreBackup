@@ -26,9 +26,25 @@ import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionF
 import static com.underscoreresearch.backup.encryption.encryptors.AesEncryptionFormatTypes.PADDED_GCM_STABLE;
 import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
 
+/**
+ * AES encryptor implementation using GCM mode with stable output.
+ * This class provides encryption and decryption using the AES/GCM/NoPadding algorithm
+ * with a stable output format that allows for deduplication.
+ */
 @Slf4j
 public class AesEncryptorGcmStable extends AesEncryptorGcm {
 
+    /**
+     * Encrypts a data block using the specified identity keys.
+     * Uses a constant IV derived from the data content to ensure stable output.
+     *
+     * @param storage The storage metadata (required)
+     * @param data The data to encrypt
+     * @param key The identity keys to use for encryption
+     * @return The encrypted data
+     * @throws GeneralSecurityException If encryption fails
+     * @throws IllegalArgumentException If storage is null
+     */
     @Override
     public byte[] encryptBlock(BackupBlockStorage storage, byte[] data, IdentityKeys key) throws GeneralSecurityException {
         if (storage == null) {
@@ -74,6 +90,14 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         }
     }
 
+    /**
+     * Creates the encryption key secret from identity keys and stores it in the storage metadata.
+     *
+     * @param storage The storage metadata
+     * @param key The identity keys
+     * @return The combined key secret
+     * @throws GeneralSecurityException If key creation fails
+     */
     protected byte[] createKeySecret(BackupBlockStorage storage, IdentityKeys key) throws GeneralSecurityException {
         IdentityKeys.EncryptionParameters parameters = key.getEncryptionParameters(KEY_TYPES_X25519);
         byte[] combinedKey = parameters.getSecret();
@@ -82,6 +106,17 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         return combinedKey;
     }
 
+    /**
+     * Decodes (decrypts) a data block.
+     *
+     * @param storage The storage metadata (required)
+     * @param encryptedData The encrypted data
+     * @param offset The offset in the encrypted data
+     * @param key The private keys to use for decryption
+     * @return The decrypted data
+     * @throws GeneralSecurityException If decryption fails
+     * @throws IllegalArgumentException If storage is null
+     */
     @Override
     public byte[] decodeBlock(BackupBlockStorage storage, byte[] encryptedData, int offset, IdentityKeys.PrivateKeys key) throws GeneralSecurityException {
         if (storage == null) {
@@ -106,11 +141,27 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         }
     }
 
+    /**
+     * Recreates the key secret from the storage metadata and private keys.
+     *
+     * @param storage The storage metadata
+     * @param key The private keys
+     * @return The recreated key secret
+     * @throws GeneralSecurityException If key recreation fails
+     */
     protected byte[] recreateKeySecret(BackupBlockStorage storage, IdentityKeys.PrivateKeys key) throws GeneralSecurityException {
         return key.recreateSecret(Map.of(X25519_KEY,
                 new PublicKeyMethod.EncapsulatedKey(Hash.decodeBytes(storage.getProperties().get(X25519_KEY)))));
     }
 
+    /**
+     * Adjusts the decode length based on the padding format.
+     *
+     * @param paddingFormat The padding format
+     * @param payloadLength The payload length
+     * @return The adjusted length
+     * @throws IllegalArgumentException If the padding format is unknown
+     */
     @Override
     protected int adjustDecodeLength(byte paddingFormat, int payloadLength) {
         switch (paddingFormat) {
@@ -124,6 +175,13 @@ public class AesEncryptorGcmStable extends AesEncryptorGcm {
         throw new IllegalArgumentException("Unknown AES padding format");
     }
 
+    /**
+     * Converts the standard GCM format to the stable GCM format.
+     *
+     * @param format The standard format
+     * @return The stable format
+     * @throws IllegalArgumentException If the format is unknown
+     */
     protected byte convertFormat(byte format) {
         return switch (format) {
             case PADDED_GCM -> PADDED_GCM_STABLE;

@@ -19,9 +19,9 @@ import com.underscoreresearch.backup.model.BackupData;
 import com.underscoreresearch.backup.model.BackupDestination;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupUploadCompletion;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.log.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.log.StateLogger;
+import com.underscoreresearch.backup.utils.log.StatusLine;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -35,6 +35,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Implementation of FileBlockUploader that handles encrypting and uploading blocks.
+ * Supports error correction and multiple destinations.
+ */
 @Slf4j
 public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLogger {
     private final BackupConfiguration configuration;
@@ -44,8 +48,17 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
     private final ManifestManager manifestManager;
     private final EncryptionIdentity encryptionIdentity;
     private final Set<String> usedDestinations;
-    private Set<String> activatedShares;
+    private volatile Set<String> activatedShares;
 
+    /**
+     * Constructor for FileBlockUploaderImpl.
+     * 
+     * @param configuration The backup configuration
+     * @param repository Repository for accessing metadata
+     * @param uploadScheduler Scheduler for uploading blocks
+     * @param manifestManager Manager for backup manifests
+     * @param encryptionIdentity Encryption identity for securing data
+     */
     public FileBlockUploaderImpl(BackupConfiguration configuration, MetadataRepository repository,
                                  UploadScheduler uploadScheduler, ManifestManager manifestManager,
                                  EncryptionIdentity encryptionIdentity) {
@@ -63,6 +76,15 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
         this.encryptionIdentity = encryptionIdentity;
     }
 
+    /**
+     * Upload a block to the destinations specified in the backup set.
+     * 
+     * @param set The backup set containing destination information
+     * @param unencryptedData The unencrypted data to upload
+     * @param blockHash The hash of the block for identification
+     * @param format The format of the block
+     * @param completionFuture Callback for when the upload is complete
+     */
     @Override
     public void uploadBlock(BackupSet set,
                             BackupData unencryptedData,
@@ -99,6 +121,16 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
         }
     }
 
+    /**
+     * Upload a block to specific required destinations.
+     * 
+     * @param neededDestinations Set of destination identifiers where the block should be uploaded
+     * @param existingBlock Existing block information if this is an update
+     * @param unencryptedData The unencrypted data to upload
+     * @param blockHash The hash of the block for identification
+     * @param format The format of the block
+     * @param completionFuture Callback for when the upload is complete
+     */
     @Override
     public void uploadBlock(Set<String> neededDestinations,
                             BackupBlock existingBlock,
@@ -221,11 +253,19 @@ public class FileBlockUploaderImpl implements FileBlockUploader, ManualStatusLog
         }
     }
 
+    /**
+     * Reset status counters.
+     */
     @Override
     public void resetStatus() {
         totalBlocks.set(0);
     }
 
+    /**
+     * Generate status lines for upload progress.
+     * 
+     * @return List of status lines
+     */
     @Override
     public List<StatusLine> status() {
         if (totalBlocks.get() > 0) {

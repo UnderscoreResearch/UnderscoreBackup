@@ -20,9 +20,13 @@ import java.util.List;
 import static com.underscoreresearch.backup.io.IOUtils.createDirectory;
 import static com.underscoreresearch.backup.io.IOUtils.deleteFileException;
 import static com.underscoreresearch.backup.io.implementation.FileIOProvider.FILE_TYPE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 
+/**
+ * IO provider implementation for local file system storage.
+ * Provides methods for storing and retrieving backup data from the local file system.
+ */
 @IOPlugin(FILE_TYPE)
 @Slf4j
 public class FileIOProvider implements IOIndex {
@@ -30,6 +34,11 @@ public class FileIOProvider implements IOIndex {
     private final String root;
     private final ConnectionLimiter limiter;
 
+    /**
+     * Constructor for FileIOProvider.
+     *
+     * @param destination The backup destination configuration
+     */
     public FileIOProvider(BackupDestination destination) {
         if (!destination.getEndpointUri().contains("://")) {
             root = destination.getEndpointUri();
@@ -40,10 +49,23 @@ public class FileIOProvider implements IOIndex {
         limiter = new ConnectionLimiter(destination);
     }
 
+    /**
+     * Get the file object for a key.
+     *
+     * @param key The key to get the file for
+     * @return The file object
+     */
     private File getFile(String key) {
         return Paths.get(root, PathNormalizer.physicalPath(key)).toFile();
     }
 
+    /**
+     * List all available keys with the specified prefix.
+     *
+     * @param prefix The prefix to filter keys by
+     * @return List of keys matching the prefix
+     * @throws IOException If there's an error accessing the file system
+     */
     @Override
     public List<String> availableKeys(String prefix) throws IOException {
         File file = getFile(prefix);
@@ -59,6 +81,14 @@ public class FileIOProvider implements IOIndex {
         return Lists.newArrayList();
     }
 
+    /**
+     * Upload data to the file system with a suggested key.
+     *
+     * @param key The suggested key for the data
+     * @param data The data to upload
+     * @return The actual key used for the uploaded data
+     * @throws IOException If there's an error uploading the data
+     */
     @Override
     public String upload(String key, byte[] data) throws IOException {
         File file = getFile(key);
@@ -83,6 +113,13 @@ public class FileIOProvider implements IOIndex {
         return key;
     }
 
+    /**
+     * Download data from the file system using a key.
+     *
+     * @param key The key for the data to download
+     * @return The downloaded data
+     * @throws IOException If there's an error downloading the data
+     */
     @Override
     public byte[] download(String key) throws IOException {
         File file = getFile(key);
@@ -101,11 +138,23 @@ public class FileIOProvider implements IOIndex {
         }
     }
 
+    /**
+     * Get a unique cache key for this provider.
+     *
+     * @return The cache key
+     */
     @Override
     public String getCacheKey() {
         return root;
     }
 
+    /**
+     * Check if data exists at the specified key.
+     *
+     * @param key The key to check
+     * @return True if data exists at the key, false otherwise
+     * @throws IOException If there's an error checking for existence
+     */
     @Override
     public boolean exists(String key) throws IOException {
         File file = getFile(key);
@@ -120,6 +169,12 @@ public class FileIOProvider implements IOIndex {
         }
     }
 
+    /**
+     * Delete data at the specified key.
+     *
+     * @param key The key for the data to delete
+     * @throws IOException If there's an error deleting the data
+     */
     @Override
     public void delete(String key) throws IOException {
         File file = getFile(key);
@@ -146,6 +201,12 @@ public class FileIOProvider implements IOIndex {
         debug(() -> log.debug("Deleted \"{}\"", key));
     }
 
+    /**
+     * Check if the provider credentials are valid.
+     *
+     * @param readOnly Whether to check for read-only access
+     * @throws IOException If the credentials are invalid or there's an error checking
+     */
     @Override
     public void checkCredentials(boolean readOnly) throws IOException {
         File file = new File(root);
@@ -156,6 +217,13 @@ public class FileIOProvider implements IOIndex {
         }
     }
 
+    /**
+     * Check if the provider guarantees consistent writes.
+     * A consistent write means that once a write operation completes,
+     * the data is guaranteed to be durably stored.
+     *
+     * @return True if writes are consistent, false otherwise
+     */
     @Override
     public boolean hasConsistentWrites() {
         return true;

@@ -218,10 +218,10 @@ function SharedProperties(props: {
                 padding: 0
             }}>
                 <Grid container spacing={2}>
-                    <Grid item xs={12}>
+                    <Grid size={{xs:12}}>
                         <DividerWithText>Storage options</DividerWithText>
                     </Grid>
-                    <Grid item md={6} xs={12}>
+                    <Grid size={{md: 6, xs:12}}>
                         <FormControl fullWidth={true} style={{
                             marginLeft: "0px",
                             marginTop: "8px",
@@ -250,7 +250,7 @@ function SharedProperties(props: {
                         </FormControl>
                     </Grid>
                     {!props.manifestDestination &&
-                        <Grid item md={6} xs={12}>
+                        <Grid size={{md: 6, xs:12}}>
                             <FormControl fullWidth={true} style={{marginTop: "8px", marginBottom: "8px"}}>
                                 <InputLabel id="errorcorrection-id-label">Error Correction</InputLabel>
                                 <Select
@@ -271,11 +271,11 @@ function SharedProperties(props: {
                             </FormControl>
                         </Grid>
                     }
-                    <Grid item xs={12}>
+                    <Grid size={{xs:12}}>
                         <DividerWithText>Limits</DividerWithText>
                     </Grid>
                     {!props.sourceDestination &&
-                        <Grid item lg={4} md={6} xs={12}>
+                        <Grid size={{lg:4, md: 6, xs:12}}>
                             <SpeedLimit
                                 speed={state.limits.maximumUploadBytesPerSecond}
                                 onChange={(newSpeed) => {
@@ -292,7 +292,7 @@ function SharedProperties(props: {
                         </Grid>
                     }
                     {!props.shareDestination &&
-                        <Grid item lg={4} md={6} xs={12}>
+                        <Grid size={{lg:4, md: 6, xs:12}}>
                             <SpeedLimit
                                 speed={state.limits.maximumDownloadBytesPerSecond}
                                 onChange={(newSpeed) => {
@@ -308,7 +308,7 @@ function SharedProperties(props: {
                                 }} title={"Maximum download speed"}/>
                         </Grid>
                     }
-                    <Grid item lg={4} md={6} xs={12}>
+                    <Grid size={{lg:4, md: 6, xs:12}}>
                         <div style={{display: "flex", alignItems: "center"}}>
                             <FormControlLabel control={<Checkbox
                                 checked={!!state.maxConnections}
@@ -339,10 +339,10 @@ function SharedProperties(props: {
                     </Grid>
                     {!props.sourceDestination && !props.shareDestination &&
                         <>
-                            <Grid item xs={12}>
+                            <Grid size={{xs: 12}}>
                                 <DividerWithText>Retention &amp; validation</DividerWithText>
                             </Grid>
-                            <Grid item xs={12} xl={6}>
+                            <Grid size={{xs: 12, xl: 6}}>
                                 <DeletionTimespan
                                     timespan={state.maxRetention ? state.maxRetention : {duration: 1, unit: "FOREVER"}}
                                     title={"re-upload data to destination."}
@@ -355,7 +355,7 @@ function SharedProperties(props: {
                                         setState(sendState)
                                     }}/>
                             </Grid>
-                            <Grid item xs={12} xl={6}>
+                            <Grid size={{xs: 12, xl: 6}}>
                                 <DeletionTimespan
                                     timespan={state.minValidated ? state.minValidated : {duration: 1, unit: "FOREVER"}}
                                     title={"validate destination storage."}
@@ -415,7 +415,7 @@ function LocalFileDestination(props: DestinationProps) {
         <DividerWithText>Location</DividerWithText>
 
         <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label="Local Directory" variant="outlined"
                                required={true}
@@ -576,7 +576,7 @@ function DropboxDestination(props: DestinationProps) {
         <DividerWithText>Authorization</DividerWithText>
 
         <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 {state.accessToken ?
                     <Button variant="contained" style={{margin: "auto", display: "block", marginTop: "8px"}}
                             onClick={launchDropboxAuthentication}>Re Authorize</Button>
@@ -585,7 +585,7 @@ function DropboxDestination(props: DestinationProps) {
                             onClick={launchDropboxAuthentication}>Authorize</Button>
                 }
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label="Subfolder" variant="outlined"
                                fullWidth={true}
@@ -700,7 +700,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
         }
         <DividerWithText>Location</DividerWithText>
         <Grid container spacing={2}>
-            <Grid item md={9} xs={12} style={{marginBottom: "8px", marginTop: "8px"}}>
+            <Grid size={{md: 9, xs: 12}} style={{marginBottom: "8px", marginTop: "8px"}}>
                 <Select style={{marginLeft: "0px"}}
                         fullWidth={true}
                         value={state.region}
@@ -718,7 +718,7 @@ function UnderscoreBackupDestination(props: DestinationProps) {
                     <MenuItem value={"ap-southeast"}>Asia (Singapore)</MenuItem>
                 </Select>
             </Grid>
-            <Grid item md={3} xs={12}>
+            <Grid size={{md: 9, xs: 12}}>
                 <div style={{height: "100%", width: "100%", display: "flex", alignItems: "center"}}>
                     <Button disabled={state.autoDetecting} fullWidth={true} id="autodetect" variant={"contained"}
                             onClick={() => autoDetectRegion()}>
@@ -796,7 +796,7 @@ function WindowsShareDestination(props: DestinationProps) {
         <DividerWithText>Location</DividerWithText>
 
         <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label="Share Path" variant="outlined"
                                required={true}
@@ -809,10 +809,10 @@ function WindowsShareDestination(props: DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <DividerWithText>Authentication</DividerWithText>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label="Username" variant="outlined"
                                required={true}
@@ -825,7 +825,7 @@ function WindowsShareDestination(props: DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label="Password" variant="outlined"
                                required={true}
@@ -839,7 +839,7 @@ function WindowsShareDestination(props: DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label="Domain" variant="outlined"
                                fullWidth={true}
@@ -888,7 +888,7 @@ function BaseS3Destination(props: S3DestinationProps) {
         <DividerWithText>Location</DividerWithText>
 
         <Grid container spacing={2}>
-            <Grid item xs={5}>
+            <Grid size={{xs: 5}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label="Bucket" variant="outlined"
                                required={true}
@@ -901,7 +901,7 @@ function BaseS3Destination(props: S3DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <Grid item xs={5}>
+            <Grid size={{xs: 5}}>
                 <div style={{marginLeft: "0px", marginRight: "8px"}}>
                     <TextField label="Prefix" variant="outlined"
                                required={true}
@@ -914,7 +914,7 @@ function BaseS3Destination(props: S3DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <Grid item xs={2}>
+            <Grid size={{xs: 2}}>
                 <Box style={{
                     height: "100%",
                     width: "100%",
@@ -925,10 +925,10 @@ function BaseS3Destination(props: S3DestinationProps) {
                     <Link rel="noreferrer" target="_blank" underline={"hover"} href={props.console}>Console</Link>
                 </Box>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <DividerWithText>Authentication</DividerWithText>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label={props.accessKeyLabel} variant="outlined"
                                required={true}
@@ -941,7 +941,7 @@ function BaseS3Destination(props: S3DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                     <TextField label={props.secretKeyLabel} variant="outlined"
                                required={true}
@@ -955,12 +955,12 @@ function BaseS3Destination(props: S3DestinationProps) {
                                })}/>
                 </div>
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{xs:12}}>
                 <DividerWithText>Endpoint</DividerWithText>
             </Grid>
             {
                 props.regionList &&
-                <Grid item xs={12}>
+                <Grid size={{xs:12}}>
                     <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                         <Autocomplete
                             disablePortal
@@ -981,7 +981,7 @@ function BaseS3Destination(props: S3DestinationProps) {
             }
             {
                 state.apiEndpoint !== undefined &&
-                <Grid item xs={12}>
+                <Grid size={{xs:12}}>
                     <div style={{marginLeft: "-8px", marginRight: "8px"}}>
                         <TextField label={props.regionList ? "Alternate API Endpoint" : "API Endpoint"}
                                    variant="outlined"

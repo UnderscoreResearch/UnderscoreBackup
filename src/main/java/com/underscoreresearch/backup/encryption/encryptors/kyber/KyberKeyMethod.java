@@ -23,6 +23,11 @@ import java.security.spec.X509EncodedKeySpec;
 
 import static com.underscoreresearch.backup.encryption.IdentityKeys.SYMMETRIC_KEY_SIZE;
 
+/**
+ * Implementation of the PublicKeyMethod interface using the Kyber post-quantum key encapsulation mechanism.
+ * This class provides methods for creating key pairs, generating and encapsulating secrets,
+ * and recreating secrets from encapsulated data using the Kyber algorithm.
+ */
 public class KyberKeyMethod implements PublicKeyMethod {
     private static final int KEY_SIZE = 1568;
     private static final KeyPairGenerator KYBER_KEY_GENERATOR;
@@ -42,10 +47,26 @@ public class KyberKeyMethod implements PublicKeyMethod {
         }
     }
 
+    /**
+     * Creates a KeyGenerator for Kyber operations.
+     *
+     * @return The KeyGenerator instance
+     * @throws GeneralSecurityException If the generator cannot be created
+     */
     private static KeyGenerator createKeyPairGenerator() throws GeneralSecurityException {
         return KeyGenerator.getInstance("KYBER", "BCPQC");
     }
 
+    /**
+     * Encapsulates an existing secret for a public key.
+     *
+     * @param keyMethod The key method to use for generating a new secret
+     * @param publicKey The public key to use for encapsulation
+     * @param secret The secret to encapsulate
+     * @return The encapsulated secret
+     * @throws GeneralSecurityException If encapsulation fails
+     * @throws IllegalArgumentException If the secret length is invalid
+     */
     public static GeneratedKey encapsulateSecret(PublicKeyMethod keyMethod, PublicKey publicKey, byte[] secret) throws GeneralSecurityException {
         if (secret.length != SYMMETRIC_KEY_SIZE) {
             throw new IllegalArgumentException("Invalid secret length");
@@ -61,6 +82,13 @@ public class KyberKeyMethod implements PublicKeyMethod {
         return new GeneratedKey(secret, data);
     }
 
+    /**
+     * Creates a new Kyber key pair.
+     *
+     * @param privateIdentity The private identity to use for key encryption
+     * @return The created public key with encrypted private key
+     * @throws GeneralSecurityException If key generation fails
+     */
     @Override
     public PublicKey createKeyPair(EncryptionIdentity.PrivateIdentity privateIdentity)
             throws GeneralSecurityException {
@@ -72,6 +100,13 @@ public class KyberKeyMethod implements PublicKeyMethod {
         }
     }
 
+    /**
+     * Generates a new secret and encapsulates it for the given public key.
+     *
+     * @param publicKey The public key to use for encapsulation
+     * @return The generated secret and its encapsulation
+     * @throws GeneralSecurityException If secret generation fails
+     */
     @Override
     public GeneratedKey generateNewSecret(PublicKey publicKey) throws GeneralSecurityException {
         X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(publicKey.getPublicKey());
@@ -82,11 +117,28 @@ public class KyberKeyMethod implements PublicKeyMethod {
         return new GeneratedKey(secEnc.getEncoded(), secEnc.getEncapsulation());
     }
 
+    /**
+     * Encapsulates an existing secret for the given public key.
+     *
+     * @param publicKey The public key to use for encapsulation
+     * @param secret The secret to encapsulate
+     * @return The encapsulated secret
+     * @throws GeneralSecurityException If encapsulation fails
+     */
     @Override
     public GeneratedKey encapsulateSecret(PublicKey publicKey, byte[] secret) throws GeneralSecurityException {
         return encapsulateSecret(this, publicKey, secret);
     }
 
+    /**
+     * Recreates a secret from an encapsulated key using a private key.
+     *
+     * @param privateKey The private key to use for decapsulation
+     * @param generatedKey The encapsulated key
+     * @return The recreated secret
+     * @throws GeneralSecurityException If secret recreation fails
+     * @throws IllegalArgumentException If the encapsulation length is invalid
+     */
     @Override
     public byte[] recreateSecret(PublicKey.PrivateKey privateKey, EncapsulatedKey generatedKey) throws GeneralSecurityException {
         KeyGenerator keyGen = createKeyPairGenerator();

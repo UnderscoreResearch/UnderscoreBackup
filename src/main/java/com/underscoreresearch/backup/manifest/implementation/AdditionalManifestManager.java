@@ -32,9 +32,13 @@ import java.util.stream.Collectors;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.IDENTITY_MANIFEST_LOCATION;
 import static com.underscoreresearch.backup.manifest.implementation.BaseManifestManagerImpl.compressConfigData;
 import static com.underscoreresearch.backup.manifest.implementation.ManifestManagerImpl.CONFIGURATION_FILENAME;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_CONFIGURATION_WRITER;
 
+/**
+ * Manages additional manifest destinations for backup configuration.
+ * This class handles synchronizing configuration and identity data across multiple backup destinations.
+ */
 @Slf4j
 public class AdditionalManifestManager {
     private final Map<String, Destination> additionalProviders = new HashMap<>();
@@ -43,6 +47,13 @@ public class AdditionalManifestManager {
     private final AtomicInteger uploadCount = new AtomicInteger();
     private final ExecutorService uploadExecutor;
 
+    /**
+     * Constructor for AdditionalManifestManager.
+     *
+     * @param configuration The backup configuration
+     * @param rateLimitController Controller for rate limiting uploads and downloads
+     * @param uploadScheduler Scheduler for asynchronous uploads
+     */
     public AdditionalManifestManager(BackupConfiguration configuration,
                                      RateLimitController rateLimitController,
                                      UploadScheduler uploadScheduler) {
@@ -60,18 +71,45 @@ public class AdditionalManifestManager {
                 new ThreadFactoryBuilder().setNameFormat("AdditionalManifest-Upload").build());
     }
 
+    /**
+     * Finishes optimizing logs by deleting old log files from additional destinations.
+     *
+     * @param lastExistingLog The last existing log file
+     * @param totalFiles Counter for total files processed
+     * @param processedFiles Counter for files processed so far
+     * @throws IOException If there's an error deleting log files
+     */
     public void finishOptimizeLog(String lastExistingLog, AtomicLong totalFiles, AtomicLong processedFiles) throws IOException {
         for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
             BaseManifestManagerImpl.deleteLogFiles(lastExistingLog, entry.getValue().getProvider(), totalFiles, processedFiles);
         }
     }
 
+    /**
+     * Cancels log optimization by deleting new log files from additional destinations.
+     *
+     * @param lastExistingLog The last existing log file
+     * @param totalFiles Counter for total files processed
+     * @param processedFiles Counter for files processed so far
+     * @throws IOException If there's an error deleting log files
+     */
     public void cancelOptimizeLog(String lastExistingLog, AtomicLong totalFiles, AtomicLong processedFiles) throws IOException {
         for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
             BaseManifestManagerImpl.deleteNewLogFiles(lastExistingLog, entry.getValue().getProvider(), totalFiles, processedFiles);
         }
     }
 
+    /**
+     * Uploads configuration data to all additional destinations.
+     *
+     * @param filename The filename to upload to
+     * @param data The encrypted data to upload
+     * @param unencryptedData The unencrypted data (used if re-encryption is needed)
+     * @param encryptor The encryptor used for the primary data
+     * @param encryptionKey The encryption keys
+     * @param success Callback to run on successful upload
+     * @throws IOException If there's an error uploading the data
+     */
     public void uploadConfigurationData(String filename, byte[] data, byte[] unencryptedData,
                                         Encryptor encryptor, IdentityKeys encryptionKey,
                                         Runnable success) throws IOException {
@@ -91,6 +129,14 @@ public class AdditionalManifestManager {
         }
     }
 
+    /**
+     * Uploads configuration data to a specific destination.
+     *
+     * @param filename The filename to upload to
+     * @param data The data to upload
+     * @param destination The destination to upload to
+     * @param success Callback to run on successful upload
+     */
     private void uploadConfigurationData(String filename, byte[] data, Destination destination,
                                          Runnable success) {
         uploadCount.incrementAndGet();
@@ -104,6 +150,14 @@ public class AdditionalManifestManager {
         }));
     }
 
+    /**
+     * Uploads the backup configuration to all additional destinations.
+     * Creates a modified copy of the configuration for each destination.
+     *
+     * @param configuration The backup configuration to upload
+     * @param identityKeys The identity keys for encryption
+     * @throws IOException If there's an error uploading the configuration
+     */
     public void uploadConfiguration(BackupConfiguration configuration, IdentityKeys identityKeys) throws IOException {
         if (configuration.getManifest() != null && configuration.getManifest().getAdditionalDestinations() != null) {
             BackupConfiguration copy = configuration.toBuilder()
@@ -128,12 +182,23 @@ public class AdditionalManifestManager {
         }
     }
 
+    /**
+     * Stores the identity in all additional destinations.
+     *
+     * @param identity The identity to store
+     */
     public void storeIdentity(String identity) {
         for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
             storeIdentity(entry.getValue(), identity);
         }
     }
 
+    /**
+     * Stores the identity in a specific destination.
+     *
+     * @param destination The destination to store the identity in
+     * @param identity The identity to store
+     */
     private void storeIdentity(Destination destination, String identity) {
         byte[] data = identity.getBytes(StandardCharsets.UTF_8);
         try {
@@ -144,6 +209,13 @@ public class AdditionalManifestManager {
         rateLimitController.acquireUploadPermits(destination.getDestination(), data.length);
     }
 
+    /**
+     * Validates that the identity matches across all additional destinations.
+     * If forceIdentity is true, overwrites any mismatched identities.
+     *
+     * @param identity The expected identity
+     * @param forceIdentity Whether to force the identity if it doesn't match
+     */
     public void validateIdentity(String identity, boolean forceIdentity) {
         for (Map.Entry<String, Destination> entry : additionalProviders.entrySet()) {
             byte[] data;
@@ -172,10 +244,18 @@ public class AdditionalManifestManager {
         }
     }
 
+    /**
+     * Gets the number of additional destinations.
+     *
+     * @return The number of additional destinations
+     */
     public int count() {
         return additionalProviders.size();
     }
 
+    /**
+     * Waits for all pending uploads to complete.
+     */
     public void waitUploads() {
         synchronized (uploadCount) {
             while (uploadCount.get() > 0) {
@@ -188,11 +268,17 @@ public class AdditionalManifestManager {
         }
     }
 
+    /**
+     * Shuts down the upload executor and waits for all uploads to complete.
+     */
     public void shutdown() {
         uploadExecutor.shutdown();
         waitUploads();
     }
 
+    /**
+     * Inner class representing a backup destination with its provider.
+     */
     @Getter
     @RequiredArgsConstructor
     private static class Destination {

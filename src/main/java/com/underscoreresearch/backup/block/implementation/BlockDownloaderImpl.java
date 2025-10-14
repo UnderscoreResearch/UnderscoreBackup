@@ -16,9 +16,9 @@ import com.underscoreresearch.backup.model.BackupBlock;
 import com.underscoreresearch.backup.model.BackupBlockStorage;
 import com.underscoreresearch.backup.model.BackupConfiguration;
 import com.underscoreresearch.backup.model.BackupDestination;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
+import com.underscoreresearch.backup.utils.log.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.log.StateLogger;
+import com.underscoreresearch.backup.utils.log.StatusLine;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -30,8 +30,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-import static com.underscoreresearch.backup.utils.LogUtil.getThroughputStatus;
+import static com.underscoreresearch.backup.utils.log.LogUtil.getThroughputStatus;
 
+/**
+ * Implementation of BlockDownloader that handles downloading and decrypting blocks.
+ * Supports error correction and rate limiting.
+ */
 @Slf4j
 public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloader, ManualStatusLogger {
     private final BackupConfiguration configuration;
@@ -42,6 +46,15 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
     private final AtomicLong totalCount = new AtomicLong();
     private final AtomicLong blockCount = new AtomicLong();
 
+    /**
+     * Constructor for BlockDownloaderImpl.
+     * 
+     * @param configuration The backup configuration
+     * @param rateLimitController Controller for limiting download rates
+     * @param metadataRepository Repository for accessing metadata
+     * @param encryptionIdentity Identity for decryption
+     * @param maximumConcurrency Maximum number of concurrent downloads
+     */
     public BlockDownloaderImpl(BackupConfiguration configuration,
                                RateLimitController rateLimitController,
                                MetadataRepository metadataRepository,
@@ -56,6 +69,14 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         this.encryptionIdentity = encryptionIdentity;
     }
 
+    /**
+     * Download and decrypt a block using the provided password.
+     * 
+     * @param block The block to download
+     * @param password The password for decryption
+     * @return The decrypted block data
+     * @throws IOException If there's an error downloading or decrypting the block
+     */
     @Override
     public byte[] downloadBlock(BackupBlock block, String password) throws IOException {
 
@@ -73,6 +94,15 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         throw new IOException(String.format("No storage available for block \"%s\"", block.getHash()));
     }
 
+    /**
+     * Download an encrypted block from storage without decrypting it.
+     * 
+     * @param block The block to download
+     * @param storage The specific storage to download from
+     * @param availableParts Set of available parts to download, or null for all
+     * @return The encrypted block data
+     * @throws IOException If there's an error downloading the block
+     */
     @Override
     public byte[] downloadEncryptedBlockStorage(BackupBlock block, BackupBlockStorage storage, Set<String> availableParts) throws IOException {
         byte[][] blockParts = new byte[storage.getParts().size()][];
@@ -137,6 +167,17 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         return errorCorrected;
     }
 
+    /**
+     * Download a specific part of a block.
+     * 
+     * @param storage The storage containing the part
+     * @param blockParts Array to store downloaded parts
+     * @param destination The destination to download from
+     * @param provider The IO provider for the destination
+     * @param completedParts Counter for completed parts
+     * @param pendingParts Set of parts currently being downloaded
+     * @param partIndex Index of the part to download
+     */
     private void downloadPart(BackupBlockStorage storage,
                               byte[][] blockParts,
                               BackupDestination destination,
@@ -171,6 +212,9 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         });
     }
 
+    /**
+     * Reset status counters.
+     */
     @Override
     public void resetStatus() {
         super.resetDuration();
@@ -179,6 +223,11 @@ public class BlockDownloaderImpl extends SchedulerImpl implements BlockDownloade
         totalSize.set(0);
     }
 
+    /**
+     * Generate status lines for download progress.
+     * 
+     * @return List of status lines
+     */
     @Override
     public List<StatusLine> status() {
         List<StatusLine> ret = getThroughputStatus(getClass(), "Downloaded", "objects", totalCount.get(),

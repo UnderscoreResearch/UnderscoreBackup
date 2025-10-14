@@ -40,9 +40,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.underscoreresearch.backup.io.implementation.UnderscoreBackupProvider.UB_TYPE;
 import static com.underscoreresearch.backup.manifest.implementation.ServiceManagerImpl.extractApiMessage;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
 import static com.underscoreresearch.backup.utils.RetryUtils.retry;
 
+/**
+ * IO provider implementation for Underscore Backup service storage.
+ * Provides methods for storing and retrieving backup data from the Underscore Backup service.
+ */
 @IOPlugin(UB_TYPE)
 @Slf4j
 public class UnderscoreBackupProvider implements IOIndex {
@@ -79,7 +83,11 @@ public class UnderscoreBackupProvider implements IOIndex {
     private String shareId;
     private ServiceManager serviceManager;
 
-
+    /**
+     * Constructor for UnderscoreBackupProvider.
+     *
+     * @param destination The backup destination configuration
+     */
     public UnderscoreBackupProvider(BackupDestination destination) {
         region = destination.getEndpointUri();
         String[] parts = region.split("/");
@@ -94,6 +102,12 @@ public class UnderscoreBackupProvider implements IOIndex {
         limiter = new ConnectionLimiter(destination);
     }
 
+    /**
+     * Extract the region from an endpoint URI.
+     *
+     * @param endpointUri The endpoint URI
+     * @return The region
+     */
     public static String getRegion(String endpointUri) {
         if (endpointUri == null)
             return null;
@@ -106,6 +120,14 @@ public class UnderscoreBackupProvider implements IOIndex {
         return region;
     }
 
+    /**
+     * Execute a callable with S3 retry logic.
+     *
+     * @param callable The callable to execute
+     * @param <T> The return type
+     * @return The result of the callable
+     * @throws IOException If there's an error executing the callable
+     */
     public static <T> T s3Retry(Callable<T> callable) throws IOException {
         try {
             return retry(callable, (exc) -> {
@@ -124,10 +146,25 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    /**
+     * Check if a presigned URL has timed out.
+     *
+     * @param timer The timer to check
+     * @return True if the timer has exceeded the timeout
+     */
     private static boolean isPresignTimeout(Stopwatch timer) {
         return timer.elapsed(TimeUnit.SECONDS) > MAX_TIMEOUT_SECONDS;
     }
 
+    /**
+     * Call an API function with retry logic.
+     *
+     * @param limited Whether to limit the number of concurrent calls
+     * @param callable The function to call
+     * @param <T> The return type
+     * @return The result of the function
+     * @throws IOException If there's an error calling the function
+     */
     private <T> T callRetry(boolean limited, ServiceManager.ApiFunction<T> callable) throws IOException {
         try {
             return getServiceManager().callApi(region, new ServiceManager.ApiFunction<>() {
@@ -195,6 +232,11 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    /**
+     * Get the source ID for this provider.
+     *
+     * @return The source ID
+     */
     private String getSourceId() {
         if (sourceId == null) {
             sourceId = getServiceManager().getSourceId();
@@ -202,11 +244,27 @@ public class UnderscoreBackupProvider implements IOIndex {
         return sourceId;
     }
 
+    /**
+     * List all available keys with the specified prefix.
+     * Not implemented for this provider.
+     *
+     * @param prefix The prefix to filter keys by
+     * @return Empty list as this operation is not supported
+     * @throws IOException If there's an error accessing the storage
+     */
     @Override
     public List<String> availableKeys(String prefix) throws IOException {
         return new ArrayList<>();
     }
 
+    /**
+     * Get a list of available log files after the specified log file.
+     *
+     * @param lastSyncedFile The last synced log file, or null for all
+     * @param all Whether to include all log files
+     * @return List of log files
+     * @throws IOException If there's an error accessing the log files
+     */
     @Override
     public List<String> availableLogs(String lastSyncedFile, boolean all) throws IOException {
         debug(() -> log.debug("Getting available logs"));
@@ -226,6 +284,11 @@ public class UnderscoreBackupProvider implements IOIndex {
         return ret;
     }
 
+    /**
+     * Get the service manager instance.
+     *
+     * @return The service manager
+     */
     private synchronized ServiceManager getServiceManager() {
         if (serviceManager == null) {
             serviceManager = InstanceFactory.getInstance(ServiceManager.class);
@@ -233,6 +296,12 @@ public class UnderscoreBackupProvider implements IOIndex {
         return serviceManager;
     }
 
+    /**
+     * Check if a repository can be rebuilt from the available keys.
+     *
+     * @return True if rebuild is available, false otherwise
+     * @throws IOException If there's an error checking rebuild availability
+     */
     @Override
     public boolean rebuildAvailable() throws IOException {
         debug(() -> log.debug("Checking rebuild available"));
@@ -244,6 +313,14 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    /**
+     * Upload data to storage with a suggested key.
+     *
+     * @param suggestedKey The suggested key for the data
+     * @param data The data to upload
+     * @return The actual key used for the uploaded data
+     * @throws IOException If there's an error uploading the data
+     */
     @Override
     public String upload(String suggestedKey, byte[] data) throws IOException {
         String hash = Hash.hash(data);
@@ -295,6 +372,12 @@ public class UnderscoreBackupProvider implements IOIndex {
         return useKey;
     }
 
+    /**
+     * Normalize a key by removing leading slashes.
+     *
+     * @param suggestedKey The key to normalize
+     * @return The normalized key
+     */
     private String normalizeKey(String suggestedKey) {
         if (suggestedKey.startsWith("/")) {
             return suggestedKey.substring(1);
@@ -303,6 +386,13 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    /**
+     * Download data from storage using a key.
+     *
+     * @param key The key for the data to download
+     * @return The downloaded data
+     * @throws IOException If there's an error downloading the data
+     */
     @Override
     public byte[] download(String key) throws IOException {
         // This is needed because it is quite common to read this immediately after writing it and
@@ -354,6 +444,13 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    /**
+     * Check if data exists at the specified key.
+     *
+     * @param key The key to check
+     * @return True if data exists at the key, false otherwise
+     * @throws IOException If there's an error checking for existence
+     */
     @Override
     public boolean exists(String key) throws IOException {
         final String useKey = normalizeKey(key);
@@ -378,6 +475,12 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    /**
+     * Delete data at the specified key.
+     *
+     * @param key The key for the data to delete
+     * @throws IOException If there's an error deleting the data
+     */
     @Override
     public void delete(String key) throws IOException {
         final String useKey = normalizeKey(key);
@@ -386,6 +489,12 @@ public class UnderscoreBackupProvider implements IOIndex {
         debug(() -> log.debug("Deleted \"{}\"", key));
     }
 
+    /**
+     * Check if the provider credentials are valid.
+     *
+     * @param readonly Whether to check for read-only access
+     * @throws IOException If the credentials are invalid or there's an error checking
+     */
     @Override
     public void checkCredentials(boolean readonly) throws IOException {
         try {
@@ -425,6 +534,11 @@ public class UnderscoreBackupProvider implements IOIndex {
         }
     }
 
+    /**
+     * Get a unique cache key for this provider.
+     *
+     * @return The cache key
+     */
     @Override
     public String getCacheKey() {
         String ret = region + "." + getSourceId();

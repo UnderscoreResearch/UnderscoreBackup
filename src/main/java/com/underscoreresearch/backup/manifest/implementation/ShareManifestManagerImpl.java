@@ -33,6 +33,12 @@ import static com.underscoreresearch.backup.manifest.implementation.ManifestMana
 import static com.underscoreresearch.backup.utils.SerializationUtils.BACKUP_ACTIVATED_SHARE_WRITER;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * Implementation of the share manifest manager.
+ * This class manages backup manifests for shared data, including configuration and log files.
+ * It extends BaseManifestManagerImpl to provide share-specific functionality.
+ */
+
 @Slf4j
 public class ShareManifestManagerImpl extends BaseManifestManagerImpl implements ShareManifestManager {
     public static final String SHARE_CONFIG_FILE = "share.json";

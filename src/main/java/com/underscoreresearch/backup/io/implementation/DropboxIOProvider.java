@@ -31,8 +31,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.underscoreresearch.backup.io.implementation.DropboxIOProvider.DROPBOX_TYPE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
 
+/**
+ * IO provider implementation for Dropbox storage.
+ * Provides methods for storing and retrieving backup data from Dropbox.
+ */
 @IOPlugin(DROPBOX_TYPE)
 @Slf4j
 public class DropboxIOProvider implements IOIndex {
@@ -42,6 +46,11 @@ public class DropboxIOProvider implements IOIndex {
     private final String cacheKey;
     private final ConnectionLimiter limiter;
 
+    /**
+     * Constructor for DropboxIOProvider.
+     *
+     * @param destination The backup destination configuration
+     */
     public DropboxIOProvider(BackupDestination destination) {
         DbxRequestConfig requestConfig = new DbxRequestConfig("Underscore Backup");
         clientV2 = new DbxClientV2(requestConfig, new DbxCredential(destination.getPrincipal(), -1L,
@@ -59,6 +68,13 @@ public class DropboxIOProvider implements IOIndex {
         limiter = new ConnectionLimiter(destination);
     }
 
+    /**
+     * List all available keys with the specified prefix.
+     *
+     * @param prefix The prefix to filter keys by
+     * @return List of keys matching the prefix
+     * @throws IOException If there's an error accessing Dropbox
+     */
     @Override
     public List<String> availableKeys(String prefix) throws IOException {
 
@@ -75,12 +91,26 @@ public class DropboxIOProvider implements IOIndex {
         }
     }
 
+    /**
+     * Get the full path for a key in Dropbox.
+     *
+     * @param prefix The key prefix
+     * @return The full path in Dropbox
+     */
     private String getFullPath(String prefix) {
         if (prefix.startsWith("/"))
             return root + prefix.substring(1);
         return root + prefix;
     }
 
+    /**
+     * Upload data to Dropbox with a suggested key.
+     *
+     * @param key The suggested key for the data
+     * @param data The data to upload
+     * @return The actual key used for the uploaded data
+     * @throws IOException If there's an error uploading the data
+     */
     @Override
     public String upload(String key, byte[] data) throws IOException {
         try {
@@ -101,6 +131,13 @@ public class DropboxIOProvider implements IOIndex {
         return key;
     }
 
+    /**
+     * Download data from Dropbox using a key.
+     *
+     * @param key The key for the data to download
+     * @return The downloaded data
+     * @throws IOException If there's an error downloading the data
+     */
     @Override
     public byte[] download(String key) throws IOException {
         try {
@@ -116,11 +153,23 @@ public class DropboxIOProvider implements IOIndex {
         }
     }
 
+    /**
+     * Get a unique cache key for this provider.
+     *
+     * @return The cache key
+     */
     @Override
     public String getCacheKey() {
         return cacheKey;
     }
 
+    /**
+     * Check if data exists at the specified key.
+     *
+     * @param key The key to check
+     * @return True if data exists at the key, false otherwise
+     * @throws IOException If there's an error checking for existence
+     */
     @Override
     public boolean exists(String key) throws IOException {
         try {
@@ -147,6 +196,12 @@ public class DropboxIOProvider implements IOIndex {
         }
     }
 
+    /**
+     * Delete data at the specified key.
+     *
+     * @param key The key for the data to delete
+     * @throws IOException If there's an error deleting the data
+     */
     @Override
     public void delete(String key) throws IOException {
         try {
@@ -159,6 +214,12 @@ public class DropboxIOProvider implements IOIndex {
         }
     }
 
+    /**
+     * Check if the provider credentials are valid.
+     *
+     * @param readOnly Whether to check for read-only access
+     * @throws IOException If the credentials are invalid or there's an error checking
+     */
     @Override
     public void checkCredentials(boolean readOnly) throws IOException {
         try {
@@ -177,6 +238,13 @@ public class DropboxIOProvider implements IOIndex {
         }
     }
 
+    /**
+     * Check if the provider guarantees consistent writes.
+     * A consistent write means that once a write operation completes,
+     * the data is guaranteed to be durably stored.
+     *
+     * @return True if writes are consistent, false otherwise
+     */
     @Override
     public boolean hasConsistentWrites() {
         return true;

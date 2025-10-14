@@ -12,11 +12,22 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static com.underscoreresearch.backup.encryption.EncryptionIdentity.RANDOM;
+/**
+ * Implementation of LogFileRepository that stores log files on disk.
+ * Provides methods for adding, retrieving, and resetting log files.
+ */
 
 public class LogFileRepositoryImpl implements LogFileRepository {
     private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
     private final AccessLock accessLock;
 
+    /**
+     * Constructor for LogFileRepositoryImpl.
+     * Initializes the access lock and seeks to the end of the log file.
+     *
+     * @param filename The path to the log file
+     * @throws IOException if an I/O error occurs
+     */
     public LogFileRepositoryImpl(Path filename) throws IOException {
         this.accessLock = new AccessLock(filename.toString());
         this.accessLock.lock(true);
@@ -24,6 +35,13 @@ public class LogFileRepositoryImpl implements LogFileRepository {
         seekToEnd();
     }
 
+    /**
+     * Trims a list of log files to include only the relevant ones.
+     * Keeps files from the first incomplete file or the first file after a completed file.
+     *
+     * @param files The list of log files
+     * @return The trimmed list of log files
+     */
     public static List<String> trimLogFiles(List<String> files) {
         boolean completed = false;
         for (int i = files.size() - 1; i > 0; i--) {
@@ -37,10 +55,21 @@ public class LogFileRepositoryImpl implements LogFileRepository {
         return files;
     }
 
+    /**
+     * Closes the log file repository.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     public void close() throws IOException {
         this.accessLock.close();
     }
 
+    /**
+     * Adds a file to the log.
+     *
+     * @param file The file to add
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public synchronized void addFile(String file) throws IOException {
         byte[] bytes = file.getBytes(StandardCharsets.UTF_8);
@@ -50,6 +79,13 @@ public class LogFileRepositoryImpl implements LogFileRepository {
         }
     }
 
+    /**
+     * Resets the log with a new list of files.
+     * Truncates the log and adds all the files in the list.
+     *
+     * @param files The list of files
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public synchronized void resetFiles(List<String> files) throws IOException {
         accessLock.getLockedChannel().position(0);
@@ -59,6 +95,12 @@ public class LogFileRepositoryImpl implements LogFileRepository {
         accessLock.getLockedChannel().truncate(accessLock.getLockedChannel().position());
     }
 
+    /**
+     * Gets all files in the log.
+     *
+     * @return A list of all files in the log
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public synchronized List<String> getAllFiles() throws IOException {
         accessLock.getLockedChannel().position(0);
@@ -67,6 +109,13 @@ public class LogFileRepositoryImpl implements LogFileRepository {
         return br.lines().toList();
     }
 
+    /**
+     * Gets a random file from the log.
+     * Positions the file pointer at a random position and returns the next complete line.
+     *
+     * @return A random file from the log
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public synchronized String getRandomFile() throws IOException {
         try {
@@ -89,6 +138,11 @@ public class LogFileRepositoryImpl implements LogFileRepository {
         }
     }
 
+    /**
+     * Seeks to the end of the log file.
+     *
+     * @throws IOException if an I/O error occurs
+     */
     private void seekToEnd() throws IOException {
         accessLock.getLockedChannel().position(accessLock.getLockedChannel().size());
     }

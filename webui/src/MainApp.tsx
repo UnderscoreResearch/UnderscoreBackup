@@ -1,7 +1,7 @@
 import {ApplicationContext, useApplication} from "./utils/ApplicationContext";
 import {useActivity} from "./utils/ActivityContext";
 import {MainAppSkeleton} from "./components/MainAppSkeleton";
-import {Route, Routes, useLocation, useNavigate} from "react-router-dom";
+import {Route, Routes, useLocation, useNavigate} from "react-router";
 import React, {useEffect} from "react";
 import NavigationMenu from "./components/NavigationMenu";
 import {calculateDisplayState} from "./utils/DisplayState";

@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import DividerWithText from "../../3rdparty/react-js-cron-mui/components/DividerWithText";
 import Cron from "../../3rdparty/react-js-cron-mui";
-import {useNavigate} from "react-router-dom";
+import {useNavigate} from "react-router";
 import {useActivity} from "../../utils/ActivityContext";
 import Typography from "@mui/material/Typography";
 import LogTable from "../LogTable";
@@ -205,13 +205,13 @@ export default function ContentPage() {
                 :
                 <Paper sx={{p: 2}}>
                     <Grid container spacing={2} alignItems={"center"}>
-                        <Grid item md={12} sm={12} xs={12}>
+                        <Grid size={{md: 12, sm: 12, xs: 12}}>
                             <Typography>
                                 Adoption completed what would you like to do next?
                             </Typography>
                         </Grid>
-                        <Grid item md={4} sm={12} xs={12}/>
-                        <Grid item md={4} sm={6} xs={12} textAlign={"center"}>
+                        <Grid size={{md: 4, sm: 12, xs: 12}}/>
+                        <Grid size={{md: 4, sm: 6, xs: 12}} textAlign={"center"}>
                             <Button variant="outlined"
                                     fullWidth={true}
                                     disabled={state.set.roots.length === 0}
@@ -220,7 +220,7 @@ export default function ContentPage() {
                                 Restore data
                             </Button>
                         </Grid>
-                        <Grid item md={4} sm={6} xs={12} textAlign={"center"}>
+                        <Grid size={{md: 4, sm: 6, xs: 12}} textAlign={"center"}>
                             <Button variant="contained"
                                     fullWidth={true}
                                     disabled={state.set.roots.length === 0}
@@ -238,10 +238,10 @@ export default function ContentPage() {
     return <Stack spacing={2} style={{width: "100%"}}>
         <Paper sx={{p: 2}}>
             <Grid container spacing={2} alignItems={"center"}>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <DividerWithText>Contents</DividerWithText>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FileTreeView
                         fileFetcher={getLocalFiles}
                         backendState={appContext.backendState}
@@ -250,10 +250,10 @@ export default function ContentPage() {
                         onChange={fileSelectionChanged}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <DividerWithText>Schedule</DividerWithText>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{xs: 12}}>
                     <FormControlLabel control={<Checkbox
                         checked={state.set.schedule !== undefined}
                         onChange={(e) => setState({
@@ -282,8 +282,8 @@ export default function ContentPage() {
                     />} label="Continuously listen for file changes"/>
                 </Grid>
 
-                <Grid item md={4} sm={12} xs={12}/>
-                <Grid item md={4} sm={6} xs={12} textAlign={"center"}>
+                <Grid size={{md:4, sm:12, xs: 12}}/>
+                <Grid size={{md:4, sm:6, xs: 12}} textAlign={"center"}>
                     <Button variant="outlined"
                             fullWidth={true}
                             disabled={state.set.roots.length === 0 || appContext.isBusy()}
@@ -292,7 +292,7 @@ export default function ContentPage() {
                         Save and Exit
                     </Button>
                 </Grid>
-                <Grid item md={4} sm={6} xs={12} textAlign={"center"}>
+                <Grid size={{md:4, sm:6, xs: 12}} textAlign={"center"}>
                     <Button variant="contained"
                             fullWidth={true}
                             disabled={state.set.roots.length === 0 || appContext.isBusy()}

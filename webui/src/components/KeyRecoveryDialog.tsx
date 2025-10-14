@@ -128,7 +128,7 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                             </DialogContentText>
 
                             <Grid container spacing={2}>
-                                <Grid item xs={12}>
+                                <Grid size={{xs: 12}}>
                                     <TextField value={email} fullWidth={true} id="email"
                                                type={"email"}
                                                label={"Email"}
@@ -138,11 +138,11 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                                                    setEmail(event.target.value)
                                                }}/>
                                 </Grid>
-                                <Grid item xs={12}>
+                                <Grid size={{xs: 12}}>
                                     <PasswordStrengthBar password={password}
                                                          onChangeScore={(newScore) => setPasswordScore(newScore)}/>
                                 </Grid>
-                                <Grid item xs={12}>
+                                <Grid size={{xs: 12}}>
                                     <TextField value={password} fullWidth={true} id="password"
                                                type={"password"}
                                                required={true}
@@ -152,7 +152,7 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                                                    setPassword(event.target.value)
                                                }}/>
                                 </Grid>
-                                <Grid item xs={12}>
+                                <Grid size={{xs: 12}}>
                                     <TextField value={confirmPassword} fullWidth={true} id="confirmPassword"
                                                type={"password"}
                                                required={true}
@@ -205,7 +205,7 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                             </DialogContentText>
 
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={12}>
+                                <Grid size={{xs: 12, sm: 12}}>
                                     <TextField value={email} fullWidth={true} id="email"
                                                type={"email"}
                                                label={"Email"}
@@ -213,7 +213,7 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                                                    setEmail(event.target.value)
                                                }}/>
                                 </Grid>
-                                <Grid item xs={12} sm={8}>
+                                <Grid size={{xs: 12, sm: 8}}>
                                     <TextField value={password} fullWidth={true} id="password"
                                                type={"password"}
                                                label={"Password"}
@@ -221,7 +221,7 @@ export default function KeyRecoveryDialog(props: KeyRecoveryDialogProps) {
                                                    setPassword(event.target.value)
                                                }}/>
                                 </Grid>
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{xs: 12, sm: 4}}>
                                     <ServiceRegion region={region} onChange={(newRegion) => setRegion(newRegion)}/>
                                 </Grid>
                             </Grid>

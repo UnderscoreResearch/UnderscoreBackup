@@ -12,8 +12,12 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
 
+/**
+ * Base implementation for schedulers that manage concurrent tasks.
+ * Provides common functionality for task scheduling and execution.
+ */
 @Slf4j
 public class SchedulerImpl {
     private final int maximumConcurrency;
@@ -23,20 +27,40 @@ public class SchedulerImpl {
     @Getter(AccessLevel.PROTECTED)
     private boolean shutdown;
 
+    /**
+     * Constructor for SchedulerImpl.
+     *
+     * @param maximumConcurrency The maximum number of concurrent tasks
+     */
     public SchedulerImpl(int maximumConcurrency) {
         this.maximumConcurrency = maximumConcurrency;
         executor = Executors.newFixedThreadPool(maximumConcurrency,
                 new ThreadFactoryBuilder().setNameFormat(getClass().getSimpleName() + "-%d").build());
     }
 
+    /**
+     * Get the elapsed duration since the scheduler started.
+     *
+     * @return The elapsed duration
+     */
     protected Duration getDuration() {
         return stopwatch.elapsed();
     }
 
+    /**
+     * Reset the duration timer.
+     */
     protected void resetDuration() {
         stopwatch.reset();
     }
 
+    /**
+     * Schedule a task for execution.
+     * The task will be executed when a thread becomes available.
+     *
+     * @param runnable The task to execute
+     * @return True if the task was scheduled, false if the scheduler is shutting down
+     */
     protected boolean schedule(Runnable runnable) {
         synchronized (executingTasks) {
             if (shutdown) {
@@ -67,6 +91,10 @@ public class SchedulerImpl {
         return true;
     }
 
+    /**
+     * Shutdown the scheduler and wait for all tasks to complete.
+     * No new tasks will be accepted after this method is called.
+     */
     public void shutdown() {
         synchronized (executingTasks) {
             shutdown = true;
@@ -87,6 +115,10 @@ public class SchedulerImpl {
         }
     }
 
+    /**
+     * Wait for all scheduled tasks to complete.
+     * This method blocks until all tasks have finished.
+     */
     public void waitForCompletion() {
         synchronized (executingTasks) {
             while (!executingTasks.isEmpty()) {
@@ -100,13 +132,24 @@ public class SchedulerImpl {
         }
     }
 
+    /**
+     * Wrapper for tasks that handles cleanup after execution.
+     */
     private class SchedulerTask implements Runnable {
         private final Runnable runnable;
 
+        /**
+         * Constructor for SchedulerTask.
+         *
+         * @param runnable The task to wrap
+         */
         public SchedulerTask(Runnable runnable) {
             this.runnable = runnable;
         }
 
+        /**
+         * Execute the task and handle cleanup.
+         */
         @Override
         public void run() {
             try {

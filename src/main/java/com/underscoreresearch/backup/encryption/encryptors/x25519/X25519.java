@@ -67,6 +67,8 @@ public final class X25519 {
      *
      * <p>This does not affect security because, although we're throwing away entropy, a valid
      * implementation of computeSharedSecret should throw away the exact same bits anyway.
+     * 
+     * @return A 32-byte private key for use with X25519
      */
     @SuppressWarnings("NarrowingCompoundAssignment")
     public static synchronized byte[] generatePrivateKey() {

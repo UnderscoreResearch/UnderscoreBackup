@@ -14,7 +14,7 @@ import com.underscoreresearch.backup.model.BackupFilter;
 import com.underscoreresearch.backup.model.BackupFilterType;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupSetRoot;
-import com.underscoreresearch.backup.utils.state.MachineState;
+import com.underscoreresearch.backup.machinestate.MachineState;
 import org.hamcrest.core.Is;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

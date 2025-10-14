@@ -14,11 +14,11 @@ import com.underscoreresearch.backup.model.BackupFile;
 import com.underscoreresearch.backup.model.BackupPartialFile;
 import com.underscoreresearch.backup.model.BackupSet;
 import com.underscoreresearch.backup.model.BackupUpdatedFile;
-import com.underscoreresearch.backup.utils.ManualStatusLogger;
+import com.underscoreresearch.backup.utils.log.ManualStatusLogger;
 import com.underscoreresearch.backup.utils.ProcessingStoppedException;
-import com.underscoreresearch.backup.utils.StateLogger;
-import com.underscoreresearch.backup.utils.StatusLine;
-import com.underscoreresearch.backup.utils.state.MachineState;
+import com.underscoreresearch.backup.utils.log.StateLogger;
+import com.underscoreresearch.backup.utils.log.StatusLine;
+import com.underscoreresearch.backup.machinestate.MachineState;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -36,11 +36,16 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static com.underscoreresearch.backup.io.IOUtils.INTERNET_WAIT;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.lastProcessedPath;
-import static com.underscoreresearch.backup.utils.LogUtil.readableNumber;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.lastProcessedPath;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableNumber;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 
+/**
+ * Implementation of ContinuousBackup interface that monitors and backs up files as they change.
+ * Manages a background thread that processes updated files and adds them to the backup repository.
+ * Also implements ManualStatusLogger to provide status information to the UI.
+ */
 @Slf4j
 public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogger {
     private static final int MAX_PENDING_FILES = 100;
@@ -60,6 +65,14 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
     private Thread thread;
     private boolean pause;
 
+    /**
+     * Constructor for ContinuousBackupImpl.
+     *
+     * @param repository The metadata repository to use for file operations
+     * @param fileConsumer The file consumer to handle file uploads
+     * @param machineState The machine state to monitor system status
+     * @param configuration The backup configuration containing backup sets
+     */
     public ContinuousBackupImpl(MetadataRepository repository, FileConsumer fileConsumer,
                                 MachineState machineState, BackupConfiguration configuration) {
         this.repository = repository;
@@ -68,6 +81,10 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         this.sets = FileChangeWatcherImpl.getContinuousSets(configuration, null);
     }
 
+    /**
+     * Resets the status information.
+     * Implementation of ManualStatusLogger interface.
+     */
     @Override
     public void resetStatus() {
         processedFiles.set(0);
@@ -75,6 +92,12 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         lastProcessed = null;
     }
 
+    /**
+     * Gets the current status lines for display in the UI.
+     * Implementation of ManualStatusLogger interface.
+     *
+     * @return List of status lines
+     */
     @Override
     public List<StatusLine> status() {
         if (thread != null) {
@@ -94,6 +117,10 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         return new ArrayList<>();
     }
 
+    /**
+     * Starts the continuous backup process.
+     * Creates and starts a background thread to monitor and process file changes.
+     */
     public void start() {
         if (sets.isEmpty())
             return;
@@ -109,6 +136,10 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         lock.unlock();
     }
 
+    /**
+     * Shuts down the continuous backup process.
+     * Stops the background thread and waits for it to complete.
+     */
     public void shutdown() {
         lock.lock();
         shutdown = true;
@@ -126,6 +157,10 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         lock.unlock();
     }
 
+    /**
+     * Signals that files have changed and need to be processed.
+     * Wakes up the background thread to check for changes.
+     */
     public void signalChanged() {
         lock.lock();
         retry = true;
@@ -136,6 +171,13 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         }
     }
 
+    /**
+     * Processes an updated file.
+     * Checks if the file has been deleted, modified, or created and performs the appropriate action.
+     *
+     * @param updatedFile The updated file to process
+     * @throws IOException if an I/O error occurs
+     */
     private void processFile(BackupUpdatedFile updatedFile) throws IOException {
         BackupSet set = findSet(updatedFile.getPath());
         if (set == null) {
@@ -167,6 +209,12 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         repository.removeUpdatedFile(updatedFile);
     }
 
+    /**
+     * Finds the backup set that includes the specified path.
+     *
+     * @param path The path to check
+     * @return The backup set that includes the path, or null if no set includes it
+     */
     private BackupSet findSet(String path) {
         if (path.endsWith(PathNormalizer.PATH_SEPARATOR)) {
             for (BackupSet set : sets) {
@@ -184,6 +232,14 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         return null;
     }
 
+    /**
+     * Uploads a file to the backup repository.
+     *
+     * @param set The backup set to which the file belongs
+     * @param file The file to upload
+     * @param updatedFile The updated file information
+     * @throws IOException if an I/O error occurs
+     */
     private void uploadFile(BackupSet set, File file, BackupUpdatedFile updatedFile) throws IOException {
         BackupFile backupFile;
         try {
@@ -246,6 +302,14 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         });
     }
 
+    /**
+     * Adds a file to its parent directory in the backup repository.
+     * Creates parent directories if they do not exist.
+     *
+     * @param file The file to add
+     * @param isDirectory Whether the file is a directory
+     * @throws IOException if an I/O error occurs
+     */
     private void addFileToDirectory(File file, boolean isDirectory) throws IOException {
         File parentFile = file.getParentFile();
         String dirPath = PathNormalizer.normalizePath(parentFile.toString());
@@ -265,6 +329,13 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         }
     }
 
+    /**
+     * Removes a file from its parent directory in the backup repository.
+     * Removes empty parent directories if they become empty.
+     *
+     * @param file The file to remove
+     * @throws IOException if an I/O error occurs
+     */
     private void removeFileFromDirectory(File file) throws IOException {
         File parentFile = file.getParentFile();
         String dirPath = PathNormalizer.normalizePath(parentFile.toString());
@@ -282,13 +353,20 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
         }
     }
 
+    /**
+     * Exception thrown to interrupt scanning when too many files are pending.
+     */
     public static class InterruptedScan extends RuntimeException {
     }
 
+    /**
+     * Thread that scans for updated files and processes them.
+     */
     private class ScanThread implements Runnable {
-        public ScanThread() {
-        }
-
+        /**
+         * Main run method for the scan thread.
+         * Continuously checks for updated files and processes them.
+         */
         @Override
         public void run() {
             lock.lock();
@@ -378,6 +456,13 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
             }
         }
 
+        /**
+         * Flushes pending assignments and waits for the next file to process.
+         *
+         * @param nextFlush The time at which to flush pending assignments
+         * @param next The time at which the next file is scheduled to be processed
+         * @return true if assignments were flushed, false otherwise
+         */
         private boolean flushAndWait(long nextFlush, long next) {
             try {
                 if (nextFlush == 0 || (next > 0 && nextFlush > next)) {
@@ -398,6 +483,11 @@ public class ContinuousBackupImpl implements ContinuousBackup, ManualStatusLogge
             return false;
         }
 
+        /**
+         * Waits until the next scheduled time or until signaled.
+         *
+         * @param next The time to wait until
+         */
         private void waitNext(long next) {
             try {
                 if (next > 0) {

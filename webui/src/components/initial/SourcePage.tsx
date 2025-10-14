@@ -108,7 +108,7 @@ export default function SourcePage(props: SourcePageProps) {
         }}>
             {state.sourceList === undefined ?
                 <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
-                    <Grid item xs={12}>
+                    <Grid size={{xs: 12}}>
                         <Box textAlign={"center"}>
                             <CircularProgress/>
                         </Box>
@@ -139,7 +139,7 @@ export default function SourcePage(props: SourcePageProps) {
 
                     {state.sourceList.length > 0 &&
                         <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
-                            <Grid item xs={12}>
+                            <Grid size={{xs: 12}}>
                                 <FormControl>
                                     <RadioGroup row
                                                 onChange={(ignored, val) => setState({...state, type: val})}>
@@ -158,7 +158,7 @@ export default function SourcePage(props: SourcePageProps) {
                     <Collapse in={state.type == "adopt" && state.sourceList.length > 0}>
                         {state.type == "adopt" && state.sourceList.length > 0 &&
                             <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
-                                <Grid item xs={12}>
+                                <Grid size={{xs: 12}}>
                                     <Typography variant="h6" component="div" marginBottom={"16px"}>
                                         Existing backup sources
                                     </Typography>
@@ -169,7 +169,7 @@ export default function SourcePage(props: SourcePageProps) {
                             <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
                                 {state.sourceList.map(source =>
                                     <Fragment key={source.sourceId}>
-                                        <Grid item md={9} xs={12}>
+                                        <Grid size={{md: 9, xs: 12}}>
                                             <b>{source.name}</b>
 
                                             {(!source.destination || !source.key || !source.encryptionMode) ?
@@ -184,7 +184,7 @@ export default function SourcePage(props: SourcePageProps) {
                                                 </>
                                             }
                                         </Grid>
-                                        <Grid item md={3} xs={12}>
+                                        <Grid size={{md: 3, xs: 12}} >
                                             <Button fullWidth={true} disabled={state.busy} variant="contained"
                                                     id="adoptSource"
                                                     onClick={() => adoptSource(source.sourceId, source.name)}>
@@ -200,12 +200,12 @@ export default function SourcePage(props: SourcePageProps) {
                     <Collapse in={(state.type === "new" || state.sourceList.length === 0)}>
                         {(state.type === "new" || state.sourceList.length === 0) &&
                             <Grid container spacing={2} alignItems={"center"} marginTop={"8px"}>
-                                <Grid item xs={12}>
+                                <Grid size={{xs: 12}}>
                                     <Typography variant="h6" component="div" marginBottom={"16px"}>
                                         Create a new backup source
                                     </Typography>
                                 </Grid>
-                                <Grid item md={9} xs={12}>
+                                <Grid size={{md: 9, xs: 12}} >
                                     <TextField
                                         id={"sourceName"}
                                         fullWidth={true}
@@ -216,7 +216,7 @@ export default function SourcePage(props: SourcePageProps) {
                                         })}
                                     />
                                 </Grid>
-                                <Grid item md={3} xs={12}>
+                                <Grid size={{md: 3, xs: 12}} >
                                     <Button fullWidth={true} disabled={state.busy || !state.sourceName}
                                             variant="contained"
                                             id="newSource"

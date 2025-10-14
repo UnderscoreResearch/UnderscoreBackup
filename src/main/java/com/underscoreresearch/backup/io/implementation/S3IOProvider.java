@@ -37,9 +37,13 @@ import java.util.List;
 
 import static com.underscoreresearch.backup.file.PathNormalizer.PATH_SEPARATOR;
 import static com.underscoreresearch.backup.io.implementation.S3IOProvider.S3_TYPE;
-import static com.underscoreresearch.backup.utils.LogUtil.debug;
-import static com.underscoreresearch.backup.utils.LogUtil.readableSize;
+import static com.underscoreresearch.backup.utils.log.LogUtil.debug;
+import static com.underscoreresearch.backup.utils.log.LogUtil.readableSize;
 
+/**
+ * IO provider implementation for S3-compatible storage.
+ * Provides methods for storing and retrieving backup data from S3 buckets.
+ */
 @IOPlugin(S3_TYPE)
 @Slf4j
 public class S3IOProvider implements IOIndex, Closeable {
@@ -49,6 +53,11 @@ public class S3IOProvider implements IOIndex, Closeable {
     private final String bucket;
     private final ConnectionLimiter limiter;
 
+    /**
+     * Constructor for S3IOProvider.
+     *
+     * @param destination The backup destination configuration
+     */
     public S3IOProvider(BackupDestination destination) {
         AwsBasicCredentials credentials = AwsBasicCredentials.create(destination.getPrincipal(),
                 destination.getCredential());
@@ -85,6 +94,12 @@ public class S3IOProvider implements IOIndex, Closeable {
         limiter = new ConnectionLimiter(destination);
     }
 
+    /**
+     * Get the full S3 key for a relative key.
+     *
+     * @param key The relative key
+     * @return The full S3 key
+     */
     private String getRootedKey(String key) {
         if (!key.startsWith(PATH_SEPARATOR)) {
             return root + PATH_SEPARATOR + key;
@@ -93,6 +108,13 @@ public class S3IOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * List all available keys with the specified prefix.
+     *
+     * @param prefix The prefix to filter keys by
+     * @return List of keys matching the prefix
+     * @throws IOException If there's an error accessing S3
+     */
     @Override
     public List<String> availableKeys(String prefix) throws IOException {
         String rootedKey = getRootedKey(prefix);
@@ -139,6 +161,14 @@ public class S3IOProvider implements IOIndex, Closeable {
         return ret;
     }
 
+    /**
+     * Upload data to S3 with a suggested key.
+     *
+     * @param key The suggested key for the data
+     * @param data The data to upload
+     * @return The actual key used for the uploaded data
+     * @throws IOException If there's an error uploading the data
+     */
     @Override
     public String upload(String key, byte[] data) throws IOException {
         String rootedKey = getRootedKey(key);
@@ -166,6 +196,13 @@ public class S3IOProvider implements IOIndex, Closeable {
         return key;
     }
 
+    /**
+     * Download data from S3 using a key.
+     *
+     * @param key The key for the data to download
+     * @return The downloaded data
+     * @throws IOException If there's an error downloading the data
+     */
     @Override
     public byte[] download(String key) throws IOException {
         String rootedKey = getRootedKey(key);
@@ -190,11 +227,23 @@ public class S3IOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Get a unique cache key for this provider.
+     *
+     * @return The cache key
+     */
     @Override
     public String getCacheKey() {
         return bucket + PATH_SEPARATOR + root;
     }
 
+    /**
+     * Check if data exists at the specified key.
+     *
+     * @param key The key to check
+     * @return True if data exists at the key, false otherwise
+     * @throws IOException If there's an error checking for existence
+     */
     @Override
     public boolean exists(String key) throws IOException {
         String rootedKey = getRootedKey(key);
@@ -220,6 +269,12 @@ public class S3IOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Delete data at the specified key.
+     *
+     * @param key The key for the data to delete
+     * @throws IOException If there's an error deleting the data
+     */
     @Override
     public void delete(String key) throws IOException {
         String rootedKey = getRootedKey(key);
@@ -243,6 +298,12 @@ public class S3IOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Check if the provider credentials are valid.
+     *
+     * @param readonly Whether to check for read-only access
+     * @throws IOException If the credentials are invalid or there's an error checking
+     */
     @Override
     public void checkCredentials(boolean readonly) throws IOException {
         ListObjectsV2Request initialRequest = ListObjectsV2Request.builder()
@@ -262,6 +323,11 @@ public class S3IOProvider implements IOIndex, Closeable {
         }
     }
 
+    /**
+     * Close the S3 client and release resources.
+     *
+     * @throws IOException If there's an error closing the client
+     */
     @Override
     public void close() throws IOException {
         client.close();

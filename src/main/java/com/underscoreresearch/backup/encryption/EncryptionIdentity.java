@@ -35,6 +35,11 @@ import java.util.stream.Collectors;
 import static com.underscoreresearch.backup.encryption.encryptors.BaseAesEncryptor.applyKeyData;
 import static com.underscoreresearch.backup.utils.SerializationUtils.MAPPER;
 
+/**
+ * Manages encryption identity including public and private keys for backup encryption.
+ * This class handles key generation, encryption/decryption of data, and management of
+ * multiple identity keys for sharing and additional purposes.
+ */
 @NoArgsConstructor
 @Getter
 @Slf4j
@@ -71,6 +76,20 @@ public class EncryptionIdentity {
     @JsonIgnore
     private LegacyEncryptionKey legacyKey;
 
+    /**
+     * Constructor with JSON properties.
+     * Creates an EncryptionIdentity from serialized properties.
+     *
+     * @param algorithm The encryption algorithm used
+     * @param salt Base64 encoded salt for password derivation
+     * @param keyData Base64 encoded key data
+     * @param privateHash Base64 encoded hash of the private key
+     * @param keys The primary identity keys
+     * @param additionalKeys List of additional identity keys
+     * @param sharingKey The sharing identity keys
+     * @param blockHashSalt Base64 encoded salt for block hashing
+     * @param blockHashSaltEncrypted Encrypted version of the block hash salt
+     */
     public EncryptionIdentity(
             @JsonProperty("algorithm") String algorithm,
             @JsonProperty("salt") String salt,
@@ -99,10 +118,25 @@ public class EncryptionIdentity {
         this.blockHashSaltEncrypted = blockHashSaltEncrypted;
     }
 
+    /**
+     * Constructor from legacy encryption key.
+     * Creates an EncryptionIdentity using a password and legacy private key.
+     *
+     * @param password The password to protect the private key
+     * @param privateKey The legacy private key
+     * @throws GeneralSecurityException If there's an error during key conversion
+     */
     public EncryptionIdentity(String password, LegacyEncryptionKey.PrivateKey privateKey) throws GeneralSecurityException {
         populateFromLegacyPrivateKey(password, privateKey);
     }
 
+    /**
+     * Constructor from legacy encryption key.
+     * Creates an EncryptionIdentity from a legacy key format.
+     *
+     * @param legacyKey The legacy encryption key
+     * @throws GeneralSecurityException If there's an error during key conversion
+     */
     public EncryptionIdentity(LegacyEncryptionKey legacyKey) throws GeneralSecurityException {
         this.legacyKey = legacyKey;
         this.algorithm = legacyKey.getAlgorithm();
@@ -131,6 +165,14 @@ public class EncryptionIdentity {
             blockHashSalt = Hash.decodeBytes64(legacyKey.getBlockHashSalt());
     }
 
+    /**
+     * Generates a new encryption identity with a password.
+     * Creates a new identity with fresh keys protected by the provided password.
+     *
+     * @param password The password to protect the private key
+     * @return A new EncryptionIdentity instance
+     * @throws GeneralSecurityException If there's an error during key generation
+     */
     public static EncryptionIdentity generateKeyWithPassword(String password) throws GeneralSecurityException {
         EncryptionIdentity ret = new EncryptionIdentity();
         ret.generatePrivateIdentity(password, null);
@@ -147,6 +189,14 @@ public class EncryptionIdentity {
         return ret;
     }
 
+    /**
+     * Restores an encryption identity from a serialized string.
+     * Attempts to parse the string as a modern identity first, then as a legacy key.
+     *
+     * @param str The serialized encryption identity
+     * @return The restored EncryptionIdentity instance
+     * @throws GeneralSecurityException If there's an error during deserialization
+     */
     public static EncryptionIdentity restoreFromString(String str) throws GeneralSecurityException {
         try {
             EncryptionIdentity identity = IDENTITY_READER.readValue(str);
@@ -162,6 +212,16 @@ public class EncryptionIdentity {
         }
     }
 
+    /**
+     * Derives a key from a password using the specified algorithm.
+     * Currently supports ARGON2 algorithm for password-based key derivation.
+     *
+     * @param algorithm The algorithm to use for key derivation
+     * @param password The password to derive the key from
+     * @param saltData The salt to use in the derivation process
+     * @return The derived key bytes
+     * @throws InvalidKeySpecException If the algorithm is not supported
+     */
     protected static byte[] getPasswordDerivative(String algorithm, String password, byte[] saltData) throws InvalidKeySpecException {
         if (CURRENT_ALGORITHM.equals(algorithm)) {
             Argon2Advanced argon2 = Argon2Factory.createAdvanced();
@@ -173,12 +233,29 @@ public class EncryptionIdentity {
         throw new InvalidKeySpecException();
     }
 
+    /**
+     * Creates an EncryptionIdentity with the specified identity keys.
+     * This is a factory method for creating an identity with pre-existing keys.
+     *
+     * @param keys The identity keys to use
+     * @return A new EncryptionIdentity instance with the specified keys
+     */
     public static EncryptionIdentity withIdentityKeys(IdentityKeys keys) {
         EncryptionIdentity ret = new EncryptionIdentity();
         ret.primaryKeys = keys;
         return ret;
     }
 
+    /**
+     * Changes the password used to encrypt the private key.
+     * Optionally generates a new main key pair.
+     *
+     * @param existingPassword The current password
+     * @param newPassword The new password to use
+     * @param newMainKey Whether to generate a new main key pair
+     * @return A new EncryptionIdentity with the updated password
+     * @throws GeneralSecurityException If there's an error during key re-encryption
+     */
     public EncryptionIdentity changeEncryptionPassword(String existingPassword, String newPassword, boolean newMainKey)
             throws GeneralSecurityException {
         PrivateIdentity existingPI = getPrivateIdentity(existingPassword);
@@ -208,6 +285,14 @@ public class EncryptionIdentity {
         return newIdentity;
     }
 
+    /**
+     * Populates this identity from a legacy private key.
+     * Converts the legacy key format to the current format.
+     *
+     * @param password The password to protect the private key
+     * @param privateKey The legacy private key
+     * @throws GeneralSecurityException If there's an error during key conversion
+     */
     private void populateFromLegacyPrivateKey(String password, LegacyEncryptionKey.PrivateKey privateKey) throws GeneralSecurityException {
         generatePrivateIdentity(password, privateKey.getPrivateKey());
 
@@ -257,6 +342,12 @@ public class EncryptionIdentity {
         }
     }
 
+    /**
+     * Checks if the keys need to be unpacked.
+     * Returns true if the identity is using legacy keys or if the primary keys need unpacking.
+     *
+     * @return True if keys need to be unpacked, false otherwise
+     */
     @JsonIgnore
     public boolean needKeyUnpack() {
         if (legacyKey != null) {
@@ -268,6 +359,14 @@ public class EncryptionIdentity {
         return false;
     }
 
+    /**
+     * Writes the encryption key to an output stream in the specified format.
+     * Supports different formats for different use cases.
+     *
+     * @param format The format to write the key in
+     * @param stream The output stream to write to
+     * @throws IOException If there's an error writing to the stream
+     */
     public void writeKey(KeyFormat format, OutputStream stream) throws IOException {
         if (legacyKey != null) {
             LEGACY_KEY_WRITER.writeValue(stream, switch (format) {
@@ -284,6 +383,13 @@ public class EncryptionIdentity {
         }
     }
 
+    /**
+     * Unpacks encrypted keys using the provided private identity.
+     * Decrypts all keys in the identity using the private identity.
+     *
+     * @param privateIdentity The private identity to use for unpacking
+     * @throws GeneralSecurityException If there's an error during key decryption
+     */
     public void unpackKeys(PrivateIdentity privateIdentity) throws GeneralSecurityException {
         primaryKeys.unpackKeys(privateIdentity);
         if (additionalKeys != null) {
@@ -299,6 +405,13 @@ public class EncryptionIdentity {
         }
     }
 
+    /**
+     * Updates the encrypted block hash salt.
+     * Encrypts the block hash salt using the provided private identity.
+     *
+     * @param privateIdentity The private identity to use for encryption
+     * @throws GeneralSecurityException If there's an error during encryption
+     */
     private void updateBlockHashSaltEncryption(PrivateIdentity privateIdentity) throws GeneralSecurityException {
         if (blockHashSalt != null) {
             blockHashSaltEncrypted = Hash.encodeBytes64(privateIdentity.encryptKeyData(blockHashSalt));
@@ -307,6 +420,14 @@ public class EncryptionIdentity {
         }
     }
 
+    /**
+     * Generates a private identity from a password.
+     * Optionally uses an existing private key or generates a new one.
+     *
+     * @param password The password to protect the private key
+     * @param existingPrivateKey The existing private key to use, or null to generate a new one
+     * @throws GeneralSecurityException If there's an error during key generation
+     */
     protected void generatePrivateIdentity(String password, byte[] existingPrivateKey) throws GeneralSecurityException {
         algorithm = CURRENT_ALGORITHM;
 
@@ -332,6 +453,11 @@ public class EncryptionIdentity {
         privateHash = hashSha3.getHashBytes();
     }
 
+    /**
+     * Gets the Base64 encoded salt.
+     *
+     * @return The Base64 encoded salt, or null if not set
+     */
     @JsonProperty("salt")
     public String getSalt() {
         if (salt != null)
@@ -339,6 +465,11 @@ public class EncryptionIdentity {
         return null;
     }
 
+    /**
+     * Gets the Base64 encoded key data.
+     *
+     * @return The Base64 encoded key data, or null if not set
+     */
     @JsonProperty("keyData")
     public String getKeyData() {
         if (keyData != null)
@@ -346,6 +477,12 @@ public class EncryptionIdentity {
         return null;
     }
 
+    /**
+     * Creates a version of this identity suitable for upload.
+     * Includes only the necessary information for upload purposes.
+     *
+     * @return A new EncryptionIdentity with only the upload-relevant information
+     */
     private EncryptionIdentity uploadKey() {
         EncryptionIdentity ret = serviceKey();
         if (additionalKeys != null) {
@@ -358,6 +495,12 @@ public class EncryptionIdentity {
         return ret;
     }
 
+    /**
+     * Creates a version of this identity with only password-related information.
+     * Excludes all key information.
+     *
+     * @return A new EncryptionIdentity with only password-related information
+     */
     private EncryptionIdentity onlyPassword() {
         EncryptionIdentity ret = new EncryptionIdentity();
         ret.algorithm = algorithm;
@@ -367,12 +510,26 @@ public class EncryptionIdentity {
         return ret;
     }
 
+    /**
+     * Creates a version of this identity suitable for service use.
+     * Includes only the necessary information for service purposes.
+     *
+     * @return A new EncryptionIdentity with only the service-relevant information
+     */
     private EncryptionIdentity serviceKey() {
         EncryptionIdentity ret = onlyPassword();
         ret.primaryKeys = primaryKeys.withoutPublicKeys();
         return ret;
     }
 
+    /**
+     * Gets the private identity for the given password.
+     * If using a legacy key, converts it to the current format first.
+     *
+     * @param password The password to use
+     * @return The private identity
+     * @throws GeneralSecurityException If the password is incorrect or there's an error during key processing
+     */
     @JsonIgnore
     public synchronized PrivateIdentity getPrivateIdentity(String password) throws GeneralSecurityException {
         if (legacyKey != null) {
@@ -401,6 +558,11 @@ public class EncryptionIdentity {
         return cachedPrivateIdentity;
     }
 
+    /**
+     * Gets the Base64 encoded hash of the private key.
+     *
+     * @return The Base64 encoded private key hash, or null if not set
+     */
     @JsonProperty("privateHash")
     public String getPrivateHash() {
         if (privateHash != null)
@@ -408,6 +570,11 @@ public class EncryptionIdentity {
         return null;
     }
 
+    /**
+     * Gets the Base64 encoded block hash salt.
+     *
+     * @return The Base64 encoded block hash salt, or null if not set
+     */
     @JsonProperty("blockHashSalt")
     public String getBlockHashSalt() {
         if (blockHashSalt != null)
@@ -415,11 +582,24 @@ public class EncryptionIdentity {
         return null;
     }
 
+    /**
+     * Gets the raw block hash salt bytes.
+     *
+     * @return The block hash salt bytes, or null if not set
+     */
     @JsonIgnore
     public byte[] getBlockHashSaltBytes() {
         return blockHashSalt;
     }
 
+    /**
+     * Updates the block hash salt.
+     * Decodes the provided salt and updates the encrypted version.
+     *
+     * @param salt The Base64 encoded salt
+     * @param privateIdentity The private identity to use for encryption
+     * @throws GeneralSecurityException If there's an error during encryption
+     */
     @JsonProperty("blockHashSalt")
     public void updateBlockHashSalt(String salt, PrivateIdentity privateIdentity) throws GeneralSecurityException {
         if (salt != null)
@@ -429,6 +609,14 @@ public class EncryptionIdentity {
         updateBlockHashSaltEncryption(privateIdentity);
     }
 
+    /**
+     * Gets the identity keys for a public identity.
+     * Searches through sharing keys and additional keys to find a match.
+     *
+     * @param publicKey The public identity to find keys for
+     * @return The matching identity keys
+     * @throws IndexOutOfBoundsException If no matching keys are found
+     */
     public IdentityKeys getIdentityKeysForPublicIdentity(IdentityKeys publicKey) {
         if (sharingKeys != null) {
             if (sharingKeys.getPublicKeyHash().equals(publicKey.getPublicKeyHash())) {
@@ -445,6 +633,13 @@ public class EncryptionIdentity {
         throw new IndexOutOfBoundsException("Could not find key for public identity");
     }
 
+    /**
+     * Gets the identity key for a hash.
+     * Searches through additional keys to find a match, or creates a new key if not found.
+     *
+     * @param hash The hash to find the key for
+     * @return The matching identity key, or a new key if not found
+     */
     public IdentityKeys getIdentityKeyForHash(String hash) {
         if (additionalKeys != null) {
             for (IdentityKeys keys : additionalKeys) {
@@ -467,17 +662,38 @@ public class EncryptionIdentity {
         return key;
     }
 
+    /**
+     * Gets the private keys for the given password.
+     * Retrieves the private identity and then gets the private keys from the primary keys.
+     *
+     * @param password The password to use
+     * @return The private keys
+     * @throws GeneralSecurityException If the password is incorrect or there's an error during key processing
+     */
     public IdentityKeys.PrivateKeys getPrivateKeys(String password) throws GeneralSecurityException {
         PrivateIdentity pi = getPrivateIdentity(password);
         return getPrimaryKeys().getPrivateKeys(pi);
     }
 
+    /**
+     * Adds the block hash salt to a hash calculation.
+     * If the block hash salt is set, adds it to the hash.
+     *
+     * @param hashCalc The hash calculation to add the salt to
+     */
     public void addBlockHashSalt(Hash hashCalc) {
         if (blockHashSalt != null) {
             hashCalc.addBytes(blockHashSalt);
         }
     }
 
+    /**
+     * Copies additional data from another encryption identity.
+     * Copies primary keys, additional keys, sharing keys, and block hash salt.
+     *
+     * @param sourceKey The source encryption identity to copy from
+     * @throws GeneralSecurityException If the private keys don't match
+     */
     public void copyAdditionalData(EncryptionIdentity sourceKey) throws GeneralSecurityException {
         if (!Arrays.equals(privateHash, sourceKey.privateHash))
             throw new GeneralSecurityException("Can not copy properties without already having matching private keys");
@@ -489,32 +705,74 @@ public class EncryptionIdentity {
         blockHashSaltEncrypted = sourceKey.blockHashSaltEncrypted;
     }
 
+    /**
+     * Creates a copy of this identity with a different public primary key.
+     * Uses the identity keys for the provided public key as the primary keys.
+     *
+     * @param publicPrimaryKeys The public primary keys to use
+     * @return A new EncryptionIdentity with the specified primary keys
+     */
     public EncryptionIdentity copyWithPublicPrimaryKey(IdentityKeys publicPrimaryKeys) {
         EncryptionIdentity ret = onlyPassword();
         ret.primaryKeys = getIdentityKeysForPublicIdentity(publicPrimaryKeys);
         return ret;
     }
 
+    /**
+     * Enum defining different formats for key serialization.
+     */
     public enum KeyFormat {
+        /**
+         * Full public key format
+         */
         PUBLIC,
+        /**
+         * Format suitable for uploading to a service
+         */
         UPLOAD,
+        /**
+         * Format suitable for service use
+         */
         SERVICE
     }
 
+    /**
+     * Inner class representing a private identity.
+     * Contains the private key and methods for encrypting and decrypting data.
+     */
     public class PrivateIdentity {
         private final byte[] privateKey;
         @Getter(AccessLevel.PROTECTED)
         private final String password;
 
+        /**
+         * Constructor for PrivateIdentity.
+         *
+         * @param password The password used to derive the private key
+         * @param privateKey The private key bytes
+         */
         public PrivateIdentity(String password, byte[] privateKey) {
             this.privateKey = privateKey;
             this.password = password;
         }
 
+        /**
+         * Gets the parent encryption identity.
+         *
+         * @return The parent encryption identity
+         */
         public EncryptionIdentity getEncryptionIdentity() {
             return EncryptionIdentity.this;
         }
 
+        /**
+         * Encrypts data using the private key.
+         * Uses AES-GCM encryption with a random IV.
+         *
+         * @param data The data to encrypt
+         * @return The encrypted data
+         * @throws GeneralSecurityException If there's an error during encryption
+         */
         public byte[] encryptKeyData(byte[] data) throws GeneralSecurityException {
             SecretKeySpec secretKeySpec = new SecretKeySpec(privateKey, KEY_ALGORITHM);
             Cipher cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
@@ -532,6 +790,14 @@ public class EncryptionIdentity {
             return ret;
         }
 
+        /**
+         * Decrypts data using the private key.
+         * Uses AES-GCM decryption with the IV from the encrypted data.
+         *
+         * @param data The data to decrypt
+         * @return The decrypted data
+         * @throws GeneralSecurityException If there's an error during decryption
+         */
         public byte[] decryptKeyData(byte[] data) throws GeneralSecurityException {
             SecretKeySpec secretKeySpec = new SecretKeySpec(privateKey, KEY_ALGORITHM);
             Cipher cipher = Cipher.getInstance(ENCRYPTION_ALGORITHM);
